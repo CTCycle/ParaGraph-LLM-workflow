@@ -1,206 +1,81 @@
 # Engineering and Python Standards
 
-Mandatory standards for Python 3.14+ projects, covering backend services, FastAPI apps, and ML pipelines.
+Standards for Python 3.14+ code in ParaGraph backend services.
 
 ---
 
-## 1. Python version and scope
+## 1. Version and Scope
 
-- Target Python 3.14+
-- Applies to:
-  - Core libraries and services
-  - FastAPI backends
-  - ML and data pipelines
-  - Tests, unless stated otherwise
+- Target Python `>=3.14`.
+- Applies to FastAPI routes, services, repositories, scripts, and tests.
 
 ---
 
-## 2. Typing and correctness
+## 2. Typing and APIs
 
-### 2.1 Type rules
-
-1. Use PEP 695 type parameters when applicable
-2. Use built-in generics:
-   - `list`, `dict`, `tuple`
-   - Do not use `List`, `Dict`, `Tuple`
-3. Use `|` unions, not `Optional` or `Union`
-   - Example: `str | None`
-4. Type hint:
-   - All public APIs
-   - Non-trivial internal logic
-5. Import `Callable` from `collections.abc` only
-
-### 2.2 Enforcement
-
-- Static typing is mandatory but not a test replacement
-- Enforce with mypy in CI
+1. Use built-in generics (`list`, `dict`, `tuple`) and `|` unions.
+2. Type all public functions and non-trivial internal helpers.
+3. Prefer `collections.abc` imports for protocol types (`Callable`, `Iterable`, etc.).
+4. Keep Pydantic schemas in `ParaGraph/server/entities` as the API contract source.
 
 ---
 
-## 3. Imports
+## 3. Project Structure
 
-1. Imports must be top-level only
-2. No conditional imports
-3. Always use `collections.abc.Callable`
-4. Use Keras 3.x directly, do not import TensorFlow via Keras
-
----
-
-## 4. Code style and formatting
-
-### 4.1 Tooling
-
-- Style: PEP 8
-- Formatter: Black or Ruff formatter
-- Linter: Ruff
-- Tests: pytest
-
-### 4.2 Explicit rules
-
-1. Use `os` for paths, not `pathlib`
-2. Use `glob` only when justified
-3. No leading underscores on variables, methods, or attributes
-4. Use `self.name`, never `self._name`
-5. Module filenames must be single words
+1. Keep HTTP concerns in `server/routes`.
+2. Keep business/workflow logic in `server/services`.
+3. Keep data persistence logic in `server/repositories`.
+4. Keep app wiring in `server/app.py` only.
 
 ---
 
-## 5. Comments, docstrings, separators
+## 4. FastAPI Rules
 
-### 5.1 Comments
-
-- Minimal, factual, and necessary only
-
-### 5.2 Docstrings
-
-- Written only when explicitly requested
-- Required sections:
-  1. Summary
-  2. Arguments
-  3. Returns
-
-### 5.3 Separators
-
-- Classes: 79 `#`
-- Functions and methods: `#` + 77 `-`
-- No separator above `__init__`
+1. Split endpoints into routers and register them in `app.py`.
+2. Use Pydantic models for request/response bodies.
+3. Raise `HTTPException` with clear details for client errors.
+4. Keep endpoints thin; delegate logic to services.
 
 ---
 
-## 6. Code structure and design
+## 5. Background Jobs
 
-### 6.1 Principles
-
-1. Single Responsibility Principle everywhere
-2. Group related logic into cohesive modules
-3. No nested class or function definitions
-4. Separate logic from execution
-5. Avoid over-abstraction
-6. Prefer dependency injection or inversion of control
-
-### 6.2 Object creation
-
-- Use Factory, Builder, or Prototype when construction is complex
+1. Do not block request handlers for long-running work.
+2. Use ParaGraph `JobManager` (`ParaGraph.server.services.jobs`).
+3. Design runners for cooperative cancellation via `job_manager.should_stop(job_id)`.
+4. Expose polling and cancellation endpoints for every long-running route.
 
 ---
 
-## 7. Architecture by system type
+## 6. Persistence Rules
 
-### 7.1 Frontend and UI
+1. Keep schema definitions under `repositories/schemas`.
+2. Keep backend-specific logic in `repositories/database/sqlite.py` and `postgres.py`.
+3. Keep database mode selection environment-driven (`DB_EMBEDDED`, DB settings).
 
-- MVC or MVVM
-- Clear separation of rendering, state, and logic
-- Thin controllers and views
+---
 
-### 7.2 Backend services
+## 7. Code Style
 
-- Service Layer + Repository
-- Business logic in services or domain classes
-- Data access only via repositories or gateways
-
-### 7.3 ML and data pipelines
-
-- Pipeline, Factory, or Builder patterns
-- Preprocessing, training, evaluation must be:
-  - modular
-  - reproducible
-  - versioned
-
-### 7.4 Event-driven systems
-
-- Observer, Mediator, or Pub/Sub patterns
-
-### 7.5 Plugins and configuration
-
-- Strategy, Command, or Decorator patterns
-
-### 7.6 Distributed systems
-
-- CQRS, Saga, or Event Sourcing
-- Use only when complexity justifies it
+1. Follow PEP 8 and keep modules cohesive.
+2. Prefer simple, explicit logic over premature abstractions.
+3. Add comments only when behavior is not self-evident.
+4. Keep logging structured and useful for debugging.
 
 ---
 
 ## 8. Testing
 
-### 8.1 General rules
-
-1. Arrange–Act–Assert
-2. Readable and isolated tests
-3. Mock dependencies for unit tests
-4. Cover normal, edge, and failure cases
-
-### 8.2 Test types
-
-- Unit
-- Integration
-- Contract
-- End-to-end
+1. Use pytest for backend coverage.
+2. Keep tests deterministic (no real LLM/network calls in unit tests).
+3. Reuse shared fixtures in `tests/conftest.py` for job-state isolation.
+4. Cover happy path, failure path, and cancellation path for job-backed services.
 
 ---
 
-## 9. FastAPI standards
+## 9. Tooling Summary
 
-### 9.1 Application structure
-
-1. Split endpoints into routers
-2. Compose routers in the app
-3. Keep modules cohesive and scalable
-
-### 9.2 Dependency injection
-
-- Centralize auth, authorization, DB sessions, and request-scoped resources
-
-### 9.3 Validation and schemas
-
-- Use Pydantic models and type hints
-- Avoid manual validation
-- Let schemas drive OpenAPI generation
-
-### 9.4 Async usage
-
-1. Use `async` only with fully non-blocking stacks
-2. Never block inside async endpoints
-3. Use async-compatible libraries if async is chosen
-4. Prefer sync endpoints when async adds no value
-
-### 9.5 Background work
-
-1. Do not run CPU-heavy tasks in request handlers
-2. Use ADSMOD `JobManager` (`ADSMOD.server.services.jobs`) for long-running jobs
-3. Use FastAPI `BackgroundTasks` only for lightweight post-response tasks
-
-### 9.6 Testing FastAPI apps
-
-1. Override dependencies in tests
-2. Use consistent app initialization
-3. Isolate shared state to avoid flaky tests
-
----
-
-## 10. Tooling summary
-
-- Formatter: Black or Ruff formatter
-- Linter: Ruff
-- Type checker: mypy
-- Test runner: pytest
+- Formatter: Black or Ruff formatter.
+- Linter: Ruff.
+- Type checker: mypy.
+- Test runner: pytest.

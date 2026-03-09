@@ -1,113 +1,146 @@
-# Generic Repository Bootstrap Template
+# ParaGraph Easy Retrieval
 
-This folder is a topic-agnostic bootstrap distilled from the current repository.  
-It preserves the same core strategy:
+ParaGraph is a local-first workflow builder for retrieval and LLM orchestration. It provides a FastAPI backend and a React workflow canvas where users compose node graphs (Prompt -> LLM -> Output), validate them, and run them as background jobs.
 
-- Monorepo layout with `ParaGraph/` as the main package.
-- Client/server separation (`ParaGraph/client` and `ParaGraph/server`).
-- Dual runtime modes: local launcher and cloud Docker deployment.
-- Environment-driven configuration (`ParaGraph/settings/.env` + profile examples).
-- Embedded SQLite or external PostgreSQL database wiring.
-- Job-based backend workflows with polling endpoints.
-- Matching test/tooling layout (`tests/unit`, `tests/e2e`, `tests/backend/verification`).
+Current state: workflow graph validation/execution is the most complete feature. Preparation, training, validation, and inference routes are present but still partially placeholder implementations.
 
-## 1. Structure
+## 1. Project Structure
 
 ```text
-template/
-- ParaGraph/
-  - client/                 # React + Vite + TypeScript frontend
-  - server/                 # FastAPI backend (routes/services/repositories)
-  - settings/               # Active env + local/cloud env templates
-  - scripts/                # Utility scripts (database initialization)
-  - resources/              # Runtime artifacts (logs, checkpoints, models, etc.)
-  - start_on_windows.bat    # Local launcher strategy
-  - setup_and_maintenance.bat
-- docker/
-  - backend.Dockerfile
-  - frontend.Dockerfile
-  - nginx/default.conf
-- tests/
-  - unit/
-  - e2e/
-  - backend/verification/
-- docker-compose.yml
-- pyproject.toml
-- .gitignore
-- .dockerignore
+ParaGraph/
+- client/                   # React + TypeScript + Vite frontend
+- server/                   # FastAPI backend (routes/services/repositories)
+- scripts/                  # Utility scripts (database initialization)
+- settings/                 # .env profiles + configurations.json
+- resources/                # logs, checkpoints, database, portable runtimes
+- start_on_windows.bat      # Windows launcher and runtime bootstrap
+- setup_and_maintenance.bat # Maintenance menu
+
+docker/
+- backend.Dockerfile
+- frontend.Dockerfile
+- nginx/default.conf
+
+tests/
+- conftest.py
+- run_tests.bat
+- unit/server/...           # Backend unit/API tests
 ```
 
-## 2. Architecture and Layering
+## 2. Architecture Overview
 
-- `ParaGraph/server/app.py` composes FastAPI and registers route modules.
-- `ParaGraph/server/routes/` exposes HTTP endpoints and orchestrates services.
-- `ParaGraph/server/services/` contains workflow/service logic (including job orchestration).
-- `ParaGraph/server/repositories/` contains persistence adapters (SQLite/PostgreSQL), schema definitions, and data serialization helpers.
-- `ParaGraph/server/configurations/` loads JSON + env settings and applies runtime overrides.
-- `ParaGraph/client/src/pages/` holds route pages.
-- `ParaGraph/client/src/components/` holds reusable UI blocks.
-- `ParaGraph/client/src/services/` holds API client functions and polling helpers.
-- `ParaGraph/client/src/AppStateContext.tsx` centralizes page-level state.
+- Backend entrypoint: `ParaGraph/server/app.py`
+- Active routers:
+  - `/upload`
+  - `/preparation`
+  - `/training`
+  - `/validation`
+  - `/inference`
+  - `/workflow`
+- Workflow service (`server/services/workflow/executor.py`) provides:
+  - node catalog
+  - graph validation (topology, type compatibility, category rules)
+  - execution with LLM provider dispatch
+- Long-running work uses `server/services/jobs.py` with polling/cancellation endpoints.
+- Frontend workflow UI is implemented in `client/src/pages/WorkflowPage.tsx` using `@xyflow/react`.
 
-## 3. Naming and Conventions
+## 3. Installation
 
-- Keep framework-neutral, use-case-neutral names in shared layers:
-  - `Dataset*`, `Training*`, `Inference*`, `Validation*` can be renamed to your domain workflows if needed.
-- Place domain logic only in:
-  - backend services (`ParaGraph/server/services`)
-  - backend route orchestration (`ParaGraph/server/routes`)
-  - frontend pages/components (`ParaGraph/client/src/pages`, `ParaGraph/client/src/components`)
-- Keep persistence and runtime plumbing generic and reusable.
+### 3.1 Windows (recommended)
 
-## 4. Local Run Strategy
-
-1. Copy local profile to active env:
-   - `copy /Y ParaGraph\\settings\.env.local.example ParaGraph\\settings\.env`
+1. Ensure `ParaGraph/settings/.env` exists (copy from local profile if needed):
+   - `copy /Y ParaGraph\settings\.env.local.example ParaGraph\settings\.env`
 2. Launch:
-   - `ParaGraph\\start_on_windows.bat`
-3. Optional tests:
-   - `tests\run_tests.bat`
+   - `ParaGraph\start_on_windows.bat`
 
-The launcher mirrors the repository pattern:
-- reads `ParaGraph/settings/.env`
-- syncs backend deps with `uv`
-- builds frontend with `npm`
-- starts backend (`uvicorn`) and frontend preview server
+First run installs portable Python, uv, and Node.js under `ParaGraph/resources/runtimes`, syncs backend/frontend dependencies, builds the client, and starts backend + UI.
 
-## 5. Cloud Deployment Strategy
+### 3.2 macOS / Linux (manual)
 
-1. Copy cloud profile:
-   - `copy /Y ParaGraph\\settings\.env.cloud.example ParaGraph\\settings\.env`
-2. Build:
-   - `docker compose --env-file ParaGraph/settings/.env build --no-cache`
-3. Run:
-   - `docker compose --env-file ParaGraph/settings/.env up -d`
-4. Stop:
-   - `docker compose --env-file ParaGraph/settings/.env down`
+Prerequisites:
+- Python 3.14+
+- Node.js 22+
+- `uv`
 
-Topology:
-- `backend`: FastAPI/Uvicorn
-- `frontend`: Nginx static hosting
-- `/api` proxied from frontend to backend
+Install and run:
 
-## 6. Where to Add Business Logic
+```bash
+uv sync
+cd ParaGraph/client && npm install && npm run build
+cd ../..
+uv run python -m uvicorn ParaGraph.server.app:app --host 127.0.0.1 --port 5002
+cd ParaGraph/client && npm run preview -- --host 127.0.0.1 --port 8002
+```
 
-- Backend:
-  - workflow/business rules in `ParaGraph/server/services`
-  - request/response contracts in `ParaGraph/server/entities`
-  - route composition in `ParaGraph/server/routes`
-- Frontend:
-  - domain workflows in `ParaGraph/client/src/pages`
-  - reusable domain UI in `ParaGraph/client/src/components`
-  - API domain wrappers in `ParaGraph/client/src/services`
-- Database:
-  - domain schema in `ParaGraph/server/repositories/schemas/models.py`
-  - domain query helpers in `ParaGraph/server/repositories/queries`
+## 4. How to Use
 
-## 7. Instantiation Checklist
+1. Open the UI at `http://<UI_HOST>:<UI_PORT>`.
+2. In Workflow page, add nodes (Prompt, LLM, Output).
+3. Connect ports (Prompt -> LLM -> Output).
+4. Configure node parameters.
+5. Click `Run` to validate and execute.
+6. Watch status updates while backend job runs.
+7. Read generated text from Output node `outputText` field.
 
-1. Rename `ParaGraph` package/folder to your project name.
-2. Replace placeholder route/service/schema names with domain terms.
-3. Keep env/deployment/runtime plumbing as-is unless infrastructure requires changes.
-4. Keep client/server separation and job polling strategy for long-running operations.
+Notes:
+- Graph state is persisted in browser localStorage key `paragraph.workflow.graph`.
+- LLM provider credentials/URLs come from `.env`.
 
+## 5. Setup and Maintenance
+
+Use `ParaGraph/setup_and_maintenance.bat`:
+- Remove logs.
+- Uninstall local runtime artifacts (`resources/runtimes`, `.venv`, frontend build/deps).
+- Initialize database (`ParaGraph/scripts/initialize_database.py`).
+
+## 6. Testing
+
+Run backend tests:
+
+```cmd
+tests\run_tests.bat
+```
+
+Direct pytest invocation:
+
+```cmd
+.\.venv\Scripts\python.exe -m pytest tests/unit -v
+```
+
+Current automated coverage is focused on workflow routes/executor and job manager behavior.
+
+## 7. Configuration
+
+Main runtime config file: `ParaGraph/settings/.env`
+
+Key variables:
+
+| Variable | Description |
+|---|---|
+| `FASTAPI_HOST`, `FASTAPI_PORT` | Backend bind address. |
+| `UI_HOST`, `UI_PORT` | Frontend host/port. |
+| `VITE_API_BASE_URL` | Frontend API base path (`/api` default). |
+| `DB_EMBEDDED` | `true` for SQLite; `false` for PostgreSQL. |
+| `DB_*` | External DB connection settings when not embedded. |
+| `OLLAMA_BASE_URL` | Local Ollama endpoint. |
+| `OPENAI_API_KEY`, `OPENAI_BASE_URL` | OpenAI provider settings. |
+| `GEMINI_API_KEY`, `GEMINI_BASE_URL` | Gemini provider settings. |
+| `LLM_TIMEOUT_S` | LLM request timeout in seconds. |
+
+Non-runtime defaults (`jobs.polling_interval`, seed, base DB mode) live in `ParaGraph/settings/configurations.json`.
+
+## 8. Docker Deployment
+
+```bash
+docker compose --env-file ParaGraph/settings/.env build --no-cache
+docker compose --env-file ParaGraph/settings/.env up -d
+```
+
+- Frontend is served by Nginx.
+- `/api/*` is proxied to backend container.
+
+Stop:
+
+```bash
+docker compose --env-file ParaGraph/settings/.env down
+```

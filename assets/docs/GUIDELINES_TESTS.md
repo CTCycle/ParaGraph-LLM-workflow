@@ -1,16 +1,16 @@
 # HOW TO TEST
 
-This document describes the current test strategy for the ParaGraph repository.
+This document describes the current automated test strategy for the ParaGraph repository.
 
 ## Overview
 
-ParaGraph tests are currently Python `pytest` tests focused on deterministic backend coverage. The initial suite covers:
+ParaGraph tests are currently Python `pytest` tests focused on deterministic backend coverage. The active suite covers:
 - FastAPI app wiring.
 - Workflow API endpoints.
 - Workflow executor behavior.
 - Background job manager lifecycle behavior.
 
-The suite deliberately avoids live LLM, network, browser, and model-runtime dependencies. External calls must be replaced with fakes or monkeypatches.
+The suite avoids live LLM, network, browser, and model-runtime dependencies. External calls should be faked or monkeypatched.
 
 ## Current Test Suite Structure
 
@@ -37,19 +37,19 @@ Preferred runner:
 tests\run_tests.bat
 ```
 
-The batch runner:
+The batch runner currently:
 - reads `ParaGraph/settings/.env` for host and optional-dependency flags
-- validates that `.venv` exists and contains the required test dependencies
-- runs the backend pytest suite at `tests/unit`
-- forwards any extra CLI arguments to `pytest`
+- validates that `.venv` exists and includes pytest
+- runs pytest against `tests/unit`
+- forwards extra CLI args to pytest
 
-Direct invocation remains available:
+Direct invocation:
 
 ```cmd
 .\.venv\Scripts\python.exe -m pytest tests/unit -v
 ```
 
-To run a smaller slice while iterating:
+Run a smaller slice:
 
 ```cmd
 tests\run_tests.bat tests/unit/server/routes/test_workflow.py
@@ -57,21 +57,21 @@ tests\run_tests.bat tests/unit/server/routes/test_workflow.py
 
 ## Prerequisites
 
-- Python 3.14+ environment available in `.venv`.
+- Python 3.14+ environment in `.venv`.
 - Project dependencies installed.
-- Test extra installed from `pyproject.toml` (`pytest`, `pytest-playwright`, `psutil`).
+- Test extra installed from `pyproject.toml` (currently `pytest`).
 
-If the environment is missing test dependencies, run:
+Install/refresh test dependencies:
 
 ```cmd
 uv sync --extra test
 ```
 
-Or set `OPTIONAL_DEPENDENCIES=true` in `ParaGraph/settings/.env` and rerun `ParaGraph\start_on_windows.bat`.
+If `OPTIONAL_DEPENDENCIES=true` is enabled in `.env`, ensure optional packages expected by scripts are also installed.
 
 ## Fixture Rules
 
-`tests/conftest.py` provides the shared testing primitives for the current suite:
+`tests/conftest.py` provides shared primitives:
 
 | Fixture/helper | Scope | Purpose |
 |---|---|---|
@@ -81,57 +81,47 @@ Or set `OPTIONAL_DEPENDENCIES=true` in `ParaGraph/settings/.env` and rerun `Para
 | `wait_for_job` | function | Polls background jobs until they reach a terminal state |
 
 When adding tests:
-- Reuse these fixtures instead of duplicating polling or cleanup logic.
-- Keep all job-manager interactions isolated; global state leaks will make the suite flaky.
+- Reuse these fixtures instead of duplicating polling/cleanup logic.
+- Keep job-manager interactions isolated to avoid flaky global state leaks.
 
 ## Coverage Rules
 
 ### API tests
 
 - Use FastAPI `TestClient`.
-- Prefer testing real route wiring for stable endpoints such as `/workflow/...`.
-- Assert both HTTP status codes and response payload shapes.
+- Assert both HTTP status and response shape.
+- Prefer stable endpoints for deterministic coverage.
 
 ### Service tests
 
 - Test workflow validation/execution directly in `tests/unit/server/services/...`.
-- Stub `select_llm_provider(...)` or lower-level clients so tests never hit Ollama or cloud APIs.
-- Use minimal workflow graphs that still exercise the target behavior.
+- Stub `select_llm_provider(...)` so tests never call real providers.
+- Use compact workflow graphs that target one behavior at a time.
 
 ### Job tests
 
-- Prefer polling via `wait_for_job(...)` instead of fixed sleeps in assertions.
-- Cover success, failure, and cancellation behavior for background jobs when adding new job-backed workflows.
+- Poll using `wait_for_job(...)` instead of fixed sleeps in assertions.
+- Cover success, failure, and cancellation behavior for new job-backed workflows.
 
 ## Naming and Layout Rules
 
-- Keep test modules close to the code layer they verify:
-  - Route tests in `tests/unit/server/routes/`
-  - Service tests in `tests/unit/server/services/`
-- Name files `test_<subject>.py`.
-- Name tests for observable behavior, not implementation details.
+- Route tests: `tests/unit/server/routes/`.
+- Service tests: `tests/unit/server/services/`.
+- File naming: `test_<subject>.py`.
+- Test naming: behavior-focused, not implementation-focused.
 
-## Current Stable Backend Endpoints
+## Current Stable Endpoint Coverage Targets
 
-These are the best current candidates for API coverage:
 - `/`
 - `/workflow/catalog`
 - `/workflow/validate`
 - `/workflow/execute`
 - `/workflow/jobs/{job_id}`
 
-Other routers exist, but some paths are still placeholders or depend on heavier runtime state. Add tests there only when the underlying behavior becomes stable enough to assert deterministically.
-
-## Important Notes
-
-- Use Arrange-Act-Assert.
-- Keep tests isolated and deterministic.
-- Do not make real HTTP calls to LLM providers.
-- Do not require a separately running frontend or backend process for unit/API tests.
-- If behavior changes materially, update this file in the same change.
+Other routers exist, but several paths are still placeholder implementations; add tests there as behavior stabilizes.
 
 ## Troubleshooting
 
-- **`pytest` not found**: install the `test` extra into `.venv`.
-- **Import/configuration errors**: ensure tests are run from the repository root so `ParaGraph` imports resolve correctly.
-- **Flaky job assertions**: use `wait_for_job(...)` and verify that the test is not leaking state into the shared `job_manager`.
+- `pytest` not found: install the `test` extra into `.venv`.
+- Import errors: run tests from repo root so `ParaGraph` imports resolve.
+- Flaky job assertions: ensure test state is isolated and avoid shared global mutations outside fixtures.
