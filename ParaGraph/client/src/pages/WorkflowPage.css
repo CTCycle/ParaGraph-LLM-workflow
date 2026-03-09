@@ -117,3 +117,35 @@
 .workflow-context-secondary {
     margin-top: 4px;
 }
+
+.workflow-canvas-controls {
+    position: absolute;
+    right: 16px;
+    bottom: 16px;
+    z-index: 16;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.workflow-icon-button {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    border: 1px solid #334155;
+    background: rgba(15, 23, 42, 0.92);
+    color: #e2e8f0;
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+}
+
+.workflow-icon-button:hover {
+    border-color: #60a5fa;
+    background: #0f2748;
+}
+
+.workflow-icon-button.active {
+    border-color: #38bdf8;
+    color: #7dd3fc;
+}

@@ -143,8 +143,10 @@ Current tables:
 - Workflow canvas:
   - built with `@xyflow/react`
   - supports Add Node (toolbar + right-click context menu)
+  - sanitizes node coordinates on add/hydrate so invalid positions do not hide nodes
   - enforces connection validity client-side
   - persists graph in `localStorage` key `paragraph.workflow.graph`
+  - supports toggleable grid background and explicit zoom controls in-canvas
   - queues add-node requests until the catalog/canvas hydrate, then centers new nodes into view
   - triggers validate -> execute -> poll flow and writes returned output text into `Output` nodes
 
@@ -167,5 +169,3 @@ Current tables:
   - extend execution logic for that node type
   - add corresponding frontend parameter handling via catalog-driven UI.
 - New long-running operation: use `job_manager.start_job(...)`, expose polling/cancel endpoints, and keep worker cancellation cooperative.
-
-

@@ -2,8 +2,8 @@ import { MouseEvent as ReactMouseEvent, useCallback, useEffect, useMemo, useRef,
 import {
     addEdge,
     Background,
+    BackgroundVariant,
     Connection,
-    Controls,
     Edge,
     IsValidConnection,
     MiniMap,
@@ -14,6 +14,7 @@ import {
     useNodesState,
     useReactFlow,
 } from '@xyflow/react'
+import { Grid3X3, Minus, Plus } from 'lucide-react'
 import '@xyflow/react/dist/style.css'
 import WorkflowNodeCard, {
     WorkflowCanvasNode,
@@ -47,6 +48,10 @@ function buildDefaultParams(definition: WorkflowNodeDefinition): Record<string, 
     }, {})
 }
 
+function finiteOrFallback(value: unknown, fallback: number): number {
+    return typeof value === 'number' && Number.isFinite(value) ? value : fallback
+}
+
 function WorkflowCanvas() {
     const reactFlowApi = useReactFlow<CanvasNode, CanvasEdge>()
     const canvasRef = useRef<HTMLDivElement | null>(null)
@@ -56,6 +61,7 @@ function WorkflowCanvas() {
     const [runtimeError, setRuntimeError] = useState<string | null>(null)
     const [isRunning, setIsRunning] = useState(false)
     const [pendingNodeRequests, setPendingNodeRequests] = useState<PendingNodeRequest[]>([])
+    const [showGrid, setShowGrid] = useState(true)
     const [contextMenu, setContextMenu] = useState<
         | {
               screenX: number
@@ -174,12 +180,18 @@ function WorkflowCanvas() {
         }
 
         const hydratedNodes = storedGraph.nodes
-            .map((workflowNode) => {
+            .map((workflowNode, index) => {
                 const definition = catalogByType[workflowNode.type]
                 if (!definition) {
                     return null
                 }
-                return createCanvasNode(definition, workflowNode)
+                return createCanvasNode(definition, {
+                    ...workflowNode,
+                    position: {
+                        x: finiteOrFallback(workflowNode.position?.x, 120 + index * 24),
+                        y: finiteOrFallback(workflowNode.position?.y, 120 + index * 16),
+                    },
+                })
             })
             .filter((node): node is CanvasNode => node !== null)
 
@@ -258,8 +270,8 @@ function WorkflowCanvas() {
                 id,
                 type: definition.type,
                 position: {
-                    x: x ?? defaultPosition.x,
-                    y: y ?? defaultPosition.y,
+                    x: finiteOrFallback(x, defaultPosition.x),
+                    y: finiteOrFallback(y, defaultPosition.y),
                 },
                 params: buildDefaultParams(definition),
             }
@@ -512,6 +524,14 @@ function WorkflowCanvas() {
         })
     }, [reactFlowApi])
 
+    const zoomIn = useCallback(() => {
+        void reactFlowApi.zoomIn({ duration: 180 })
+    }, [reactFlowApi])
+
+    const zoomOut = useCallback(() => {
+        void reactFlowApi.zoomOut({ duration: 180 })
+    }, [reactFlowApi])
+
     const nodeTypes = useMemo(
         () => ({
             workflowNode: WorkflowNodeCard,
@@ -552,9 +572,26 @@ function WorkflowCanvas() {
                     proOptions={{ hideAttribution: true }}
                 >
                     <MiniMap pannable zoomable nodeColor="#38bdf8" />
-                    <Controls />
-                    <Background gap={18} color="#1f2937" />
+                    {showGrid && <Background variant={BackgroundVariant.Lines} gap={20} size={1} color="#1f2937" />}
                 </ReactFlow>
+
+                <div className="workflow-canvas-controls" onClick={(event) => event.stopPropagation()}>
+                    <button type="button" className="workflow-icon-button" aria-label="Zoom in" title="Zoom in" onClick={zoomIn}>
+                        <Plus size={14} />
+                    </button>
+                    <button type="button" className="workflow-icon-button" aria-label="Zoom out" title="Zoom out" onClick={zoomOut}>
+                        <Minus size={14} />
+                    </button>
+                    <button
+                        type="button"
+                        className={`workflow-icon-button${showGrid ? ' active' : ''}`}
+                        aria-label={showGrid ? 'Disable grid' : 'Enable grid'}
+                        title={showGrid ? 'Disable grid' : 'Enable grid'}
+                        onClick={() => setShowGrid((current) => !current)}
+                    >
+                        <Grid3X3 size={14} />
+                    </button>
+                </div>
 
                 {nodes.length === 0 && (
                     <div className="workflow-empty-state">
