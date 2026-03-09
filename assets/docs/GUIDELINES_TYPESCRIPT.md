@@ -1,52 +1,53 @@
-## TypeScript Guidelines (ADSMOD Webapp)
+## TypeScript Guidelines (ParaGraph Client)
 
 Project stack baseline:
 - React 18 + TypeScript 5
-- Vite 6 build/runtime configuration
-- Strict compiler settings from `ADSMOD/client/tsconfig.json`
+- Vite 5
+- React Router 6
+- React Flow (`@xyflow/react`) for workflow canvas
 
 ## 1. Type Safety Rules
 
 - Keep `strict` mode enabled.
-- Prefer `unknown` over `any` for external/untrusted values.
-- Narrow values explicitly before use (type guards, `typeof`, `in`, discriminated unions).
-- Type all exported functions, component props, and service layer responses.
-- Use `type`/`interface` definitions in `src/types.ts` for shared API contracts.
+- Prefer `unknown` over `any` for untrusted values.
+- Type all exported functions, component props, and service-layer responses.
+- Keep shared backend contracts in `src/types.ts`.
 
 ## 2. React and State Management
 
-- Keep components presentational when possible; move API and transformation logic to `src/services/`.
-- Use `useCallback`/`useMemo` only where there is clear rerender or dependency benefit.
-- Keep page-level orchestration in `src/pages/` and shared UI in `src/components/`.
-- Avoid implicit `any` in event handlers and callback props.
+- Keep page orchestration in `src/pages/` and reusable UI in `src/components/`.
+- Keep API I/O in `src/services/`.
+- Use `useMemo`/`useCallback` only when they reduce real rerender cost.
+- Persist only stable UI state (for example workflow graph state in localStorage).
 
 ## 3. API and Networking
 
-- Route all HTTP calls through service modules in `src/services/`.
-- Use the shared HTTP helpers (`fetchWithTimeout`, error extraction) to keep behavior consistent.
-- Treat backend responses as untrusted: validate required fields before rendering.
-- Keep frontend URLs relative to `API_BASE_URL` (`/api` proxy path).
+- Route HTTP calls through service modules (for example `src/services/workflow.ts`).
+- Reuse the shared `requestJson` pattern for status handling and error extraction.
+- Treat backend responses as untrusted and fail with actionable error messages.
+- Keep URLs relative to `VITE_API_BASE_URL` (default `/api`).
 
-## 4. Error Handling and UX
+## 4. Workflow Builder UI Rules
 
-- Never swallow errors silently; return structured `{ data, error }` style results from services.
-- Show actionable, user-facing status messages for async operations (start/progress/success/failure).
-- Keep job polling logic centralized in service helpers rather than scattered across components.
+- Node parameters should stay catalog-driven (`WorkflowNodeDefinition.parameters`) so backend and frontend stay aligned.
+- Validate connection rules both client-side and server-side.
+- Keep node ids deterministic enough for debugging (prefix by node type).
+- Update output nodes only from job result payloads, not speculative client state.
 
-## 5. Security
+## 5. Error Handling and UX
 
-- Do not trust client inputs; backend remains source of truth.
-- Avoid injecting unsanitized HTML.
-- Validate and encode user-provided strings before rendering in markdown/table contexts.
+- Do not swallow async errors; surface them in page status/alert UI.
+- Keep progress reporting tied to backend polling state (`pending`, `running`, terminal states).
+- Keep cancel/poll logic in service helpers, not duplicated across components.
 
-## 6. Tooling and Quality Gates
+## 6. Quality Gates
 
-- Keep `npm run build` green (`tsc && vite build`).
-- Keep lint script green when lint config is present (`npm run lint`).
-- Prefer small, focused modules and clear naming over abstractions.
+- Keep `npm run build` passing (`tsc && vite build`).
+- Keep `npm run lint` passing when lint config is active.
+- Prefer small modules and explicit names over broad abstractions.
 
-## 7. Testing Guidance
+## 7. Testing Guidance (Current State)
 
-- Frontend end-to-end behavior is primarily validated through Python Playwright tests in `tests/e2e`.
-- When adding frontend behavior, update/add E2E coverage for user-visible flows.
-- Keep unit-style logic isolated in service/helper functions so it is easy to test.
+- The repository currently emphasizes backend pytest coverage.
+- For frontend changes, prioritize service-layer testability and deterministic behavior.
+- Add frontend automated tests when stable UI flows are introduced.

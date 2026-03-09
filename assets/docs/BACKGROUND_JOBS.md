@@ -1,79 +1,87 @@
 # Background Job Management
 
-ADSMOD uses a centralized background job system to handle long-running operations (fitting, NIST ingestion/enrichment, dataset build, and training) without blocking FastAPI request handling.
+ParaGraph uses a centralized in-process background job system for long-running work so API requests can return immediately and the UI can poll progress.
 
-## Core Concepts
+## Core Component
 
-The system is built around a singleton `JobManager` instance in `ADSMOD/server/services/jobs.py`.
+- Singleton: `ParaGraph.server.services.jobs.job_manager`
+- State model: `ParaGraph.server.entities.jobs.JobState`
+- Current execution mode: daemon threads (no process-based runner in current codebase)
 
-### Execution model
-- **Default mode (`thread`)**: Jobs run in daemon threads.
-- **Optional mode (`process`)**: Jobs can run in spawned child processes for stronger isolation/cancellation behavior.
-- **Cancellation**: Always cooperative; the worker must observe stop signals.
+## Job Lifecycle
 
-### Job State
-Every job is tracked through a thread-safe `JobState`:
-- **`job_id`**: A unique 8-character UUID string.
-- **`job_type`**: Logical job group (e.g., `fitting`, `nist_fetch`, `training`).
-- **`status`**: Current state (`pending`, `running`, `completed`, `failed`, `cancelled`).
-- **`progress`**: Float value from 0.0 to 100.0.
-- **`result`**: The final output payload (dict) upon successful completion.
-- **`error`**: Error message if the job failed.
-- **`created_at` / `completed_at`**: Monotonic timestamps for lifecycle tracking.
+Each job tracks:
+- `job_id`: short UUID string (8 chars)
+- `job_type`: logical group (`workflow`, `preparation`, `training`, `validation`, `inference`, ...)
+- `status`: `pending`, `running`, `completed`, `failed`, `cancelled`
+- `progress`: `0.0` to `100.0`
+- `result`: merged result payload
+- `error`: failure message
+- `created_at`, `completed_at`: monotonic timestamps
 
-## Usage Guide
+## Execution Pattern
 
-### 1. The Job Manager Singleton
-Import the shared instance to interact with the system:
+1. Endpoint calls `job_manager.start_job(job_type=..., runner=..., kwargs=...)`.
+2. Job manager stores a `JobState` and starts a daemon thread.
+3. Runner optionally receives `job_id` automatically if it accepts that argument.
+4. Runner updates progress and partial output through:
+   - `job_manager.update_progress(job_id, progress)`
+   - `job_manager.update_result(job_id, patch)`
+5. Thread finalizes state as `completed`, `failed`, or `cancelled`.
+
+## Cancellation Model
+
+Cancellation is cooperative:
+- API calls `job_manager.cancel_job(job_id)`.
+- Manager sets `stop_requested=True`.
+- Runner must periodically call `job_manager.should_stop(job_id)` and return quickly when requested.
+
+If a runner never checks `should_stop`, cancellation cannot stop it promptly.
+
+## Current Route Usage
+
+The polling contract is consistent across job-backed routers.
+
+- Workflow:
+  - start: `POST /workflow/execute`
+  - poll: `GET /workflow/jobs/{job_id}`
+  - cancel: `DELETE /workflow/jobs/{job_id}`
+- Preparation:
+  - start: `POST /preparation/dataset/process`
+  - poll: `GET /preparation/jobs/{job_id}`
+  - cancel: `DELETE /preparation/jobs/{job_id}`
+- Training:
+  - start: `POST /training/start` and `POST /training/resume`
+  - poll: `GET /training/jobs/{job_id}`
+  - cancel: `DELETE /training/jobs/{job_id}`
+- Validation:
+  - start: `POST /validation/run` and `POST /validation/checkpoint`
+  - poll: `GET /validation/jobs/{job_id}`
+  - cancel: `DELETE /validation/jobs/{job_id}`
+- Inference:
+  - start: `POST /inference/generate`
+  - poll: `GET /inference/jobs/{job_id}`
+  - cancel: `DELETE /inference/jobs/{job_id}`
+
+## Minimal Runner Template
+
 ```python
-from ADSMOD.server.services.jobs import job_manager
+from typing import Any
+
+from ParaGraph.server.services.jobs import job_manager
+
+
+def run_task(configuration: dict[str, Any], job_id: str) -> dict[str, Any]:
+    for step in range(10):
+        if job_manager.should_stop(job_id):
+            return {}
+        # do work
+        job_manager.update_progress(job_id, (step + 1) * 10)
+    return {"success": True}
 ```
 
-### 2. Implementation Pattern
-Define a synchronous runner function that performs the heavy work and returns a `dict`.
+## Notes for New Jobs
 
-```python
-def my_runner(payload: dict, job_id: str | None = None) -> dict:
-    """
-    Runs in a worker thread/process.
-    """
-    if job_id and job_manager.should_stop(job_id):
-        return {"status": "cancelled"}
-    result = perform_expensive_calculation(payload)
-    return {"data": result}
-```
-
-### 3. Starting a Job in an API Endpoint
-Use `start_job` inside routes/services and expose `job_id` to clients.
-
-```python
-@router.post("/start")
-def start_processing(payload: Dict):
-    if job_manager.is_job_running("MY_JOB_TYPE"):
-        raise HTTPException(400, "Job already in progress")
-
-    job_id = job_manager.start_job(
-        job_type="MY_JOB_TYPE",
-        runner=my_runner,
-        args=(payload,)
-    )
-    return {"job_id": job_id}
-```
-
-### 4. Cooperative Cancellation
-Cancellation marks the job as cancelled and signals the worker. Your runner must stop cleanly when requested.
-
-## API Interaction
-
-The frontend uses polling with endpoint-specific job URLs:
-
-1. **Start**: domain endpoint returns `JobStartResponse` with `job_id` and optional `poll_interval`.
-2. **Poll**:
-   - `GET /fitting/jobs/{job_id}`
-   - `GET /nist/jobs/{job_id}`
-   - `GET /training/jobs/{job_id}`
-3. **Cancel**: matching `DELETE` endpoint on the same route.
-4. **UI behavior**:
-   - The frontend updates progress bars based on the `progress` field.
-   - If `status` is `completed`, the frontend displays the `result`.
-   - If `status` is `failed`, the frontend displays the `error`.
+- Use one `job_type` per concurrency lane when you want `is_job_running(job_type)` guards.
+- Return JSON-serializable dict payloads so frontend polling can consume results directly.
+- Keep runners synchronous and deterministic where possible; isolate external calls behind service functions for testability.
