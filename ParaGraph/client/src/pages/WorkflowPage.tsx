@@ -8,6 +8,7 @@ import {
     IsValidConnection,
     MiniMap,
     OnConnect,
+    PanOnScrollMode,
     ReactFlow,
     ReactFlowProvider,
     useEdgesState,
@@ -556,6 +557,7 @@ function WorkflowCanvas() {
 
             <div className="workflow-canvas" ref={canvasRef}>
                 <ReactFlow<CanvasNode, CanvasEdge>
+                    className="workflow-reactflow"
                     nodes={nodes}
                     edges={edges}
                     onNodesChange={onNodesChange}
@@ -566,13 +568,34 @@ function WorkflowCanvas() {
                     isValidConnection={isValidConnection}
                     nodeTypes={nodeTypes}
                     fitView
+                    colorMode="dark"
+                    panOnDrag={[0, 1]}
+                    panOnScroll
+                    panOnScrollMode={PanOnScrollMode.Free}
                     minZoom={0.25}
                     maxZoom={2}
                     defaultEdgeOptions={{ animated: true }}
                     proOptions={{ hideAttribution: true }}
                 >
                     <MiniMap pannable zoomable nodeColor="#38bdf8" />
-                    {showGrid && <Background variant={BackgroundVariant.Lines} gap={20} size={1} color="#1f2937" />}
+                    {showGrid && (
+                        <>
+                            <Background
+                                id="workflow-grid-major"
+                                variant={BackgroundVariant.Lines}
+                                gap={120}
+                                lineWidth={1}
+                                color="rgba(56, 189, 248, 0.14)"
+                            />
+                            <Background
+                                id="workflow-grid-minor"
+                                variant={BackgroundVariant.Lines}
+                                gap={20}
+                                lineWidth={1}
+                                color="rgba(71, 85, 105, 0.5)"
+                            />
+                        </>
+                    )}
                 </ReactFlow>
 
                 <div className="workflow-canvas-controls" onClick={(event) => event.stopPropagation()}>
@@ -646,3 +669,5 @@ export default function WorkflowPage() {
         </ReactFlowProvider>
     )
 }
+
+
