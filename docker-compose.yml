@@ -4,11 +4,11 @@ services:
       context: .
       dockerfile: docker/backend.Dockerfile
     env_file:
-      - APP/settings/.env
+      - ParaGraph/settings/.env
     ports:
       - "${FASTAPI_PORT:-8000}:8000"
     volumes:
-      - app_resources:/app/APP/resources
+      - app_resources:/app/ParaGraph/resources
     healthcheck:
       test:
         [
@@ -40,3 +40,4 @@ services:
 
 volumes:
   app_resources:
+

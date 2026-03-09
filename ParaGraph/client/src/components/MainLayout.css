@@ -1,0 +1,86 @@
+.main-layout {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background: #020617;
+}
+
+.topbar {
+    height: 64px;
+    border-bottom: 1px solid #1e293b;
+    background: #0f172a;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 0 16px;
+}
+
+.topbar-brand {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #f8fafc;
+}
+
+.topbar-nav {
+    display: flex;
+    gap: 8px;
+    flex: 1;
+    padding-left: 8px;
+}
+
+.topbar-link {
+    text-decoration: none;
+    color: #94a3b8;
+    padding: 8px 11px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.topbar-link:hover {
+    color: #e2e8f0;
+    background: #1e293b;
+}
+
+.topbar-link.active {
+    color: #f8fafc;
+    background: #1d4ed8;
+}
+
+.topbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.topbar-actions select,
+.topbar-actions button {
+    border: 1px solid #334155;
+    background: #0b1220;
+    color: #e2e8f0;
+    border-radius: 8px;
+    padding: 7px 10px;
+    font-size: 0.82rem;
+}
+
+.topbar-actions button {
+    cursor: pointer;
+}
+
+.topbar-actions .run-btn {
+    background: #1d4ed8;
+    border-color: #3b82f6;
+    color: #f8fafc;
+}
+
+.topbar-actions button:disabled,
+.topbar-actions select:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.main-layout-content {
+    flex: 1;
+    min-height: 0;
+}

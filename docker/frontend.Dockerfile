@@ -2,10 +2,10 @@ FROM node:22.12.0-alpine AS build
 
 WORKDIR /app/client
 
-COPY APP/client/package.json APP/client/package-lock.json* ./
+COPY ParaGraph/client/package.json ParaGraph/client/package-lock.json* ./
 RUN npm ci || npm install
 
-COPY APP/client ./
+COPY ParaGraph/client ./
 RUN npm run build
 
 FROM nginx:1.27.5-alpine
@@ -16,3 +16,4 @@ COPY --from=build /app/client/dist /usr/share/nginx/html
 EXPOSE 80
 
 CMD ["nginx", "-g", "daemon off;"]
+
