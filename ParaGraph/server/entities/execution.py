@@ -1,0 +1,98 @@
+from __future__ import annotations
+
+from datetime import datetime, timezone
+from typing import Any, Literal
+
+from pydantic import BaseModel, Field
+
+
+ExecutionStatus = Literal["queued", "running", "completed", "failed", "cancelled"]
+ExecutionStepStatus = Literal["queued", "running", "completed", "failed", "skipped"]
+ExecutionEventType = Literal[
+    "execution.queued",
+    "execution.started",
+    "execution.step.started",
+    "execution.step.progress",
+    "execution.step.completed",
+    "execution.step.failed",
+    "execution.completed",
+    "execution.failed",
+]
+
+
+class ExecutionBinding(BaseModel):
+    input_port: str
+    source_step_id: str
+    source_output: str
+
+
+class ExecutionStepPlan(BaseModel):
+    step_id: str
+    node_id: str
+    node_type: str
+    config: dict[str, Any] = Field(default_factory=dict)
+    bindings: list[ExecutionBinding] = Field(default_factory=list)
+    timeout_ms: int | None = None
+    retries: int = 0
+    cacheable: bool = False
+
+
+class CompiledExecutionPlan(BaseModel):
+    plan_id: str
+    schema_version: int = 1
+    step_order: list[str] = Field(default_factory=list)
+    steps: list[ExecutionStepPlan] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class ExecutionStepState(BaseModel):
+    step_id: str
+    node_id: str
+    node_type: str
+    status: ExecutionStepStatus = "queued"
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
+    output: dict[str, Any] = Field(default_factory=dict)
+    error: str | None = None
+
+
+class ExecutionRunState(BaseModel):
+    run_id: str
+    workflow_id: str | None = None
+    plan_id: str
+    status: ExecutionStatus = "queued"
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    progress: float = 0.0
+    steps: list[ExecutionStepState] = Field(default_factory=list)
+    outputs: dict[str, dict[str, Any]] = Field(default_factory=dict)
+    error: str | None = None
+
+
+class ExecutionEventEnvelope(BaseModel):
+    event_type: ExecutionEventType
+    run_id: str
+    step_id: str | None = None
+    sequence: int
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    payload: dict[str, Any] = Field(default_factory=dict)
+
+
+class StartExecutionRequest(BaseModel):
+    workflow_id: str | None = None
+    plan: CompiledExecutionPlan
+
+
+class StartExecutionResponse(BaseModel):
+    run_id: str
+    status: ExecutionStatus
+    poll_interval: float = 1.0
+
+
+class GetExecutionResponse(BaseModel):
+    run: ExecutionRunState
+
+
+class EventHistoryResponse(BaseModel):
+    run_id: str
+    events: list[ExecutionEventEnvelope] = Field(default_factory=list)

@@ -4,6 +4,7 @@ ParaGraph/resources/checkpoints/**
 ParaGraph/resources/database/**
 ParaGraph/resources/runtimes/**
 ParaGraph/resources/logs/**
+ParaGraph/resources/workflows/**
 ParaGraph/client/node_modules/
 ParaGraph/client/dist/
 ParaGraph/client/dist-ssr/
@@ -53,3 +54,4 @@ Thumbs.db
 *.gz
 
 !.gitkeep
+
