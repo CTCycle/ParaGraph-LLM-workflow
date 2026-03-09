@@ -47,6 +47,18 @@
     margin-top: 8px;
 }
 
+.workflow-reactflow {
+    background: #020617;
+}
+
+.workflow-reactflow .react-flow__pane {
+    cursor: grab;
+}
+
+.workflow-reactflow .react-flow__pane:active {
+    cursor: grabbing;
+}
+
 .workflow-empty-state {
     position: absolute;
     left: 20px;
