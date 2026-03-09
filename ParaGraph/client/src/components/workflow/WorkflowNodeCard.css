@@ -1,0 +1,79 @@
+.workflow-node-card {
+    min-width: 250px;
+    max-width: 320px;
+    border-radius: 12px;
+    border: 1px solid #334155;
+    background: #0f172a;
+    color: #e2e8f0;
+    box-shadow: 0 10px 28px rgba(15, 23, 42, 0.45);
+    overflow: hidden;
+}
+
+.workflow-node-card.selected {
+    border-color: #60a5fa;
+    box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.5);
+}
+
+.workflow-node-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #1e293b;
+    padding: 8px 10px;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.workflow-node-delete {
+    border: none;
+    background: transparent;
+    color: #94a3b8;
+    cursor: pointer;
+    font-size: 1.15rem;
+    line-height: 1;
+}
+
+.workflow-node-delete:hover {
+    color: #f8fafc;
+}
+
+.workflow-node-body {
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.workflow-node-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 0.78rem;
+}
+
+.workflow-node-input,
+.workflow-node-textarea {
+    border-radius: 8px;
+    border: 1px solid #475569;
+    background: #0b1220;
+    color: #e2e8f0;
+    padding: 7px 8px;
+    font-size: 0.8rem;
+}
+
+.workflow-node-textarea {
+    resize: vertical;
+}
+
+.workflow-node-input:focus,
+.workflow-node-textarea:focus {
+    border-color: #60a5fa;
+    outline: none;
+}
+
+.workflow-node-handle {
+    width: 10px;
+    height: 10px;
+    background: #60a5fa;
+    border: 1px solid #bfdbfe;
+}

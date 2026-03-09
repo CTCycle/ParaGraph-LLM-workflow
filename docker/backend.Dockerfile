@@ -9,10 +9,11 @@ WORKDIR /app
 RUN pip install --no-cache-dir uv
 
 COPY pyproject.toml uv.lock* ./
-COPY APP ./APP
+COPY ParaGraph ./ParaGraph
 
 RUN uv sync --frozen || uv sync
 
 EXPOSE 8000
 
-CMD ["uv", "run", "--frozen", "python", "-m", "uvicorn", "APP.server.app:app", "--host", "0.0.0.0", "--port", "8000", "--log-level", "info"]
+CMD ["uv", "run", "--frozen", "python", "-m", "uvicorn", "ParaGraph.server.app:app", "--host", "0.0.0.0", "--port", "8000", "--log-level", "info"]
+

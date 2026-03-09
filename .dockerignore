@@ -4,15 +4,15 @@
 __pycache__/
 *.py[cod]
 
-APP/resources/checkpoints/
-APP/resources/logs/
-APP/resources/models/
-APP/resources/runtimes/
-APP/resources/tokenizers/
+ParaGraph/resources/checkpoints/
+ParaGraph/resources/logs/
+ParaGraph/resources/models/
+ParaGraph/resources/runtimes/
+ParaGraph/resources/tokenizers/
 
-APP/client/node_modules/
-APP/client/dist/
-APP/client/dist-ssr/
+ParaGraph/client/node_modules/
+ParaGraph/client/dist/
+ParaGraph/client/dist-ssr/
 
 assets/
 tests/
