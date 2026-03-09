@@ -1,4 +1,4 @@
-import { MouseEvent as ReactMouseEvent, useCallback, useEffect, useMemo, useState } from 'react'
+import { MouseEvent as ReactMouseEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
     addEdge,
     Background,
@@ -20,6 +20,7 @@ import WorkflowNodeCard, {
     WorkflowNodeData,
 } from '../components/workflow/WorkflowNodeCard'
 import { usePersistedRecord } from '../hooks/usePersistedRecord'
+import { executeWorkflow, fetchWorkflowCatalog, pollWorkflowJob, validateWorkflow } from '../services/workflow'
 import {
     AddNodeEventDetail,
     WORKFLOW_ADD_EVENT,
@@ -29,11 +30,15 @@ import {
     WorkflowNode,
     WorkflowNodeDefinition,
 } from '../types'
-import { executeWorkflow, fetchWorkflowCatalog, pollWorkflowJob, validateWorkflow } from '../services/workflow'
 import './WorkflowPage.css'
 
 type CanvasNode = WorkflowCanvasNode
 type CanvasEdge = Edge
+type PendingNodeRequest = {
+    nodeType: string
+    x?: number
+    y?: number
+}
 
 function buildDefaultParams(definition: WorkflowNodeDefinition): Record<string, unknown> {
     return definition.parameters.reduce<Record<string, unknown>>((accumulator, parameter) => {
@@ -44,11 +49,13 @@ function buildDefaultParams(definition: WorkflowNodeDefinition): Record<string, 
 
 function WorkflowCanvas() {
     const reactFlowApi = useReactFlow<CanvasNode, CanvasEdge>()
+    const canvasRef = useRef<HTMLDivElement | null>(null)
     const [catalog, setCatalog] = useState<WorkflowNodeDefinition[]>([])
     const [catalogError, setCatalogError] = useState<string | null>(null)
     const [statusText, setStatusText] = useState('Ready')
     const [runtimeError, setRuntimeError] = useState<string | null>(null)
     const [isRunning, setIsRunning] = useState(false)
+    const [pendingNodeRequests, setPendingNodeRequests] = useState<PendingNodeRequest[]>([])
     const [contextMenu, setContextMenu] = useState<
         | {
               screenX: number
@@ -127,6 +134,18 @@ function WorkflowCanvas() {
         [applyNodeParamsPatch, removeNode],
     )
 
+    const focusNodePosition = useCallback(
+        (x: number, y: number) => {
+            window.requestAnimationFrame(() => {
+                reactFlowApi.setCenter(x + 140, y + 90, {
+                    duration: 220,
+                    zoom: Math.max(reactFlowApi.getZoom(), 0.9),
+                })
+            })
+        },
+        [reactFlowApi],
+    )
+
     useEffect(() => {
         let mounted = true
         fetchWorkflowCatalog()
@@ -172,8 +191,28 @@ function WorkflowCanvas() {
             targetHandle: edge.targetHandle,
         }))
 
-        setNodes(hydratedNodes)
-        setEdges(hydratedEdges)
+        setNodes((currentNodes) => {
+            if (currentNodes.length === 0) {
+                return hydratedNodes
+            }
+
+            const mergedById = new Map(hydratedNodes.map((node) => [node.id, node]))
+            currentNodes.forEach((node) => {
+                mergedById.set(node.id, node)
+            })
+            return Array.from(mergedById.values())
+        })
+        setEdges((currentEdges) => {
+            if (currentEdges.length === 0) {
+                return hydratedEdges
+            }
+
+            const mergedById = new Map(hydratedEdges.map((edge) => [edge.id, edge]))
+            currentEdges.forEach((edge) => {
+                mergedById.set(edge.id, edge)
+            })
+            return Array.from(mergedById.values())
+        })
         setHydrated(true)
     }, [catalog.length, catalogByType, createCanvasNode, hydrated, setEdges, setNodes, storedGraph.edges, storedGraph.nodes])
 
@@ -209,9 +248,10 @@ function WorkflowCanvas() {
             }
 
             const id = `${nodeType.toLowerCase()}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`
+            const currentNodeCount = reactFlowApi.getNodes().length
             const defaultPosition = {
-                x: 120 + nodes.length * 24,
-                y: 120 + nodes.length * 16,
+                x: 120 + currentNodeCount * 24,
+                y: 120 + currentNodeCount * 16,
             }
 
             const workflowNode: WorkflowNode = {
@@ -226,9 +266,39 @@ function WorkflowCanvas() {
 
             setNodes((currentNodes) => [...currentNodes, createCanvasNode(definition, workflowNode)])
             setRuntimeError(null)
+            setStatusText(`Added ${definition.label} node`)
+            focusNodePosition(workflowNode.position.x, workflowNode.position.y)
         },
-        [catalogByType, createCanvasNode, nodes.length, setNodes],
+        [catalogByType, createCanvasNode, focusNodePosition, reactFlowApi, setNodes],
     )
+
+    const queueNodeRequest = useCallback((request: PendingNodeRequest) => {
+        setPendingNodeRequests((currentRequests) => [...currentRequests, request])
+        setRuntimeError(null)
+        setStatusText('Loading node catalog...')
+    }, [])
+
+    const requestNodeAdd = useCallback(
+        (nodeType: string, x?: number, y?: number) => {
+            if (!hydrated || catalog.length === 0) {
+                queueNodeRequest({ nodeType, x, y })
+                return
+            }
+            addNode(nodeType, x, y)
+        },
+        [addNode, catalog.length, hydrated, queueNodeRequest],
+    )
+
+    useEffect(() => {
+        if (!hydrated || pendingNodeRequests.length === 0) {
+            return
+        }
+
+        pendingNodeRequests.forEach((request) => {
+            addNode(request.nodeType, request.x, request.y)
+        })
+        setPendingNodeRequests([])
+    }, [addNode, hydrated, pendingNodeRequests])
 
     const isValidConnection: IsValidConnection<CanvasEdge> = useCallback(
         (candidate) => {
@@ -381,14 +451,21 @@ function WorkflowCanvas() {
     }, [edges, nodes, setNodes])
 
     useEffect(() => {
+        const handleEscape = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                setContextMenu(null)
+            }
+        }
+
         const handleAddNodeEvent = (event: Event) => {
             const customEvent = event as CustomEvent<AddNodeEventDetail>
             const nodeType = customEvent.detail?.nodeType || 'Prompt'
+            const canvasBounds = canvasRef.current?.getBoundingClientRect()
             const center = reactFlowApi.screenToFlowPosition({
-                x: window.innerWidth / 2,
-                y: window.innerHeight / 2,
+                x: canvasBounds ? canvasBounds.left + canvasBounds.width / 2 : window.innerWidth / 2,
+                y: canvasBounds ? canvasBounds.top + canvasBounds.height / 2 : window.innerHeight / 2,
             })
-            addNode(nodeType, center.x, center.y)
+            requestNodeAdd(nodeType, center.x, center.y)
         }
 
         const handleRunEvent = () => {
@@ -397,14 +474,16 @@ function WorkflowCanvas() {
             }
         }
 
+        window.addEventListener('keydown', handleEscape)
         window.addEventListener(WORKFLOW_ADD_EVENT, handleAddNodeEvent as EventListener)
         window.addEventListener(WORKFLOW_RUN_EVENT, handleRunEvent)
 
         return () => {
+            window.removeEventListener('keydown', handleEscape)
             window.removeEventListener(WORKFLOW_ADD_EVENT, handleAddNodeEvent as EventListener)
             window.removeEventListener(WORKFLOW_RUN_EVENT, handleRunEvent)
         }
-    }, [addNode, isRunning, reactFlowApi, runWorkflow])
+    }, [isRunning, reactFlowApi, requestNodeAdd, runWorkflow])
 
     const onPaneContextMenu = useCallback(
         (event: MouseEvent | ReactMouseEvent<Element, MouseEvent>) => {
@@ -425,6 +504,13 @@ function WorkflowCanvas() {
         },
         [reactFlowApi],
     )
+
+    const fitWorkflow = useCallback(() => {
+        void reactFlowApi.fitView({
+            duration: 200,
+            padding: 0.2,
+        })
+    }, [reactFlowApi])
 
     const nodeTypes = useMemo(
         () => ({
@@ -448,7 +534,7 @@ function WorkflowCanvas() {
             {catalogError && <div className="workflow-alert">Catalog error: {catalogError}</div>}
             {runtimeError && <div className="workflow-alert">{runtimeError}</div>}
 
-            <div className="workflow-canvas">
+            <div className="workflow-canvas" ref={canvasRef}>
                 <ReactFlow<CanvasNode, CanvasEdge>
                     nodes={nodes}
                     edges={edges}
@@ -470,25 +556,45 @@ function WorkflowCanvas() {
                     <Background gap={18} color="#1f2937" />
                 </ReactFlow>
 
+                {nodes.length === 0 && (
+                    <div className="workflow-empty-state">
+                        <h2>Start with typed nodes</h2>
+                        <p>
+                            Add a Prompt, connect it to LLM, then finish with Output. You can use the top-right controls
+                            or right-click anywhere on the canvas.
+                        </p>
+                    </div>
+                )}
+
                 {contextMenu && (
                     <div
                         className="workflow-context-menu"
                         style={{ left: contextMenu.screenX, top: contextMenu.screenY }}
                         onClick={(event) => event.stopPropagation()}
                     >
-                        <div className="workflow-context-title">Add node</div>
+                        <div className="workflow-context-title">Canvas actions</div>
                         {addableTypes.map((typeName) => (
                             <button
                                 key={typeName}
                                 type="button"
                                 onClick={() => {
-                                    addNode(typeName, contextMenu.flowX, contextMenu.flowY)
+                                    requestNodeAdd(typeName, contextMenu.flowX, contextMenu.flowY)
                                     setContextMenu(null)
                                 }}
                             >
-                                {typeName}
+                                Add {typeName}
                             </button>
                         ))}
+                        <button
+                            type="button"
+                            className="workflow-context-secondary"
+                            onClick={() => {
+                                fitWorkflow()
+                                setContextMenu(null)
+                            }}
+                        >
+                            Fit workflow
+                        </button>
                     </div>
                 )}
             </div>
@@ -503,4 +609,3 @@ export default function WorkflowPage() {
         </ReactFlowProvider>
     )
 }
-

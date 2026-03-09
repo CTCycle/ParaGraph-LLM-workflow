@@ -54,10 +54,6 @@ export function getWorkflowJob(jobId: string): Promise<JobStatusResponse> {
     return requestJson<JobStatusResponse>(`/workflow/jobs/${jobId}`)
 }
 
-export function cancelWorkflowJob(jobId: string): Promise<{ success: boolean }> {
-    return requestJson<{ success: boolean }>(`/workflow/jobs/${jobId}`, { method: 'DELETE' })
-}
-
 function sleep(durationMs: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, durationMs))
 }

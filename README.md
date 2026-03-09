@@ -1,6 +1,6 @@
 # ParaGraph Easy Retrieval
 
-ParaGraph is a local-first workflow builder for retrieval and LLM orchestration. It provides a FastAPI backend and a React workflow canvas where users compose node graphs (Prompt -> LLM -> Output), validate them, and run them as background jobs.
+ParaGraph is a local-first workflow builder for retrieval and LLM orchestration. It provides a FastAPI backend and a React workflow canvas where users compose typed node graphs, inspect the node registry, validate workflows, and run them as background jobs.
 
 Current state: workflow graph validation/execution is the most complete feature. Preparation, training, validation, and inference routes are present but still partially placeholder implementations.
 
@@ -43,6 +43,7 @@ tests/
   - execution with LLM provider dispatch
 - Long-running work uses `server/services/jobs.py` with polling/cancellation endpoints.
 - Frontend workflow UI is implemented in `client/src/pages/WorkflowPage.tsx` using `@xyflow/react`.
+- Node registry and system guidance live in `client/src/pages/NodesPage.tsx`.
 
 ## 3. Installation
 
@@ -75,12 +76,13 @@ cd ParaGraph/client && npm run preview -- --host 127.0.0.1 --port 8002
 ## 4. How to Use
 
 1. Open the UI at `http://<UI_HOST>:<UI_PORT>`.
-2. In Workflow page, add nodes (Prompt, LLM, Output).
-3. Connect ports (Prompt -> LLM -> Output).
-4. Configure node parameters.
-5. Click `Run` to validate and execute.
-6. Watch status updates while backend job runs.
-7. Read generated text from Output node `outputText` field.
+2. Open `Nodes` to inspect the current node catalog, typed ports, and runnable-vs-catalog-only status.
+3. In `Workflow`, add nodes from the top-right controls or by right-clicking on the canvas.
+4. Connect ports (Prompt -> LLM -> Output).
+5. Configure node parameters.
+6. Click `Run` to validate and execute.
+7. Watch status updates while backend job runs.
+8. Read generated text from Output node `outputText` field.
 
 Notes:
 - Graph state is persisted in browser localStorage key `paragraph.workflow.graph`.
@@ -144,3 +146,5 @@ Stop:
 ```bash
 docker compose --env-file ParaGraph/settings/.env down
 ```
+
+

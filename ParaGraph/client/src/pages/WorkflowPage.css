@@ -47,6 +47,34 @@
     margin-top: 8px;
 }
 
+.workflow-empty-state {
+    position: absolute;
+    left: 20px;
+    bottom: 20px;
+    z-index: 10;
+    max-width: 360px;
+    border: 1px solid rgba(59, 130, 246, 0.35);
+    border-radius: 16px;
+    background: rgba(8, 15, 28, 0.92);
+    box-shadow: 0 18px 36px rgba(2, 6, 23, 0.44);
+    padding: 16px;
+    color: #d9e7f6;
+    pointer-events: none;
+}
+
+.workflow-empty-state h2 {
+    margin: 0;
+    font-size: 1rem;
+    color: #f8fafc;
+}
+
+.workflow-empty-state p {
+    margin: 8px 0 0;
+    font-size: 0.84rem;
+    line-height: 1.55;
+    color: #a7bdd5;
+}
+
 .workflow-context-menu {
     position: fixed;
     z-index: 20;
@@ -84,4 +112,8 @@
 .workflow-context-menu button:hover {
     border-color: #60a5fa;
     background: #0f2748;
+}
+
+.workflow-context-secondary {
+    margin-top: 4px;
 }
