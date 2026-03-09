@@ -77,6 +77,12 @@ See `BACKGROUND_JOBS.md` for implementation details.
 - `VectorDB` (process, catalog-visible placeholder)
 - `Output` (output)
 
+The catalog is now also surfaced directly in the client-side `Nodes` page so users can inspect:
+- category and typed ports
+- parameter surfaces
+- runnable vs catalog-only status
+- the intended typed-artifact model for future graph expansion
+
 #### Validation
 `POST /workflow/validate` checks:
 - duplicate ids
@@ -132,13 +138,14 @@ Current tables:
 ## 5. Frontend Architecture
 
 - Router entrypoint: `src/App.tsx`.
-- Main implemented page: `WorkflowPage`.
-- Placeholder pages exist for `Configurations`, `Edit`, and `Help`.
+- Main implemented pages: `WorkflowPage` and `NodesPage`.
+- Placeholder pages exist for `Edit` and `Help`.
 - Workflow canvas:
   - built with `@xyflow/react`
-  - supports Add Node (toolbar + context menu)
+  - supports Add Node (toolbar + right-click context menu)
   - enforces connection validity client-side
   - persists graph in `localStorage` key `paragraph.workflow.graph`
+  - queues add-node requests until the catalog/canvas hydrate, then centers new nodes into view
   - triggers validate -> execute -> poll flow and writes returned output text into `Output` nodes
 
 ---
@@ -160,3 +167,5 @@ Current tables:
   - extend execution logic for that node type
   - add corresponding frontend parameter handling via catalog-driven UI.
 - New long-running operation: use `job_manager.start_job(...)`, expose polling/cancel endpoints, and keep worker cancellation cooperative.
+
+

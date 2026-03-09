@@ -4,10 +4,8 @@ import { WORKFLOW_ADDABLE_TYPES, WORKFLOW_ADD_EVENT, WORKFLOW_RUN_EVENT } from '
 import './MainLayout.css'
 
 const NAV_ITEMS = [
-    { to: '/config', label: 'Configurations' },
     { to: '/', label: 'Workflow' },
-    { to: '/edit', label: 'Edit' },
-    { to: '/help', label: 'Help' },
+    { to: '/nodes', label: 'Nodes' },
 ]
 
 export default function MainLayout() {
