@@ -52,8 +52,4 @@ Thumbs.db
 *.exe
 *.gz
 
-# Reproducibility lockfiles
-!uv.lock
-!ParaGraph/client/package-lock.json
-
 !.gitkeep
