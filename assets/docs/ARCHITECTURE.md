@@ -90,6 +90,7 @@ Published lifecycle events:
 - Canvas2D graph surface for nodes/edges and interactions.
 - Inspector panel for node config editing.
 - Runtime event panel and run controls.
+- Nodes registry page with a primary catalog-first layout, compact filter/search toolbar, a scrollable row-based node preview list with optional schema expansion, compactable core artifacts, and a secondary accordion-based system reference rail.
 
 ### 4.2 Store separation
 - `workflowStore`: in-memory workflow definition + visual graph (initialized empty on app launch).
@@ -108,3 +109,4 @@ Published lifecycle events:
 - Legacy non-workflow route modules from the original template were removed from the server route layer.
 - Existing backend pytest suite remains green and continues covering root workflow compatibility behavior.
 - Additional coverage for websocket stream behavior and workflow CRUD/version APIs should be expanded in subsequent hardening phases.
+
