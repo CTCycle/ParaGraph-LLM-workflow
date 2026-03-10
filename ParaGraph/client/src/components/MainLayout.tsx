@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
-import { WORKFLOW_ADDABLE_TYPES, WORKFLOW_ADD_EVENT, WORKFLOW_RUN_EVENT } from '../types'
+import { WORKFLOW_ADDABLE_TYPES } from '../types'
 import './MainLayout.css'
 
 const NAV_ITEMS = [
@@ -13,18 +13,6 @@ export default function MainLayout() {
     const [selectedType, setSelectedType] = useState<string>('Prompt')
 
     const isWorkflowPage = useMemo(() => location.pathname === '/', [location.pathname])
-
-    const handleAddNode = () => {
-        window.dispatchEvent(
-            new CustomEvent(WORKFLOW_ADD_EVENT, {
-                detail: { nodeType: selectedType },
-            }),
-        )
-    }
-
-    const handleRunWorkflow = () => {
-        window.dispatchEvent(new Event(WORKFLOW_RUN_EVENT))
-    }
 
     return (
         <div className="main-layout">
@@ -57,12 +45,6 @@ export default function MainLayout() {
                             </option>
                         ))}
                     </select>
-                    <button type="button" onClick={handleAddNode} disabled={!isWorkflowPage}>
-                        Add Node
-                    </button>
-                    <button type="button" className="run-btn" onClick={handleRunWorkflow} disabled={!isWorkflowPage}>
-                        Run
-                    </button>
                 </div>
             </header>
 
@@ -72,3 +54,4 @@ export default function MainLayout() {
         </div>
     )
 }
+

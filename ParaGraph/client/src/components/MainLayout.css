@@ -1,7 +1,9 @@
 .main-layout {
     min-height: 100vh;
+    height: 100vh;
     display: flex;
     flex-direction: column;
+    overflow: hidden;
     background: #020617;
 }
 
@@ -83,4 +85,6 @@
 .main-layout-content {
     flex: 1;
     min-height: 0;
+    overflow: auto;
 }
+
