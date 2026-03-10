@@ -13,8 +13,17 @@ import {
     validateWorkflow,
 } from '../app/services/workflowApi'
 import { AddNodeEventDetail, WORKFLOW_ADD_EVENT, WORKFLOW_RUN_EVENT } from '../types'
-import { ConfigFieldSchema, NodeDefinition } from '../workflow/schema/types'
+import { ConfigFieldSchema, NodeCategory, NodeDefinition } from '../workflow/schema/types'
 import './WorkflowPage.css'
+
+type NodeLibraryCategoryFilter = 'all' | NodeCategory
+type NodeLibraryPortFilter = 'all' | 'has-input' | 'has-output'
+
+const NODE_CATEGORY_LABELS: Record<NodeCategory, string> = {
+    input: 'Inputs',
+    process: 'Process',
+    output: 'Output',
+}
 
 function parseNumber(value: string): number | null {
     if (!value.trim()) {
@@ -87,6 +96,9 @@ function renderField(
 export default function WorkflowPage() {
     const [statusText, setStatusText] = useState('Ready')
     const [isRunning, setIsRunning] = useState(false)
+    const [nodeSearchQuery, setNodeSearchQuery] = useState('')
+    const [nodeCategoryFilter, setNodeCategoryFilter] = useState<NodeLibraryCategoryFilter>('all')
+    const [nodePortFilter, setNodePortFilter] = useState<NodeLibraryPortFilter>('all')
 
     const nodes = useNodeCatalogStore((state) => state.nodes)
     const nodeCatalogLoading = useNodeCatalogStore((state) => state.loading)
@@ -120,7 +132,30 @@ export default function WorkflowPage() {
         }
         return nodes.find((item) => item.type === selectedNode.node_type) ?? null
     }, [nodes, selectedNode])
+    const filteredNodeLibrary = useMemo(() => {
+        const normalizedSearch = nodeSearchQuery.trim().toLowerCase()
 
+        return nodes.filter((nodeDefinition) => {
+            if (nodeCategoryFilter !== 'all' && nodeDefinition.category !== nodeCategoryFilter) {
+                return false
+            }
+
+            if (nodePortFilter === 'has-input' && !nodeDefinition.ports.some((port) => port.direction === 'input')) {
+                return false
+            }
+
+            if (nodePortFilter === 'has-output' && !nodeDefinition.ports.some((port) => port.direction === 'output')) {
+                return false
+            }
+
+            if (!normalizedSearch) {
+                return true
+            }
+
+            const searchableText = `${nodeDefinition.label} ${nodeDefinition.type}`.toLowerCase()
+            return searchableText.includes(normalizedSearch)
+        })
+    }, [nodeCategoryFilter, nodePortFilter, nodeSearchQuery, nodes])
     const addNodeAtViewportCenter = useCallback(
         (nodeType: string) => {
             const definition = nodes.find((entry) => entry.type === nodeType)
@@ -250,14 +285,46 @@ export default function WorkflowPage() {
                 </div>
 
                 <aside className="workflow-sidepanel">
-                    <section className="workflow-panel">
+                    <section className="workflow-panel workflow-node-library">
                         <h2>Node Library</h2>
-                        <div className="workflow-node-buttons">
-                            {nodes.map((node) => (
+                        <div className="workflow-node-library-controls">
+                            <input
+                                type="search"
+                                value={nodeSearchQuery}
+                                placeholder="Search by name"
+                                onChange={(event) => setNodeSearchQuery(event.target.value)}
+                            />
+                            <div className="workflow-node-library-filters">
+                                <select
+                                    aria-label="Filter node category"
+                                    value={nodeCategoryFilter}
+                                    onChange={(event) => setNodeCategoryFilter(event.target.value as NodeLibraryCategoryFilter)}
+                                >
+                                    <option value="all">All categories</option>
+                                    {(['input', 'process', 'output'] as const).map((category) => (
+                                        <option key={category} value={category}>
+                                            {NODE_CATEGORY_LABELS[category]}
+                                        </option>
+                                    ))}
+                                </select>
+                                <select
+                                    aria-label="Filter node ports"
+                                    value={nodePortFilter}
+                                    onChange={(event) => setNodePortFilter(event.target.value as NodeLibraryPortFilter)}
+                                >
+                                    <option value="all">All ports</option>
+                                    <option value="has-input">Has input</option>
+                                    <option value="has-output">Has output</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div className="workflow-node-list">
+                            {filteredNodeLibrary.map((node) => (
                                 <button key={node.type} type="button" onClick={() => addNodeAtViewportCenter(node.type)}>
                                     + {node.label}
                                 </button>
                             ))}
+                            {filteredNodeLibrary.length === 0 && <p className="workflow-node-empty">No nodes match the current filters.</p>}
                         </div>
                     </section>
 
@@ -315,3 +382,4 @@ export default function WorkflowPage() {
         </section>
     )
 }
+

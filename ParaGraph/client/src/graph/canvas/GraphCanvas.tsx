@@ -491,6 +491,7 @@ export default function GraphCanvas({ nodeCatalog }: GraphCanvasProps) {
     const handleWheel = useCallback(
         (event: React.WheelEvent<HTMLCanvasElement>) => {
             event.preventDefault()
+            event.stopPropagation()
             const canvas = canvasRef.current
             if (!canvas) {
                 return
