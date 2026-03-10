@@ -1,0 +1,18 @@
+{
+  "id": "SAVE_TEXT",
+  "version": 1,
+  "name": "Save Text",
+  "category": "serialization",
+  "description": "Persist text content to the artifacts directory.",
+  "inputs": [
+    {"name": "text", "data_type": "TEXT", "required": true}
+  ],
+  "outputs": [
+    {"name": "artifact", "data_type": "JSON", "required": true}
+  ],
+  "parameters": [
+    {"name": "storage_path", "data_type": "TEXT", "default": "saved_text.txt", "ui_control": "text", "description": "Relative path inside ParaGraph/resources/artifacts."}
+  ],
+  "ui": {"default_width": 300, "accent_color": "#f472b6"},
+  "runtime": {"executor_key": "save_text", "cacheable": false, "deterministic": true, "side_effecting": true}
+}

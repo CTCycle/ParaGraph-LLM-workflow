@@ -5,83 +5,77 @@ from collections.abc import Callable
 from fastapi.testclient import TestClient
 
 
-###############################################################################
-def test_get_workflow_catalog_returns_expected_nodes(client: TestClient) -> None:
-    response = client.get("/workflow/catalog")
+def build_simple_definition(prompt_text: str) -> dict[str, object]:
+    return {
+        'schema_version': 2,
+        'nodes': [
+            {'node_id': 'prompt_1', 'node_type': 'PROMPT', 'node_version': 1, 'parameters': {'prompt_text': prompt_text}},
+            {'node_id': 'output_1', 'node_type': 'TEXT_OUTPUT', 'node_version': 1, 'parameters': {}},
+        ],
+        'connections': [
+            {'from_node': 'prompt_1', 'from_output': 'text', 'to_node': 'output_1', 'to_input': 'text'},
+        ],
+        'metadata': {},
+    }
+
+
+def test_compile_returns_plan_for_supported_graph(client: TestClient) -> None:
+    response = client.post('/executions/compile', json={'definition': build_simple_definition('Plan me')})
 
     assert response.status_code == 200
     payload = response.json()
-
-    assert [node["type"] for node in payload["nodes"]] == [
-        "Prompt",
-        "LLM",
-        "Retrieval",
-        "VectorDB",
-        "Output",
-    ]
+    assert payload['valid'] is True
+    assert payload['plan']['step_order'] == ['prompt_1', 'output_1']
 
 
-# -----------------------------------------------------------------------------
-def test_validate_rejects_connected_placeholder_nodes(client: TestClient) -> None:
+def test_compile_rejects_cycles(client: TestClient) -> None:
     response = client.post(
-        "/workflow/validate",
+        '/executions/compile',
         json={
-            "nodes": [
-                {"id": "retrieval_1", "type": "Retrieval", "position": {"x": 0, "y": 0}, "params": {}},
-                {"id": "output_1", "type": "Output", "position": {"x": 200, "y": 0}, "params": {}},
-            ],
-            "edges": [
-                {
-                    "id": "edge_1",
-                    "source": "retrieval_1",
-                    "sourceHandle": "context_out",
-                    "target": "output_1",
-                    "targetHandle": "text_in",
-                }
-            ],
+            'definition': {
+                'schema_version': 2,
+                'nodes': [
+                    {'node_id': 'if_1', 'node_type': 'IF', 'node_version': 1, 'parameters': {}},
+                    {'node_id': 'router_1', 'node_type': 'ROUTER', 'node_version': 1, 'parameters': {}},
+                ],
+                'connections': [
+                    {'from_node': 'if_1', 'from_output': 'result', 'to_node': 'router_1', 'to_input': 'value'},
+                    {'from_node': 'router_1', 'from_output': 'matched', 'to_node': 'if_1', 'to_input': 'true_value'},
+                ],
+                'metadata': {},
+            }
         },
     )
 
     assert response.status_code == 200
     payload = response.json()
+    assert payload['valid'] is False
+    assert any(item['code'] == 'graph_cycle' for item in payload['diagnostics'])
 
-    assert payload["valid"] is False
-    assert any("not supported by the MVP executor" in error for error in payload["errors"])
 
-
-# -----------------------------------------------------------------------------
-def test_execute_returns_job_and_persists_output_payload(
+def test_execute_returns_run_and_persists_output_payload(
     client: TestClient,
     wait_for_job: Callable[[str, float], dict[str, object]],
 ) -> None:
-    response = client.post(
-        "/workflow/execute",
-        json={
-            "nodes": [
-                {"id": "output_1", "type": "Output", "position": {"x": 0, "y": 0}, "params": {}},
-            ],
-            "edges": [],
-        },
-    )
+    compile_response = client.post('/executions/compile', json={'definition': build_simple_definition('Persist me')})
+    plan = compile_response.json()['plan']
 
-    assert response.status_code == 202
-    payload = response.json()
+    start_response = client.post('/executions', json={'workflow_id': None, 'plan': plan})
 
-    assert payload["job_type"] == "workflow"
-    assert payload["output_node_ids"] == ["output_1"]
+    assert start_response.status_code == 202
+    run_id = start_response.json()['run_id']
 
-    final_status = wait_for_job(str(payload["job_id"]))
-    status_response = client.get(f"/workflow/jobs/{payload['job_id']}")
+    final_status = wait_for_job(str(run_id))
+    status_response = client.get(f'/executions/{run_id}')
 
-    assert final_status["status"] == "completed"
-    assert final_status["result"] == {"outputs": {"output_1": {"text": ""}}}
+    assert final_status['status'] == 'completed'
+    assert final_status['result'] == {'outputs': {'output_1': {'text': 'Persist me'}}}
     assert status_response.status_code == 200
-    assert status_response.json()["result"] == {"outputs": {"output_1": {"text": ""}}}
+    assert status_response.json()['outputs'] == {'output_1': {'text': 'Persist me'}}
 
 
-# -----------------------------------------------------------------------------
-def test_get_missing_workflow_job_returns_not_found(client: TestClient) -> None:
-    response = client.get("/workflow/jobs/missing-job")
+def test_get_missing_execution_returns_not_found(client: TestClient) -> None:
+    response = client.get('/executions/missing-run')
 
     assert response.status_code == 404
-    assert response.json()["detail"] == "Job not found: missing-job"
+    assert response.json()['detail'] == 'Run not found: missing-run'

@@ -7,11 +7,11 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from ParaGraph.server.services.runtime.events import execution_event_service
 
 
-router = APIRouter(tags=["workflow-ws"])
+router = APIRouter(tags=["execution-ws"])
 
 
-@router.websocket("/workflow/ws/runs/{run_id}")
-async def workflow_run_events(websocket: WebSocket, run_id: str, replay: bool = True) -> None:
+@router.websocket("/executions/ws/runs/{run_id}")
+async def execution_run_events(websocket: WebSocket, run_id: str, replay: bool = True) -> None:
     await websocket.accept()
     queue = execution_event_service.subscribe(run_id)
 

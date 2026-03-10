@@ -1,0 +1,16 @@
+{
+  "id": "LOAD_TEXT",
+  "version": 1,
+  "name": "Load Text",
+  "category": "serialization",
+  "description": "Load text content from the artifacts directory.",
+  "inputs": [],
+  "outputs": [
+    {"name": "text", "data_type": "TEXT", "required": true}
+  ],
+  "parameters": [
+    {"name": "storage_path", "data_type": "TEXT", "default": "saved_text.txt", "ui_control": "text", "description": "Relative path inside ParaGraph/resources/artifacts."}
+  ],
+  "ui": {"default_width": 300, "accent_color": "#f472b6"},
+  "runtime": {"executor_key": "load_text", "cacheable": true, "deterministic": true, "side_effecting": false}
+}

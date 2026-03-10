@@ -1,460 +1,186 @@
-import { useEffect, useMemo, useState } from 'react'
-import {
-    NODE_ARTIFACTS,
-    NODE_CONTRACT_SNIPPET,
-    NODE_SYSTEM_PRINCIPLES,
-    NODE_TAXONOMY,
-    WORKFLOW_EXECUTABLE_TYPES,
-} from '../nodeSystem'
-import { fetchWorkflowCatalog } from '../services/workflow'
-import { NodeCategory, WorkflowNodeDefinition, WorkflowPort } from '../types'
+import { FormEvent, useEffect, useMemo, useState } from 'react'
+
+import { fetchNodeCatalog, importNodeManifest } from '../app/services/workflowApi'
+import { NodeCategory, NodeManifest } from '../workflow/schema/types'
 import './NodesPage.css'
 
 type CategoryFilter = 'all' | NodeCategory
-type CapabilityFilter = 'all' | 'runnable' | 'catalog-only'
-type SortMode = 'recommended' | 'name' | 'runnable-first'
 
 const CATEGORY_LABELS: Record<NodeCategory, string> = {
-    input: 'Inputs',
-    process: 'Process',
+    input: 'Input',
+    model: 'Model',
+    processing: 'Processing',
     output: 'Output',
-}
-
-const ARTIFACT_GROUPS = [
-    { label: 'Conversation artifacts', keys: ['messages', 'conversation-memory'] },
-    { label: 'LLM artifacts', keys: ['prompt-template', 'llm-response', 'structured-object', 'json-schema'] },
-    { label: 'Retrieval artifacts', keys: ['document-set', 'embedding-vector', 'retriever-config', 'score'] },
-    { label: 'Tooling/control artifacts', keys: ['tool-invocation', 'tool-result', 'decision', 'control-signal'] },
-] as const
-
-function truncateText(value: string, limit: number): string {
-    if (value.length <= limit) {
-        return value
-    }
-    return `${value.slice(0, limit - 1).trim()}...`
-}
-
-function summarizeLabels(labels: string[], limit: number): string {
-    if (labels.length === 0) {
-        return 'None'
-    }
-
-    const visible = labels.slice(0, limit)
-    const hiddenCount = labels.length - visible.length
-
-    if (hiddenCount <= 0) {
-        return visible.join(', ')
-    }
-
-    return `${visible.join(', ')} +${hiddenCount} more`
-}
-
-function summarizePorts(ports: WorkflowPort[], limit: number): string {
-    return summarizeLabels(ports.map((port) => port.label), limit)
-}
-
-function isDefined<T>(value: T | undefined): value is T {
-    return value !== undefined
+    serialization: 'Serialization',
+    control: 'Control',
 }
 
 export default function NodesPage() {
-    const [catalog, setCatalog] = useState<WorkflowNodeDefinition[]>([])
-    const [catalogError, setCatalogError] = useState<string | null>(null)
-    const [isCatalogLoading, setIsCatalogLoading] = useState(true)
-    const [searchTerm, setSearchTerm] = useState('')
-    const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all')
-    const [capabilityFilter, setCapabilityFilter] = useState<CapabilityFilter>('all')
-    const [sortMode, setSortMode] = useState<SortMode>('recommended')
-    const [expandedNodes, setExpandedNodes] = useState<Record<string, boolean>>({})
-    const [showFullContract, setShowFullContract] = useState(false)
-    const [showJsonNodeHint, setShowJsonNodeHint] = useState(false)
-    const [isArtifactsCollapsed, setIsArtifactsCollapsed] = useState(false)
+    const [catalog, setCatalog] = useState<NodeManifest[]>([])
+    const [loading, setLoading] = useState(true)
+    const [error, setError] = useState<string | null>(null)
+    const [search, setSearch] = useState('')
+    const [category, setCategory] = useState<CategoryFilter>('all')
+    const [jsonText, setJsonText] = useState('')
+    const [importStatus, setImportStatus] = useState<string | null>(null)
+    const [isImporting, setIsImporting] = useState(false)
+
+    async function loadCatalog(): Promise<void> {
+        setLoading(true)
+        try {
+            const payload = await fetchNodeCatalog()
+            setCatalog(payload.nodes)
+            setError(null)
+        } catch (loadError) {
+            setError(loadError instanceof Error ? loadError.message : 'Failed to load node catalog')
+        } finally {
+            setLoading(false)
+        }
+    }
 
     useEffect(() => {
-        let mounted = true
-
-        setIsCatalogLoading(true)
-
-        fetchWorkflowCatalog()
-            .then((payload) => {
-                if (!mounted) {
-                    return
-                }
-                setCatalog(payload.nodes)
-                setCatalogError(null)
-            })
-            .catch((error: unknown) => {
-                if (!mounted) {
-                    return
-                }
-                const message = error instanceof Error ? error.message : 'Failed to load workflow catalog'
-                setCatalogError(message)
-            })
-            .finally(() => {
-                if (!mounted) {
-                    return
-                }
-                setIsCatalogLoading(false)
-            })
-
-        return () => {
-            mounted = false
-        }
+        void loadCatalog()
     }, [])
 
-    const executableTypes = useMemo(() => new Set<string>(WORKFLOW_EXECUTABLE_TYPES), [])
     const filteredCatalog = useMemo(() => {
-        const normalizedQuery = searchTerm.trim().toLowerCase()
-
-        const filtered = catalog.filter((definition) => {
-            if (categoryFilter !== 'all' && definition.category !== categoryFilter) {
+        const normalized = search.trim().toLowerCase()
+        return catalog.filter((node) => {
+            if (category !== 'all' && node.category !== category) {
                 return false
             }
-
-            if (capabilityFilter === 'runnable' && !executableTypes.has(definition.type)) {
-                return false
-            }
-
-            if (capabilityFilter === 'catalog-only' && executableTypes.has(definition.type)) {
-                return false
-            }
-
-            if (!normalizedQuery) {
+            if (!normalized) {
                 return true
             }
-
-            const searchableText = [
-                definition.type,
-                definition.label,
-                definition.description,
-                definition.category,
-                ...definition.parameters.map((parameter) => `${parameter.label} ${parameter.key}`),
-                ...definition.ports.map((port) => `${port.label} ${port.data_type}`),
-            ]
-                .join(' ')
-                .toLowerCase()
-
-            return searchableText.includes(normalizedQuery)
+            return `${node.name} ${node.id} ${node.description}`.toLowerCase().includes(normalized)
         })
+    }, [catalog, category, search])
 
-        if (sortMode === 'name') {
-            return [...filtered].sort((left, right) => left.label.localeCompare(right.label))
+    function validateJson(): NodeManifest {
+        const parsed = JSON.parse(jsonText) as unknown
+        if (!parsed || typeof parsed !== 'object') {
+            throw new Error('JSON must contain a node manifest object')
+        }
+        return parsed as NodeManifest
+    }
+
+    async function handleImport(event: FormEvent<HTMLFormElement>): Promise<void> {
+        event.preventDefault()
+        setImportStatus(null)
+
+        let manifest: NodeManifest
+        try {
+            manifest = validateJson()
+            setImportStatus(`Valid manifest: ${manifest.id} v${manifest.version}`)
+        } catch (validationError) {
+            setImportStatus(validationError instanceof Error ? validationError.message : 'Invalid JSON payload')
+            return
         }
 
-        if (sortMode === 'runnable-first') {
-            return [...filtered].sort((left, right) => {
-                const leftExecutable = executableTypes.has(left.type) ? 1 : 0
-                const rightExecutable = executableTypes.has(right.type) ? 1 : 0
-
-                if (leftExecutable !== rightExecutable) {
-                    return rightExecutable - leftExecutable
-                }
-
-                return left.label.localeCompare(right.label)
-            })
+        setIsImporting(true)
+        try {
+            const created = await importNodeManifest(manifest)
+            setImportStatus(`Imported ${created.id} v${created.version}`)
+            await loadCatalog()
+            setJsonText('')
+        } catch (importError) {
+            setImportStatus(importError instanceof Error ? importError.message : 'Failed to import node manifest')
+        } finally {
+            setIsImporting(false)
         }
-
-        return filtered
-    }, [catalog, categoryFilter, capabilityFilter, executableTypes, searchTerm, sortMode])
-
-    const totalPorts = useMemo(() => catalog.reduce((count, definition) => count + definition.ports.length, 0), [catalog])
-    const executableCount = useMemo(
-        () => catalog.filter((definition) => executableTypes.has(definition.type)).length,
-        [catalog, executableTypes],
-    )
-    const contractPreview = useMemo(() => NODE_CONTRACT_SNIPPET.trim().split('\n').slice(0, 10).join('\n'), [])
-    const artifactLookup = useMemo(() => new Map(NODE_ARTIFACTS.map((artifact) => [artifact.key, artifact])), [])
-    const groupedArtifacts = useMemo(
-        () =>
-            ARTIFACT_GROUPS.map((group) => ({
-                label: group.label,
-                artifacts: group.keys.map((key) => artifactLookup.get(key)).filter(isDefined),
-            })),
-        [artifactLookup],
-    )
-
-    function toggleNodeDetails(type: string): void {
-        setExpandedNodes((current) => ({
-            ...current,
-            [type]: !current[type],
-        }))
     }
 
     return (
         <section className="nodes-page">
             <header className="nodes-header">
-                <p className="nodes-eyebrow">Node Registry</p>
-                <h1>Browse typed nodes for workflow execution</h1>
-                <p className="nodes-lede">
-                    Inspect node definitions first, then open runtime references only when needed. The catalog remains the
-                    primary workspace.
-                </p>
+                <p className="nodes-eyebrow">Nodes</p>
+                <h1>Compact catalog and JSON import</h1>
+                <p className="nodes-lede">Browse the live manifest registry and add new nodes directly from JSON.</p>
             </header>
 
-            {catalogError && <div className="nodes-alert">Catalog error: {catalogError}</div>}
-
-            <section className="nodes-controls-panel" aria-label="Catalog controls">
-                <div className="nodes-toolbar-row">
-                    <input
-                        type="search"
-                        value={searchTerm}
-                        className="nodes-search-input"
-                        placeholder="Search nodes, ports, or parameters"
-                        onChange={(event) => setSearchTerm(event.target.value)}
-                    />
-                    <label className="nodes-sort">
-                        <span>Sort</span>
-                        <select value={sortMode} onChange={(event) => setSortMode(event.target.value as SortMode)}>
-                            <option value="recommended">Recommended</option>
-                            <option value="name">Name</option>
-                            <option value="runnable-first">Runnable first</option>
-                        </select>
-                    </label>
-                </div>
-
-                <div className="nodes-filter-row">
-                    <div className="nodes-filter-group" role="group" aria-label="Node category filters">
-                        <button
-                            type="button"
-                            className={categoryFilter === 'all' ? 'active' : ''}
-                            onClick={() => setCategoryFilter('all')}
-                        >
-                            All
-                        </button>
-                        {(['input', 'process', 'output'] as const).map((category) => (
-                            <button
-                                key={category}
-                                type="button"
-                                className={categoryFilter === category ? 'active' : ''}
-                                onClick={() => setCategoryFilter(category)}
-                            >
-                                {CATEGORY_LABELS[category]}
-                            </button>
-                        ))}
-                    </div>
-
-                    <div className="nodes-filter-group" role="group" aria-label="Node capability filters">
-                        <button
-                            type="button"
-                            className={capabilityFilter === 'all' ? 'active' : ''}
-                            onClick={() => setCapabilityFilter('all')}
-                        >
-                            Any capability
-                        </button>
-                        <button
-                            type="button"
-                            className={capabilityFilter === 'runnable' ? 'active' : ''}
-                            onClick={() => setCapabilityFilter('runnable')}
-                        >
-                            Runnable
-                        </button>
-                        <button
-                            type="button"
-                            className={capabilityFilter === 'catalog-only' ? 'active' : ''}
-                            onClick={() => setCapabilityFilter('catalog-only')}
-                        >
-                            Catalog only
-                        </button>
-                    </div>
-                </div>
-
-                <div className="nodes-summary-strip" aria-label="Catalog summary">
-                    <span>
-                        <strong>{catalog.length}</strong> catalog nodes
-                    </span>
-                    <span>
-                        <strong>{executableCount}</strong> runnable
-                    </span>
-                    <span>
-                        <strong>{totalPorts}</strong> typed ports
-                    </span>
-                    <span>
-                        <strong>{filteredCatalog.length}</strong> results
-                    </span>
-                </div>
-            </section>
+            {(error || importStatus) && <div className="nodes-banner">{error || importStatus}</div>}
 
             <div className="nodes-layout">
-                <div className="nodes-main">
-                    <section className="nodes-panel nodes-panel-catalog">
-                        <div className="nodes-panel-header">
-                            <div>
-                                <h2>Node catalog</h2>
-                                <p>Preview node contracts before opening details.</p>
-                            </div>
-                            <div className="nodes-catalog-actions">
-                                <p className="nodes-result-count">{filteredCatalog.length} nodes</p>
-                                <button
-                                    type="button"
-                                    className="nodes-add-json-button"
-                                    onClick={() => setShowJsonNodeHint((current) => !current)}
-                                >
-                                    Add JSON node
-                                </button>
-                            </div>
+                <section className="nodes-panel">
+                    <div className="nodes-panel-header">
+                        <div>
+                            <h2>Node Preview</h2>
+                            <p>{filteredCatalog.length} visible</p>
                         </div>
-
-                        {showJsonNodeHint && (
-                            <p className="nodes-inline-hint">JSON node import wiring is reserved for the next update.</p>
-                        )}
-
-                        <div className="nodes-catalog-scroll" role="list" aria-label="Node preview list">
-                            {isCatalogLoading && (
-                                <div className="nodes-empty-results">
-                                    <h3>Loading catalog...</h3>
-                                    <p>Fetching node definitions from the server.</p>
-                                </div>
-                            )}
-
-                            {!isCatalogLoading &&
-                                filteredCatalog.map((definition) => {
-                                    const isExecutable = executableTypes.has(definition.type)
-                                    const inputPorts = definition.ports.filter((port) => port.direction === 'input')
-                                    const outputPorts = definition.ports.filter((port) => port.direction === 'output')
-                                    const isExpanded = Boolean(expandedNodes[definition.type])
-                                    const parameterLabels = definition.parameters.map((parameter) => parameter.label)
-
-                                    return (
-                                        <article key={definition.type} className="node-row" role="listitem">
-                                            <div className="node-row-main">
-                                                <div className="node-row-title">
-                                                    <h3>{definition.label}</h3>
-                                                    <p>{truncateText(definition.description, 110)}</p>
-                                                </div>
-                                                <div className="node-row-meta">
-                                                    <span className={`node-badge category-${definition.category}`}>
-                                                        {CATEGORY_LABELS[definition.category]}
-                                                    </span>
-                                                    <span className={`node-badge ${isExecutable ? 'status-live' : 'status-draft'}`}>
-                                                        {isExecutable ? 'Runnable' : 'Catalog only'}
-                                                    </span>
-                                                    <span className="node-row-type">{definition.type}</span>
-                                                </div>
-                                            </div>
-
-                                            <div className="node-row-actions">
-                                                <span>
-                                                    <strong>{definition.parameters.length}</strong> parameters
-                                                </span>
-                                                <span>
-                                                    <strong>{definition.ports.length}</strong> ports
-                                                </span>
-                                                <button
-                                                    type="button"
-                                                    className="node-row-toggle"
-                                                    aria-expanded={isExpanded}
-                                                    onClick={() => toggleNodeDetails(definition.type)}
-                                                >
-                                                    {isExpanded ? 'Hide schema' : 'View schema'}
-                                                </button>
-                                            </div>
-
-                                            {isExpanded && (
-                                                <div className="node-row-details">
-                                                    <p>
-                                                        <span>Inputs:</span> {summarizePorts(inputPorts, 3)}
-                                                    </p>
-                                                    <p>
-                                                        <span>Outputs:</span> {summarizePorts(outputPorts, 3)}
-                                                    </p>
-                                                    <p>
-                                                        <span>Parameters:</span> {summarizeLabels(parameterLabels, 6)}
-                                                    </p>
-                                                </div>
-                                            )}
-                                        </article>
-                                    )
-                                })}
-
-                            {!isCatalogLoading && filteredCatalog.length === 0 && (
-                                <div className="nodes-empty-results">
-                                    <h3>No nodes matched</h3>
-                                    <p>Adjust the search term or category filter to inspect the rest of the registry.</p>
-                                </div>
-                            )}
+                        <div className="nodes-tools">
+                            <input
+                                type="search"
+                                value={search}
+                                placeholder="Search nodes"
+                                onChange={(event) => setSearch(event.target.value)}
+                            />
+                            <select value={category} onChange={(event) => setCategory(event.target.value as CategoryFilter)}>
+                                <option value="all">All categories</option>
+                                {Object.entries(CATEGORY_LABELS).map(([value, label]) => (
+                                    <option key={value} value={value}>
+                                        {label}
+                                    </option>
+                                ))}
+                            </select>
                         </div>
-                    </section>
+                    </div>
 
-                    <section className="nodes-panel">
-                        <div className="nodes-panel-header">
-                            <div>
-                                <h2>Core artifacts</h2>
-                                <p>Grouped artifact names for fast reference.</p>
-                            </div>
+                    <div className="nodes-preview-list" role="list" aria-label="Node previews">
+                        {loading && <div className="nodes-empty">Loading catalog...</div>}
+                        {!loading && filteredCatalog.length === 0 && <div className="nodes-empty">No nodes matched.</div>}
+                        {!loading &&
+                            filteredCatalog.map((node) => (
+                                <article key={`${node.id}-${node.version}`} className="nodes-preview-row" role="listitem">
+                                    <div>
+                                        <h3>{node.name}</h3>
+                                        <p>{node.description}</p>
+                                    </div>
+                                    <span>{CATEGORY_LABELS[node.category]}</span>
+                                </article>
+                            ))}
+                    </div>
+                </section>
+
+                <section className="nodes-panel">
+                    <div className="nodes-panel-header">
+                        <div>
+                            <h2>Import JSON</h2>
+                            <p>Paste a single node manifest.</p>
+                        </div>
+                    </div>
+
+                    <form className="nodes-import-form" onSubmit={(event) => void handleImport(event)}>
+                        <textarea
+                            value={jsonText}
+                            onChange={(event) => setJsonText(event.target.value)}
+                            placeholder='{
+  "id": "CUSTOM_NODE",
+  "version": 1,
+  "name": "Custom Node"
+}'
+                            rows={18}
+                        />
+                        <div className="nodes-import-actions">
                             <button
                                 type="button"
-                                className="nodes-compact-toggle"
-                                aria-expanded={!isArtifactsCollapsed}
-                                onClick={() => setIsArtifactsCollapsed((current) => !current)}
+                                onClick={() => {
+                                    try {
+                                        const manifest = validateJson()
+                                        setImportStatus(`Valid manifest: ${manifest.id} v${manifest.version}`)
+                                    } catch (validationError) {
+                                        setImportStatus(
+                                            validationError instanceof Error ? validationError.message : 'Invalid JSON payload',
+                                        )
+                                    }
+                                }}
                             >
-                                {isArtifactsCollapsed ? 'Expand' : 'Collapse'}
+                                Validate
+                            </button>
+                            <button type="submit" disabled={isImporting || !jsonText.trim()}>
+                                {isImporting ? 'Importing...' : 'Import Node'}
                             </button>
                         </div>
-                        {!isArtifactsCollapsed && (
-                            <div className="nodes-artifact-groups nodes-artifact-groups-compact">
-                                {groupedArtifacts.map((group) => (
-                                    <article key={group.label} className="nodes-artifact-group">
-                                        <h3>{group.label}</h3>
-                                        <ul className="nodes-artifact-pill-list">
-                                            {group.artifacts.map((artifact) => (
-                                                <li key={artifact.key} title={artifact.description}>
-                                                    {artifact.label}
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    </article>
-                                ))}
-                            </div>
-                        )}
-                    </section>
-                </div>
-
-                <aside className="nodes-reference-rail">
-                    <section className="nodes-panel nodes-reference-panel">
-                        <h2>System reference</h2>
-                        <p className="nodes-reference-lede">Quick runtime rules and naming guidance.</p>
-
-                        <details className="nodes-accordion" open>
-                            <summary>Execution model</summary>
-                            <div className="nodes-accordion-content">
-                                <ul className="nodes-simple-list">
-                                    {NODE_SYSTEM_PRINCIPLES.map((principle) => (
-                                        <li key={principle.title}>
-                                            <strong>{principle.title}:</strong> {principle.description}
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
-                        </details>
-
-                        <details className="nodes-accordion">
-                            <summary>Node contract</summary>
-                            <div className="nodes-accordion-content">
-                                <pre>{showFullContract ? NODE_CONTRACT_SNIPPET : contractPreview}</pre>
-                                <button
-                                    type="button"
-                                    className="contract-expand-button"
-                                    onClick={() => setShowFullContract((current) => !current)}
-                                >
-                                    {showFullContract ? 'Show shorter preview' : 'Expand full contract'}
-                                </button>
-                            </div>
-                        </details>
-
-                        <details className="nodes-accordion">
-                            <summary>Recommended taxonomy</summary>
-                            <div className="nodes-accordion-content">
-                                <ul className="nodes-simple-list nodes-taxonomy-list">
-                                    {NODE_TAXONOMY.map((entry) => (
-                                        <li key={entry.label}>
-                                            <strong>{entry.label}:</strong> {entry.description}
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
-                        </details>
-                    </section>
-                </aside>
+                    </form>
+                </section>
             </div>
         </section>
     )

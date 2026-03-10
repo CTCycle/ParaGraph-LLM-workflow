@@ -12,7 +12,6 @@ from ParaGraph.server.common.utils.variables import env_variables  # noqa: F401
 from ParaGraph.server.routes.executions import router as executions_router
 from ParaGraph.server.routes.nodes import router as nodes_router
 from ParaGraph.server.routes.providers import router as providers_router
-from ParaGraph.server.routes.workflow import router as workflow_router
 from ParaGraph.server.routes.workflows import router as workflows_router
 from ParaGraph.server.routes.ws import router as ws_router
 
@@ -23,7 +22,6 @@ app = FastAPI(
     description=FASTAPI_DESCRIPTION,
 )
 
-app.include_router(workflow_router)
 app.include_router(workflows_router)
 app.include_router(executions_router)
 app.include_router(nodes_router)

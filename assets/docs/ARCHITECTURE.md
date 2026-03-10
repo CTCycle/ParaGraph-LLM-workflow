@@ -1,7 +1,7 @@
 # ParaGraph Architecture
 
-ParaGraph is a FastAPI + React application for authoring and running typed LLM workflow graphs.
-The current implementation now has explicit workflow/compiler/runtime contracts, a Canvas2D editor surface, and websocket runtime events.
+ParaGraph is a FastAPI + React application for authoring and running manifest-driven workflow graphs.
+The current implementation uses a React Flow editor, JSON node manifests, and a typed execution compiler/runtime.
 
 ---
 
@@ -9,104 +9,95 @@ The current implementation now has explicit workflow/compiler/runtime contracts,
 
 - `ParaGraph/server`: FastAPI backend.
   - `app.py`: app creation and router registration.
-  - `routes/`: API routers (`workflow`, `workflows`, `executions`, `nodes`, `providers`, `ws`).
-  - `entities/`: Pydantic API/domain contracts (workflow, execution, node catalog, jobs, settings).
-  - `services/workflow/`: compiler, execution orchestration, provider abstraction, node registry, legacy adapters.
-  - `services/runtime/events.py`: typed execution event pub/sub for websocket fanout.
-  - `repositories/workflow/`: workflow version persistence and in-memory run state repository.
+  - `routes/`: API routers (`workflows`, `executions`, `nodes`, `providers`, `ws`).
+  - `entities/`: Pydantic contracts for manifests, workflows, and execution state.
+  - `services/workflow/`: manifest registry, compiler, provider abstraction, execution orchestration, workflow CRUD.
+  - `services/runtime/events.py`: typed execution event pub/sub for polling and websocket replay.
+  - `repositories/workflow/`: file-backed workflow documents and in-memory run-state repository.
   - `services/jobs.py`: in-process background job manager used by execution workers.
 - `ParaGraph/client`: React + TypeScript frontend.
-  - `src/graph/canvas/GraphCanvas.tsx`: Canvas2D graph rendering + interaction layer.
-  - `src/graph/core/`: graph model ops, edge validation, serialization adapter, command history.
-  - `src/app/stores/`: separated workflow/runtime/ui/catalog stores.
-  - `src/app/services/workflowApi.ts`: API and websocket client surface.
-  - `src/pages/WorkflowPage.tsx`: editor shell + inspector + runtime event panel.
+  - `src/pages/WorkflowPage.tsx`: React Flow workflow editor shell.
+  - `src/pages/NodesPage.tsx`: compact node catalog and JSON import UI.
+  - `src/app/services/api.ts`: shared request helper.
+  - `src/app/services/workflowApi.ts`: node catalog, compile, execute, and event client surface.
+  - `src/workflow/schema/types.ts`: shared frontend contracts for manifests, workflows, and execution responses.
+- `ParaGraph/resources/nodes`: JSON node manifests loaded dynamically at server startup and on import.
+- `ParaGraph/resources/workflows`: persisted workflow documents and version history.
+- `ParaGraph/resources/artifacts`: file-backed save/load targets for serialization nodes.
 
 ---
 
-## 2. Runtime Topology
+## 2. Backend Contracts
 
-### Local launcher path (`ParaGraph/start_on_windows.bat`)
-- Boots portable runtimes and runs FastAPI + built frontend preview.
-- Frontend uses `VITE_API_BASE_URL` and websocket path `/workflow/ws/runs/{run_id}` via same host/proxy base.
+### 2.1 Node manifests
+- `GET /nodes/catalog` returns live `NodeManifest[]`.
+- `POST /nodes/import` validates and persists a single manifest JSON object.
+- Each manifest declares:
+  - metadata (`id`, `version`, `name`, `category`, `description`)
+  - typed `inputs[]` and `outputs[]`
+  - `parameters[]` with UI hints and defaults
+  - `ui` display metadata
+  - `runtime.executor_key` resolved to Python executor code
 
-### Docker path
-- Backend container runs Uvicorn.
-- Frontend container serves static assets through Nginx.
-- `/api/*` is proxied to backend routes.
+### 2.2 Workflow model
+- Workflow documents use schema version `2`.
+- `definition.nodes[]`: `{ node_id, node_type, node_version, parameters }`
+- `definition.connections[]`: `{ from_node, from_output, to_node, to_input }`
+- visual state stays separate in `visual_graph.nodes[]` with position, size, and collapse metadata.
+
+### 2.3 Execution APIs
+- `POST /executions/compile`: validates the graph and returns diagnostics plus a compiled plan when valid.
+- `POST /executions`: starts a run from a compiled plan.
+- `GET /executions/{run_id}`: current run state and terminal outputs.
+- `GET /executions/{run_id}/events`: recorded lifecycle events.
+- `WS /executions/ws/runs/{run_id}`: event replay + live event stream.
 
 ---
 
-## 3. Backend Architecture
+## 3. Runtime Architecture
 
-### 3.1 API surface
-- Compatibility API:
-  - `GET /workflow/catalog`
-  - `POST /workflow/validate`
-  - `POST /workflow/execute`
-  - `GET/DELETE /workflow/jobs/{job_id}`
-- New platform APIs:
-  - `GET/POST /workflows`
-  - `GET/PUT /workflows/{workflow_id}`
-  - `GET /workflows/{workflow_id}/versions`
-  - `POST /executions/compile`
-  - `POST /executions`
-  - `GET /executions/{run_id}`
-  - `GET /executions/{run_id}/events`
-  - `GET /nodes/catalog`
-  - `GET /providers/catalog`
-  - `WS /workflow/ws/runs/{run_id}`
+### 3.1 Manifest registry
+- Manifests are loaded from `ParaGraph/resources/nodes/*.json`.
+- Duplicate `id + version` pairs are rejected.
+- `executor_key` must map to a registered Python executor.
 
-### 3.2 Service boundaries
-- `compiler.py`: graph diagnostics, typed-port checks, DAG checks, provider capability checks, execution plan construction.
-- `execution.py`: step orchestration, per-step state, job progress/result updates, typed event publication.
-- `provider.py`: provider capabilities and normalized chat call dispatch.
-- `legacy.py`: adapters from legacy graph payloads to versioned workflow contracts.
-- `workflow.py`: workflow CRUD and version orchestration.
+### 3.2 Compiler
+- Validates:
+  - known node type/version
+  - known input/output names
+  - required parameters and required inputs
+  - strict type compatibility with `ANY` as the only wildcard
+  - per-input multiplicity rules
+  - acyclic graph structure
+  - provider capability checks for model nodes
+- Produces deterministic topological order and step bindings by named ports.
 
-### 3.3 Runtime events
-Typed envelope (`ExecutionEventEnvelope`) fields:
-- `event_type`
-- `run_id`
-- `step_id`
-- `sequence`
-- `timestamp`
-- `payload`
-
-Published lifecycle events:
-- `execution.queued`
-- `execution.started`
-- `execution.step.started`
-- `execution.step.completed`
-- `execution.step.failed`
-- `execution.completed`
-- `execution.failed`
+### 3.3 Executor
+- Executes compiled steps in DAG order inside the job manager.
+- Resolves bound inputs by port name.
+- Applies per-run output caching for cacheable nodes.
+- Publishes lifecycle events and stores terminal output payloads for output nodes.
 
 ---
 
 ## 4. Frontend Architecture
 
-### 4.1 Editor layer
-- Canvas2D graph surface for nodes/edges and interactions.
-- Inspector panel for node config editing.
-- Runtime event panel and run controls.
-- Nodes registry page with a primary catalog-first layout, compact filter/search toolbar, a scrollable row-based node preview list with optional schema expansion, compactable core artifacts, and a secondary accordion-based system reference rail.
+### 4.1 Nodes page
+- Two-column layout.
+- Left column: compact, fixed-height preview widget with searchable/filterable manifest rows.
+- Right column: JSON paste/import panel backed by `POST /nodes/import`.
+- Core artifacts and reference rail were removed.
 
-### 4.2 Store separation
-- `workflowStore`: in-memory workflow definition + visual graph (initialized empty on app launch).
-- `runtimeStore`: run status, events, per-step state, outputs.
-- `uiStore`: camera/grid/connection pointer interaction state.
-- `nodeCatalogStore` + `providerCatalogStore`: catalog loading and state.
-
-### 4.3 Persistence
-- Workflow editor state is session-scoped and starts from an empty graph on each application launch.
-- Runtime outputs are not persisted inside workflow configs.
+### 4.2 Workflow page
+- React Flow canvas with custom Comfy-style node cards.
+- Node parameters, collapse state, delete action, and runtime output preview live inside the node card.
+- Right rail is a compact node library only; `Inspector` and `Runtime Events` panels were removed.
+- Client-side connection checks mirror backend rules for type compatibility and multiplicity.
 
 ---
 
 ## 5. Notes
 
-- Legacy non-workflow route modules from the original template were removed from the server route layer.
-- Existing backend pytest suite remains green and continues covering root workflow compatibility behavior.
-- Additional coverage for websocket stream behavior and workflow CRUD/version APIs should be expanded in subsequent hardening phases.
-
+- The legacy `/workflow/*` compatibility API is no longer part of the active application surface.
+- Existing persisted workflow documents are migrated on read into schema `2` shapes.
+- The initial executable manifest set is limited to the base nodes required by the current editor/runtime; retrieval/RAG expansion is a follow-up wave.

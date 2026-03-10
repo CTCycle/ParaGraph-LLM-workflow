@@ -1,0 +1,16 @@
+{
+  "id": "TOKENIZE",
+  "version": 1,
+  "name": "Tokenize",
+  "category": "processing",
+  "description": "Split text into token ids.",
+  "inputs": [
+    {"name": "text", "data_type": "TEXT", "required": true}
+  ],
+  "outputs": [
+    {"name": "tokens", "data_type": "TOKEN_IDS", "required": true}
+  ],
+  "parameters": [],
+  "ui": {"default_width": 280, "accent_color": "#f59e0b"},
+  "runtime": {"executor_key": "tokenize", "cacheable": true, "deterministic": true, "side_effecting": false}
+}
