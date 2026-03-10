@@ -92,14 +92,13 @@ Published lifecycle events:
 - Runtime event panel and run controls.
 
 ### 4.2 Store separation
-- `workflowStore`: persisted workflow definition + visual graph.
+- `workflowStore`: in-memory workflow definition + visual graph (initialized empty on app launch).
 - `runtimeStore`: run status, events, per-step state, outputs.
 - `uiStore`: camera/grid/connection pointer interaction state.
 - `nodeCatalogStore` + `providerCatalogStore`: catalog loading and state.
 
 ### 4.3 Persistence
-- Versioned local document key: `paragraph.workflow.document.v1`.
-- One-time migration adapter reads legacy key: `paragraph.workflow.graph`.
+- Workflow editor state is session-scoped and starts from an empty graph on each application launch.
 - Runtime outputs are not persisted inside workflow configs.
 
 ---

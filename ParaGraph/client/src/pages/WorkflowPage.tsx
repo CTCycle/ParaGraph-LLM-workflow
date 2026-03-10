@@ -36,6 +36,16 @@ function toDisplay(value: unknown): string {
     }
     return JSON.stringify(value)
 }
+function getCanvasViewportCenter(): { x: number; y: number } {
+    const canvasRoot = document.querySelector<HTMLElement>('.graph-canvas-root')
+    if (!canvasRoot) {
+        return { x: 320, y: 220 }
+    }
+    return {
+        x: Math.max(1, canvasRoot.clientWidth) / 2,
+        y: Math.max(1, canvasRoot.clientHeight) / 2,
+    }
+}
 
 function renderField(
     schema: ConfigFieldSchema,
@@ -117,12 +127,19 @@ export default function WorkflowPage() {
             if (!definition) {
                 return
             }
-            const worldX = cameraX + 320 / Math.max(zoom, 0.1)
-            const worldY = cameraY + 220 / Math.max(zoom, 0.1)
+            const center = getCanvasViewportCenter()
+            const worldX = cameraX + center.x / Math.max(zoom, 0.1)
+            const worldY = cameraY + center.y / Math.max(zoom, 0.1)
             workflowActions.addNode(definition, worldX, worldY)
         },
         [cameraX, cameraY, nodes, zoom],
     )
+
+    const handleZoomFromToolbar = useCallback((factor: number) => {
+        const uiState = getUiState()
+        const center = getCanvasViewportCenter()
+        uiActions.zoomAtPoint(center.x, center.y, uiState.zoom * factor)
+    }, [])
 
     const runWorkflow = useCallback(async () => {
         if (isRunning) {
@@ -207,10 +224,10 @@ export default function WorkflowPage() {
                 <span>{statusText}</span>
                 <span className={`workflow-badge status-${runtimeStatus}`}>{runtimeStatus}</span>
                 <span>{Math.round(runtimeProgress)}%</span>
-                <button type="button" onClick={() => uiActions.setZoom(getUiState().zoom * 1.1)}>
+                <button type="button" onClick={() => handleZoomFromToolbar(1.1)}>
                     Zoom +
                 </button>
-                <button type="button" onClick={() => uiActions.setZoom(getUiState().zoom * 0.9)}>
+                <button type="button" onClick={() => handleZoomFromToolbar(0.9)}>
                     Zoom -
                 </button>
                 <button type="button" onClick={() => uiActions.toggleGrid()}>

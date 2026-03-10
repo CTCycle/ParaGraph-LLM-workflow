@@ -14,10 +14,6 @@ type InteractionState =
 
 const PORT_RADIUS = 6
 
-function clampZoom(zoom: number): number {
-    return Math.max(0.25, Math.min(2, zoom))
-}
-
 function worldToScreen(worldX: number, worldY: number, cameraX: number, cameraY: number, zoom: number) {
     return {
         x: (worldX - cameraX) * zoom,
@@ -85,12 +81,16 @@ export default function GraphCanvas({ nodeCatalog }: GraphCanvasProps) {
             return
         }
 
-        const bounds = container.getBoundingClientRect()
+        const viewportWidth = Math.max(1, container.clientWidth)
+        const viewportHeight = Math.max(1, container.clientHeight)
         const dpr = window.devicePixelRatio || 1
-        canvas.width = Math.round(bounds.width * dpr)
-        canvas.height = Math.round(bounds.height * dpr)
-        canvas.style.width = `${bounds.width}px`
-        canvas.style.height = `${bounds.height}px`
+        const pixelWidth = Math.max(1, Math.round(viewportWidth * dpr))
+        const pixelHeight = Math.max(1, Math.round(viewportHeight * dpr))
+
+        if (canvas.width !== pixelWidth || canvas.height !== pixelHeight) {
+            canvas.width = pixelWidth
+            canvas.height = pixelHeight
+        }
 
         const context = canvas.getContext('2d')
         if (!context) {
@@ -98,7 +98,7 @@ export default function GraphCanvas({ nodeCatalog }: GraphCanvasProps) {
         }
 
         context.setTransform(dpr, 0, 0, dpr, 0, 0)
-        context.clearRect(0, 0, bounds.width, bounds.height)
+        context.clearRect(0, 0, viewportWidth, viewportHeight)
 
         if (showGrid) {
             const gridGap = zoom < 0.5 ? 120 : 24
@@ -108,16 +108,16 @@ export default function GraphCanvas({ nodeCatalog }: GraphCanvasProps) {
             const startX = (-(cameraX * zoom) % gridGap + gridGap) % gridGap
             const startY = (-(cameraY * zoom) % gridGap + gridGap) % gridGap
 
-            for (let x = startX; x <= bounds.width; x += gridGap) {
+            for (let x = startX; x <= viewportWidth; x += gridGap) {
                 context.beginPath()
                 context.moveTo(x, 0)
-                context.lineTo(x, bounds.height)
+                context.lineTo(x, viewportHeight)
                 context.stroke()
             }
-            for (let y = startY; y <= bounds.height; y += gridGap) {
+            for (let y = startY; y <= viewportHeight; y += gridGap) {
                 context.beginPath()
                 context.moveTo(0, y)
-                context.lineTo(bounds.width, y)
+                context.lineTo(viewportWidth, y)
                 context.stroke()
             }
         }
@@ -499,13 +499,10 @@ export default function GraphCanvas({ nodeCatalog }: GraphCanvasProps) {
             const bounds = canvas.getBoundingClientRect()
             const pointerX = event.clientX - bounds.left
             const pointerY = event.clientY - bounds.top
-            const before = screenToWorld(pointerX, pointerY, cameraX, cameraY, zoom)
-            const nextZoom = clampZoom(event.deltaY < 0 ? zoom * 1.1 : zoom * 0.9)
-            const nextCameraX = before.x - pointerX / nextZoom
-            const nextCameraY = before.y - pointerY / nextZoom
-            uiActions.setCamera(nextCameraX, nextCameraY, nextZoom)
+            const nextZoom = event.deltaY < 0 ? zoom * 1.1 : zoom * 0.9
+            uiActions.zoomAtPoint(pointerX, pointerY, nextZoom)
         },
-        [cameraX, cameraY, zoom],
+        [zoom],
     )
 
     useEffect(() => {
@@ -555,5 +552,4 @@ export default function GraphCanvas({ nodeCatalog }: GraphCanvasProps) {
         </div>
     )
 }
-
 

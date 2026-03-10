@@ -2,14 +2,8 @@ import { addEdge, addNode, moveNode, removeNode, updateNodeConfig } from '../../
 import { toLegacyWorkflowGraph } from '../../graph/core/serialization'
 import { validateEdgeCompatibility } from '../../graph/core/validators'
 import { CommandHistory } from '../../graph/core/history'
-import {
-    LEGACY_STORAGE_KEY,
-    WORKFLOW_STORAGE_KEY,
-    buildEmptyVisualGraph,
-    buildEmptyWorkflowDefinition,
-    migrateLegacyGraphToDocument,
-} from '../../workflow/schema/migrations'
-import { LegacyWorkflowGraph, NodeDefinition, WorkflowDefinition, VisualGraph } from '../../workflow/schema/types'
+import { buildEmptyVisualGraph, buildEmptyWorkflowDefinition } from '../../workflow/schema/migrations'
+import { NodeDefinition, WorkflowDefinition, VisualGraph } from '../../workflow/schema/types'
 import { createStore, useStore } from './store'
 
 export interface WorkflowState {
@@ -24,39 +18,9 @@ export interface WorkflowState {
 const history = new CommandHistory<Pick<WorkflowState, 'definition' | 'visualGraph'>>()
 
 function defaultState(): WorkflowState {
-    const workflowId = 'local-workflow'
-    const name = 'Local Workflow'
-
-    try {
-        const stored = localStorage.getItem(WORKFLOW_STORAGE_KEY)
-        if (stored) {
-            const parsed = JSON.parse(stored) as WorkflowState
-            return {
-                ...parsed,
-                lastError: null,
-            }
-        }
-
-        const legacyRaw = localStorage.getItem(LEGACY_STORAGE_KEY)
-        if (legacyRaw) {
-            const legacy = JSON.parse(legacyRaw) as LegacyWorkflowGraph
-            const migrated = migrateLegacyGraphToDocument(workflowId, name, legacy)
-            return {
-                workflowId,
-                name,
-                definition: migrated.definition,
-                visualGraph: migrated.visualGraph,
-                selectedNodeId: null,
-                lastError: null,
-            }
-        }
-    } catch {
-        // Fallback to empty state.
-    }
-
     return {
-        workflowId,
-        name,
+        workflowId: 'local-workflow',
+        name: 'Local Workflow',
         definition: buildEmptyWorkflowDefinition(),
         visualGraph: buildEmptyVisualGraph(),
         selectedNodeId: null,
@@ -73,14 +37,8 @@ function snapshotForHistory(state: WorkflowState): Pick<WorkflowState, 'definiti
     }
 }
 
-function persistState(state: WorkflowState): void {
-    localStorage.setItem(
-        WORKFLOW_STORAGE_KEY,
-        JSON.stringify({
-            ...state,
-            lastError: null,
-        }),
-    )
+function persistState(_state: WorkflowState): void {
+    // Intentionally no-op: workflow starts empty on each application launch.
 }
 
 function commitMutation(mutator: (state: WorkflowState) => WorkflowState, kind: 'mutate' | 'move' = 'mutate'): void {
