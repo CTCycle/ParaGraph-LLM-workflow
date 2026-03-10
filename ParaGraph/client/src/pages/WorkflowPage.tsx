@@ -4,6 +4,7 @@ import {
     Background,
     BackgroundVariant,
     Connection,
+    ControlButton,
     Controls,
     Edge,
     Handle,
@@ -42,8 +43,14 @@ type WorkflowNodeData = {
     collapsed: boolean
     runtimeOutput: Record<string, unknown> | null
     onParameterChange: (parameterName: string, value: unknown) => void
-    onDelete: () => void
     onToggleCollapse: () => void
+}
+
+type NodeContextMenuState = {
+    nodeId: string
+    nodeName: string
+    x: number
+    y: number
 }
 
 const CATEGORY_LABELS: Record<NodeCategory, string> = {
@@ -96,8 +103,14 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
                     <strong>{data.manifest.name}</strong>
                     <span>{data.manifest.id}</span>
                 </div>
-                <button type="button" onClick={data.onToggleCollapse}>
-                    {data.collapsed ? 'Open' : 'Fold'}
+                <button
+                    type="button"
+                    className="workflow-node-toggle"
+                    aria-label={data.collapsed ? 'Expand node' : 'Collapse node'}
+                    title={data.collapsed ? 'Expand node' : 'Collapse node'}
+                    onClick={data.onToggleCollapse}
+                >
+                    {data.collapsed ? '^' : 'v'}
                 </button>
             </div>
 
@@ -175,9 +188,6 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
 
             <div className="workflow-node-footer">
                 <span>{CATEGORY_LABELS[data.manifest.category]}</span>
-                <button type="button" onClick={data.onDelete}>
-                    Delete
-                </button>
             </div>
         </div>
     )
@@ -194,11 +204,13 @@ function WorkflowEditor() {
     const [search, setSearch] = useState('')
     const [category, setCategory] = useState<NodeLibraryCategoryFilter>('all')
     const [runtimeOutputs, setRuntimeOutputs] = useState<Record<string, Record<string, unknown>>>({})
+    const [nodeContextMenu, setNodeContextMenu] = useState<NodeContextMenuState | null>(null)
     const [nodes, setNodes, onNodesChange] = useNodesState<Node<WorkflowNodeData>>([])
     const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([])
     const [isGridVisible, setIsGridVisible] = useState(true)
     const stopEventsRef = useRef<(() => void) | null>(null)
-    const { fitView, zoomIn, zoomOut } = useReactFlow<Node<WorkflowNodeData>, Edge>()
+    const canvasPanelRef = useRef<HTMLDivElement | null>(null)
+    const { fitView, zoomIn, zoomTo, getZoom } = useReactFlow<Node<WorkflowNodeData>, Edge>()
 
     useEffect(() => {
         let mounted = true
@@ -242,6 +254,29 @@ function WorkflowEditor() {
         )
     }, [runtimeOutputs, setNodes])
 
+    useEffect(() => {
+        if (!nodeContextMenu) {
+            return
+        }
+
+        function closeNodeContextMenu(): void {
+            setNodeContextMenu(null)
+        }
+
+        function handleEscape(event: KeyboardEvent): void {
+            if (event.key === 'Escape') {
+                closeNodeContextMenu()
+            }
+        }
+
+        window.addEventListener('pointerdown', closeNodeContextMenu)
+        window.addEventListener('keydown', handleEscape)
+        return () => {
+            window.removeEventListener('pointerdown', closeNodeContextMenu)
+            window.removeEventListener('keydown', handleEscape)
+        }
+    }, [nodeContextMenu])
+
     const filteredCatalog = useMemo(() => {
         const normalized = search.trim().toLowerCase()
         return catalog.filter((manifest) => {
@@ -267,6 +302,12 @@ function WorkflowEditor() {
             delete next[nodeId]
             return next
         })
+        setNodeContextMenu((current) => (current?.nodeId === nodeId ? null : current))
+    }
+
+    function handleAggressiveZoomOut(): void {
+        const nextZoom = Math.max(getZoom() * 0.72, 0.05)
+        void zoomTo(nextZoom, { duration: 110 })
     }
 
     function addManifestNode(manifest: NodeManifest): void {
@@ -292,7 +333,6 @@ function WorkflowEditor() {
                         },
                     }))
                 },
-                onDelete: () => removeNode(nodeId),
                 onToggleCollapse: () => {
                     updateNode(nodeId, (current) => ({
                         ...current,
@@ -424,19 +464,21 @@ function WorkflowEditor() {
                     <strong>{statusText}</strong>
                 </div>
                 <div className="workflow-toolbar-actions">
-                    <button type="button" onClick={() => void zoomOut({ duration: 120 })}>
-                        Zoom Out
-                    </button>
-                    <button type="button" onClick={() => void zoomIn({ duration: 120 })}>
-                        Zoom In
-                    </button>
                     <button type="button" onClick={() => void fitView({ padding: 0.2, duration: 180 })}>
                         Fit View
                     </button>
                     <button type="button" onClick={() => setIsGridVisible((visible) => !visible)}>
                         {isGridVisible ? 'Hide Grid' : 'Show Grid'}
                     </button>
-                    <button type="button" onClick={() => setNodes([])}>
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setNodes([])
+                            setEdges([])
+                            setRuntimeOutputs({})
+                            setNodeContextMenu(null)
+                        }}
+                    >
                         Clear Nodes
                     </button>
                     <button type="button" onClick={() => setEdges([])}>
@@ -451,7 +493,7 @@ function WorkflowEditor() {
             {error && <div className="workflow-error">{error}</div>}
 
             <div className="workflow-layout">
-                <div className="workflow-canvas-panel">
+                <div className="workflow-canvas-panel" ref={canvasPanelRef}>
                     <ReactFlow
                         nodes={nodes}
                         edges={edges}
@@ -478,9 +520,46 @@ function WorkflowEditor() {
                         snapToGrid={isGridVisible}
                         snapGrid={[24, 24]}
                         fitView
-                        fitViewOptions={{ padding: 0.2 }}
+                        fitViewOptions={{ padding: 0.18 }}
+                        minZoom={0.05}
+                        maxZoom={1.8}
+                        deleteKeyCode={['Backspace', 'Delete']}
+                        onPaneClick={() => setNodeContextMenu(null)}
+                        onNodeContextMenu={(event, node) => {
+                            event.preventDefault()
+                            const panelBounds = canvasPanelRef.current?.getBoundingClientRect()
+                            const x = panelBounds ? event.clientX - panelBounds.left : event.clientX
+                            const y = panelBounds ? event.clientY - panelBounds.top : event.clientY
+                            setNodeContextMenu({
+                                nodeId: node.id,
+                                nodeName: node.data.manifest.name,
+                                x: Math.max(10, x),
+                                y: Math.max(10, y),
+                            })
+                        }}
+                        onNodesDelete={(deletedNodes) => {
+                            setRuntimeOutputs((current) => {
+                                if (deletedNodes.length === 0) {
+                                    return current
+                                }
+                                const next = { ...current }
+                                deletedNodes.forEach((node) => {
+                                    delete next[node.id]
+                                })
+                                return next
+                            })
+                            setNodeContextMenu(null)
+                        }}
+                        proOptions={{ hideAttribution: true }}
                     >
-                        <Controls showInteractive={false} />
+                        <Controls position="bottom-left" showInteractive={false} showZoom={false}>
+                            <ControlButton title="Zoom out" aria-label="Zoom out" onClick={handleAggressiveZoomOut}>
+                                -
+                            </ControlButton>
+                            <ControlButton title="Zoom in" aria-label="Zoom in" onClick={() => void zoomIn({ duration: 110 })}>
+                                +
+                            </ControlButton>
+                        </Controls>
                         {isGridVisible && (
                             <Background
                                 variant={BackgroundVariant.Lines}
@@ -490,6 +569,32 @@ function WorkflowEditor() {
                             />
                         )}
                     </ReactFlow>
+                    <a
+                        className="workflow-reactflow-credit"
+                        href="https://reactflow.dev/"
+                        target="_blank"
+                        rel="noreferrer"
+                    >
+                        Built with React Flow
+                    </a>
+                    {nodeContextMenu && (
+                        <div
+                            className="workflow-node-context-menu"
+                            style={{ left: `${nodeContextMenu.x}px`, top: `${nodeContextMenu.y}px` }}
+                            role="menu"
+                            onPointerDown={(event) => event.stopPropagation()}
+                        >
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    removeNode(nodeContextMenu.nodeId)
+                                    setStatusText(`Removed ${nodeContextMenu.nodeName}`)
+                                }}
+                            >
+                                Remove node
+                            </button>
+                        </div>
+                    )}
                     {loading && <div className="workflow-loading">Loading node catalog...</div>}
                 </div>
 
