@@ -13,8 +13,7 @@
     background: #0f172a;
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 12px;
+    gap: 20px;
     padding: 0 16px;
 }
 
@@ -22,11 +21,13 @@
     font-size: 1.1rem;
     font-weight: 700;
     color: #f8fafc;
+    letter-spacing: 0.01em;
 }
 
 .topbar-nav {
     display: flex;
-    gap: 8px;
+    align-items: stretch;
+    gap: 16px;
     flex: 1;
     padding-left: 8px;
 }
@@ -34,52 +35,24 @@
 .topbar-link {
     text-decoration: none;
     color: #94a3b8;
-    padding: 8px 11px;
-    border-radius: 8px;
-    font-size: 0.9rem;
+    display: inline-flex;
+    align-items: center;
+    padding: 0;
+    border-radius: 0;
+    border-bottom: 2px solid transparent;
+    font-size: 0.92rem;
     font-weight: 500;
+    line-height: 1;
 }
 
 .topbar-link:hover {
     color: #e2e8f0;
-    background: #1e293b;
+    border-bottom-color: #334155;
 }
 
 .topbar-link.active {
     color: #f8fafc;
-    background: #1d4ed8;
-}
-
-.topbar-actions {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.topbar-actions select,
-.topbar-actions button {
-    border: 1px solid #334155;
-    background: #0b1220;
-    color: #e2e8f0;
-    border-radius: 8px;
-    padding: 7px 10px;
-    font-size: 0.82rem;
-}
-
-.topbar-actions button {
-    cursor: pointer;
-}
-
-.topbar-actions .run-btn {
-    background: #1d4ed8;
-    border-color: #3b82f6;
-    color: #f8fafc;
-}
-
-.topbar-actions button:disabled,
-.topbar-actions select:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
+    border-bottom-color: #3b82f6;
 }
 
 .main-layout-content {
@@ -87,4 +60,3 @@
     min-height: 0;
     overflow: auto;
 }
-

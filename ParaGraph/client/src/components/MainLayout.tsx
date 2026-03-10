@@ -23,7 +23,6 @@ export default function MainLayout() {
                         </NavLink>
                     ))}
                 </nav>
-                <div className="topbar-actions">Manifest Graph</div>
             </header>
 
             <main className="main-layout-content">
