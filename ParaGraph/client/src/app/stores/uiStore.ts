@@ -18,13 +18,17 @@ const uiStore = createStore<UiState>({
     pointerWorld: null,
 })
 
+function clampZoom(zoom: number): number {
+    return Math.max(0.25, Math.min(2, zoom))
+}
+
 export const uiActions = {
     setCamera(cameraX: number, cameraY: number, zoom: number) {
         uiStore.setState((current) => ({
             ...current,
             cameraX,
             cameraY,
-            zoom: Math.max(0.25, Math.min(2, zoom)),
+            zoom: clampZoom(zoom),
         }))
     },
 
@@ -37,7 +41,22 @@ export const uiActions = {
     },
 
     setZoom(zoom: number) {
-        uiStore.setState((current) => ({ ...current, zoom: Math.max(0.25, Math.min(2, zoom)) }))
+        uiStore.setState((current) => ({ ...current, zoom: clampZoom(zoom) }))
+    },
+
+    zoomAtPoint(screenX: number, screenY: number, nextZoom: number) {
+        uiStore.setState((current) => {
+            const clampedZoom = clampZoom(nextZoom)
+            const worldX = screenX / current.zoom + current.cameraX
+            const worldY = screenY / current.zoom + current.cameraY
+
+            return {
+                ...current,
+                zoom: clampedZoom,
+                cameraX: worldX - screenX / clampedZoom,
+                cameraY: worldY - screenY / clampedZoom,
+            }
+        })
     },
 
     toggleGrid() {

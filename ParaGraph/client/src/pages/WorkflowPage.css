@@ -64,6 +64,7 @@
 
 .workflow-canvas-panel {
     min-height: 620px;
+    min-width: 0;
 }
 
 .workflow-sidepanel {
