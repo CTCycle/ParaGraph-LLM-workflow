@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, String, UniqueConstraint
-from sqlalchemy.orm import declarative_base
+from sqlalchemy import Column, DateTime, ForeignKey, Index, Integer, String, UniqueConstraint
+from sqlalchemy.orm import declarative_base, relationship
 
 from ParaGraph.server.repositories.schemas.types import JSONSequence
 
@@ -11,82 +11,73 @@ Base = declarative_base()
 
 
 ###############################################################################
-class Dataset(Base):
-    __tablename__ = "datasets"
-    dataset_id = Column(Integer, primary_key=True, autoincrement=True)
-    name = Column(String, nullable=False)
-    created_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
-    __table_args__ = (UniqueConstraint("name", name="uq_datasets_name"),)
+def utcnow() -> datetime:
+    return datetime.now(timezone.utc)
 
 
 ###############################################################################
-class DatasetRecord(Base):
-    __tablename__ = "dataset_records"
-    record_id = Column(Integer, primary_key=True, autoincrement=True)
-    dataset_id = Column(Integer, ForeignKey("datasets.dataset_id", ondelete="CASCADE"), nullable=False)
-    asset_name = Column(String, nullable=False)
-    asset_path = Column(String, nullable=False)
-    content = Column(String, nullable=False)
-    row_order = Column(Integer, nullable=False)
+class UserSession(Base):
+    __tablename__ = "user_sessions"
 
+    session_id = Column(Integer, primary_key=True, autoincrement=True)
+    session_name = Column(String(120), nullable=False, unique=True)
+    ollama_base_url = Column(String(512), nullable=False, default="http://127.0.0.1:11434")
+    ollama_chat_model = Column(String(255), nullable=False, default="llama3.2")
+    ollama_embedding_model = Column(String(255), nullable=False, default="nomic-embed-text")
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utcnow)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow)
 
-###############################################################################
-class ProcessingRun(Base):
-    __tablename__ = "processing_runs"
-    processing_run_id = Column(Integer, primary_key=True, autoincrement=True)
-    dataset_id = Column(Integer, ForeignKey("datasets.dataset_id", ondelete="CASCADE"), nullable=False)
-    config_hash = Column(String, nullable=False)
-    executed_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
-
-
-###############################################################################
-class TrainingSample(Base):
-    __tablename__ = "training_samples"
-    training_sample_id = Column(Integer, primary_key=True, autoincrement=True)
-    processing_run_id = Column(Integer, ForeignKey("processing_runs.processing_run_id", ondelete="CASCADE"), nullable=False)
-    record_id = Column(Integer, ForeignKey("dataset_records.record_id", ondelete="CASCADE"), nullable=False)
-    split = Column(String, nullable=False)
-    features_json = Column(JSONSequence, nullable=False)
-
-
-###############################################################################
-class ValidationRun(Base):
-    __tablename__ = "validation_runs"
-    validation_run_id = Column(Integer, primary_key=True, autoincrement=True)
-    dataset_id = Column(Integer, ForeignKey("datasets.dataset_id", ondelete="CASCADE"), nullable=False)
-    executed_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
-    sample_size = Column(Float, nullable=False)
-    metrics_json = Column(JSONSequence, nullable=False)
-
-
-###############################################################################
-class Checkpoint(Base):
-    __tablename__ = "checkpoints"
-    checkpoint_id = Column(Integer, primary_key=True, autoincrement=True)
-    name = Column(String, nullable=False)
-    path = Column(String, nullable=False)
-    created_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
-    __table_args__ = (
-        UniqueConstraint("name", name="uq_checkpoints_name"),
-        UniqueConstraint("path", name="uq_checkpoints_path"),
+    nodes = relationship(
+        "NodeConfiguration",
+        back_populates="session",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+    access_keys = relationship(
+        "AccessKey",
+        back_populates="session",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
     )
 
 
 ###############################################################################
-class InferenceRun(Base):
-    __tablename__ = "inference_runs"
-    inference_run_id = Column(Integer, primary_key=True, autoincrement=True)
-    checkpoint_id = Column(Integer, ForeignKey("checkpoints.checkpoint_id", ondelete="CASCADE"), nullable=False)
-    request_id = Column(String)
-    executed_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
-    __table_args__ = (UniqueConstraint("request_id", name="uq_inference_runs_request_id"),)
+class NodeConfiguration(Base):
+    __tablename__ = "nodes"
+
+    node_configuration_id = Column(Integer, primary_key=True, autoincrement=True)
+    session_id = Column(Integer, ForeignKey("user_sessions.session_id", ondelete="CASCADE"), nullable=False, index=True)
+    node_key = Column(String(255), nullable=False)
+    node_type = Column(String(120), nullable=False)
+    node_version = Column(Integer, nullable=False)
+    configuration_json = Column(JSONSequence, nullable=False)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utcnow)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow)
+
+    session = relationship("UserSession", back_populates="nodes")
+
+    __table_args__ = (
+        UniqueConstraint("session_id", "node_key", name="uq_nodes_session_node_key"),
+        Index("ix_nodes_session_type", "session_id", "node_type"),
+    )
 
 
 ###############################################################################
-class InferenceReport(Base):
-    __tablename__ = "inference_reports"
-    inference_report_id = Column(Integer, primary_key=True, autoincrement=True)
-    inference_run_id = Column(Integer, ForeignKey("inference_runs.inference_run_id", ondelete="CASCADE"), nullable=False)
-    input_name = Column(String, nullable=False)
-    output_text = Column(String, nullable=False)
+class AccessKey(Base):
+    __tablename__ = "access_keys"
 
+    access_key_id = Column(Integer, primary_key=True, autoincrement=True)
+    session_id = Column(Integer, ForeignKey("user_sessions.session_id", ondelete="CASCADE"), nullable=False, index=True)
+    provider = Column(String(64), nullable=False)
+    api_key = Column(String(1024), nullable=True)
+    base_url = Column(String(512), nullable=True)
+    metadata_json = Column(JSONSequence, nullable=False, default=dict)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utcnow)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow)
+
+    session = relationship("UserSession", back_populates="access_keys")
+
+    __table_args__ = (
+        UniqueConstraint("session_id", "provider", name="uq_access_keys_session_provider"),
+        Index("ix_access_keys_provider", "provider"),
+    )

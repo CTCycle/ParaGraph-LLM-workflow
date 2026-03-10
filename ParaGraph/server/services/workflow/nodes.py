@@ -6,6 +6,7 @@ from typing import Any, Callable
 
 from ParaGraph.server.common.constants import RESOURCES_PATH
 from ParaGraph.server.entities.nodecatalog import NodeCatalogResponse, NodeManifest
+from ParaGraph.server.services.configuration import configuration_service
 from ParaGraph.server.services.workflow.provider import provider_service
 
 
@@ -196,13 +197,23 @@ class NodeRegistry:
         self._assert_executor_known(manifest)
         if self.get(manifest.id, manifest.version) is not None:
             raise ValueError(f"Node manifest already exists for {manifest.id} v{manifest.version}")
+
         filename = f"{manifest.id.lower()}_v{manifest.version}.json"
         path = NODE_ROOT / filename
-        path.write_text(json.dumps(manifest.model_dump(mode='json'), indent=2), encoding='utf-8')
-        self.reload()
-        created = self.get(manifest.id, manifest.version)
-        if created is None:
-            raise ValueError(f"Imported node manifest could not be reloaded: {manifest.id} v{manifest.version}")
+        path.write_text(json.dumps(manifest.model_dump(mode="json"), indent=2), encoding="utf-8")
+
+        try:
+            self.reload()
+            created = self.get(manifest.id, manifest.version)
+            if created is None:
+                raise ValueError(f"Imported node manifest could not be reloaded: {manifest.id} v{manifest.version}")
+            configuration_service.save_node_manifest(created)
+        except Exception as exc:
+            if path.exists():
+                path.unlink()
+            self.reload()
+            raise ValueError(f"Failed to persist imported node manifest in database: {exc}") from exc
+
         return created
 
     def execute(self, executor_key: str, parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
@@ -211,3 +222,5 @@ class NodeRegistry:
 
 
 node_registry = NodeRegistry()
+
+
