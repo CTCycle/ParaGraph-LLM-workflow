@@ -14,7 +14,7 @@ router = APIRouter(prefix="/executions", tags=["executions"])
 
 @router.post("/compile", response_model=CompileWorkflowResponse)
 def compile_workflow(request: CompileWorkflowRequest) -> CompileWorkflowResponse:
-    return compiler_service.validate(request.definition)
+    return compiler_service.compile(request.definition)
 
 
 @router.post("", response_model=StartExecutionResponse, status_code=status.HTTP_202_ACCEPTED)

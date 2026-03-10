@@ -1,27 +1,83 @@
-export type NodeCategory = 'input' | 'process' | 'output'
-export type PortDirection = 'input' | 'output'
+export type NodeCategory = 'input' | 'model' | 'processing' | 'output' | 'serialization' | 'control'
+export type NodeDataType =
+    | 'TEXT'
+    | 'IMAGE'
+    | 'VIDEO'
+    | 'AUDIO'
+    | 'EMBEDDING'
+    | 'TOKEN_IDS'
+    | 'JSON'
+    | 'MODEL_HANDLE'
+    | 'DATASET'
+    | 'BOOLEAN'
+    | 'ANY'
 
-export interface WorkflowPortRef {
-    node_id: string
-    port: string
+export interface NodePortDefinition {
+    name: string
+    data_type: NodeDataType
+    required: boolean
+    accepts_multiple: boolean
+    description?: string
 }
 
-export interface WorkflowNodeSpec {
+export interface NodeParameterDefinition {
+    name: string
+    data_type: NodeDataType
+    default: unknown
+    constraints: Record<string, unknown>
+    ui_control: string
+    description?: string
+}
+
+export interface NodeUiDefinition {
+    default_width: number
+    accent_color: string
+    icon?: string
+    collapsed_by_default: boolean
+}
+
+export interface NodeRuntimeDefinition {
+    executor_key: string
+    cacheable: boolean
+    deterministic: boolean
+    side_effecting: boolean
+}
+
+export interface NodeManifest {
+    id: string
+    version: number
+    name: string
+    category: NodeCategory
+    description: string
+    inputs: NodePortDefinition[]
+    outputs: NodePortDefinition[]
+    parameters: NodeParameterDefinition[]
+    ui: NodeUiDefinition
+    runtime: NodeRuntimeDefinition
+}
+
+export interface NodeCatalogResponse {
+    nodes: NodeManifest[]
+}
+
+export interface WorkflowNodeInstance {
     node_id: string
     node_type: string
-    config: Record<string, unknown>
+    node_version: number
+    parameters: Record<string, unknown>
 }
 
-export interface WorkflowEdgeSpec {
-    edge_id: string
-    source: WorkflowPortRef
-    target: WorkflowPortRef
+export interface WorkflowConnection {
+    from_node: string
+    from_output: string
+    to_node: string
+    to_input: string
 }
 
 export interface WorkflowDefinition {
     schema_version: number
-    nodes: WorkflowNodeSpec[]
-    edges: WorkflowEdgeSpec[]
+    nodes: WorkflowNodeInstance[]
+    connections: WorkflowConnection[]
     metadata: Record<string, unknown>
 }
 
@@ -51,101 +107,78 @@ export interface WorkflowDocument {
     updated_at: string
 }
 
-export interface PortSchema {
-    handle: string
-    label: string
-    direction: PortDirection
-    data_type: string
+export interface ExecutionBinding {
+    input_name: string
+    source_node_id: string
+    source_output: string
 }
 
-export interface ConfigFieldSchema {
-    key: string
-    label: string
-    field_type: string
-    required: boolean
-    default: unknown
-    options: string[]
-    description?: string
-}
-
-export interface NodeExecutionSemantics {
-    purity: 'pure' | 'side_effecting'
-    scheduling: 'sync' | 'async'
-    determinism: 'deterministic' | 'provider_dependent'
-    cacheable: boolean
-    streamable: boolean
-    retryable: boolean
-    emits_artifacts: boolean
-    requires_secrets: boolean
-}
-
-export interface NodeDefinition {
-    type: string
-    version: number
-    label: string
-    description: string
+export interface ExecutionStepPlan {
+    step_id: string
+    node_id: string
+    node_type: string
+    node_version: number
     category: NodeCategory
-    ports: PortSchema[]
-    config_schema: ConfigFieldSchema[]
-    semantics: NodeExecutionSemantics
+    executor_key: string
+    parameters: Record<string, unknown>
+    bindings: ExecutionBinding[]
+    timeout_ms?: number | null
+    retries: number
+    cacheable: boolean
 }
 
-export interface NodeCatalogResponse {
-    nodes: NodeDefinition[]
+export interface CompiledExecutionPlan {
+    plan_id: string
+    schema_version: number
+    step_order: string[]
+    steps: ExecutionStepPlan[]
+    metadata: Record<string, unknown>
 }
 
-export interface ProviderCapability {
-    provider: string
-    supports_chat: boolean
-    supports_embeddings: boolean
-    supports_structured_output: boolean
-    supports_streaming: boolean
-    supports_tool_calling: boolean
-}
-
-export interface ProviderCatalogResponse {
-    providers: ProviderCapability[]
-}
-
-export interface LegacyWorkflowGraph {
-    nodes: Array<{
-        id: string
-        type: string
-        position: { x: number; y: number }
-        params: Record<string, unknown>
-    }>
-    edges: Array<{
-        id: string
-        source: string
-        sourceHandle: string
-        target: string
-        targetHandle: string
-    }>
-}
-
-export interface ValidateWorkflowResponse {
-    valid: boolean
-    errors: string[]
-}
-
-export interface ExecuteWorkflowResponse {
-    job_id: string
-    job_type: string
-    status: string
+export interface CompilerDiagnostic {
+    code: string
     message: string
-    poll_interval: number
-    output_node_ids: string[]
+    level: string
+    node_id?: string | null
+    connection?: WorkflowConnection | null
 }
 
-export interface JobStatusResponse {
-    job_id: string
-    job_type: string
-    status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled'
+export interface CompileWorkflowResponse {
+    valid: boolean
+    diagnostics: CompilerDiagnostic[]
+    plan?: CompiledExecutionPlan | null
+}
+
+export interface StartExecutionResponse {
+    run_id: string
+    status: string
+    poll_interval: number
+}
+
+export type ExecutionStatus = 'queued' | 'running' | 'completed' | 'failed' | 'cancelled'
+
+export interface ExecutionStepState {
+    step_id: string
+    node_id: string
+    node_type: string
+    status: 'queued' | 'running' | 'completed' | 'failed' | 'skipped'
+    started_at?: string | null
+    completed_at?: string | null
+    output: Record<string, unknown>
+    error?: string | null
+}
+
+export interface ExecutionRunState {
+    run_id: string
+    workflow_id?: string | null
+    plan_id: string
+    status: ExecutionStatus
+    created_at: string
+    updated_at: string
     progress: number
-    result?: {
-        outputs?: Record<string, { text?: string }>
-    }
-    error?: string
+    steps: ExecutionStepState[]
+    outputs: Record<string, Record<string, unknown>>
+    error?: string | null
 }
 
 export type ExecutionEventType =
@@ -165,4 +198,17 @@ export interface ExecutionEventEnvelope {
     sequence: number
     timestamp: string
     payload: Record<string, unknown>
+}
+
+export interface ProviderCapability {
+    provider: string
+    supports_chat: boolean
+    supports_embeddings: boolean
+    supports_structured_output: boolean
+    supports_streaming: boolean
+    supports_tool_calling: boolean
+}
+
+export interface ProviderCatalogResponse {
+    providers: ProviderCapability[]
 }

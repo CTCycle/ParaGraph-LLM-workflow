@@ -1,380 +1,534 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-
-import GraphCanvas from '../graph/canvas/GraphCanvas'
-import { nodeCatalogActions, useNodeCatalogStore } from '../app/stores/nodeCatalogStore'
-import { providerCatalogActions } from '../app/stores/providerCatalogStore'
-import { runtimeActions, useRuntimeStore } from '../app/stores/runtimeStore'
-import { getUiState, uiActions, useUiStore } from '../app/stores/uiStore'
-import { workflowActions, useWorkflowStore } from '../app/stores/workflowStore'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
-    executeWorkflow,
-    pollWorkflowJob,
+    addEdge,
+    Background,
+    BackgroundVariant,
+    Connection,
+    Controls,
+    Edge,
+    Handle,
+    MarkerType,
+    Node,
+    NodeProps,
+    Position,
+    ReactFlow,
+    ReactFlowProvider,
+    useEdgesState,
+    useNodesState,
+    useReactFlow,
+} from '@xyflow/react'
+
+import {
+    compileWorkflow,
+    fetchNodeCatalog,
+    pollExecution,
+    startExecution,
     subscribeExecutionEvents,
-    validateWorkflow,
 } from '../app/services/workflowApi'
-import { AddNodeEventDetail, WORKFLOW_ADD_EVENT, WORKFLOW_RUN_EVENT } from '../types'
-import { ConfigFieldSchema, NodeCategory, NodeDefinition } from '../workflow/schema/types'
+import {
+    NodeCategory,
+    NodeManifest,
+    NodeParameterDefinition,
+    WorkflowConnection,
+    WorkflowDefinition,
+} from '../workflow/schema/types'
 import './WorkflowPage.css'
 
 type NodeLibraryCategoryFilter = 'all' | NodeCategory
-type NodeLibraryPortFilter = 'all' | 'has-input' | 'has-output'
 
-const NODE_CATEGORY_LABELS: Record<NodeCategory, string> = {
-    input: 'Inputs',
-    process: 'Process',
+type WorkflowNodeData = {
+    manifest: NodeManifest
+    parameters: Record<string, unknown>
+    collapsed: boolean
+    runtimeOutput: Record<string, unknown> | null
+    onParameterChange: (parameterName: string, value: unknown) => void
+    onDelete: () => void
+    onToggleCollapse: () => void
+}
+
+const CATEGORY_LABELS: Record<NodeCategory, string> = {
+    input: 'Input',
+    model: 'Model',
+    processing: 'Processing',
     output: 'Output',
+    serialization: 'Serialization',
+    control: 'Control',
 }
 
-function parseNumber(value: string): number | null {
-    if (!value.trim()) {
-        return null
-    }
-    const parsed = Number.parseFloat(value)
-    return Number.isFinite(parsed) ? parsed : null
+function defaultParameters(manifest: NodeManifest): Record<string, unknown> {
+    return Object.fromEntries(manifest.parameters.map((parameter) => [parameter.name, parameter.default ?? '']))
 }
 
-function toDisplay(value: unknown): string {
-    if (typeof value === 'string') {
-        return value
+function parseValue(parameter: NodeParameterDefinition, rawValue: string): unknown {
+    if (parameter.ui_control === 'number') {
+        if (!rawValue.trim()) {
+            return parameter.default ?? 0
+        }
+        const parsed = Number(rawValue)
+        return Number.isFinite(parsed) ? parsed : parameter.default ?? 0
     }
-    if (typeof value === 'number' || typeof value === 'boolean') {
-        return String(value)
-    }
-    if (value == null) {
+    return rawValue
+}
+
+function renderRuntimeOutput(runtimeOutput: Record<string, unknown> | null): string {
+    if (!runtimeOutput) {
         return ''
     }
-    return JSON.stringify(value)
-}
-function getCanvasViewportCenter(): { x: number; y: number } {
-    const canvasRoot = document.querySelector<HTMLElement>('.graph-canvas-root')
-    if (!canvasRoot) {
-        return { x: 320, y: 220 }
+    if (typeof runtimeOutput.text === 'string') {
+        return runtimeOutput.text
     }
-    return {
-        x: Math.max(1, canvasRoot.clientWidth) / 2,
-        y: Math.max(1, canvasRoot.clientHeight) / 2,
+    if (runtimeOutput.image) {
+        return JSON.stringify(runtimeOutput.image)
     }
+    return JSON.stringify(runtimeOutput)
 }
 
-function renderField(
-    schema: ConfigFieldSchema,
-    value: unknown,
-    onChange: (next: unknown) => void,
-): JSX.Element {
-    const display = toDisplay(value)
-
-    if (schema.field_type === 'select') {
-        return (
-            <select value={display} onChange={(event) => onChange(event.target.value)}>
-                {schema.options.map((option) => (
-                    <option key={option} value={option}>
-                        {option}
-                    </option>
-                ))}
-            </select>
-        )
-    }
-
-    if (schema.field_type === 'textarea') {
-        return <textarea value={display} rows={4} onChange={(event) => onChange(event.target.value)} />
-    }
-
-    if (schema.field_type === 'number') {
-        return (
-            <input
-                type="number"
-                step="any"
-                value={display}
-                onChange={(event) => onChange(parseNumber(event.target.value))}
-            />
-        )
-    }
-
-    return <input type="text" value={display} onChange={(event) => onChange(event.target.value)} />
-}
-
-export default function WorkflowPage() {
-    const [statusText, setStatusText] = useState('Ready')
-    const [isRunning, setIsRunning] = useState(false)
-    const [nodeSearchQuery, setNodeSearchQuery] = useState('')
-    const [nodeCategoryFilter, setNodeCategoryFilter] = useState<NodeLibraryCategoryFilter>('all')
-    const [nodePortFilter, setNodePortFilter] = useState<NodeLibraryPortFilter>('all')
-
-    const nodes = useNodeCatalogStore((state) => state.nodes)
-    const nodeCatalogLoading = useNodeCatalogStore((state) => state.loading)
-    const nodeCatalogError = useNodeCatalogStore((state) => state.error)
-
-    const workflowDefinition = useWorkflowStore((state) => state.definition)
-    const selectedNodeId = useWorkflowStore((state) => state.selectedNodeId)
-    const workflowError = useWorkflowStore((state) => state.lastError)
-
-    const runtimeStatus = useRuntimeStore((state) => state.status)
-    const runtimeError = useRuntimeStore((state) => state.error)
-    const runtimeProgress = useRuntimeStore((state) => state.progress)
-    const runtimeOutputs = useRuntimeStore((state) => state.outputs)
-    const runtimeEvents = useRuntimeStore((state) => state.events)
-
-    const cameraX = useUiStore((state) => state.cameraX)
-    const cameraY = useUiStore((state) => state.cameraY)
-    const zoom = useUiStore((state) => state.zoom)
-    const showGrid = useUiStore((state) => state.showGrid)
-
-    const stopEventsRef = useRef<(() => void) | null>(null)
-
-    const selectedNode = useMemo(
-        () => workflowDefinition.nodes.find((node) => node.node_id === selectedNodeId) ?? null,
-        [selectedNodeId, workflowDefinition.nodes],
-    )
-
-    const selectedDefinition = useMemo<NodeDefinition | null>(() => {
-        if (!selectedNode) {
-            return null
-        }
-        return nodes.find((item) => item.type === selectedNode.node_type) ?? null
-    }, [nodes, selectedNode])
-    const filteredNodeLibrary = useMemo(() => {
-        const normalizedSearch = nodeSearchQuery.trim().toLowerCase()
-
-        return nodes.filter((nodeDefinition) => {
-            if (nodeCategoryFilter !== 'all' && nodeDefinition.category !== nodeCategoryFilter) {
-                return false
-            }
-
-            if (nodePortFilter === 'has-input' && !nodeDefinition.ports.some((port) => port.direction === 'input')) {
-                return false
-            }
-
-            if (nodePortFilter === 'has-output' && !nodeDefinition.ports.some((port) => port.direction === 'output')) {
-                return false
-            }
-
-            if (!normalizedSearch) {
-                return true
-            }
-
-            const searchableText = `${nodeDefinition.label} ${nodeDefinition.type}`.toLowerCase()
-            return searchableText.includes(normalizedSearch)
-        })
-    }, [nodeCategoryFilter, nodePortFilter, nodeSearchQuery, nodes])
-    const addNodeAtViewportCenter = useCallback(
-        (nodeType: string) => {
-            const definition = nodes.find((entry) => entry.type === nodeType)
-            if (!definition) {
-                return
-            }
-            const center = getCanvasViewportCenter()
-            const worldX = cameraX + center.x / Math.max(zoom, 0.1)
-            const worldY = cameraY + center.y / Math.max(zoom, 0.1)
-            workflowActions.addNode(definition, worldX, worldY)
-        },
-        [cameraX, cameraY, nodes, zoom],
-    )
-
-    const handleZoomFromToolbar = useCallback((factor: number) => {
-        const uiState = getUiState()
-        const center = getCanvasViewportCenter()
-        uiActions.zoomAtPoint(center.x, center.y, uiState.zoom * factor)
-    }, [])
-
-    const runWorkflow = useCallback(async () => {
-        if (isRunning) {
-            return
-        }
-
-        setIsRunning(true)
-        runtimeActions.reset()
-        setStatusText('Validating workflow...')
-
-        try {
-            const legacyGraph = workflowActions.toLegacyGraph()
-            const validation = await validateWorkflow(legacyGraph)
-            if (!validation.valid) {
-                throw new Error(validation.errors.join('; '))
-            }
-
-            setStatusText('Starting run...')
-            const execution = await executeWorkflow(legacyGraph)
-            runtimeActions.startRun(execution.job_id)
-
-            stopEventsRef.current?.()
-            stopEventsRef.current = subscribeExecutionEvents(execution.job_id, {
-                onEvent(event) {
-                    runtimeActions.applyEvent(event)
-                },
-                onError(error) {
-                    setStatusText(error)
-                },
-            })
-
-            const finalStatus = await pollWorkflowJob(execution.job_id, execution.poll_interval, (status) => {
-                runtimeActions.applyJobStatus(status)
-                setStatusText(`Running (${Math.round(status.progress)}%)`)
-            })
-
-            if (finalStatus.status === 'completed') {
-                setStatusText('Workflow completed')
-            } else if (finalStatus.status === 'failed') {
-                throw new Error(finalStatus.error || 'Workflow failed')
-            } else {
-                setStatusText(`Workflow ${finalStatus.status}`)
-            }
-        } catch (error) {
-            setStatusText(error instanceof Error ? error.message : 'Execution failed')
-        } finally {
-            setIsRunning(false)
-        }
-    }, [isRunning])
-
-    useEffect(() => {
-        void nodeCatalogActions.load()
-        void providerCatalogActions.load()
-        return () => {
-            stopEventsRef.current?.()
-            stopEventsRef.current = null
-        }
-    }, [])
-
-    useEffect(() => {
-        const handleAddNodeEvent = (event: Event) => {
-            const customEvent = event as CustomEvent<AddNodeEventDetail>
-            addNodeAtViewportCenter(customEvent.detail?.nodeType || 'Prompt')
-        }
-
-        const handleRunEvent = () => {
-            void runWorkflow()
-        }
-
-        window.addEventListener(WORKFLOW_ADD_EVENT, handleAddNodeEvent as EventListener)
-        window.addEventListener(WORKFLOW_RUN_EVENT, handleRunEvent)
-
-        return () => {
-            window.removeEventListener(WORKFLOW_ADD_EVENT, handleAddNodeEvent as EventListener)
-            window.removeEventListener(WORKFLOW_RUN_EVENT, handleRunEvent)
-        }
-    }, [addNodeAtViewportCenter, runWorkflow])
-
+function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
     return (
-        <section className="workflow-shell">
-            <div className="workflow-toolbar">
-                <span>{statusText}</span>
-                <span className={`workflow-badge status-${runtimeStatus}`}>{runtimeStatus}</span>
-                <span>{Math.round(runtimeProgress)}%</span>
-                <button type="button" onClick={() => handleZoomFromToolbar(1.1)}>
-                    Zoom +
-                </button>
-                <button type="button" onClick={() => handleZoomFromToolbar(0.9)}>
-                    Zoom -
-                </button>
-                <button type="button" onClick={() => uiActions.toggleGrid()}>
-                    {showGrid ? 'Hide Grid' : 'Show Grid'}
-                </button>
-                <button type="button" className="workflow-run" onClick={() => void runWorkflow()} disabled={isRunning}>
-                    {isRunning ? 'Running...' : 'Run Workflow'}
+        <div
+            className="workflow-node"
+            style={{ '--node-accent': data.manifest.ui.accent_color } as React.CSSProperties}
+            data-selected={selected || undefined}
+            data-collapsed={data.collapsed || undefined}
+        >
+            <div className="workflow-node-header">
+                <div>
+                    <strong>{data.manifest.name}</strong>
+                    <span>{data.manifest.id}</span>
+                </div>
+                <button type="button" onClick={data.onToggleCollapse}>
+                    {data.collapsed ? 'Open' : 'Fold'}
                 </button>
             </div>
 
-            {(nodeCatalogError || workflowError || runtimeError) && (
-                <div className="workflow-error">
-                    {nodeCatalogError || workflowError || runtimeError}
+            <div className="workflow-node-ports">
+                <div className="workflow-node-port-column">
+                    {data.manifest.inputs.map((port) => (
+                        <div key={port.name} className="workflow-node-port workflow-node-port-input">
+                            <Handle type="target" position={Position.Left} id={port.name} />
+                            <span>{port.name}</span>
+                        </div>
+                    ))}
+                </div>
+                <div className="workflow-node-port-column workflow-node-port-column-right">
+                    {data.manifest.outputs.map((port) => (
+                        <div key={port.name} className="workflow-node-port workflow-node-port-output">
+                            <span>{port.name}</span>
+                            <Handle type="source" position={Position.Right} id={port.name} />
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            {!data.collapsed && data.manifest.parameters.length > 0 && (
+                <div className="workflow-node-parameters">
+                    {data.manifest.parameters.map((parameter) => {
+                        const value = data.parameters[parameter.name] ?? parameter.default ?? ''
+                        const options = Array.isArray(parameter.constraints.options)
+                            ? (parameter.constraints.options as string[])
+                            : []
+                        return (
+                            <label key={parameter.name}>
+                                <span>{parameter.name}</span>
+                                {parameter.ui_control === 'textarea' ? (
+                                    <textarea
+                                        rows={3}
+                                        value={String(value ?? '')}
+                                        onChange={(event) =>
+                                            data.onParameterChange(parameter.name, parseValue(parameter, event.target.value))
+                                        }
+                                    />
+                                ) : parameter.ui_control === 'select' && options.length > 0 ? (
+                                    <select
+                                        value={String(value ?? '')}
+                                        onChange={(event) =>
+                                            data.onParameterChange(parameter.name, parseValue(parameter, event.target.value))
+                                        }
+                                    >
+                                        {options.map((option) => (
+                                            <option key={option} value={option}>
+                                                {option}
+                                            </option>
+                                        ))}
+                                    </select>
+                                ) : (
+                                    <input
+                                        type={parameter.ui_control === 'number' ? 'number' : 'text'}
+                                        value={String(value ?? '')}
+                                        onChange={(event) =>
+                                            data.onParameterChange(parameter.name, parseValue(parameter, event.target.value))
+                                        }
+                                    />
+                                )}
+                            </label>
+                        )
+                    })}
                 </div>
             )}
 
+            {(data.manifest.category === 'output' || data.runtimeOutput) && !data.collapsed && (
+                <div className="workflow-node-runtime">
+                    <span>Runtime Output</span>
+                    <textarea readOnly rows={4} value={renderRuntimeOutput(data.runtimeOutput)} />
+                </div>
+            )}
+
+            <div className="workflow-node-footer">
+                <span>{CATEGORY_LABELS[data.manifest.category]}</span>
+                <button type="button" onClick={data.onDelete}>
+                    Delete
+                </button>
+            </div>
+        </div>
+    )
+}
+
+const nodeTypes = { manifest: ManifestNode }
+
+function WorkflowEditor() {
+    const [catalog, setCatalog] = useState<NodeManifest[]>([])
+    const [loading, setLoading] = useState(true)
+    const [error, setError] = useState<string | null>(null)
+    const [statusText, setStatusText] = useState('Ready')
+    const [isRunning, setIsRunning] = useState(false)
+    const [search, setSearch] = useState('')
+    const [category, setCategory] = useState<NodeLibraryCategoryFilter>('all')
+    const [runtimeOutputs, setRuntimeOutputs] = useState<Record<string, Record<string, unknown>>>({})
+    const [nodes, setNodes, onNodesChange] = useNodesState<Node<WorkflowNodeData>>([])
+    const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([])
+    const [isGridVisible, setIsGridVisible] = useState(true)
+    const stopEventsRef = useRef<(() => void) | null>(null)
+    const { fitView, zoomIn, zoomOut } = useReactFlow<Node<WorkflowNodeData>, Edge>()
+
+    useEffect(() => {
+        let mounted = true
+        setLoading(true)
+        fetchNodeCatalog()
+            .then((payload) => {
+                if (!mounted) {
+                    return
+                }
+                setCatalog(payload.nodes)
+                setError(null)
+            })
+            .catch((loadError) => {
+                if (!mounted) {
+                    return
+                }
+                setError(loadError instanceof Error ? loadError.message : 'Failed to load node catalog')
+            })
+            .finally(() => {
+                if (!mounted) {
+                    return
+                }
+                setLoading(false)
+            })
+
+        return () => {
+            mounted = false
+            stopEventsRef.current?.()
+        }
+    }, [])
+
+    useEffect(() => {
+        setNodes((current) =>
+            current.map((node) => ({
+                ...node,
+                data: {
+                    ...node.data,
+                    runtimeOutput: runtimeOutputs[node.id] ?? null,
+                },
+            })),
+        )
+    }, [runtimeOutputs, setNodes])
+
+    const filteredCatalog = useMemo(() => {
+        const normalized = search.trim().toLowerCase()
+        return catalog.filter((manifest) => {
+            if (category !== 'all' && manifest.category !== category) {
+                return false
+            }
+            if (!normalized) {
+                return true
+            }
+            return `${manifest.name} ${manifest.id}`.toLowerCase().includes(normalized)
+        })
+    }, [catalog, category, search])
+
+    function updateNode(nodeId: string, updater: (node: Node<WorkflowNodeData>) => Node<WorkflowNodeData>): void {
+        setNodes((current) => current.map((node) => (node.id === nodeId ? updater(node) : node)))
+    }
+
+    function removeNode(nodeId: string): void {
+        setNodes((current) => current.filter((node) => node.id !== nodeId))
+        setEdges((current) => current.filter((edge) => edge.source !== nodeId && edge.target !== nodeId))
+        setRuntimeOutputs((current) => {
+            const next = { ...current }
+            delete next[nodeId]
+            return next
+        })
+    }
+
+    function addManifestNode(manifest: NodeManifest): void {
+        const nodeId = `${manifest.id.toLowerCase()}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`
+        const position = { x: 80 + nodes.length * 28, y: 80 + nodes.length * 22 }
+        const collapsed = manifest.ui.collapsed_by_default
+        const node: Node<WorkflowNodeData> = {
+            id: nodeId,
+            type: 'manifest',
+            position,
+            draggable: true,
+            data: {
+                manifest,
+                parameters: defaultParameters(manifest),
+                collapsed,
+                runtimeOutput: null,
+                onParameterChange: (parameterName, value) => {
+                    updateNode(nodeId, (current) => ({
+                        ...current,
+                        data: {
+                            ...current.data,
+                            parameters: { ...current.data.parameters, [parameterName]: value },
+                        },
+                    }))
+                },
+                onDelete: () => removeNode(nodeId),
+                onToggleCollapse: () => {
+                    updateNode(nodeId, (current) => ({
+                        ...current,
+                        data: { ...current.data, collapsed: !current.data.collapsed },
+                        style: {
+                            ...current.style,
+                            width: current.style?.width ?? manifest.ui.default_width,
+                        },
+                    }))
+                },
+            },
+            style: {
+                width: manifest.ui.default_width,
+            },
+        }
+        setNodes((current) => [...current, node])
+    }
+
+    function buildDefinition(): WorkflowDefinition {
+        const definitionNodes = nodes.map((node) => ({
+            node_id: node.id,
+            node_type: node.data.manifest.id,
+            node_version: node.data.manifest.version,
+            parameters: node.data.parameters,
+        }))
+        const definitionConnections: WorkflowConnection[] = edges.map((edge) => ({
+            from_node: edge.source,
+            from_output: edge.sourceHandle || '',
+            to_node: edge.target,
+            to_input: edge.targetHandle || '',
+        }))
+        return {
+            schema_version: 2,
+            nodes: definitionNodes,
+            connections: definitionConnections,
+            metadata: {},
+        }
+    }
+
+    function isValidConnection(connection: Connection): boolean {
+        if (!connection.source || !connection.target || !connection.sourceHandle || !connection.targetHandle) {
+            return false
+        }
+        if (connection.source === connection.target) {
+            return false
+        }
+
+        const sourceNode = nodes.find((node) => node.id === connection.source)
+        const targetNode = nodes.find((node) => node.id === connection.target)
+        if (!sourceNode || !targetNode) {
+            return false
+        }
+
+        const sourcePort = sourceNode.data.manifest.outputs.find((port) => port.name === connection.sourceHandle)
+        const targetPort = targetNode.data.manifest.inputs.find((port) => port.name === connection.targetHandle)
+        if (!sourcePort || !targetPort) {
+            return false
+        }
+
+        const compatible =
+            sourcePort.data_type === targetPort.data_type ||
+            sourcePort.data_type === 'ANY' ||
+            targetPort.data_type === 'ANY'
+        if (!compatible) {
+            return false
+        }
+
+        const targetAlreadyConnected = edges.some(
+            (edge) =>
+                edge.target === connection.target &&
+                edge.targetHandle === connection.targetHandle &&
+                !targetPort.accepts_multiple,
+        )
+        return !targetAlreadyConnected
+    }
+
+    async function runWorkflow(): Promise<void> {
+        if (isRunning) {
+            return
+        }
+        setIsRunning(true)
+        setRuntimeOutputs({})
+        setStatusText('Compiling workflow...')
+
+        try {
+            const compileResponse = await compileWorkflow(buildDefinition())
+            if (!compileResponse.valid || !compileResponse.plan) {
+                throw new Error(compileResponse.diagnostics.map((item) => item.message).join('; ') || 'Compilation failed')
+            }
+
+            const execution = await startExecution(compileResponse.plan)
+            setStatusText('Running workflow...')
+            stopEventsRef.current?.()
+            stopEventsRef.current = subscribeExecutionEvents(execution.run_id, {
+                onEvent(event) {
+                    if (event.event_type === 'execution.step.started') {
+                        setStatusText(`Running ${event.step_id || 'step'}...`)
+                    }
+                },
+                onError(streamError) {
+                    setStatusText(streamError)
+                },
+            })
+
+            const finalState = await pollExecution(execution.run_id, execution.poll_interval, (run) => {
+                setStatusText(`Run ${run.status} (${Math.round(run.progress)}%)`)
+            })
+
+            if (finalState.status === 'completed') {
+                setRuntimeOutputs(finalState.outputs)
+                setStatusText('Workflow completed')
+            } else if (finalState.status === 'failed') {
+                throw new Error(finalState.error || 'Workflow failed')
+            } else {
+                setStatusText(`Workflow ${finalState.status}`)
+            }
+        } catch (runError) {
+            setStatusText(runError instanceof Error ? runError.message : 'Execution failed')
+        } finally {
+            setIsRunning(false)
+        }
+    }
+
+    return (
+        <section className="workflow-shell">
+            <div className="workflow-toolbar" role="navigation" aria-label="Workflow actions">
+                <div className="workflow-toolbar-status">
+                    <span className="workflow-toolbar-status-label">Status</span>
+                    <strong>{statusText}</strong>
+                </div>
+                <div className="workflow-toolbar-actions">
+                    <button type="button" onClick={() => void zoomOut({ duration: 120 })}>
+                        Zoom Out
+                    </button>
+                    <button type="button" onClick={() => void zoomIn({ duration: 120 })}>
+                        Zoom In
+                    </button>
+                    <button type="button" onClick={() => void fitView({ padding: 0.2, duration: 180 })}>
+                        Fit View
+                    </button>
+                    <button type="button" onClick={() => setIsGridVisible((visible) => !visible)}>
+                        {isGridVisible ? 'Hide Grid' : 'Show Grid'}
+                    </button>
+                    <button type="button" onClick={() => setNodes([])}>
+                        Clear Nodes
+                    </button>
+                    <button type="button" onClick={() => setEdges([])}>
+                        Clear Links
+                    </button>
+                    <button type="button" className="workflow-run" onClick={() => void runWorkflow()} disabled={isRunning}>
+                        {isRunning ? 'Running...' : 'Run Workflow'}
+                    </button>
+                </div>
+            </div>
+
+            {error && <div className="workflow-error">{error}</div>}
+
             <div className="workflow-layout">
                 <div className="workflow-canvas-panel">
-                    {nodeCatalogLoading ? <div className="workflow-loading">Loading node catalog...</div> : <GraphCanvas nodeCatalog={nodes} />}
+                    <ReactFlow
+                        nodes={nodes}
+                        edges={edges}
+                        nodeTypes={nodeTypes}
+                        onNodesChange={onNodesChange}
+                        onEdgesChange={onEdgesChange}
+                        onConnect={(connection) => {
+                            if (!isValidConnection(connection)) {
+                                setStatusText('Invalid connection')
+                                return
+                            }
+                            setEdges((current) =>
+                                addEdge(
+                                    {
+                                        ...connection,
+                                        id: `${connection.source}-${connection.sourceHandle}-${connection.target}-${connection.targetHandle}`,
+                                        markerEnd: { type: MarkerType.ArrowClosed, width: 18, height: 18 },
+                                        style: { stroke: '#5ba7ff', strokeWidth: 2.2 },
+                                    },
+                                    current,
+                                ),
+                            )
+                        }}
+                        snapToGrid={isGridVisible}
+                        snapGrid={[24, 24]}
+                        fitView
+                        fitViewOptions={{ padding: 0.2 }}
+                    >
+                        <Controls showInteractive={false} />
+                        {isGridVisible && (
+                            <Background
+                                variant={BackgroundVariant.Lines}
+                                gap={24}
+                                size={1}
+                                color="rgba(87, 112, 152, 0.42)"
+                            />
+                        )}
+                    </ReactFlow>
+                    {loading && <div className="workflow-loading">Loading node catalog...</div>}
                 </div>
 
                 <aside className="workflow-sidepanel">
                     <section className="workflow-panel workflow-node-library">
-                        <h2>Node Library</h2>
+                        <div className="workflow-panel-header">
+                            <h2>Node Library</h2>
+                            <p>{filteredCatalog.length} visible</p>
+                        </div>
                         <div className="workflow-node-library-controls">
                             <input
                                 type="search"
-                                value={nodeSearchQuery}
+                                value={search}
                                 placeholder="Search by name"
-                                onChange={(event) => setNodeSearchQuery(event.target.value)}
+                                onChange={(event) => setSearch(event.target.value)}
                             />
-                            <div className="workflow-node-library-filters">
-                                <select
-                                    aria-label="Filter node category"
-                                    value={nodeCategoryFilter}
-                                    onChange={(event) => setNodeCategoryFilter(event.target.value as NodeLibraryCategoryFilter)}
-                                >
-                                    <option value="all">All categories</option>
-                                    {(['input', 'process', 'output'] as const).map((category) => (
-                                        <option key={category} value={category}>
-                                            {NODE_CATEGORY_LABELS[category]}
-                                        </option>
-                                    ))}
-                                </select>
-                                <select
-                                    aria-label="Filter node ports"
-                                    value={nodePortFilter}
-                                    onChange={(event) => setNodePortFilter(event.target.value as NodeLibraryPortFilter)}
-                                >
-                                    <option value="all">All ports</option>
-                                    <option value="has-input">Has input</option>
-                                    <option value="has-output">Has output</option>
-                                </select>
-                            </div>
+                            <select
+                                aria-label="Filter node category"
+                                value={category}
+                                onChange={(event) => setCategory(event.target.value as NodeLibraryCategoryFilter)}
+                            >
+                                <option value="all">All categories</option>
+                                {Object.entries(CATEGORY_LABELS).map(([value, label]) => (
+                                    <option key={value} value={value}>
+                                        {label}
+                                    </option>
+                                ))}
+                            </select>
                         </div>
                         <div className="workflow-node-list">
-                            {filteredNodeLibrary.map((node) => (
-                                <button key={node.type} type="button" onClick={() => addNodeAtViewportCenter(node.type)}>
-                                    + {node.label}
+                            {filteredCatalog.map((manifest) => (
+                                <button key={manifest.id} type="button" onClick={() => addManifestNode(manifest)}>
+                                    <strong>{manifest.name}</strong>
+                                    <span>{manifest.description}</span>
                                 </button>
                             ))}
-                            {filteredNodeLibrary.length === 0 && <p className="workflow-node-empty">No nodes match the current filters.</p>}
-                        </div>
-                    </section>
-
-                    <section className="workflow-panel">
-                        <h2>Inspector</h2>
-                        {!selectedNode || !selectedDefinition ? (
-                            <p>Select a node to edit its configuration.</p>
-                        ) : (
-                            <div className="workflow-inspector-fields">
-                                <h3>{selectedDefinition.label}</h3>
-                                {selectedDefinition.config_schema.map((field) => {
-                                    const value = selectedNode.config[field.key] ?? field.default ?? ''
-                                    return (
-                                        <label key={field.key}>
-                                            <span>{field.label}</span>
-                                            {renderField(field, value, (next) => {
-                                                workflowActions.updateNodeConfig(selectedNode.node_id, { [field.key]: next })
-                                            })}
-                                        </label>
-                                    )
-                                })}
-
-                                {selectedNode.node_type === 'Output' && (
-                                    <label>
-                                        <span>Runtime Output</span>
-                                        <textarea
-                                            value={runtimeOutputs[selectedNode.node_id] || ''}
-                                            rows={5}
-                                            readOnly
-                                        />
-                                    </label>
-                                )}
-
-                                <button type="button" className="workflow-delete" onClick={() => workflowActions.deleteNode(selectedNode.node_id)}>
-                                    Delete Node
-                                </button>
-                            </div>
-                        )}
-                    </section>
-
-                    <section className="workflow-panel">
-                        <h2>Runtime Events</h2>
-                        <div className="workflow-events">
-                            {runtimeEvents.slice(-10).reverse().map((event) => (
-                                <article key={`${event.sequence}-${event.event_type}`}>
-                                    <strong>{event.event_type}</strong>
-                                    <span>{event.step_id || 'run'}</span>
-                                </article>
-                            ))}
-                            {runtimeEvents.length === 0 && <p>No events yet.</p>}
+                            {!loading && filteredCatalog.length === 0 && (
+                                <p className="workflow-node-empty">No nodes match the current filter.</p>
+                            )}
                         </div>
                     </section>
                 </aside>
@@ -383,3 +537,10 @@ export default function WorkflowPage() {
     )
 }
 
+export default function WorkflowPage() {
+    return (
+        <ReactFlowProvider>
+            <WorkflowEditor />
+        </ReactFlowProvider>
+    )
+}

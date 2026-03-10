@@ -1,0 +1,14 @@
+{
+  "id": "TEXT_OUTPUT",
+  "version": 1,
+  "name": "Text Output",
+  "category": "output",
+  "description": "Expose final text results.",
+  "inputs": [
+    {"name": "text", "data_type": "TEXT", "required": true}
+  ],
+  "outputs": [],
+  "parameters": [],
+  "ui": {"default_width": 280, "accent_color": "#f87171"},
+  "runtime": {"executor_key": "text_output", "cacheable": false, "deterministic": true, "side_effecting": false}
+}

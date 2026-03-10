@@ -21,8 +21,8 @@ ExecutionEventType = Literal[
 
 
 class ExecutionBinding(BaseModel):
-    input_port: str
-    source_step_id: str
+    input_name: str
+    source_node_id: str
     source_output: str
 
 
@@ -30,7 +30,10 @@ class ExecutionStepPlan(BaseModel):
     step_id: str
     node_id: str
     node_type: str
-    config: dict[str, Any] = Field(default_factory=dict)
+    node_version: int
+    category: str
+    executor_key: str
+    parameters: dict[str, Any] = Field(default_factory=dict)
     bindings: list[ExecutionBinding] = Field(default_factory=list)
     timeout_ms: int | None = None
     retries: int = 0
@@ -39,7 +42,7 @@ class ExecutionStepPlan(BaseModel):
 
 class CompiledExecutionPlan(BaseModel):
     plan_id: str
-    schema_version: int = 1
+    schema_version: int = 2
     step_order: list[str] = Field(default_factory=list)
     steps: list[ExecutionStepPlan] = Field(default_factory=list)
     metadata: dict[str, Any] = Field(default_factory=dict)
@@ -87,10 +90,6 @@ class StartExecutionResponse(BaseModel):
     run_id: str
     status: ExecutionStatus
     poll_interval: float = 1.0
-
-
-class GetExecutionResponse(BaseModel):
-    run: ExecutionRunState
 
 
 class EventHistoryResponse(BaseModel):

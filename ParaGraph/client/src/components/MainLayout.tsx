@@ -1,6 +1,4 @@
-import { useMemo, useState } from 'react'
-import { NavLink, Outlet, useLocation } from 'react-router-dom'
-import { WORKFLOW_ADDABLE_TYPES } from '../types'
+import { NavLink, Outlet } from 'react-router-dom'
 import './MainLayout.css'
 
 const NAV_ITEMS = [
@@ -9,16 +7,10 @@ const NAV_ITEMS = [
 ]
 
 export default function MainLayout() {
-    const location = useLocation()
-    const [selectedType, setSelectedType] = useState<string>('Prompt')
-
-    const isWorkflowPage = useMemo(() => location.pathname === '/', [location.pathname])
-
     return (
         <div className="main-layout">
             <header className="topbar">
                 <div className="topbar-brand">ParaGraph</div>
-
                 <nav className="topbar-nav" aria-label="Main navigation">
                     {NAV_ITEMS.map((item) => (
                         <NavLink
@@ -31,21 +23,7 @@ export default function MainLayout() {
                         </NavLink>
                     ))}
                 </nav>
-
-                <div className="topbar-actions">
-                    <select
-                        aria-label="Node type"
-                        value={selectedType}
-                        onChange={(event) => setSelectedType(event.target.value)}
-                        disabled={!isWorkflowPage}
-                    >
-                        {WORKFLOW_ADDABLE_TYPES.map((typeName) => (
-                            <option key={typeName} value={typeName}>
-                                {typeName}
-                            </option>
-                        ))}
-                    </select>
-                </div>
+                <div className="topbar-actions">Manifest Graph</div>
             </header>
 
             <main className="main-layout-content">
@@ -54,4 +32,3 @@ export default function MainLayout() {
         </div>
     )
 }
-

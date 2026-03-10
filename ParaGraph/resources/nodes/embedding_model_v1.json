@@ -1,0 +1,19 @@
+{
+  "id": "EMBEDDING_MODEL",
+  "version": 1,
+  "name": "Embedding Model",
+  "category": "model",
+  "description": "Convert text into embedding vectors.",
+  "inputs": [
+    {"name": "text", "data_type": "TEXT", "required": true}
+  ],
+  "outputs": [
+    {"name": "embedding", "data_type": "EMBEDDING", "required": true}
+  ],
+  "parameters": [
+    {"name": "provider", "data_type": "TEXT", "default": "ollama", "ui_control": "select", "description": "Provider name."},
+    {"name": "model_name", "data_type": "TEXT", "default": "nomic-embed-text", "ui_control": "text", "description": "Embedding model identifier."}
+  ],
+  "ui": {"default_width": 320, "accent_color": "#4ade80"},
+  "runtime": {"executor_key": "embedding_model", "cacheable": true, "deterministic": true, "side_effecting": false}
+}

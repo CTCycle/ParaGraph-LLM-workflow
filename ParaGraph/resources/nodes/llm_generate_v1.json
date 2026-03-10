@@ -1,0 +1,23 @@
+{
+  "id": "LLM_GENERATE",
+  "version": 1,
+  "name": "LLM Generate",
+  "category": "model",
+  "description": "Run a chat-style language model on prompt text.",
+  "inputs": [
+    {"name": "prompt", "data_type": "TEXT", "required": true}
+  ],
+  "outputs": [
+    {"name": "response", "data_type": "TEXT", "required": true}
+  ],
+  "parameters": [
+    {"name": "provider", "data_type": "TEXT", "default": "ollama", "ui_control": "select", "description": "Provider name."},
+    {"name": "model_name", "data_type": "TEXT", "default": "llama3.2", "ui_control": "text", "description": "Model identifier."},
+    {"name": "system_prompt", "data_type": "TEXT", "default": "", "ui_control": "textarea", "description": "Optional system prompt."},
+    {"name": "temperature", "data_type": "JSON", "default": 0.2, "ui_control": "number", "description": "Sampling temperature."},
+    {"name": "max_tokens", "data_type": "JSON", "default": 512, "ui_control": "number", "description": "Maximum output tokens."},
+    {"name": "top_p", "data_type": "JSON", "default": 1.0, "ui_control": "number", "description": "Nucleus sampling value."}
+  ],
+  "ui": {"default_width": 340, "accent_color": "#60a5fa"},
+  "runtime": {"executor_key": "llm_generate", "cacheable": false, "deterministic": false, "side_effecting": false}
+}

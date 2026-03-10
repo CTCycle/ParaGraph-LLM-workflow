@@ -4,50 +4,69 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-from ParaGraph.server.entities.workflowmodel import NodeCategory, PortDirection
+
+NodeCategory = Literal["input", "model", "processing", "output", "serialization", "control"]
+NodeDataType = Literal[
+    "TEXT",
+    "IMAGE",
+    "VIDEO",
+    "AUDIO",
+    "EMBEDDING",
+    "TOKEN_IDS",
+    "JSON",
+    "MODEL_HANDLE",
+    "DATASET",
+    "BOOLEAN",
+    "ANY",
+]
 
 
-class PortSchema(BaseModel):
-    handle: str
-    label: str
-    direction: PortDirection
-    data_type: str
-
-
-class ConfigFieldSchema(BaseModel):
-    key: str
-    label: str
-    field_type: str
-    required: bool = False
-    default: Any | None = None
-    options: list[str] = Field(default_factory=list)
+class NodePortDefinition(BaseModel):
+    name: str
+    data_type: NodeDataType
+    required: bool = True
+    accepts_multiple: bool = False
     description: str | None = None
 
 
-class NodeExecutionSemantics(BaseModel):
-    purity: Literal["pure", "side_effecting"] = "pure"
-    scheduling: Literal["sync", "async"] = "sync"
-    determinism: Literal["deterministic", "provider_dependent"] = "provider_dependent"
+class NodeParameterDefinition(BaseModel):
+    name: str
+    data_type: NodeDataType
+    default: Any | None = None
+    constraints: dict[str, Any] = Field(default_factory=dict)
+    ui_control: str = "text"
+    description: str | None = None
+
+
+class NodeUiDefinition(BaseModel):
+    default_width: int = 280
+    accent_color: str = "#4aa3ff"
+    icon: str | None = None
+    collapsed_by_default: bool = False
+
+
+class NodeRuntimeDefinition(BaseModel):
+    executor_key: str
     cacheable: bool = False
-    streamable: bool = False
-    retryable: bool = True
-    emits_artifacts: bool = False
-    requires_secrets: bool = False
+    deterministic: bool = True
+    side_effecting: bool = False
 
 
-class NodeDefinition(BaseModel):
-    type: str
+class NodeManifest(BaseModel):
+    id: str
     version: int = 1
-    label: str
-    description: str
+    name: str
     category: NodeCategory
-    ports: list[PortSchema] = Field(default_factory=list)
-    config_schema: list[ConfigFieldSchema] = Field(default_factory=list)
-    semantics: NodeExecutionSemantics = Field(default_factory=NodeExecutionSemantics)
+    description: str
+    inputs: list[NodePortDefinition] = Field(default_factory=list)
+    outputs: list[NodePortDefinition] = Field(default_factory=list)
+    parameters: list[NodeParameterDefinition] = Field(default_factory=list)
+    ui: NodeUiDefinition = Field(default_factory=NodeUiDefinition)
+    runtime: NodeRuntimeDefinition
 
 
 class NodeCatalogResponse(BaseModel):
-    nodes: list[NodeDefinition] = Field(default_factory=list)
+    nodes: list[NodeManifest] = Field(default_factory=list)
 
 
 class ProviderCapability(BaseModel):

@@ -1,0 +1,14 @@
+{
+  "id": "IMAGE_OUTPUT",
+  "version": 1,
+  "name": "Image Output",
+  "category": "output",
+  "description": "Expose final image results.",
+  "inputs": [
+    {"name": "image", "data_type": "IMAGE", "required": true}
+  ],
+  "outputs": [],
+  "parameters": [],
+  "ui": {"default_width": 280, "accent_color": "#f87171"},
+  "runtime": {"executor_key": "image_output", "cacheable": false, "deterministic": true, "side_effecting": false}
+}

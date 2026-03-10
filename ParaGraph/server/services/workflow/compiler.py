@@ -4,72 +4,70 @@ from collections import defaultdict, deque
 from uuid import uuid4
 
 from ParaGraph.server.entities.execution import CompiledExecutionPlan, ExecutionBinding, ExecutionStepPlan
-from ParaGraph.server.entities.workflowmodel import CompilerDiagnostic, CompileWorkflowResponse, WorkflowDefinition
+from ParaGraph.server.entities.workflowmodel import CompilerDiagnostic, CompileWorkflowResponse, WorkflowConnection, WorkflowDefinition
 from ParaGraph.server.services.workflow.nodes import node_registry
 from ParaGraph.server.services.workflow.provider import provider_service
 
 
-ALLOWED_CATEGORY_EDGES = {
-    ("input", "process"),
-    ("process", "process"),
-    ("process", "output"),
-}
-
-RUNTIME_SUPPORTED_NODE_TYPES = {"Prompt", "LLM", "Output"}
-
-
 class CompilerService:
-    def validate(self, definition: WorkflowDefinition) -> CompileWorkflowResponse:
-        diagnostics = self._collect_diagnostics(definition)
-        return CompileWorkflowResponse(valid=not diagnostics, diagnostics=diagnostics)
-
-    def compile(self, definition: WorkflowDefinition) -> tuple[CompiledExecutionPlan | None, list[CompilerDiagnostic]]:
+    def compile(self, definition: WorkflowDefinition) -> CompileWorkflowResponse:
         diagnostics = self._collect_diagnostics(definition)
         if diagnostics:
-            return None, diagnostics
+            return CompileWorkflowResponse(valid=False, diagnostics=diagnostics, plan=None)
 
         ordered_node_ids = self._topological_order(definition)
-        incoming = defaultdict(list)
-        for edge in definition.edges:
-            incoming[edge.target.node_id].append(edge)
+        incoming: dict[str, list[WorkflowConnection]] = defaultdict(list)
+        for connection in definition.connections:
+            incoming[connection.to_node].append(connection)
 
         steps: list[ExecutionStepPlan] = []
         for node_id in ordered_node_ids:
             node = next(item for item in definition.nodes if item.node_id == node_id)
+            manifest = node_registry.get(node.node_type, node.node_version)
+            if manifest is None:
+                continue
             bindings = [
                 ExecutionBinding(
-                    input_port=edge.target.port,
-                    source_step_id=edge.source.node_id,
-                    source_output=edge.source.port,
+                    input_name=connection.to_input,
+                    source_node_id=connection.from_node,
+                    source_output=connection.from_output,
                 )
-                for edge in sorted(incoming.get(node.node_id, []), key=lambda item: item.edge_id)
+                for connection in sorted(
+                    incoming.get(node.node_id, []),
+                    key=lambda item: (item.to_input, item.from_node, item.from_output),
+                )
             ]
-            definition_metadata = node_registry.get(node.node_type)
-            step = ExecutionStepPlan(
-                step_id=node.node_id,
-                node_id=node.node_id,
-                node_type=node.node_type,
-                config=node.config,
-                bindings=bindings,
-                retries=1 if definition_metadata and definition_metadata.semantics.retryable else 0,
-                cacheable=bool(definition_metadata and definition_metadata.semantics.cacheable),
+            steps.append(
+                ExecutionStepPlan(
+                    step_id=node.node_id,
+                    node_id=node.node_id,
+                    node_type=node.node_type,
+                    node_version=node.node_version,
+                    category=manifest.category,
+                    executor_key=manifest.runtime.executor_key,
+                    parameters=node.parameters,
+                    bindings=bindings,
+                    cacheable=manifest.runtime.cacheable,
+                )
             )
-            steps.append(step)
 
-        plan = CompiledExecutionPlan(
-            plan_id=f"plan_{uuid4().hex[:12]}",
-            step_order=[step.step_id for step in steps],
-            steps=steps,
-            metadata={"schema_version": definition.schema_version},
+        return CompileWorkflowResponse(
+            valid=True,
+            diagnostics=[],
+            plan=CompiledExecutionPlan(
+                plan_id=f"plan_{uuid4().hex[:12]}",
+                step_order=[step.step_id for step in steps],
+                steps=steps,
+                metadata={"schema_version": definition.schema_version, **definition.metadata},
+            ),
         )
-        return plan, []
 
     def _collect_diagnostics(self, definition: WorkflowDefinition) -> list[CompilerDiagnostic]:
         diagnostics: list[CompilerDiagnostic] = []
         node_ids_seen: set[str] = set()
-        edge_ids_seen: set[str] = set()
-
         node_by_id = {node.node_id: node for node in definition.nodes}
+        connection_keys: set[tuple[str, str, str, str]] = set()
+        inbound_counts: dict[tuple[str, str], int] = defaultdict(int)
 
         for node in definition.nodes:
             if node.node_id in node_ids_seen:
@@ -81,34 +79,66 @@ class CompilerService:
                     )
                 )
             node_ids_seen.add(node.node_id)
-            if node_registry.get(node.node_type) is None:
+
+            manifest = node_registry.get(node.node_type, node.node_version)
+            if manifest is None:
                 diagnostics.append(
                     CompilerDiagnostic(
                         code="unknown_node_type",
-                        message=f"Unknown node type '{node.node_type}' for node '{node.node_id}'",
+                        message=f"Unknown node type/version '{node.node_type}' v{node.node_version}",
                         node_id=node.node_id,
                     )
                 )
+                continue
 
-        for edge in definition.edges:
-            if edge.edge_id in edge_ids_seen:
+            for parameter in manifest.parameters:
+                required = bool(parameter.constraints.get("required"))
+                if required and parameter.name not in node.parameters and parameter.default is None:
+                    diagnostics.append(
+                        CompilerDiagnostic(
+                            code="missing_parameter",
+                            message=f"Node '{node.node_id}' is missing required parameter '{parameter.name}'",
+                            node_id=node.node_id,
+                        )
+                    )
+
+            if node.node_type == "LLM_GENERATE":
+                provider = str(node.parameters.get("provider", "ollama")).lower()
+                try:
+                    provider_service.assert_capabilities(provider)
+                except ValueError as exc:
+                    diagnostics.append(
+                        CompilerDiagnostic(code="provider_capability_error", message=str(exc), node_id=node.node_id)
+                    )
+            if node.node_type == "EMBEDDING_MODEL":
+                provider = str(node.parameters.get("provider", "ollama")).lower()
+                try:
+                    provider_service.assert_capabilities(provider, embeddings=True)
+                except ValueError as exc:
+                    diagnostics.append(
+                        CompilerDiagnostic(code="provider_capability_error", message=str(exc), node_id=node.node_id)
+                    )
+
+        for connection in definition.connections:
+            connection_key = (connection.from_node, connection.from_output, connection.to_node, connection.to_input)
+            if connection_key in connection_keys:
                 diagnostics.append(
                     CompilerDiagnostic(
-                        code="duplicate_edge_id",
-                        message=f"Duplicate edge id: {edge.edge_id}",
-                        edge_id=edge.edge_id,
+                        code="duplicate_connection",
+                        message="Duplicate connection detected",
+                        connection=connection,
                     )
                 )
-            edge_ids_seen.add(edge.edge_id)
+            connection_keys.add(connection_key)
 
-            source_node = node_by_id.get(edge.source.node_id)
-            target_node = node_by_id.get(edge.target.node_id)
+            source_node = node_by_id.get(connection.from_node)
+            target_node = node_by_id.get(connection.to_node)
             if source_node is None:
                 diagnostics.append(
                     CompilerDiagnostic(
                         code="missing_source_node",
-                        message=f"Edge '{edge.edge_id}' references missing source node '{edge.source.node_id}'",
-                        edge_id=edge.edge_id,
+                        message=f"Connection references missing source node '{connection.from_node}'",
+                        connection=connection,
                     )
                 )
                 continue
@@ -116,137 +146,93 @@ class CompilerService:
                 diagnostics.append(
                     CompilerDiagnostic(
                         code="missing_target_node",
-                        message=f"Edge '{edge.edge_id}' references missing target node '{edge.target.node_id}'",
-                        edge_id=edge.edge_id,
+                        message=f"Connection references missing target node '{connection.to_node}'",
+                        connection=connection,
+                    )
+                )
+                continue
+            if connection.from_node == connection.to_node:
+                diagnostics.append(
+                    CompilerDiagnostic(
+                        code="self_loop",
+                        message=f"Node '{connection.from_node}' cannot connect to itself",
+                        connection=connection,
                     )
                 )
                 continue
 
-            source_def = node_registry.get(source_node.node_type)
-            target_def = node_registry.get(target_node.node_type)
-            if source_def is None or target_def is None:
+            source_manifest = node_registry.get(source_node.node_type, source_node.node_version)
+            target_manifest = node_registry.get(target_node.node_type, target_node.node_version)
+            if source_manifest is None or target_manifest is None:
                 continue
 
-            if source_def.category == "output":
-                diagnostics.append(
-                    CompilerDiagnostic(
-                        code="invalid_output_source",
-                        message=f"Node '{source_node.node_id}' is output and cannot have outgoing edges",
-                        node_id=source_node.node_id,
-                        edge_id=edge.edge_id,
-                    )
-                )
-
-            category_pair = (source_def.category, target_def.category)
-            if category_pair not in ALLOWED_CATEGORY_EDGES:
-                diagnostics.append(
-                    CompilerDiagnostic(
-                        code="invalid_category_flow",
-                        message=(
-                            f"Invalid category flow '{source_def.category}->{target_def.category}' "
-                            f"on edge '{edge.edge_id}'"
-                        ),
-                        edge_id=edge.edge_id,
-                    )
-                )
-
-            source_port = next(
-                (port for port in source_def.ports if port.direction == "output" and port.handle == edge.source.port),
-                None,
-            )
+            source_port = next((port for port in source_manifest.outputs if port.name == connection.from_output), None)
+            target_port = next((port for port in target_manifest.inputs if port.name == connection.to_input), None)
             if source_port is None:
                 diagnostics.append(
                     CompilerDiagnostic(
                         code="missing_source_port",
-                        message=(
-                            f"Edge '{edge.edge_id}' references unknown source handle '{edge.source.port}' "
-                            f"on node '{source_node.node_id}'"
-                        ),
-                        edge_id=edge.edge_id,
+                        message=f"Unknown source output '{connection.from_output}' on '{connection.from_node}'",
+                        connection=connection,
                     )
                 )
                 continue
-
-            target_port = next(
-                (port for port in target_def.ports if port.direction == "input" and port.handle == edge.target.port),
-                None,
-            )
             if target_port is None:
                 diagnostics.append(
                     CompilerDiagnostic(
                         code="missing_target_port",
-                        message=(
-                            f"Edge '{edge.edge_id}' references unknown target handle '{edge.target.port}' "
-                            f"on node '{target_node.node_id}'"
-                        ),
-                        edge_id=edge.edge_id,
+                        message=f"Unknown target input '{connection.to_input}' on '{connection.to_node}'",
+                        connection=connection,
                     )
                 )
                 continue
 
             compatible = (
                 source_port.data_type == target_port.data_type
-                or source_port.data_type == "any"
-                or target_port.data_type == "any"
+                or source_port.data_type == "ANY"
+                or target_port.data_type == "ANY"
             )
             if not compatible:
                 diagnostics.append(
                     CompilerDiagnostic(
                         code="port_type_mismatch",
                         message=(
-                            f"Type mismatch on edge '{edge.edge_id}': "
+                            f"Type mismatch on {connection.from_node}.{connection.from_output} -> "
+                            f"{connection.to_node}.{connection.to_input}: "
                             f"{source_port.data_type} -> {target_port.data_type}"
                         ),
-                        edge_id=edge.edge_id,
+                        connection=connection,
                     )
                 )
 
-        try:
-            self._topological_order(definition)
-        except ValueError as exc:
-            diagnostics.append(
-                CompilerDiagnostic(
-                    code="graph_cycle",
-                    message=str(exc),
-                )
-            )
-
-        connected_node_ids: set[str] = set()
-        for edge in definition.edges:
-            connected_node_ids.add(edge.source.node_id)
-            connected_node_ids.add(edge.target.node_id)
-        for node_id in sorted(connected_node_ids):
-            node = node_by_id.get(node_id)
-            if node is None:
-                continue
-            if node.node_type not in RUNTIME_SUPPORTED_NODE_TYPES:
+            inbound_counts[(connection.to_node, connection.to_input)] += 1
+            if inbound_counts[(connection.to_node, connection.to_input)] > 1 and not target_port.accepts_multiple:
                 diagnostics.append(
                     CompilerDiagnostic(
-                        code="unsupported_runtime_node",
-                        message=(
-                            f"Node '{node.node_id}' type '{node.node_type}' is connected "
-                            "but not supported by the MVP executor"
-                        ),
-                        node_id=node.node_id,
+                        code="input_multiplicity",
+                        message=f"Input '{connection.to_input}' on '{connection.to_node}' does not accept multiple connections",
+                        connection=connection,
                     )
                 )
 
         for node in definition.nodes:
-            if node.node_type != "LLM":
+            manifest = node_registry.get(node.node_type, node.node_version)
+            if manifest is None:
                 continue
-            provider = str(node.config.get("provider", "ollama")).lower()
-            response_format = str(node.config.get("response_format", "text")).lower()
-            structured = response_format == "json"
-            try:
-                provider_service.assert_capabilities(provider, structured_output=structured)
-            except ValueError as exc:
-                diagnostics.append(
-                    CompilerDiagnostic(
-                        code="provider_capability_error",
-                        message=str(exc),
-                        node_id=node.node_id,
+            for port in manifest.inputs:
+                if port.required and inbound_counts[(node.node_id, port.name)] == 0:
+                    diagnostics.append(
+                        CompilerDiagnostic(
+                            code="missing_required_input",
+                            message=f"Node '{node.node_id}' is missing required input '{port.name}'",
+                            node_id=node.node_id,
+                        )
                     )
-                )
+
+        try:
+            self._topological_order(definition)
+        except ValueError as exc:
+            diagnostics.append(CompilerDiagnostic(code="graph_cycle", message=str(exc)))
 
         return diagnostics
 
@@ -255,11 +241,11 @@ class CompilerService:
         indegree = {node_id: 0 for node_id in node_ids}
         adjacency: dict[str, list[str]] = defaultdict(list)
 
-        for edge in definition.edges:
-            if edge.source.node_id not in indegree or edge.target.node_id not in indegree:
+        for connection in definition.connections:
+            if connection.from_node not in indegree or connection.to_node not in indegree:
                 continue
-            adjacency[edge.source.node_id].append(edge.target.node_id)
-            indegree[edge.target.node_id] += 1
+            adjacency[connection.from_node].append(connection.to_node)
+            indegree[connection.to_node] += 1
 
         queue = deque(sorted(node_id for node_id, count in indegree.items() if count == 0))
         ordered: list[str] = []
@@ -267,7 +253,7 @@ class CompilerService:
         while queue:
             current = queue.popleft()
             ordered.append(current)
-            for target in adjacency[current]:
+            for target in sorted(adjacency[current]):
                 indegree[target] -= 1
                 if indegree[target] == 0:
                     queue.append(target)

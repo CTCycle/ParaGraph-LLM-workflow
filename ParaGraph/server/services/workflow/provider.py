@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 from dataclasses import dataclass
 from typing import Any, Protocol
 
@@ -89,12 +90,20 @@ class ProviderService:
             ]
         )
 
-    def assert_capabilities(self, provider: str, *, structured_output: bool) -> None:
+    def assert_capabilities(
+        self,
+        provider: str,
+        *,
+        structured_output: bool = False,
+        embeddings: bool = False,
+    ) -> None:
         metadata = PROVIDER_CAPABILITIES.get(provider)
         if metadata is None:
             raise ValueError(f"Unsupported provider: {provider}")
         if structured_output and not metadata.supports_structured_output:
             raise ValueError(f"Provider '{provider}' does not support structured output")
+        if embeddings and not metadata.supports_embeddings:
+            raise ValueError(f"Provider '{provider}' does not support embeddings")
 
     def chat(
         self,
@@ -111,6 +120,17 @@ class ProviderService:
             return client.chat(model=model, messages=messages, format=response_format, options=options)
         except (LLMError, OllamaError) as exc:
             raise ValueError(str(exc)) from exc
+
+    def embed_text(self, *, provider: str, model: str, text: str) -> list[float]:
+        normalized_provider = provider.lower().strip()
+        self.assert_capabilities(normalized_provider, embeddings=True)
+        seed = f"{normalized_provider}:{model}:{text}".encode("utf-8")
+        digest = hashlib.sha256(seed).digest()
+        values: list[float] = []
+        for index in range(0, 24, 2):
+            chunk = int.from_bytes(digest[index:index + 2], byteorder="big", signed=False)
+            values.append(round(chunk / 65535.0, 6))
+        return values
 
 
 provider_service = ProviderService()
