@@ -9,6 +9,7 @@ from fastapi.responses import RedirectResponse
 
 from ParaGraph.server.common.constants import FASTAPI_DESCRIPTION, FASTAPI_TITLE, FASTAPI_VERSION
 from ParaGraph.server.common.utils.variables import env_variables  # noqa: F401
+from ParaGraph.server.routes.configurations import router as configurations_router
 from ParaGraph.server.routes.executions import router as executions_router
 from ParaGraph.server.routes.nodes import router as nodes_router
 from ParaGraph.server.routes.providers import router as providers_router
@@ -26,6 +27,7 @@ app.include_router(workflows_router)
 app.include_router(executions_router)
 app.include_router(nodes_router)
 app.include_router(providers_router)
+app.include_router(configurations_router)
 app.include_router(ws_router)
 
 

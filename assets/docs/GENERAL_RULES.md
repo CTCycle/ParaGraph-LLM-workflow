@@ -9,6 +9,7 @@ Before any task, review the relevant files in `assets/docs`:
 - `GUIDELINES_TYPESCRIPT.md`, when using TypeScript
 - `GUIDELINES_TESTS.md`, when writing tests
 - `ARCHITECTURE.md`, system structure and APIs
+- `NODES_LIBRARY.md`, available workflow nodes and parameters
 - `BACKGROUND_JOBS.md`, background job management
 - `README_WRITING.md`, required README structure and standards
 
@@ -38,3 +39,5 @@ If changes materially affect behavior, architecture, or usage, update the releva
 
 ## FILE CHANGE NOTICE
 - Any significant change requires updating `assets/docs` and informing the user.
+
+

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { type CSSProperties, useEffect, useMemo, useRef, useState } from 'react'
 import {
     addEdge,
     Background,
@@ -11,6 +11,7 @@ import {
     MarkerType,
     Node,
     NodeProps,
+    NodeResizer,
     Position,
     ReactFlow,
     ReactFlowProvider,
@@ -62,6 +63,11 @@ const CATEGORY_LABELS: Record<NodeCategory, string> = {
     control: 'Control',
 }
 
+const NODE_MIN_WIDTH = 240
+const NODE_MAX_WIDTH = 680
+const NODE_MIN_HEIGHT = 140
+const NODE_MAX_HEIGHT = 760
+
 function defaultParameters(manifest: NodeManifest): Record<string, unknown> {
     return Object.fromEntries(manifest.parameters.map((parameter) => [parameter.name, parameter.default ?? '']))
 }
@@ -90,18 +96,45 @@ function renderRuntimeOutput(runtimeOutput: Record<string, unknown> | null): str
     return JSON.stringify(runtimeOutput)
 }
 
+function buildNodeSummary(manifest: NodeManifest): string {
+    const text = manifest.description.trim()
+    if (!text) {
+        return 'Configure inputs and parameters for this node.'
+    }
+
+    const segments = text
+        .split(/(?<=[.!?])\s+/)
+        .map((part) => part.trim())
+        .filter(Boolean)
+
+    if (segments.length === 0) {
+        return text
+    }
+    return segments.slice(0, 2).join(' ')
+}
+
 function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
     return (
         <div
             className="workflow-node"
-            style={{ '--node-accent': data.manifest.ui.accent_color } as React.CSSProperties}
+            style={{ '--node-accent': data.manifest.ui.accent_color } as CSSProperties}
             data-selected={selected || undefined}
             data-collapsed={data.collapsed || undefined}
         >
+            <NodeResizer
+                isVisible={selected}
+                minWidth={NODE_MIN_WIDTH}
+                maxWidth={NODE_MAX_WIDTH}
+                minHeight={NODE_MIN_HEIGHT}
+                maxHeight={NODE_MAX_HEIGHT}
+                lineClassName="workflow-node-resize-line"
+                handleClassName="workflow-node-resize-handle"
+            />
             <div className="workflow-node-header">
-                <div>
+                <div className="workflow-node-title-block">
                     <strong>{data.manifest.name}</strong>
                     <span>{data.manifest.id}</span>
+                    <p className="workflow-node-subtitle">{buildNodeSummary(data.manifest)}</p>
                 </div>
                 <button
                     type="button"
@@ -110,7 +143,7 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
                     title={data.collapsed ? 'Expand node' : 'Collapse node'}
                     onClick={data.onToggleCollapse}
                 >
-                    {data.collapsed ? '^' : 'v'}
+                    {data.collapsed ? '▸' : '▾'}
                 </button>
             </div>
 
@@ -135,47 +168,49 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
 
             {!data.collapsed && data.manifest.parameters.length > 0 && (
                 <div className="workflow-node-parameters">
-                    {data.manifest.parameters.map((parameter) => {
-                        const value = data.parameters[parameter.name] ?? parameter.default ?? ''
-                        const options = Array.isArray(parameter.constraints.options)
-                            ? (parameter.constraints.options as string[])
-                            : []
-                        return (
-                            <label key={parameter.name}>
-                                <span>{parameter.name}</span>
-                                {parameter.ui_control === 'textarea' ? (
-                                    <textarea
-                                        rows={3}
-                                        value={String(value ?? '')}
-                                        onChange={(event) =>
-                                            data.onParameterChange(parameter.name, parseValue(parameter, event.target.value))
-                                        }
-                                    />
-                                ) : parameter.ui_control === 'select' && options.length > 0 ? (
-                                    <select
-                                        value={String(value ?? '')}
-                                        onChange={(event) =>
-                                            data.onParameterChange(parameter.name, parseValue(parameter, event.target.value))
-                                        }
-                                    >
-                                        {options.map((option) => (
-                                            <option key={option} value={option}>
-                                                {option}
-                                            </option>
-                                        ))}
-                                    </select>
-                                ) : (
-                                    <input
-                                        type={parameter.ui_control === 'number' ? 'number' : 'text'}
-                                        value={String(value ?? '')}
-                                        onChange={(event) =>
-                                            data.onParameterChange(parameter.name, parseValue(parameter, event.target.value))
-                                        }
-                                    />
-                                )}
-                            </label>
-                        )
-                    })}
+                    <div className="workflow-node-parameters-grid">
+                        {data.manifest.parameters.map((parameter) => {
+                            const value = data.parameters[parameter.name] ?? parameter.default ?? ''
+                            const options = Array.isArray(parameter.constraints.options)
+                                ? (parameter.constraints.options as string[])
+                                : []
+                            return (
+                                <label key={parameter.name} className="workflow-node-parameter-field">
+                                    <span>{parameter.name}</span>
+                                    {parameter.ui_control === 'textarea' ? (
+                                        <textarea
+                                            rows={2}
+                                            value={String(value ?? '')}
+                                            onChange={(event) =>
+                                                data.onParameterChange(parameter.name, parseValue(parameter, event.target.value))
+                                            }
+                                        />
+                                    ) : parameter.ui_control === 'select' && options.length > 0 ? (
+                                        <select
+                                            value={String(value ?? '')}
+                                            onChange={(event) =>
+                                                data.onParameterChange(parameter.name, parseValue(parameter, event.target.value))
+                                            }
+                                        >
+                                            {options.map((option) => (
+                                                <option key={option} value={option}>
+                                                    {option}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    ) : (
+                                        <input
+                                            type={parameter.ui_control === 'number' ? 'number' : 'text'}
+                                            value={String(value ?? '')}
+                                            onChange={(event) =>
+                                                data.onParameterChange(parameter.name, parseValue(parameter, event.target.value))
+                                            }
+                                        />
+                                    )}
+                                </label>
+                            )
+                        })}
+                    </div>
                 </div>
             )}
 
@@ -314,6 +349,7 @@ function WorkflowEditor() {
         const nodeId = `${manifest.id.toLowerCase()}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`
         const position = { x: 80 + nodes.length * 28, y: 80 + nodes.length * 22 }
         const collapsed = manifest.ui.collapsed_by_default
+        const defaultWidth = Math.min(Math.max(manifest.ui.default_width, NODE_MIN_WIDTH), NODE_MAX_WIDTH)
         const node: Node<WorkflowNodeData> = {
             id: nodeId,
             type: 'manifest',
@@ -339,13 +375,13 @@ function WorkflowEditor() {
                         data: { ...current.data, collapsed: !current.data.collapsed },
                         style: {
                             ...current.style,
-                            width: current.style?.width ?? manifest.ui.default_width,
+                            width: current.style?.width ?? defaultWidth,
                         },
                     }))
                 },
             },
             style: {
-                width: manifest.ui.default_width,
+                width: defaultWidth,
             },
         }
         setNodes((current) => [...current, node])
@@ -649,3 +685,7 @@ export default function WorkflowPage() {
         </ReactFlowProvider>
     )
 }
+
+
+
+

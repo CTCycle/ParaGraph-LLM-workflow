@@ -1,4 +1,5 @@
 import {
+    AppConfigurationPayload,
     CompileWorkflowResponse,
     CompiledExecutionPlan,
     ExecutionEventEnvelope,
@@ -18,6 +19,18 @@ export function importNodeManifest(manifest: NodeManifest): Promise<NodeManifest
     return requestJson<NodeManifest>('/nodes/import', {
         method: 'POST',
         body: JSON.stringify(manifest),
+    })
+}
+
+export function fetchConfigurations(sessionName = 'default'): Promise<AppConfigurationPayload> {
+    const params = new URLSearchParams({ session_name: sessionName })
+    return requestJson<AppConfigurationPayload>(`/configurations?${params.toString()}`)
+}
+
+export function saveConfigurations(payload: AppConfigurationPayload): Promise<AppConfigurationPayload> {
+    return requestJson<AppConfigurationPayload>('/configurations', {
+        method: 'PUT',
+        body: JSON.stringify(payload),
     })
 }
 

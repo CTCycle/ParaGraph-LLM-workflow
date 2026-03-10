@@ -1,0 +1,189 @@
+.config-page {
+    min-height: calc(100vh - 64px);
+    padding: 26px;
+    background:
+        radial-gradient(circle at 100% 0%, rgba(74, 163, 255, 0.15), transparent 30%),
+        linear-gradient(180deg, #040916 0%, #08111f 100%);
+    color: #eef6ff;
+}
+
+.config-page-header {
+    margin-bottom: 18px;
+}
+
+.config-page-eyebrow {
+    margin: 0 0 8px;
+    color: #7dd3fc;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-size: 0.74rem;
+    font-weight: 700;
+}
+
+.config-page-header h1 {
+    margin: 0;
+    font-size: clamp(1.7rem, 2.6vw, 2.2rem);
+}
+
+.config-page-lede {
+    margin: 8px 0 0;
+    max-width: 62ch;
+    color: #b9cce3;
+}
+
+.config-page-banner,
+.config-panel {
+    border: 1px solid rgba(73, 95, 128, 0.72);
+    border-radius: 16px;
+    background: rgba(10, 17, 31, 0.88);
+}
+
+.config-page-banner {
+    margin-bottom: 14px;
+    padding: 10px 14px;
+    color: #d7ecff;
+}
+
+.config-page-layout {
+    display: grid;
+    grid-template-columns: minmax(420px, 0.95fr) minmax(0, 1.05fr);
+    gap: 16px;
+    align-items: stretch;
+}
+
+.config-page-left-column {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.config-page-right-column {
+    min-height: 0;
+}
+
+.config-panel {
+    padding: 14px;
+}
+
+.config-panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.config-panel-header h2 {
+    margin: 0;
+    font-size: 1rem;
+}
+
+.config-panel-header p {
+    margin: 6px 0 0;
+    color: #9ab1ce;
+    font-size: 0.86rem;
+}
+
+.config-panel-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.config-panel-actions button {
+    height: 30px;
+    min-width: 62px;
+    padding: 0 10px;
+    border: 1px solid rgba(72, 96, 126, 0.82);
+    border-radius: 8px;
+    background: rgba(6, 13, 24, 0.95);
+    color: #e7f1ff;
+    cursor: pointer;
+    font-size: 0.82rem;
+}
+
+.config-panel-actions button:last-child {
+    background: rgba(48, 134, 255, 0.9);
+    border-color: rgba(48, 134, 255, 0.9);
+}
+
+.config-panel-actions button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.config-panel-fields {
+    display: grid;
+    gap: 10px;
+}
+
+.config-panel-fields label {
+    display: grid;
+    gap: 6px;
+}
+
+.config-panel-fields span {
+    font-size: 0.77rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #9ab1ce;
+}
+
+.config-panel-fields input,
+.config-panel-fields select {
+    width: 100%;
+    min-width: 0;
+    padding: 9px 10px;
+    border-radius: 10px;
+    border: 1px solid rgba(72, 96, 126, 0.82);
+    background: rgba(4, 10, 20, 0.96);
+    color: #eef6ff;
+}
+
+.config-panel-empty {
+    height: 100%;
+    min-height: 410px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    border-style: dashed;
+    color: #99b1cf;
+}
+
+.config-panel-empty h2 {
+    margin: 0;
+    font-size: 1rem;
+    color: #cfe4ff;
+}
+
+.config-panel-empty p {
+    margin: 8px 0 0;
+    max-width: 40ch;
+}
+
+@media (max-width: 1160px) {
+    .config-page-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .config-panel-empty {
+        min-height: 220px;
+    }
+}
+
+@media (max-width: 760px) {
+    .config-page {
+        padding: 14px;
+    }
+
+    .config-panel-header {
+        flex-direction: column;
+    }
+
+    .config-panel-actions {
+        width: 100%;
+        justify-content: flex-end;
+    }
+}

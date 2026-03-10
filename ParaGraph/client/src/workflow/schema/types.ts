@@ -212,3 +212,22 @@ export interface ProviderCapability {
 export interface ProviderCatalogResponse {
     providers: ProviderCapability[]
 }
+export interface AccessKeyConfiguration {
+    provider: string
+    api_key: string | null
+    base_url: string | null
+    metadata: Record<string, unknown>
+}
+
+export interface OllamaConfiguration {
+    base_url: string
+    chat_model: string
+    embedding_model: string
+}
+
+export interface AppConfigurationPayload {
+    session_name: string
+    access_keys: AccessKeyConfiguration[]
+    ollama: OllamaConfiguration
+}
+
