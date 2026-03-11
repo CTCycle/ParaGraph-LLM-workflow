@@ -20,8 +20,21 @@ import {
     useReactFlow,
 } from '@xyflow/react'
 
-import { compileWorkflow, pollExecution, startExecution, subscribeExecutionEvents } from '../app/services/workflowApi'
-import { NodeManifest, NodeParameterDefinition, WorkflowConnection, WorkflowDefinition } from '../workflow/schema/types'
+import {
+    compileWorkflow,
+    fetchProviderModels,
+    pollExecution,
+    startExecution,
+    subscribeExecutionEvents,
+} from '../app/services/workflowApi'
+import {
+    ExecutionRunState,
+    NodeManifest,
+    NodeParameterDefinition,
+    ProviderModelDefinition,
+    WorkflowConnection,
+    WorkflowDefinition,
+} from '../workflow/schema/types'
 import { useNodeCatalog } from '../workflow/hooks/useNodeCatalog'
 import { NODE_CATEGORY_LABELS, NodeCategoryFilter, toNodeCategoryFilter } from '../workflow/schema/nodeCategory'
 import './WorkflowPage.css'
@@ -31,6 +44,7 @@ type WorkflowNodeData = {
     parameters: Record<string, unknown>
     collapsed: boolean
     runtimeOutput: Record<string, unknown> | null
+    providerModels: ProviderModelDefinition[]
     onParameterChange: (parameterName: string, value: unknown) => void
     onToggleCollapse: () => void
 }
@@ -51,38 +65,117 @@ function defaultParameters(manifest: NodeManifest): Record<string, unknown> {
     return Object.fromEntries(manifest.parameters.map((parameter) => [parameter.name, parameter.default ?? '']))
 }
 
-function parseValue(parameter: NodeParameterDefinition, rawValue: string): unknown {
+function normalizeProvider(value: unknown): string {
+    const text = String(value ?? '').trim().toLowerCase()
+    return text === 'anthropic' ? 'claude' : text
+}
+
+function parseValue(parameter: NodeParameterDefinition, rawValue: string | boolean): unknown {
+    if (parameter.ui_control === 'toggle') {
+        return Boolean(rawValue)
+    }
     if (parameter.ui_control === 'number') {
-        if (!rawValue.trim()) {
+        const text = String(rawValue)
+        if (!text.trim()) {
             return parameter.default ?? 0
         }
-        const parsed = Number(rawValue)
+        const parsed = Number(text)
         return Number.isFinite(parsed) ? parsed : parameter.default ?? 0
+    }
+    if (parameter.ui_control === 'json') {
+        return String(rawValue)
     }
     return rawValue
 }
 
 type NodeAccentStyle = CSSProperties & { '--node-accent': string }
 
-function getParameterOptions(parameter: NodeParameterDefinition): string[] {
+function isStructuredNode(manifest: NodeManifest): boolean {
+    return manifest.id.includes('STRUCTURED_RESPONSE')
+}
+
+function formatParameterValue(parameter: NodeParameterDefinition, value: unknown): string {
+    if (parameter.ui_control === 'json') {
+        if (typeof value === 'string') {
+            return value
+        }
+        try {
+            return JSON.stringify(value ?? {}, null, 2)
+        } catch {
+            return String(value ?? '')
+        }
+    }
+    return String(value ?? '')
+}
+
+function getDynamicModelOptions(
+    manifest: NodeManifest,
+    parameters: Record<string, unknown>,
+    providerModels: ProviderModelDefinition[],
+): ProviderModelDefinition[] {
+    if (manifest.id.startsWith('OLLAMA_')) {
+        return providerModels.filter((item) => item.provider === 'ollama')
+    }
+    if (manifest.id.startsWith('HUGGINGFACE_')) {
+        return providerModels.filter((item) => item.provider === 'huggingface')
+    }
+    if (manifest.id.startsWith('CLOUD_')) {
+        const provider = normalizeProvider(parameters.provider ?? 'openai') || 'openai'
+        return providerModels.filter((item) => item.provider === provider)
+    }
+    return []
+}
+
+function getParameterOptions(
+    parameter: NodeParameterDefinition,
+    manifest: NodeManifest,
+    parameters: Record<string, unknown>,
+    providerModels: ProviderModelDefinition[],
+): Array<{ value: string; label: string }> {
+    if (parameter.name === 'model_name') {
+        return getDynamicModelOptions(manifest, parameters, providerModels).map((item) => ({
+            value: item.model,
+            label: item.label,
+        }))
+    }
+
     const options = parameter.constraints.options
     if (!Array.isArray(options)) {
         return []
     }
-    return options.filter((option): option is string => typeof option === 'string')
+    return options
+        .filter((option): option is string => typeof option === 'string')
+        .map((option) => ({ value: option, label: option }))
+}
+
+function buildRuntimeOutputs(run: ExecutionRunState): Record<string, Record<string, unknown>> {
+    return run.steps.reduce<Record<string, Record<string, unknown>>>((accumulator, step) => {
+        const outputPorts = step.output?.ports
+        if (outputPorts && typeof outputPorts === 'object') {
+            accumulator[step.node_id] = outputPorts as Record<string, unknown>
+        }
+        return accumulator
+    }, {})
 }
 
 function renderRuntimeOutput(runtimeOutput: Record<string, unknown> | null): string {
     if (!runtimeOutput) {
         return ''
     }
+    if (typeof runtimeOutput.response === 'string') {
+        return runtimeOutput.response
+    }
+    if ('result' in runtimeOutput) {
+        try {
+            return JSON.stringify(runtimeOutput.result, null, 2)
+        } catch {
+            return String(runtimeOutput.result)
+        }
+    }
     if (typeof runtimeOutput.text === 'string') {
         return runtimeOutput.text
     }
-    if (runtimeOutput.image) {
-        return JSON.stringify(runtimeOutput.image)
-    }
-    return JSON.stringify(runtimeOutput)
+    return JSON.stringify(runtimeOutput, null, 2)
 }
 
 function buildNodeSummary(manifest: NodeManifest): string {
@@ -104,6 +197,7 @@ function buildNodeSummary(manifest: NodeManifest): string {
 
 function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
     const nodeStyle: NodeAccentStyle = { '--node-accent': data.manifest.ui.accent_color }
+    const structured = isStructuredNode(data.manifest)
 
     return (
         <div
@@ -111,6 +205,7 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
             style={nodeStyle}
             data-selected={selected || undefined}
             data-collapsed={data.collapsed || undefined}
+            data-structured={structured || undefined}
         >
             <NodeResizer
                 isVisible={selected}
@@ -127,15 +222,18 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
                     <span>{data.manifest.id}</span>
                     <p className="workflow-node-subtitle">{buildNodeSummary(data.manifest)}</p>
                 </div>
-                <button
-                    type="button"
-                    className="workflow-node-toggle"
-                    aria-label={data.collapsed ? 'Expand node' : 'Collapse node'}
-                    title={data.collapsed ? 'Expand node' : 'Collapse node'}
-                    onClick={data.onToggleCollapse}
-                >
-                    {data.collapsed ? '▸' : '▾'}
-                </button>
+                <div className="workflow-node-header-actions">
+                    {structured && <span className="workflow-node-badge">Structured</span>}
+                    <button
+                        type="button"
+                        className="workflow-node-toggle"
+                        aria-label={data.collapsed ? 'Expand node' : 'Collapse node'}
+                        title={data.collapsed ? 'Expand node' : 'Collapse node'}
+                        onClick={data.onToggleCollapse}
+                    >
+                        {data.collapsed ? '▸' : '▾'}
+                    </button>
+                </div>
             </div>
 
             <div className="workflow-node-ports">
@@ -162,16 +260,34 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
                     <div className="workflow-node-parameters-grid">
                         {data.manifest.parameters.map((parameter) => {
                             const value = data.parameters[parameter.name] ?? parameter.default ?? ''
-                            const options = getParameterOptions(parameter)
+                            const options = getParameterOptions(parameter, data.manifest, data.parameters, data.providerModels)
                             return (
                                 <label key={parameter.name} className="workflow-node-parameter-field">
                                     <span>{parameter.name}</span>
                                     {parameter.ui_control === 'textarea' ? (
                                         <textarea
                                             rows={2}
-                                            value={String(value ?? '')}
+                                            value={formatParameterValue(parameter, value)}
                                             onChange={(event) =>
                                                 data.onParameterChange(parameter.name, parseValue(parameter, event.target.value))
+                                            }
+                                        />
+                                    ) : parameter.ui_control === 'json' ? (
+                                        <textarea
+                                            rows={6}
+                                            className="workflow-node-json-input"
+                                            value={formatParameterValue(parameter, value)}
+                                            onChange={(event) =>
+                                                data.onParameterChange(parameter.name, parseValue(parameter, event.target.value))
+                                            }
+                                        />
+                                    ) : parameter.ui_control === 'toggle' ? (
+                                        <input
+                                            className="workflow-node-toggle-input"
+                                            type="checkbox"
+                                            checked={Boolean(value)}
+                                            onChange={(event) =>
+                                                data.onParameterChange(parameter.name, parseValue(parameter, event.target.checked))
                                             }
                                         />
                                     ) : parameter.ui_control === 'select' && options.length > 0 ? (
@@ -181,16 +297,17 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
                                                 data.onParameterChange(parameter.name, parseValue(parameter, event.target.value))
                                             }
                                         >
+                                            {!String(value ?? '') && <option value="">Select...</option>}
                                             {options.map((option) => (
-                                                <option key={option} value={option}>
-                                                    {option}
+                                                <option key={option.value} value={option.value}>
+                                                    {option.label}
                                                 </option>
                                             ))}
                                         </select>
                                     ) : (
                                         <input
                                             type={parameter.ui_control === 'number' ? 'number' : 'text'}
-                                            value={String(value ?? '')}
+                                            value={formatParameterValue(parameter, value)}
                                             onChange={(event) =>
                                                 data.onParameterChange(parameter.name, parseValue(parameter, event.target.value))
                                             }
@@ -203,10 +320,10 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
                 </div>
             )}
 
-            {(data.manifest.category === 'output' || data.runtimeOutput) && !data.collapsed && (
+            {data.runtimeOutput && !data.collapsed && (
                 <div className="workflow-node-runtime">
-                    <span>Runtime Output</span>
-                    <textarea readOnly rows={4} value={renderRuntimeOutput(data.runtimeOutput)} />
+                    <span>{structured ? 'Structured Output' : 'Runtime Output'}</span>
+                    <textarea readOnly rows={structured ? 6 : 4} value={renderRuntimeOutput(data.runtimeOutput)} />
                 </div>
             )}
 
@@ -221,6 +338,7 @@ const nodeTypes = { manifest: ManifestNode }
 
 function WorkflowEditor() {
     const { catalog, loading, error } = useNodeCatalog()
+    const [providerModels, setProviderModels] = useState<ProviderModelDefinition[]>([])
     const [statusText, setStatusText] = useState('Ready')
     const [isRunning, setIsRunning] = useState(false)
     const [search, setSearch] = useState('')
@@ -233,10 +351,21 @@ function WorkflowEditor() {
     const stopEventsRef = useRef<(() => void) | null>(null)
     const canvasPanelRef = useRef<HTMLDivElement | null>(null)
     const { fitView, zoomIn, zoomTo, getZoom } = useReactFlow<Node<WorkflowNodeData>, Edge>()
+
     useEffect(() => {
         return () => {
             stopEventsRef.current?.()
         }
+    }, [])
+
+    useEffect(() => {
+        void fetchProviderModels()
+            .then((payload) => {
+                setProviderModels(payload.models)
+            })
+            .catch((loadError) => {
+                setStatusText(loadError instanceof Error ? loadError.message : 'Failed to load provider models')
+            })
     }, [])
 
     useEffect(() => {
@@ -246,10 +375,45 @@ function WorkflowEditor() {
                 data: {
                     ...node.data,
                     runtimeOutput: runtimeOutputs[node.id] ?? null,
+                    providerModels,
                 },
             })),
         )
-    }, [runtimeOutputs, setNodes])
+    }, [providerModels, runtimeOutputs, setNodes])
+
+    useEffect(() => {
+        if (providerModels.length === 0) {
+            return
+        }
+
+        setNodes((current) =>
+            current.map((node) => {
+                const modelParameter = node.data.manifest.parameters.find((item) => item.name === 'model_name')
+                if (!modelParameter) {
+                    return node
+                }
+                const options = getDynamicModelOptions(node.data.manifest, node.data.parameters, providerModels)
+                const currentValue = String(node.data.parameters.model_name ?? '').trim()
+                if (currentValue || options.length === 0) {
+                    return {
+                        ...node,
+                        data: { ...node.data, providerModels },
+                    }
+                }
+                return {
+                    ...node,
+                    data: {
+                        ...node.data,
+                        providerModels,
+                        parameters: {
+                            ...node.data.parameters,
+                            model_name: options[0].model,
+                        },
+                    },
+                }
+            }),
+        )
+    }, [providerModels, setNodes])
 
     useEffect(() => {
         if (!nodeContextMenu) {
@@ -312,6 +476,11 @@ function WorkflowEditor() {
         const position = { x: 80 + nodes.length * 28, y: 80 + nodes.length * 22 }
         const collapsed = manifest.ui.collapsed_by_default
         const defaultWidth = Math.min(Math.max(manifest.ui.default_width, NODE_MIN_WIDTH), NODE_MAX_WIDTH)
+        const initialParameters = defaultParameters(manifest)
+        const initialModels = getDynamicModelOptions(manifest, initialParameters, providerModels)
+        if (initialModels.length > 0 && !String(initialParameters.model_name ?? '').trim()) {
+            initialParameters.model_name = initialModels[0].model
+        }
         const node: Node<WorkflowNodeData> = {
             id: nodeId,
             type: 'manifest',
@@ -319,17 +488,29 @@ function WorkflowEditor() {
             draggable: true,
             data: {
                 manifest,
-                parameters: defaultParameters(manifest),
+                parameters: initialParameters,
+                providerModels,
                 collapsed,
                 runtimeOutput: null,
                 onParameterChange: (parameterName, value) => {
-                    updateNode(nodeId, (current) => ({
-                        ...current,
-                        data: {
-                            ...current.data,
-                            parameters: { ...current.data.parameters, [parameterName]: value },
-                        },
-                    }))
+                    updateNode(nodeId, (current) => {
+                        const nextParameters = { ...current.data.parameters, [parameterName]: value }
+                        if (parameterName === 'provider') {
+                            nextParameters.provider = normalizeProvider(value)
+                            nextParameters.model_name = ''
+                            const nextOptions = getDynamicModelOptions(current.data.manifest, nextParameters, providerModels)
+                            if (nextOptions.length > 0) {
+                                nextParameters.model_name = nextOptions[0].model
+                            }
+                        }
+                        return {
+                            ...current,
+                            data: {
+                                ...current.data,
+                                parameters: nextParameters,
+                            },
+                        }
+                    })
                 },
                 onToggleCollapse: () => {
                     updateNode(nodeId, (current) => ({
@@ -439,8 +620,8 @@ function WorkflowEditor() {
                 setStatusText(`Run ${run.status} (${Math.round(run.progress)}%)`)
             })
 
+            setRuntimeOutputs(buildRuntimeOutputs(finalState))
             if (finalState.status === 'completed') {
-                setRuntimeOutputs(finalState.outputs)
                 setStatusText('Workflow completed')
             } else if (finalState.status === 'failed') {
                 throw new Error(finalState.error || 'Workflow failed')
@@ -647,6 +828,3 @@ export default function WorkflowPage() {
         </ReactFlowProvider>
     )
 }
-
-
-

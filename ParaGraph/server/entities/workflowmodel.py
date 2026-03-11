@@ -9,12 +9,46 @@ from ParaGraph.server.entities.execution import CompiledExecutionPlan
 
 
 LEGACY_NODE_TYPE_MAP = {
-    "Prompt": "PROMPT",
-    "LLM": "LLM_GENERATE",
+    "Prompt": "USER_PROMPT",
+    "PROMPT": "USER_PROMPT",
     "Output": "TEXT_OUTPUT",
     "Retrieval": "TEXT_SPLIT",
     "VectorDB": "LOAD_TEXT",
 }
+
+MODEL_NODE_TYPES = {
+    "OLLAMA_LLM_CHAT",
+    "CLOUD_LLM_CHAT",
+    "HUGGINGFACE_LLM_CHAT",
+    "OLLAMA_STRUCTURED_RESPONSE",
+    "CLOUD_STRUCTURED_RESPONSE",
+    "HUGGINGFACE_STRUCTURED_RESPONSE",
+}
+
+
+def _normalize_provider_name(provider: Any) -> str:
+    normalized = str(provider or "ollama").strip().lower()
+    if normalized == "anthropic":
+        return "claude"
+    return normalized
+
+
+def _normalize_legacy_model_node(node_type: str, parameters: dict[str, Any]) -> tuple[str, dict[str, Any]]:
+    next_parameters = dict(parameters)
+    if "provider" in next_parameters:
+        next_parameters["provider"] = _normalize_provider_name(next_parameters.get("provider"))
+
+    if node_type != "LLM_GENERATE":
+        mapped = LEGACY_NODE_TYPE_MAP.get(node_type, node_type)
+        return mapped, next_parameters
+
+    provider = _normalize_provider_name(next_parameters.get("provider", "ollama"))
+    if provider == "huggingface":
+        return "HUGGINGFACE_LLM_CHAT", next_parameters
+    if provider in {"openai", "gemini", "claude"}:
+        return "CLOUD_LLM_CHAT", next_parameters
+    next_parameters["provider"] = "ollama"
+    return "OLLAMA_LLM_CHAT", next_parameters
 
 
 class WorkflowNodeInstance(BaseModel):
@@ -28,13 +62,19 @@ class WorkflowNodeInstance(BaseModel):
     def migrate_legacy_node(cls, value: Any) -> Any:
         if not isinstance(value, dict):
             return value
-        if "parameters" in value:
-            return value
+
+        parameters = value.get("parameters")
+        if parameters is None:
+            parameters = value.get("config", {})
+        if not isinstance(parameters, dict):
+            parameters = {}
+
+        node_type, normalized_parameters = _normalize_legacy_model_node(str(value.get("node_type")), parameters)
         return {
             "node_id": value.get("node_id"),
-            "node_type": LEGACY_NODE_TYPE_MAP.get(str(value.get("node_type")), str(value.get("node_type"))),
+            "node_type": node_type,
             "node_version": value.get("node_version", 1),
-            "parameters": value.get("config", {}),
+            "parameters": normalized_parameters,
         }
 
 
@@ -87,6 +127,30 @@ class WorkflowDefinition(BaseModel):
             ],
             "metadata": value.get("metadata", {}),
         }
+
+    @model_validator(mode="after")
+    def normalize_legacy_contracts(self) -> WorkflowDefinition:
+        node_types = {node.node_id: node.node_type for node in self.nodes}
+        for node in self.nodes:
+            node.node_type, node.parameters = _normalize_legacy_model_node(node.node_type, node.parameters)
+            node_types[node.node_id] = node.node_type
+
+        normalized_connections: list[WorkflowConnection] = []
+        for connection in self.connections:
+            to_input = connection.to_input
+            target_type = node_types.get(connection.to_node, "")
+            if target_type in MODEL_NODE_TYPES and to_input == "prompt":
+                to_input = "user_prompt"
+            normalized_connections.append(
+                WorkflowConnection(
+                    from_node=connection.from_node,
+                    from_output=connection.from_output,
+                    to_node=connection.to_node,
+                    to_input=to_input,
+                )
+            )
+        self.connections = normalized_connections
+        return self
 
 
 class VisualNodeState(BaseModel):

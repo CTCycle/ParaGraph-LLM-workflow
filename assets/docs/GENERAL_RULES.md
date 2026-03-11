@@ -4,6 +4,8 @@ Use web search to verify facts and stay current on tools, frameworks, and indust
 ## REQUIRED DOCUMENTATION REVIEW
 Before any task, review the relevant files in `assets/docs`:
 
+Document index:
+
 - `GENERAL_RULES.md`, mandatory for every task
 - `GUIDELINES_PYTHON.md`, when using Python
 - `GUIDELINES_TYPESCRIPT.md`, when using TypeScript
@@ -39,5 +41,3 @@ If changes materially affect behavior, architecture, or usage, update the releva
 
 ## FILE CHANGE NOTICE
 - Any significant change requires updating `assets/docs` and informing the user.
-
-

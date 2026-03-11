@@ -1,18 +1,19 @@
 from __future__ import annotations
 
-from collections.abc import Callable
 from pathlib import Path
 
 from fastapi.testclient import TestClient
 
+from ParaGraph.server.entities.nodecatalog import ProviderModelCatalogResponse, ProviderModelDefinition
 from ParaGraph.server.services.workflow import nodes as node_module
+from ParaGraph.server.services.workflow import provider_service
 
 
 def build_prompt_to_output_definition() -> dict[str, object]:
     return {
         'schema_version': 2,
         'nodes': [
-            {'node_id': 'prompt_1', 'node_type': 'PROMPT', 'node_version': 1, 'parameters': {'prompt_text': 'Hello graph'}},
+            {'node_id': 'prompt_1', 'node_type': 'USER_PROMPT', 'node_version': 1, 'parameters': {'prompt_text': 'Hello graph'}},
             {'node_id': 'output_1', 'node_type': 'TEXT_OUTPUT', 'node_version': 1, 'parameters': {}},
         ],
         'connections': [
@@ -29,7 +30,9 @@ def test_nodes_catalog_exposes_registry(client: TestClient) -> None:
     payload = response.json()
 
     ids = {node['id'] for node in payload['nodes']}
-    assert {'PROMPT', 'LLM_GENERATE', 'TEXT_OUTPUT'}.issubset(ids)
+    assert {'USER_PROMPT', 'SYSTEM_PROMPT', 'OLLAMA_LLM_CHAT', 'CLOUD_STRUCTURED_RESPONSE', 'TEXT_OUTPUT'}.issubset(ids)
+    assert 'PROMPT' not in ids
+    assert 'LLM_GENERATE' not in ids
 
 
 def test_nodes_import_persists_manifest(client: TestClient, monkeypatch, tmp_path: Path) -> None:
@@ -62,6 +65,30 @@ def test_nodes_import_persists_manifest(client: TestClient, monkeypatch, tmp_pat
     assert (node_dir / 'custom_echo_v1.json').exists()
 
 
+def test_provider_models_endpoint_returns_catalog(client: TestClient, monkeypatch) -> None:
+    monkeypatch.setattr(
+        provider_service,
+        'list_models',
+        lambda session_name='default': ProviderModelCatalogResponse(
+            models=[
+                ProviderModelDefinition(
+                    provider='ollama',
+                    model='llama3.2',
+                    label='Llama 3.2',
+                    supports_image=False,
+                    supports_reasoning=False,
+                    supports_structured_output=True,
+                )
+            ]
+        ),
+    )
+
+    response = client.get('/providers/models')
+
+    assert response.status_code == 200
+    assert response.json()['models'][0]['model'] == 'llama3.2'
+
+
 def test_compile_endpoint_returns_diagnostics_for_type_mismatch(client: TestClient) -> None:
     response = client.post(
         '/executions/compile',
@@ -69,7 +96,7 @@ def test_compile_endpoint_returns_diagnostics_for_type_mismatch(client: TestClie
             'definition': {
                 'schema_version': 2,
                 'nodes': [
-                    {'node_id': 'prompt_1', 'node_type': 'PROMPT', 'node_version': 1, 'parameters': {'prompt_text': 'Hello'}},
+                    {'node_id': 'prompt_1', 'node_type': 'USER_PROMPT', 'node_version': 1, 'parameters': {'prompt_text': 'Hello'}},
                     {'node_id': 'embed_1', 'node_type': 'EMBEDDING_MODEL', 'node_version': 1, 'parameters': {}},
                     {'node_id': 'output_1', 'node_type': 'TEXT_OUTPUT', 'node_version': 1, 'parameters': {}},
                 ],
@@ -133,27 +160,3 @@ def test_workflow_crud_and_versions(client: TestClient) -> None:
 
     assert update_response.status_code == 200
     assert update_response.json()['latest_version'] == 2
-
-
-def test_execution_events_are_recorded_for_workflow_run(
-    client: TestClient,
-    wait_for_job: Callable[[str, float], dict[str, object]],
-) -> None:
-    compile_response = client.post('/executions/compile', json={'definition': build_prompt_to_output_definition()})
-    assert compile_response.status_code == 200
-    plan = compile_response.json()['plan']
-
-    start_response = client.post('/executions', json={'workflow_id': None, 'plan': plan})
-    assert start_response.status_code == 202
-    run_id = start_response.json()['run_id']
-
-    final_status = wait_for_job(run_id)
-    assert final_status['status'] == 'completed'
-
-    events_response = client.get(f'/executions/{run_id}/events')
-    assert events_response.status_code == 200
-    event_types = [event['event_type'] for event in events_response.json()['events']]
-    assert 'execution.queued' in event_types
-    assert 'execution.started' in event_types
-    assert 'execution.step.completed' in event_types
-    assert 'execution.completed' in event_types

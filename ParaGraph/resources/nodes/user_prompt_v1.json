@@ -1,9 +1,9 @@
 {
-  "id": "PROMPT",
+  "id": "USER_PROMPT",
   "version": 1,
-  "name": "Prompt",
+  "name": "User Prompt",
   "category": "input",
-  "description": "Provide prompt text to the workflow graph.",
+  "description": "Provide user-role prompt text to the workflow graph.",
   "inputs": [],
   "outputs": [
     {"name": "text", "data_type": "TEXT", "required": true}
@@ -15,9 +15,9 @@
       "default": "",
       "constraints": {"required": true},
       "ui_control": "textarea",
-      "description": "Prompt text emitted by this node."
+      "description": "Prompt text emitted as the user message."
     }
   ],
   "ui": {"default_width": 320, "accent_color": "#59c6ff", "collapsed_by_default": false},
-  "runtime": {"executor_key": "prompt", "cacheable": true, "deterministic": true, "side_effecting": false}
+  "runtime": {"executor_key": "user_prompt", "cacheable": true, "deterministic": true, "side_effecting": false}
 }

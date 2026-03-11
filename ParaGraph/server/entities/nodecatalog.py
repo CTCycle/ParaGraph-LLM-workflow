@@ -80,3 +80,16 @@ class ProviderCapability(BaseModel):
 
 class ProviderCatalogResponse(BaseModel):
     providers: list[ProviderCapability] = Field(default_factory=list)
+
+
+class ProviderModelDefinition(BaseModel):
+    provider: str
+    model: str
+    label: str
+    supports_image: bool = False
+    supports_reasoning: bool = False
+    supports_structured_output: bool = True
+
+
+class ProviderModelCatalogResponse(BaseModel):
+    models: list[ProviderModelDefinition] = Field(default_factory=list)
