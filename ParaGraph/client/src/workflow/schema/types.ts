@@ -212,6 +212,20 @@ export interface ProviderCapability {
 export interface ProviderCatalogResponse {
     providers: ProviderCapability[]
 }
+
+export interface ProviderModelDefinition {
+    provider: string
+    model: string
+    label: string
+    supports_image: boolean
+    supports_reasoning: boolean
+    supports_structured_output: boolean
+}
+
+export interface ProviderModelCatalogResponse {
+    models: ProviderModelDefinition[]
+}
+
 export interface AccessKeyConfiguration {
     provider: string
     api_key: string | null
@@ -230,4 +244,3 @@ export interface AppConfigurationPayload {
     access_keys: AccessKeyConfiguration[]
     ollama: OllamaConfiguration
 }
-

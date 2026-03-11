@@ -5,7 +5,7 @@ import { fetchConfigurations, saveConfigurations } from '../app/services/workflo
 import { AccessKeyConfiguration, AppConfigurationPayload } from '../workflow/schema/types'
 import './ConfigurationsPage.css'
 
-type CloudProvider = 'openai' | 'gemini' | 'anthropic'
+type CloudProvider = 'openai' | 'gemini' | 'claude'
 
 type ProviderCredential = {
     apiKey: string
@@ -16,13 +16,13 @@ const DEFAULT_SESSION_NAME = 'default'
 const CLOUD_PROVIDER_OPTIONS: Array<{ value: CloudProvider; label: string }> = [
     { value: 'openai', label: 'OpenAI' },
     { value: 'gemini', label: 'Gemini' },
-    { value: 'anthropic', label: 'Anthropic' },
+    { value: 'claude', label: 'Claude' },
 ]
 
 const EMPTY_CLOUD_CREDENTIALS: Record<CloudProvider, ProviderCredential> = {
     openai: { apiKey: '', baseUrl: '' },
     gemini: { apiKey: '', baseUrl: '' },
-    anthropic: { apiKey: '', baseUrl: '' },
+    claude: { apiKey: '', baseUrl: '' },
 }
 
 function normalizeText(value: string | null | undefined): string {
@@ -30,8 +30,11 @@ function normalizeText(value: string | null | undefined): string {
 }
 
 function toCloudProvider(value: string): CloudProvider {
-    if (value === 'openai' || value === 'gemini' || value === 'anthropic') {
+    if (value === 'openai' || value === 'gemini' || value === 'claude') {
         return value
+    }
+    if (value === 'anthropic') {
+        return 'claude'
     }
     return 'openai'
 }
@@ -47,7 +50,7 @@ function mapPayloadToForm(payload: AppConfigurationPayload): {
     const cloudCredentials: Record<CloudProvider, ProviderCredential> = {
         openai: { ...EMPTY_CLOUD_CREDENTIALS.openai },
         gemini: { ...EMPTY_CLOUD_CREDENTIALS.gemini },
-        anthropic: { ...EMPTY_CLOUD_CREDENTIALS.anthropic },
+        claude: { ...EMPTY_CLOUD_CREDENTIALS.claude },
     }
 
     let huggingFaceKey = ''
@@ -58,13 +61,15 @@ function mapPayloadToForm(payload: AppConfigurationPayload): {
             huggingFaceKey = normalizeText(item.api_key)
             return
         }
-        if (item.provider === 'openai' || item.provider === 'gemini' || item.provider === 'anthropic') {
-            cloudCredentials[item.provider] = {
+
+        const provider = toCloudProvider(item.provider)
+        if (provider === 'openai' || provider === 'gemini' || provider === 'claude') {
+            cloudCredentials[provider] = {
                 apiKey: normalizeText(item.api_key),
                 baseUrl: normalizeText(item.base_url),
             }
             if (!selectedCloudProvider || normalizeText(item.api_key)) {
-                selectedCloudProvider = item.provider
+                selectedCloudProvider = provider
             }
         }
     })

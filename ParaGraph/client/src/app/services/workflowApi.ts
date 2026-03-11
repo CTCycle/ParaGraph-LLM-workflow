@@ -6,10 +6,11 @@ import {
     ExecutionRunState,
     NodeCatalogResponse,
     NodeManifest,
+    ProviderModelCatalogResponse,
     StartExecutionResponse,
     WorkflowDefinition,
 } from '../../workflow/schema/types'
-import { getApiBase, requestJson } from './api'
+import { requestJson } from './api'
 
 export function fetchNodeCatalog(): Promise<NodeCatalogResponse> {
     return requestJson<NodeCatalogResponse>('/nodes/catalog')
@@ -20,6 +21,11 @@ export function importNodeManifest(manifest: NodeManifest): Promise<NodeManifest
         method: 'POST',
         body: JSON.stringify(manifest),
     })
+}
+
+export function fetchProviderModels(sessionName = 'default'): Promise<ProviderModelCatalogResponse> {
+    const params = new URLSearchParams({ session_name: sessionName })
+    return requestJson<ProviderModelCatalogResponse>(`/providers/models?${params.toString()}`)
 }
 
 export function fetchConfigurations(sessionName = 'default'): Promise<AppConfigurationPayload> {
@@ -92,7 +98,7 @@ export async function pollExecution(
 }
 
 function resolveWsBase(): string {
-    const apiBase = getApiBase()
+    const apiBase = import.meta.env.VITE_API_BASE_URL || '/api'
     if (apiBase.startsWith('http://') || apiBase.startsWith('https://')) {
         return apiBase.replace(/^http/, 'ws')
     }

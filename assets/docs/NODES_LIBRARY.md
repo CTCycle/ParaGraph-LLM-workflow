@@ -8,21 +8,86 @@ Source of truth: `ParaGraph/resources/nodes/*.json`
 
 | Node ID | Version | Name | Category | Manifest |
 |---|---:|---|---|---|
+| `CLOUD_LLM_CHAT` | 1 | Cloud LLM Chat | model | `cloud_llm_chat_v1.json` |
+| `CLOUD_STRUCTURED_RESPONSE` | 1 | Cloud Structured Response | model | `cloud_structured_response_v1.json` |
 | `EMBEDDING_MODEL` | 1 | Embedding Model | model | `embedding_model_v1.json` |
+| `HUGGINGFACE_LLM_CHAT` | 1 | HuggingFace LLM Chat | model | `huggingface_llm_chat_v1.json` |
+| `HUGGINGFACE_STRUCTURED_RESPONSE` | 1 | HuggingFace Structured Response | model | `huggingface_structured_response_v1.json` |
 | `IF` | 1 | If | control | `if_v1.json` |
 | `IMAGE_INPUT` | 1 | Image Input | input | `image_input_v1.json` |
 | `IMAGE_OUTPUT` | 1 | Image Output | output | `image_output_v1.json` |
-| `LLM_GENERATE` | 1 | LLM Generate | model | `llm_generate_v1.json` |
 | `LOAD_TEXT` | 1 | Load Text | serialization | `load_text_v1.json` |
-| `PROMPT` | 1 | Prompt | input | `prompt_v1.json` |
+| `OLLAMA_LLM_CHAT` | 1 | Ollama LLM Chat | model | `ollama_llm_chat_v1.json` |
+| `OLLAMA_STRUCTURED_RESPONSE` | 1 | Ollama Structured Response | model | `ollama_structured_response_v1.json` |
 | `ROUTER` | 1 | Router | control | `router_v1.json` |
 | `SAVE_TEXT` | 1 | Save Text | serialization | `save_text_v1.json` |
+| `SYSTEM_PROMPT` | 1 | System Prompt | input | `system_prompt_v1.json` |
 | `TEMPLATE_FORMAT` | 1 | Template Format | processing | `template_format_v1.json` |
 | `TEXT_OUTPUT` | 1 | Text Output | output | `text_output_v1.json` |
 | `TEXT_SPLIT` | 1 | Text Split | processing | `text_split_v1.json` |
 | `TOKENIZE` | 1 | Tokenize | processing | `tokenize_v1.json` |
+| `USER_PROMPT` | 1 | User Prompt | input | `user_prompt_v1.json` |
 
 ---
+
+## `CLOUD_LLM_CHAT` (v1)
+
+- Name: Cloud LLM Chat
+- Category: `model`
+- Description: Chat with an OpenAI, Gemini, or Claude model and return plain text.
+
+Inputs:
+
+| Name | Data Type | Required |
+|---|---|---:|
+| `user_prompt` | `TEXT` | No |
+| `system_prompt` | `TEXT` | No |
+| `image` | `IMAGE` | No |
+
+Outputs:
+
+| Name | Data Type | Required |
+|---|---|---:|
+| `response` | `TEXT` | Yes |
+
+Parameters:
+
+| Name | Data Type | Default | UI Control | Required | Description |
+|---|---|---|---|---:|---|
+| `provider` | `TEXT` | `openai` | `select` | Yes | Cloud provider selection. |
+| `model_name` | `TEXT` | `""` | `select` | Yes | Provider model identifier. |
+| `max_tokens` | `JSON` | `512` | `number` | No | Maximum output token count. |
+| `use_reasoning` | `BOOLEAN` | `false` | `toggle` | No | Enable provider-specific reasoning behavior when available. |
+
+## `CLOUD_STRUCTURED_RESPONSE` (v1)
+
+- Name: Cloud Structured Response
+- Category: `model`
+- Description: Generate typed JSON responses with an OpenAI, Gemini, or Claude model.
+
+Inputs:
+
+| Name | Data Type | Required |
+|---|---|---:|
+| `user_prompt` | `TEXT` | No |
+| `system_prompt` | `TEXT` | No |
+| `image` | `IMAGE` | No |
+
+Outputs:
+
+| Name | Data Type | Required |
+|---|---|---:|
+| `result` | `JSON` | Yes |
+
+Parameters:
+
+| Name | Data Type | Default | UI Control | Required | Description |
+|---|---|---|---|---:|---|
+| `provider` | `TEXT` | `openai` | `select` | Yes | Cloud provider selection. |
+| `model_name` | `TEXT` | `""` | `select` | Yes | Provider model identifier. |
+| `max_tokens` | `JSON` | `512` | `number` | No | Maximum output token count. |
+| `use_reasoning` | `BOOLEAN` | `false` | `toggle` | No | Enable provider-specific reasoning behavior when available. |
+| `response_schema` | `JSON` | `{"type":"object","properties":{},"required":[]}` | `json` | Yes | JSON Schema used to validate the structured response. |
 
 ## `EMBEDDING_MODEL` (v1)
 
@@ -48,6 +113,65 @@ Parameters:
 |---|---|---|---|---:|---|
 | `provider` | `TEXT` | `ollama` | `select` | No | Provider name. |
 | `model_name` | `TEXT` | `nomic-embed-text` | `text` | No | Embedding model identifier. |
+
+## `HUGGINGFACE_LLM_CHAT` (v1)
+
+- Name: HuggingFace LLM Chat
+- Category: `model`
+- Description: Chat with a locally served HuggingFace model and return plain text.
+
+Inputs:
+
+| Name | Data Type | Required |
+|---|---|---:|
+| `user_prompt` | `TEXT` | No |
+| `system_prompt` | `TEXT` | No |
+| `image` | `IMAGE` | No |
+
+Outputs:
+
+| Name | Data Type | Required |
+|---|---|---:|
+| `response` | `TEXT` | Yes |
+
+Parameters:
+
+| Name | Data Type | Default | UI Control | Required | Description |
+|---|---|---|---|---:|---|
+| `model_name` | `TEXT` | `""` | `select` | Yes | HuggingFace model identifier. |
+| `context_window` | `JSON` | `0` | `number` | No | Context window size. Use `0` for provider-managed context. |
+| `max_tokens` | `JSON` | `512` | `number` | No | Maximum output token count. |
+| `use_reasoning` | `BOOLEAN` | `false` | `toggle` | No | Enable reasoning-oriented execution when the model supports it. |
+
+## `HUGGINGFACE_STRUCTURED_RESPONSE` (v1)
+
+- Name: HuggingFace Structured Response
+- Category: `model`
+- Description: Generate typed JSON responses with a locally served HuggingFace model.
+
+Inputs:
+
+| Name | Data Type | Required |
+|---|---|---:|
+| `user_prompt` | `TEXT` | No |
+| `system_prompt` | `TEXT` | No |
+| `image` | `IMAGE` | No |
+
+Outputs:
+
+| Name | Data Type | Required |
+|---|---|---:|
+| `result` | `JSON` | Yes |
+
+Parameters:
+
+| Name | Data Type | Default | UI Control | Required | Description |
+|---|---|---|---|---:|---|
+| `model_name` | `TEXT` | `""` | `select` | Yes | HuggingFace model identifier. |
+| `context_window` | `JSON` | `0` | `number` | No | Context window size. Use `0` for provider-managed context. |
+| `max_tokens` | `JSON` | `512` | `number` | No | Maximum output token count. |
+| `use_reasoning` | `BOOLEAN` | `false` | `toggle` | No | Enable reasoning-oriented execution when the model supports it. |
+| `response_schema` | `JSON` | `{"type":"object","properties":{},"required":[]}` | `json` | Yes | JSON Schema used to validate the structured response. |
 
 ## `IF` (v1)
 
@@ -107,35 +231,6 @@ Outputs: None.
 
 Parameters: None.
 
-## `LLM_GENERATE` (v1)
-
-- Name: LLM Generate
-- Category: `model`
-- Description: Run a chat-style language model on prompt text.
-
-Inputs:
-
-| Name | Data Type | Required |
-|---|---|---:|
-| `prompt` | `TEXT` | Yes |
-
-Outputs:
-
-| Name | Data Type | Required |
-|---|---|---:|
-| `response` | `TEXT` | Yes |
-
-Parameters:
-
-| Name | Data Type | Default | UI Control | Required | Description |
-|---|---|---|---|---:|---|
-| `provider` | `TEXT` | `ollama` | `select` | No | Provider name. |
-| `model_name` | `TEXT` | `llama3.2` | `text` | No | Model identifier. |
-| `system_prompt` | `TEXT` | `""` | `textarea` | No | Optional system prompt. |
-| `temperature` | `JSON` | `0.2` | `number` | No | Sampling temperature. |
-| `max_tokens` | `JSON` | `512` | `number` | No | Maximum output tokens. |
-| `top_p` | `JSON` | `1.0` | `number` | No | Nucleus sampling value. |
-
 ## `LOAD_TEXT` (v1)
 
 - Name: Load Text
@@ -156,25 +251,64 @@ Parameters:
 |---|---|---|---|---:|---|
 | `storage_path` | `TEXT` | `saved_text.txt` | `text` | No | Relative path inside ParaGraph/resources/artifacts. |
 
-## `PROMPT` (v1)
+## `OLLAMA_LLM_CHAT` (v1)
 
-- Name: Prompt
-- Category: `input`
-- Description: Provide prompt text to the workflow graph.
+- Name: Ollama LLM Chat
+- Category: `model`
+- Description: Chat with an Ollama-served language model and return plain text.
 
-Inputs: None.
+Inputs:
+
+| Name | Data Type | Required |
+|---|---|---:|
+| `user_prompt` | `TEXT` | No |
+| `system_prompt` | `TEXT` | No |
+| `image` | `IMAGE` | No |
 
 Outputs:
 
 | Name | Data Type | Required |
 |---|---|---:|
-| `text` | `TEXT` | Yes |
+| `response` | `TEXT` | Yes |
 
 Parameters:
 
 | Name | Data Type | Default | UI Control | Required | Description |
 |---|---|---|---|---:|---|
-| `prompt_text` | `TEXT` | `""` | `textarea` | Yes | Prompt text emitted by this node. |
+| `model_name` | `TEXT` | `""` | `select` | Yes | Ollama model identifier. |
+| `context_window` | `JSON` | `0` | `number` | No | Context window size. Use `0` for provider-managed context. |
+| `max_tokens` | `JSON` | `512` | `number` | No | Maximum output token count. |
+| `use_reasoning` | `BOOLEAN` | `false` | `toggle` | No | Enable reasoning-oriented execution when the model supports it. |
+
+## `OLLAMA_STRUCTURED_RESPONSE` (v1)
+
+- Name: Ollama Structured Response
+- Category: `model`
+- Description: Generate typed JSON responses with an Ollama-served model.
+
+Inputs:
+
+| Name | Data Type | Required |
+|---|---|---:|
+| `user_prompt` | `TEXT` | No |
+| `system_prompt` | `TEXT` | No |
+| `image` | `IMAGE` | No |
+
+Outputs:
+
+| Name | Data Type | Required |
+|---|---|---:|
+| `result` | `JSON` | Yes |
+
+Parameters:
+
+| Name | Data Type | Default | UI Control | Required | Description |
+|---|---|---|---|---:|---|
+| `model_name` | `TEXT` | `""` | `select` | Yes | Ollama model identifier. |
+| `context_window` | `JSON` | `0` | `number` | No | Context window size. Use `0` for provider-managed context. |
+| `max_tokens` | `JSON` | `512` | `number` | No | Maximum output token count. |
+| `use_reasoning` | `BOOLEAN` | `false` | `toggle` | No | Enable reasoning-oriented execution when the model supports it. |
+| `response_schema` | `JSON` | `{"type":"object","properties":{},"required":[]}` | `json` | Yes | JSON Schema used to validate the structured response. |
 
 ## `ROUTER` (v1)
 
@@ -224,6 +358,26 @@ Parameters:
 | Name | Data Type | Default | UI Control | Required | Description |
 |---|---|---|---|---:|---|
 | `storage_path` | `TEXT` | `saved_text.txt` | `text` | No | Relative path inside ParaGraph/resources/artifacts. |
+
+## `SYSTEM_PROMPT` (v1)
+
+- Name: System Prompt
+- Category: `input`
+- Description: Provide system-role instruction text to the workflow graph.
+
+Inputs: None.
+
+Outputs:
+
+| Name | Data Type | Required |
+|---|---|---:|
+| `text` | `TEXT` | Yes |
+
+Parameters:
+
+| Name | Data Type | Default | UI Control | Required | Description |
+|---|---|---|---|---:|---|
+| `prompt_text` | `TEXT` | `""` | `textarea` | Yes | Instruction text emitted as the system message. |
 
 ## `TEMPLATE_FORMAT` (v1)
 
@@ -308,3 +462,23 @@ Outputs:
 | `tokens` | `TOKEN_IDS` | Yes |
 
 Parameters: None.
+
+## `USER_PROMPT` (v1)
+
+- Name: User Prompt
+- Category: `input`
+- Description: Provide user-role prompt text to the workflow graph.
+
+Inputs: None.
+
+Outputs:
+
+| Name | Data Type | Required |
+|---|---|---:|
+| `text` | `TEXT` | Yes |
+
+Parameters:
+
+| Name | Data Type | Default | UI Control | Required | Description |
+|---|---|---|---|---:|---|
+| `prompt_text` | `TEXT` | `""` | `textarea` | Yes | Prompt text emitted as the user message. |

@@ -1,0 +1,58 @@
+{
+  "id": "CLOUD_STRUCTURED_RESPONSE",
+  "version": 1,
+  "name": "Cloud Structured Response",
+  "category": "model",
+  "description": "Generate typed JSON responses with an OpenAI, Gemini, or Claude model.",
+  "inputs": [
+    {"name": "user_prompt", "data_type": "TEXT", "required": false},
+    {"name": "system_prompt", "data_type": "TEXT", "required": false},
+    {"name": "image", "data_type": "IMAGE", "required": false}
+  ],
+  "outputs": [
+    {"name": "result", "data_type": "JSON", "required": true}
+  ],
+  "parameters": [
+    {
+      "name": "provider",
+      "data_type": "TEXT",
+      "default": "openai",
+      "constraints": {"required": true, "options": ["openai", "gemini", "claude"]},
+      "ui_control": "select",
+      "description": "Cloud provider."
+    },
+    {
+      "name": "model_name",
+      "data_type": "TEXT",
+      "default": "",
+      "constraints": {"required": true, "provider_source": "cloud"},
+      "ui_control": "select",
+      "description": "Provider model identifier."
+    },
+    {
+      "name": "max_tokens",
+      "data_type": "JSON",
+      "default": 512,
+      "constraints": {"min": 1},
+      "ui_control": "number",
+      "description": "Maximum output token count."
+    },
+    {
+      "name": "use_reasoning",
+      "data_type": "BOOLEAN",
+      "default": false,
+      "ui_control": "toggle",
+      "description": "Enable provider-specific reasoning behavior when available."
+    },
+    {
+      "name": "response_schema",
+      "data_type": "JSON",
+      "default": {"type": "object", "properties": {}, "required": []},
+      "constraints": {"required": true},
+      "ui_control": "json",
+      "description": "JSON Schema used to validate the structured response."
+    }
+  ],
+  "ui": {"default_width": 380, "accent_color": "#4f46e5", "collapsed_by_default": false},
+  "runtime": {"executor_key": "cloud_structured_response", "cacheable": false, "deterministic": false, "side_effecting": false}
+}

@@ -554,3 +554,38 @@
 
 
 
+
+.workflow-node[data-structured='true'] {
+    background:
+        linear-gradient(180deg, rgba(10, 16, 29, 0.98) 0%, rgba(12, 19, 36, 0.98) 100%),
+        #141414;
+}
+
+.workflow-node-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.workflow-node-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--node-accent) 24%, rgba(255, 255, 255, 0.06));
+    color: #eaf4ff;
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.workflow-node-json-input {
+    min-height: 112px;
+    font-family: 'Consolas', 'Courier New', monospace;
+}
+
+.workflow-node-toggle-input {
+    width: auto;
+    justify-self: start;
+    accent-color: var(--node-accent);
+}

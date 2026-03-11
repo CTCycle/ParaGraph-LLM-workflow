@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from collections import defaultdict, deque
 from uuid import uuid4
 
@@ -7,6 +8,48 @@ from ParaGraph.server.entities.execution import CompiledExecutionPlan, Execution
 from ParaGraph.server.entities.workflowmodel import CompilerDiagnostic, CompileWorkflowResponse, WorkflowConnection, WorkflowDefinition
 from ParaGraph.server.services.workflow.nodes import node_registry
 from ParaGraph.server.services.workflow.provider import provider_service
+
+
+MODEL_NODE_TYPES = {
+    "OLLAMA_LLM_CHAT",
+    "CLOUD_LLM_CHAT",
+    "HUGGINGFACE_LLM_CHAT",
+    "OLLAMA_STRUCTURED_RESPONSE",
+    "CLOUD_STRUCTURED_RESPONSE",
+    "HUGGINGFACE_STRUCTURED_RESPONSE",
+}
+STRUCTURED_NODE_TYPES = {
+    "OLLAMA_STRUCTURED_RESPONSE",
+    "CLOUD_STRUCTURED_RESPONSE",
+    "HUGGINGFACE_STRUCTURED_RESPONSE",
+}
+
+
+def _parse_schema_parameter(value) -> dict:
+    if isinstance(value, dict):
+        schema = value
+    elif isinstance(value, str):
+        schema = json.loads(value)
+    else:
+        raise ValueError("response_schema must be a JSON object")
+    if not isinstance(schema, dict):
+        raise ValueError("response_schema must be a JSON object")
+    allowed_keys = {"type", "properties", "required", "items", "additionalProperties", "enum"}
+    unsupported = sorted(set(schema) - allowed_keys)
+    if unsupported:
+        raise ValueError(f"Unsupported JSON Schema keys: {', '.join(unsupported)}")
+    return schema
+
+
+def _resolve_provider(node_type: str, parameters: dict[str, object]) -> str:
+    if node_type.startswith("OLLAMA_"):
+        return "ollama"
+    if node_type.startswith("HUGGINGFACE_"):
+        return "huggingface"
+    provider = str(parameters.get("provider", "openai")).strip().lower()
+    if provider == "anthropic":
+        return "claude"
+    return provider
 
 
 class CompilerService:
@@ -68,6 +111,7 @@ class CompilerService:
         node_by_id = {node.node_id: node for node in definition.nodes}
         connection_keys: set[tuple[str, str, str, str]] = set()
         inbound_counts: dict[tuple[str, str], int] = defaultdict(int)
+        inbound_by_node_input: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
 
         for node in definition.nodes:
             if node.node_id in node_ids_seen:
@@ -102,22 +146,18 @@ class CompilerService:
                         )
                     )
 
-            if node.node_type == "LLM_GENERATE":
-                provider = str(node.parameters.get("provider", "ollama")).lower()
-                try:
-                    provider_service.assert_capabilities(provider)
-                except ValueError as exc:
-                    diagnostics.append(
-                        CompilerDiagnostic(code="provider_capability_error", message=str(exc), node_id=node.node_id)
-                    )
-            if node.node_type == "EMBEDDING_MODEL":
-                provider = str(node.parameters.get("provider", "ollama")).lower()
-                try:
-                    provider_service.assert_capabilities(provider, embeddings=True)
-                except ValueError as exc:
-                    diagnostics.append(
-                        CompilerDiagnostic(code="provider_capability_error", message=str(exc), node_id=node.node_id)
-                    )
+            if node.node_type in MODEL_NODE_TYPES:
+                if node.node_type in STRUCTURED_NODE_TYPES:
+                    try:
+                        _parse_schema_parameter(node.parameters.get("response_schema"))
+                    except (TypeError, ValueError, json.JSONDecodeError) as exc:
+                        diagnostics.append(
+                            CompilerDiagnostic(
+                                code="invalid_response_schema",
+                                message=str(exc),
+                                node_id=node.node_id,
+                            )
+                        )
 
         for connection in definition.connections:
             connection_key = (connection.from_node, connection.from_output, connection.to_node, connection.to_input)
@@ -206,6 +246,7 @@ class CompilerService:
                 )
 
             inbound_counts[(connection.to_node, connection.to_input)] += 1
+            inbound_by_node_input[connection.to_node][connection.to_input] += 1
             if inbound_counts[(connection.to_node, connection.to_input)] > 1 and not target_port.accepts_multiple:
                 diagnostics.append(
                     CompilerDiagnostic(
@@ -227,6 +268,46 @@ class CompilerService:
                             message=f"Node '{node.node_id}' is missing required input '{port.name}'",
                             node_id=node.node_id,
                         )
+                    )
+
+            if node.node_type in MODEL_NODE_TYPES:
+                user_prompt_count = inbound_by_node_input[node.node_id].get("user_prompt", 0)
+                image_count = inbound_by_node_input[node.node_id].get("image", 0)
+                if user_prompt_count == 0 and image_count == 0:
+                    diagnostics.append(
+                        CompilerDiagnostic(
+                            code="missing_model_input",
+                            message=f"Node '{node.node_id}' requires a user prompt or image input",
+                            node_id=node.node_id,
+                        )
+                    )
+
+                provider = _resolve_provider(node.node_type, node.parameters)
+                model_name = str(node.parameters.get("model_name") or "").strip()
+                if model_name:
+                    try:
+                        provider_service.validate_model_request(
+                            provider=provider,
+                            model=model_name,
+                            structured_output=node.node_type in STRUCTURED_NODE_TYPES,
+                            requires_image=image_count > 0,
+                            use_reasoning=bool(node.parameters.get("use_reasoning", False)),
+                        )
+                    except ValueError as exc:
+                        diagnostics.append(
+                            CompilerDiagnostic(
+                                code="provider_capability_error",
+                                message=str(exc),
+                                node_id=node.node_id,
+                            )
+                        )
+            if node.node_type == "EMBEDDING_MODEL":
+                provider = str(node.parameters.get("provider", "ollama")).lower()
+                try:
+                    provider_service.assert_capabilities(provider, embeddings=True)
+                except ValueError as exc:
+                    diagnostics.append(
+                        CompilerDiagnostic(code="provider_capability_error", message=str(exc), node_id=node.node_id)
                     )
 
         try:
