@@ -464,33 +464,66 @@
     background: var(--node-accent);
 }
 
-.workflow-node-parameters,
-.workflow-node-runtime {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    padding: 10px;
+.workflow-node-parameters {
+    padding: 8px 10px 10px;
 }
 
 .workflow-node-parameters-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
-    gap: 8px;
-}
-
-.workflow-node-parameter-field,
-.workflow-node-runtime {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 6px;
 }
 
-.workflow-node-parameter-field span,
-.workflow-node-runtime span {
+.workflow-node-parameter-field {
+    display: grid;
+    grid-template-columns: minmax(82px, 36%) minmax(0, 1fr);
+    align-items: center;
+    column-gap: 8px;
+    row-gap: 4px;
+}
+
+.workflow-node-parameter-field-multiline {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+    row-gap: 6px;
+}
+
+.workflow-node-parameter-field-multiline .workflow-node-parameter-label {
+    margin-top: 0;
+}
+
+.workflow-node-parameter-field-multiline .workflow-node-parameter-value {
+    width: 100%;
+}
+
+.workflow-node-parameter-label,
+.workflow-node-runtime-label {
     color: #8ea5c4;
-    font-size: 0.68rem;
+    font-size: 0.67rem;
     text-transform: uppercase;
     letter-spacing: 0.05em;
+    line-height: 1.2;
+    margin-top: 1px;
+}
+
+.workflow-node-parameter-value {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+}
+
+.workflow-node-parameter-value > input,
+.workflow-node-parameter-value > textarea,
+.workflow-node-parameter-value > select {
+    width: 100%;
+}
+
+.workflow-node-runtime {
+    display: grid;
+    grid-template-columns: minmax(82px, 36%) minmax(0, 1fr);
+    align-items: flex-start;
+    gap: 8px;
+    padding: 8px 10px 10px;
 }
 
 .workflow-node input,
@@ -498,10 +531,10 @@
 .workflow-node select {
     width: 100%;
     min-width: 0;
-    padding: 6px 8px;
+    padding: 5px 7px;
     border-radius: 7px;
-    font-size: 0.78rem;
-    line-height: 1.25;
+    font-size: 0.76rem;
+    line-height: 1.22;
 }
 
 .workflow-node textarea {
@@ -579,13 +612,22 @@
     letter-spacing: 0.08em;
 }
 
+.workflow-node-parameter-textbox {
+    min-height: 84px;
+}
+
 .workflow-node-json-input {
-    min-height: 112px;
+    min-height: 96px;
     font-family: 'Consolas', 'Courier New', monospace;
+}
+
+.workflow-node-runtime-output {
+    min-height: 84px;
 }
 
 .workflow-node-toggle-input {
     width: auto;
-    justify-self: start;
+    margin: 0;
     accent-color: var(--node-accent);
 }
+

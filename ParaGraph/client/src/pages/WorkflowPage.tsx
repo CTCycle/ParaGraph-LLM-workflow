@@ -1,4 +1,12 @@
-import { type CSSProperties, useEffect, useMemo, useRef, useState } from 'react'
+import {
+    type CSSProperties,
+    type MouseEvent as ReactMouseEvent,
+    type PointerEvent as ReactPointerEvent,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+} from 'react'
 import {
     addEdge,
     Background,
@@ -195,6 +203,10 @@ function buildNodeSummary(manifest: NodeManifest): string {
     return segments.slice(0, 2).join(' ')
 }
 
+function preventNodeInteractionDrag(event: ReactPointerEvent<HTMLElement> | ReactMouseEvent<HTMLElement>): void {
+    event.stopPropagation()
+}
+
 function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
     const nodeStyle: NodeAccentStyle = { '--node-accent': data.manifest.ui.accent_color }
     const structured = isStructuredNode(data.manifest)
@@ -262,57 +274,70 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
                             const value = data.parameters[parameter.name] ?? parameter.default ?? ''
                             const options = getParameterOptions(parameter, data.manifest, data.parameters, data.providerModels)
                             return (
-                                <label key={parameter.name} className="workflow-node-parameter-field">
-                                    <span>{parameter.name}</span>
-                                    {parameter.ui_control === 'textarea' ? (
-                                        <textarea
-                                            rows={2}
-                                            value={formatParameterValue(parameter, value)}
-                                            onChange={(event) =>
-                                                data.onParameterChange(parameter.name, parseValue(parameter, event.target.value))
-                                            }
-                                        />
-                                    ) : parameter.ui_control === 'json' ? (
-                                        <textarea
-                                            rows={6}
-                                            className="workflow-node-json-input"
-                                            value={formatParameterValue(parameter, value)}
-                                            onChange={(event) =>
-                                                data.onParameterChange(parameter.name, parseValue(parameter, event.target.value))
-                                            }
-                                        />
-                                    ) : parameter.ui_control === 'toggle' ? (
-                                        <input
-                                            className="workflow-node-toggle-input"
-                                            type="checkbox"
-                                            checked={Boolean(value)}
-                                            onChange={(event) =>
-                                                data.onParameterChange(parameter.name, parseValue(parameter, event.target.checked))
-                                            }
-                                        />
-                                    ) : parameter.ui_control === 'select' && options.length > 0 ? (
-                                        <select
-                                            value={String(value ?? '')}
-                                            onChange={(event) =>
-                                                data.onParameterChange(parameter.name, parseValue(parameter, event.target.value))
-                                            }
-                                        >
-                                            {!String(value ?? '') && <option value="">Select...</option>}
-                                            {options.map((option) => (
-                                                <option key={option.value} value={option.value}>
-                                                    {option.label}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    ) : (
-                                        <input
-                                            type={parameter.ui_control === 'number' ? 'number' : 'text'}
-                                            value={formatParameterValue(parameter, value)}
-                                            onChange={(event) =>
-                                                data.onParameterChange(parameter.name, parseValue(parameter, event.target.value))
-                                            }
-                                        />
-                                    )}
+                                <label
+                                    key={parameter.name}
+                                    className={parameter.ui_control === 'textarea' || parameter.ui_control === 'json' ? 'workflow-node-parameter-field workflow-node-parameter-field-multiline' : 'workflow-node-parameter-field'}
+                                >
+                                    <span className="workflow-node-parameter-label">{parameter.name}</span>
+                                    <div className="workflow-node-parameter-value">
+                                        {parameter.ui_control === 'textarea' ? (
+                                            <textarea
+                                                rows={2}
+                                                className="workflow-node-parameter-textbox nodrag nopan"
+                                                value={formatParameterValue(parameter, value)}
+                                                onPointerDown={preventNodeInteractionDrag}
+                                                onMouseDown={preventNodeInteractionDrag}
+                                                onChange={(event) =>
+                                                    data.onParameterChange(parameter.name, parseValue(parameter, event.target.value))
+                                                }
+                                            />
+                                        ) : parameter.ui_control === 'json' ? (
+                                            <textarea
+                                                rows={6}
+                                                className="workflow-node-json-input nodrag nopan"
+                                                value={formatParameterValue(parameter, value)}
+                                                onPointerDown={preventNodeInteractionDrag}
+                                                onMouseDown={preventNodeInteractionDrag}
+                                                onChange={(event) =>
+                                                    data.onParameterChange(parameter.name, parseValue(parameter, event.target.value))
+                                                }
+                                            />
+                                        ) : parameter.ui_control === 'toggle' ? (
+                                            <input
+                                                className="workflow-node-toggle-input"
+                                                type="checkbox"
+                                                checked={Boolean(value)}
+                                                onChange={(event) =>
+                                                    data.onParameterChange(parameter.name, parseValue(parameter, event.target.checked))
+                                                }
+                                            />
+                                        ) : parameter.ui_control === 'select' && options.length > 0 ? (
+                                            <select
+                                                value={String(value ?? '')}
+                                                onChange={(event) =>
+                                                    data.onParameterChange(parameter.name, parseValue(parameter, event.target.value))
+                                                }
+                                            >
+                                                {!String(value ?? '') && <option value="">Select...</option>}
+                                                {options.map((option) => (
+                                                    <option key={option.value} value={option.value}>
+                                                        {option.label}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        ) : (
+                                            <input
+                                                className="nodrag nopan"
+                                                type={parameter.ui_control === 'number' ? 'number' : 'text'}
+                                                value={formatParameterValue(parameter, value)}
+                                                onPointerDown={preventNodeInteractionDrag}
+                                                onMouseDown={preventNodeInteractionDrag}
+                                                onChange={(event) =>
+                                                    data.onParameterChange(parameter.name, parseValue(parameter, event.target.value))
+                                                }
+                                            />
+                                        )}
+                                    </div>
                                 </label>
                             )
                         })}
@@ -322,8 +347,15 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
 
             {data.runtimeOutput && !data.collapsed && (
                 <div className="workflow-node-runtime">
-                    <span>{structured ? 'Structured Output' : 'Runtime Output'}</span>
-                    <textarea readOnly rows={structured ? 6 : 4} value={renderRuntimeOutput(data.runtimeOutput)} />
+                    <span className="workflow-node-runtime-label">{structured ? 'Structured Output' : 'Runtime Output'}</span>
+                    <textarea
+                        className="workflow-node-runtime-output nodrag nopan"
+                        readOnly
+                        rows={structured ? 6 : 4}
+                        value={renderRuntimeOutput(data.runtimeOutput)}
+                        onPointerDown={preventNodeInteractionDrag}
+                        onMouseDown={preventNodeInteractionDrag}
+                    />
                 </div>
             )}
 
@@ -828,3 +860,4 @@ export default function WorkflowPage() {
         </ReactFlowProvider>
     )
 }
+
