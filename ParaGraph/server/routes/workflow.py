@@ -10,6 +10,12 @@ from ParaGraph.server.entities.workflow import (
     ValidateWorkflowResponse,
     WorkflowGraph,
 )
+from ParaGraph.server.entities.workflowmodel import (
+    LegacyWorkflowEdge,
+    LegacyWorkflowGraph,
+    LegacyWorkflowNode,
+    LegacyWorkflowPosition,
+)
 from ParaGraph.server.services.jobs import job_manager
 from ParaGraph.server.services.workflow import compiler_service, execution_service, legacy_workflow_adapter
 
@@ -94,10 +100,8 @@ class WorkflowEndpoint:
             response_model=JobCancelResponse,
         )
 
-    def _to_legacy_graph(self, graph: WorkflowGraph):
+    def _to_legacy_graph(self, graph: WorkflowGraph) -> LegacyWorkflowGraph:
         # Compat conversion between old route model and new workflow schemas.
-        from ParaGraph.server.entities.workflowmodel import LegacyWorkflowEdge, LegacyWorkflowGraph, LegacyWorkflowNode, LegacyWorkflowPosition
-
         return LegacyWorkflowGraph(
             nodes=[
                 LegacyWorkflowNode(

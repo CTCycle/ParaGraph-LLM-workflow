@@ -1,46 +1,45 @@
-import { FormEvent, useEffect, useMemo, useState } from 'react'
+import { FormEvent, useMemo, useState } from 'react'
 
-import { fetchNodeCatalog, importNodeManifest } from '../app/services/workflowApi'
-import { NodeCategory, NodeManifest } from '../workflow/schema/types'
+import StatusBanner from '../components/StatusBanner'
+import { importNodeManifest } from '../app/services/workflowApi'
+import { useNodeCatalog } from '../workflow/hooks/useNodeCatalog'
+import { NodeManifest } from '../workflow/schema/types'
+import { NODE_CATEGORY_LABELS, NodeCategoryFilter, toNodeCategoryFilter } from '../workflow/schema/nodeCategory'
 import './NodesPage.css'
 
-type CategoryFilter = 'all' | NodeCategory
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null
+}
 
-const CATEGORY_LABELS: Record<NodeCategory, string> = {
-    input: 'Input',
-    model: 'Model',
-    processing: 'Processing',
-    output: 'Output',
-    serialization: 'Serialization',
-    control: 'Control',
+function isNodeManifest(value: unknown): value is NodeManifest {
+    if (!isRecord(value)) {
+        return false
+    }
+
+    const ui = value.ui
+    const runtime = value.runtime
+
+    return (
+        typeof value.id === 'string' &&
+        typeof value.version === 'number' &&
+        typeof value.name === 'string' &&
+        typeof value.category === 'string' &&
+        typeof value.description === 'string' &&
+        Array.isArray(value.inputs) &&
+        Array.isArray(value.outputs) &&
+        Array.isArray(value.parameters) &&
+        isRecord(ui) &&
+        isRecord(runtime)
+    )
 }
 
 export default function NodesPage() {
-    const [catalog, setCatalog] = useState<NodeManifest[]>([])
-    const [loading, setLoading] = useState(true)
-    const [error, setError] = useState<string | null>(null)
+    const { catalog, loading, error, reload } = useNodeCatalog()
     const [search, setSearch] = useState('')
-    const [category, setCategory] = useState<CategoryFilter>('all')
+    const [category, setCategory] = useState<NodeCategoryFilter>('all')
     const [jsonText, setJsonText] = useState('')
     const [importStatus, setImportStatus] = useState<string | null>(null)
     const [isImporting, setIsImporting] = useState(false)
-
-    async function loadCatalog(): Promise<void> {
-        setLoading(true)
-        try {
-            const payload = await fetchNodeCatalog()
-            setCatalog(payload.nodes)
-            setError(null)
-        } catch (loadError) {
-            setError(loadError instanceof Error ? loadError.message : 'Failed to load node catalog')
-        } finally {
-            setLoading(false)
-        }
-    }
-
-    useEffect(() => {
-        void loadCatalog()
-    }, [])
 
     const filteredCatalog = useMemo(() => {
         const normalized = search.trim().toLowerCase()
@@ -56,11 +55,11 @@ export default function NodesPage() {
     }, [catalog, category, search])
 
     function validateJson(): NodeManifest {
-        const parsed = JSON.parse(jsonText) as unknown
-        if (!parsed || typeof parsed !== 'object') {
+        const parsed: unknown = JSON.parse(jsonText)
+        if (!isNodeManifest(parsed)) {
             throw new Error('JSON must contain a node manifest object')
         }
-        return parsed as NodeManifest
+        return parsed
     }
 
     async function handleImport(event: FormEvent<HTMLFormElement>): Promise<void> {
@@ -80,7 +79,7 @@ export default function NodesPage() {
         try {
             const created = await importNodeManifest(manifest)
             setImportStatus(`Imported ${created.id} v${created.version}`)
-            await loadCatalog()
+            await reload()
             setJsonText('')
         } catch (importError) {
             setImportStatus(importError instanceof Error ? importError.message : 'Failed to import node manifest')
@@ -97,7 +96,7 @@ export default function NodesPage() {
                 <p className="nodes-lede">Browse the live manifest registry and add new nodes directly from JSON.</p>
             </header>
 
-            {(error || importStatus) && <div className="nodes-banner">{error || importStatus}</div>}
+            <StatusBanner className="nodes-banner" message={error || importStatus} />
 
             <div className="nodes-layout">
                 <section className="nodes-panel">
@@ -113,9 +112,9 @@ export default function NodesPage() {
                                 placeholder="Search nodes"
                                 onChange={(event) => setSearch(event.target.value)}
                             />
-                            <select value={category} onChange={(event) => setCategory(event.target.value as CategoryFilter)}>
+                            <select value={category} onChange={(event) => setCategory(toNodeCategoryFilter(event.target.value))}>
                                 <option value="all">All categories</option>
-                                {Object.entries(CATEGORY_LABELS).map(([value, label]) => (
+                                {Object.entries(NODE_CATEGORY_LABELS).map(([value, label]) => (
                                     <option key={value} value={value}>
                                         {label}
                                     </option>
@@ -134,7 +133,7 @@ export default function NodesPage() {
                                         <h3>{node.name}</h3>
                                         <p>{node.description}</p>
                                     </div>
-                                    <span>{CATEGORY_LABELS[node.category]}</span>
+                                    <span>{NODE_CATEGORY_LABELS[node.category]}</span>
                                 </article>
                             ))}
                     </div>
