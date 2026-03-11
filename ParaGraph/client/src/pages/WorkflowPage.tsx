@@ -20,23 +20,11 @@ import {
     useReactFlow,
 } from '@xyflow/react'
 
-import {
-    compileWorkflow,
-    fetchNodeCatalog,
-    pollExecution,
-    startExecution,
-    subscribeExecutionEvents,
-} from '../app/services/workflowApi'
-import {
-    NodeCategory,
-    NodeManifest,
-    NodeParameterDefinition,
-    WorkflowConnection,
-    WorkflowDefinition,
-} from '../workflow/schema/types'
+import { compileWorkflow, pollExecution, startExecution, subscribeExecutionEvents } from '../app/services/workflowApi'
+import { NodeManifest, NodeParameterDefinition, WorkflowConnection, WorkflowDefinition } from '../workflow/schema/types'
+import { useNodeCatalog } from '../workflow/hooks/useNodeCatalog'
+import { NODE_CATEGORY_LABELS, NodeCategoryFilter, toNodeCategoryFilter } from '../workflow/schema/nodeCategory'
 import './WorkflowPage.css'
-
-type NodeLibraryCategoryFilter = 'all' | NodeCategory
 
 type WorkflowNodeData = {
     manifest: NodeManifest
@@ -52,15 +40,6 @@ type NodeContextMenuState = {
     nodeName: string
     x: number
     y: number
-}
-
-const CATEGORY_LABELS: Record<NodeCategory, string> = {
-    input: 'Input',
-    model: 'Model',
-    processing: 'Processing',
-    output: 'Output',
-    serialization: 'Serialization',
-    control: 'Control',
 }
 
 const NODE_MIN_WIDTH = 240
@@ -81,6 +60,16 @@ function parseValue(parameter: NodeParameterDefinition, rawValue: string): unkno
         return Number.isFinite(parsed) ? parsed : parameter.default ?? 0
     }
     return rawValue
+}
+
+type NodeAccentStyle = CSSProperties & { '--node-accent': string }
+
+function getParameterOptions(parameter: NodeParameterDefinition): string[] {
+    const options = parameter.constraints.options
+    if (!Array.isArray(options)) {
+        return []
+    }
+    return options.filter((option): option is string => typeof option === 'string')
 }
 
 function renderRuntimeOutput(runtimeOutput: Record<string, unknown> | null): string {
@@ -114,10 +103,12 @@ function buildNodeSummary(manifest: NodeManifest): string {
 }
 
 function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
+    const nodeStyle: NodeAccentStyle = { '--node-accent': data.manifest.ui.accent_color }
+
     return (
         <div
             className="workflow-node"
-            style={{ '--node-accent': data.manifest.ui.accent_color } as CSSProperties}
+            style={nodeStyle}
             data-selected={selected || undefined}
             data-collapsed={data.collapsed || undefined}
         >
@@ -171,9 +162,7 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
                     <div className="workflow-node-parameters-grid">
                         {data.manifest.parameters.map((parameter) => {
                             const value = data.parameters[parameter.name] ?? parameter.default ?? ''
-                            const options = Array.isArray(parameter.constraints.options)
-                                ? (parameter.constraints.options as string[])
-                                : []
+                            const options = getParameterOptions(parameter)
                             return (
                                 <label key={parameter.name} className="workflow-node-parameter-field">
                                     <span>{parameter.name}</span>
@@ -222,7 +211,7 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
             )}
 
             <div className="workflow-node-footer">
-                <span>{CATEGORY_LABELS[data.manifest.category]}</span>
+                <span>{NODE_CATEGORY_LABELS[data.manifest.category]}</span>
             </div>
         </div>
     )
@@ -231,13 +220,11 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
 const nodeTypes = { manifest: ManifestNode }
 
 function WorkflowEditor() {
-    const [catalog, setCatalog] = useState<NodeManifest[]>([])
-    const [loading, setLoading] = useState(true)
-    const [error, setError] = useState<string | null>(null)
+    const { catalog, loading, error } = useNodeCatalog()
     const [statusText, setStatusText] = useState('Ready')
     const [isRunning, setIsRunning] = useState(false)
     const [search, setSearch] = useState('')
-    const [category, setCategory] = useState<NodeLibraryCategoryFilter>('all')
+    const [category, setCategory] = useState<NodeCategoryFilter>('all')
     const [runtimeOutputs, setRuntimeOutputs] = useState<Record<string, Record<string, unknown>>>({})
     const [nodeContextMenu, setNodeContextMenu] = useState<NodeContextMenuState | null>(null)
     const [nodes, setNodes, onNodesChange] = useNodesState<Node<WorkflowNodeData>>([])
@@ -246,33 +233,8 @@ function WorkflowEditor() {
     const stopEventsRef = useRef<(() => void) | null>(null)
     const canvasPanelRef = useRef<HTMLDivElement | null>(null)
     const { fitView, zoomIn, zoomTo, getZoom } = useReactFlow<Node<WorkflowNodeData>, Edge>()
-
     useEffect(() => {
-        let mounted = true
-        setLoading(true)
-        fetchNodeCatalog()
-            .then((payload) => {
-                if (!mounted) {
-                    return
-                }
-                setCatalog(payload.nodes)
-                setError(null)
-            })
-            .catch((loadError) => {
-                if (!mounted) {
-                    return
-                }
-                setError(loadError instanceof Error ? loadError.message : 'Failed to load node catalog')
-            })
-            .finally(() => {
-                if (!mounted) {
-                    return
-                }
-                setLoading(false)
-            })
-
         return () => {
-            mounted = false
             stopEventsRef.current?.()
         }
     }, [])
@@ -650,10 +612,10 @@ function WorkflowEditor() {
                             <select
                                 aria-label="Filter node category"
                                 value={category}
-                                onChange={(event) => setCategory(event.target.value as NodeLibraryCategoryFilter)}
+                                onChange={(event) => setCategory(toNodeCategoryFilter(event.target.value))}
                             >
                                 <option value="all">All categories</option>
-                                {Object.entries(CATEGORY_LABELS).map(([value, label]) => (
+                                {Object.entries(NODE_CATEGORY_LABELS).map(([value, label]) => (
                                     <option key={value} value={value}>
                                         {label}
                                     </option>
@@ -685,7 +647,6 @@ export default function WorkflowPage() {
         </ReactFlowProvider>
     )
 }
-
 
 
 

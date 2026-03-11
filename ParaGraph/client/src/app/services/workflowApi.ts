@@ -56,6 +56,25 @@ function sleep(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null
+}
+
+function isExecutionEventEnvelope(value: unknown): value is ExecutionEventEnvelope {
+    if (!isRecord(value)) {
+        return false
+    }
+
+    return (
+        typeof value.event_type === 'string' &&
+        typeof value.run_id === 'string' &&
+        (typeof value.step_id === 'string' || value.step_id === null) &&
+        typeof value.sequence === 'number' &&
+        typeof value.timestamp === 'string' &&
+        isRecord(value.payload)
+    )
+}
+
 export async function pollExecution(
     runId: string,
     pollSeconds: number,
@@ -92,7 +111,11 @@ export function subscribeExecutionEvents(
 
     ws.onmessage = (message) => {
         try {
-            handlers.onEvent(JSON.parse(message.data) as ExecutionEventEnvelope)
+            const parsed: unknown = JSON.parse(message.data)
+            if (!isExecutionEventEnvelope(parsed)) {
+                throw new Error('Invalid event payload')
+            }
+            handlers.onEvent(parsed)
         } catch (error) {
             handlers.onError?.(error instanceof Error ? error.message : 'Invalid event payload')
         }

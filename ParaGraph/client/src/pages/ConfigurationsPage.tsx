@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 
+import StatusBanner from '../components/StatusBanner'
 import { fetchConfigurations, saveConfigurations } from '../app/services/workflowApi'
 import { AccessKeyConfiguration, AppConfigurationPayload } from '../workflow/schema/types'
 import './ConfigurationsPage.css'
@@ -26,6 +27,13 @@ const EMPTY_CLOUD_CREDENTIALS: Record<CloudProvider, ProviderCredential> = {
 
 function normalizeText(value: string | null | undefined): string {
     return (value || '').trim()
+}
+
+function toCloudProvider(value: string): CloudProvider {
+    if (value === 'openai' || value === 'gemini' || value === 'anthropic') {
+        return value
+    }
+    return 'openai'
 }
 
 function mapPayloadToForm(payload: AppConfigurationPayload): {
@@ -172,7 +180,7 @@ export default function ConfigurationsPage() {
                 <p className="config-page-lede">Store access keys and local inference defaults for your current workspace.</p>
             </header>
 
-            {statusMessage && <div className="config-page-banner">{statusMessage}</div>}
+            <StatusBanner className="config-page-banner" message={statusMessage} />
 
             <div className="config-page-layout">
                 <div className="config-page-left-column">
@@ -197,7 +205,7 @@ export default function ConfigurationsPage() {
                                 <span>Cloud Provider</span>
                                 <select
                                     value={selectedCloudProvider}
-                                    onChange={(event) => setSelectedCloudProvider(event.target.value as CloudProvider)}
+                                    onChange={(event) => setSelectedCloudProvider(toCloudProvider(event.target.value))}
                                 >
                                     {CLOUD_PROVIDER_OPTIONS.map((option) => (
                                         <option key={option.value} value={option.value}>
@@ -288,4 +296,3 @@ export default function ConfigurationsPage() {
         </section>
     )
 }
-
