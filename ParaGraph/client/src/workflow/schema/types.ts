@@ -4,14 +4,20 @@ export type NodeDataType =
     | 'IMAGE'
     | 'VIDEO'
     | 'AUDIO'
+    | 'DOCUMENT'
+    | 'DOCUMENT_LIST'
+    | 'CHUNK'
+    | 'CHUNK_LIST'
     | 'EMBEDDING'
+    | 'VECTOR_POINT_LIST'
+    | 'VECTOR_STORE_HANDLE'
+    | 'RETRIEVAL_RESULTS'
     | 'TOKEN_IDS'
     | 'JSON'
     | 'MODEL_HANDLE'
     | 'DATASET'
     | 'BOOLEAN'
     | 'ANY'
-
 export interface NodePortDefinition {
     name: string
     data_type: NodeDataType
@@ -226,6 +232,59 @@ export interface ProviderModelCatalogResponse {
     models: ProviderModelDefinition[]
 }
 
+export interface DocumentRecord {
+    id: string
+    text: string
+    source_uri: string
+    mime_type: string
+    metadata: Record<string, unknown>
+}
+
+export interface ChunkRecord {
+    id: string
+    document_id: string
+    text: string
+    source_uri: string
+    chunk_index: number
+    token_count: number
+    metadata: Record<string, unknown>
+}
+
+export interface VectorPoint {
+    id: string
+    chunk_id: string
+    document_id: string
+    text: string
+    source_uri: string
+    vector: number[]
+    metadata: Record<string, unknown>
+}
+
+export interface VectorStoreHandle {
+    backend: string
+    index_name: string
+    artifact_path: string
+    metric: string
+    dimension: number
+    embedding_provider: string
+    embedding_model: string
+    metadata: Record<string, unknown>
+}
+
+export interface RetrievalHit {
+    id: string
+    chunk_id: string
+    document_id: string
+    text: string
+    source_uri: string
+    score: number
+    metadata: Record<string, unknown>
+}
+
+export interface RetrievalResults {
+    query: string
+    hits: RetrievalHit[]
+}
 export interface AccessKeyConfiguration {
     provider: string
     api_key: string | null
@@ -262,3 +321,4 @@ export interface OllamaStatusResponse {
     base_url: string
     model_count: number
 }
+
