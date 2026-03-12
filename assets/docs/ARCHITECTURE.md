@@ -35,7 +35,7 @@ The current implementation uses a React Flow editor, JSON node manifests, and a 
 
 ### 2.1 Node manifests
 - `GET /nodes/catalog` returns live `NodeManifest[]`.
-- `POST /nodes/import` validates and persists a single manifest JSON object.
+- `POST /nodes/import` validates and persists a single manifest JSON object (including optional plugin runtime descriptors).
 - `GET /nodes/dialog/files` opens a native file picker on the local machine and returns selected paths for path-backed node widgets.
 - `GET /nodes/dialog/directory` opens a native folder picker on the local machine and returns the selected directory path.
 - The active model authoring flow uses a `MODEL_PROVIDER` node that emits a typed `MODEL_HANDLE`, consumed by unified `LLM_CHAT` and `LLM_STRUCTURED` nodes.
@@ -44,7 +44,7 @@ The current implementation uses a React Flow editor, JSON node manifests, and a 
   - typed `inputs[]` and `outputs[]`
   - `parameters[]` with UI hints and defaults
   - `ui` display metadata
-  - `runtime.executor_key` resolved to Python executor code
+  - `runtime.executor_key` resolved to built-in Python executor code, or `runtime.plugin` for script-backed custom node execution
 
 ### 2.2 Workflow model
 - Workflow documents use schema version `2`.
@@ -81,6 +81,7 @@ The current implementation uses a React Flow editor, JSON node manifests, and a 
 ### 3.1 Manifest registry
 - Manifests are loaded from `ParaGraph/resources/nodes/*.json`.
 - Duplicate `id + version` pairs are rejected.
+- Script-backed plugin nodes load their `runtime.plugin.script_path` relative to the manifest file for cross-machine portability.
 - `executor_key` must map to a registered Python executor.
 
 ### 3.2 Compiler
@@ -119,6 +120,7 @@ The current implementation uses a React Flow editor, JSON node manifests, and a 
 - The node library is now a left tree viewer with expandable categories, in-tree search, a selected-node preview, and drag-only node insertion onto the canvas.
 - The first category is compact on first visit, then category expansion state is persisted.
 - Workflow canvas state (nodes, edges, layout metadata) persists in browser storage across page navigation.
+- Workflow JSON bundles can be exported/imported directly from the editor, including required node manifests for shareable execution across ParaGraph installations.
 - Runtime execution highlights the currently running node in-canvas for step-by-step guidance.
 - Client-side connection checks mirror backend rules for type compatibility and multiplicity.
 
@@ -145,3 +147,4 @@ The current implementation uses a React Flow editor, JSON node manifests, and a 
 - The legacy `/workflow/*` compatibility API is no longer part of the active application surface.
 - Existing persisted workflow documents are migrated on read into schema `2` shapes.
 - The executable manifest set now includes a Phase 1 typed RAG slice for ingestion, chunking, embedding, vector storage, retrieval, and context injection.
+

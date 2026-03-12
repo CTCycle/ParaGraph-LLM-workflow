@@ -43,11 +43,17 @@ export interface NodeUiDefinition {
     collapsed_by_default: boolean
 }
 
+export interface NodeRuntimePluginDefinition {
+    script_path: string
+    entrypoint: string
+}
+
 export interface NodeRuntimeDefinition {
     executor_key: string
     cacheable: boolean
     deterministic: boolean
     side_effecting: boolean
+    plugin?: NodeRuntimePluginDefinition | null
 }
 
 export interface NodeManifest {
@@ -112,6 +118,18 @@ export interface WorkflowDocument {
     visual_graph: VisualGraph
     created_at: string
     updated_at: string
+}
+
+export interface WorkflowShareBundle {
+    bundle_version: number
+    app: string
+    created_at: string
+    workflow: {
+        name: string
+        definition: WorkflowDefinition
+        visual_graph: VisualGraph
+    }
+    required_nodes: NodeManifest[]
 }
 
 export interface ExecutionBinding {
