@@ -35,7 +35,8 @@
     display: grid;
     grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.92fr);
     gap: 22px;
-    align-items: start;
+    align-items: stretch;
+    min-height: calc(100vh - 228px);
 }
 
 .nodes-catalog-column {
@@ -43,6 +44,8 @@
     grid-template-columns: minmax(210px, 240px) minmax(0, 1fr);
     gap: 22px;
     min-height: 0;
+    align-items: stretch;
+    height: 100%;
 }
 
 .nodes-support-column,
@@ -156,6 +159,7 @@
     display: flex;
     flex-direction: column;
     min-height: 0;
+    height: 100%;
 }
 
 .nodes-preview-header {
@@ -238,11 +242,14 @@
 .nodes-support-column {
     display: grid;
     gap: 16px;
+    height: 100%;
 }
 
 .nodes-import-form {
     display: grid;
     gap: 12px;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    height: 100%;
 }
 
 .nodes-import-toolbar {
@@ -257,7 +264,8 @@
 
 .nodes-import-form textarea {
     resize: vertical;
-    min-height: 460px;
+    min-height: 0;
+    height: 100%;
     padding: 14px;
     line-height: 1.5;
     font-family: 'Consolas', 'Courier New', monospace;
@@ -275,8 +283,10 @@
 @media (max-width: 1200px) {
     .nodes-layout {
         grid-template-columns: 1fr;
+        min-height: 0;
     }
 }
+
 
 @media (max-width: 980px) {
     .nodes-catalog-column {

@@ -52,3 +52,37 @@ class AppConfigurationPayload(BaseModel):
     def normalize_session_name(cls, value: Any) -> str:
         text = str(value or "").strip()
         return text or DEFAULT_SESSION_NAME
+
+
+###############################################################################
+class ConfigurationProfileSummary(BaseModel):
+    profile_name: str
+    created_at: str
+    updated_at: str
+
+
+###############################################################################
+class ConfigurationProfileListResponse(BaseModel):
+    session_name: str = Field(default=DEFAULT_SESSION_NAME, max_length=120)
+    profiles: list[ConfigurationProfileSummary] = Field(default_factory=list)
+
+
+###############################################################################
+class OllamaPingRequest(BaseModel):
+    base_url: str | None = Field(default=None, max_length=512)
+
+    @field_validator("base_url", mode="before")
+    @classmethod
+    def normalize_base_url(cls, value: Any) -> str | None:
+        if value is None:
+            return None
+        text = str(value).strip()
+        return text or None
+
+
+###############################################################################
+class OllamaStatusResponse(BaseModel):
+    ok: bool
+    message: str
+    base_url: str
+    model_count: int = 0
