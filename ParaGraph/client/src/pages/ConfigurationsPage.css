@@ -1,5 +1,5 @@
 .config-page {
-    min-height: calc(100vh - 64px);
+    min-height: calc(100vh - 48px);
     padding: 26px;
     background:
         radial-gradient(circle at 100% 0%, rgba(74, 163, 255, 0.15), transparent 30%),
@@ -9,15 +9,6 @@
 
 .config-page-header {
     margin-bottom: 18px;
-}
-
-.config-page-eyebrow {
-    margin: 0 0 8px;
-    color: #7dd3fc;
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-    font-size: 0.74rem;
-    font-weight: 700;
 }
 
 .config-page-header h1 {
@@ -187,3 +178,7 @@
         justify-content: flex-end;
     }
 }
+
+
+
+

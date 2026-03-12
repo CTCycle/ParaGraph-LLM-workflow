@@ -1,5 +1,6 @@
 import {
     type CSSProperties,
+    type DragEvent as ReactDragEvent,
     type MouseEvent as ReactMouseEvent,
     type PointerEvent as ReactPointerEvent,
     useEffect,
@@ -23,6 +24,7 @@ import {
     Position,
     ReactFlow,
     ReactFlowProvider,
+    XYPosition,
     useEdgesState,
     useNodesState,
     useReactFlow,
@@ -35,16 +37,17 @@ import {
     startExecution,
     subscribeExecutionEvents,
 } from '../app/services/workflowApi'
+import { useNodeCatalog } from '../workflow/hooks/useNodeCatalog'
+import { NODE_CATEGORY_LABELS, NODE_CATEGORY_ORDER } from '../workflow/schema/nodeCategory'
 import {
     ExecutionRunState,
+    NodeCategory,
     NodeManifest,
     NodeParameterDefinition,
     ProviderModelDefinition,
     WorkflowConnection,
     WorkflowDefinition,
 } from '../workflow/schema/types'
-import { useNodeCatalog } from '../workflow/hooks/useNodeCatalog'
-import { NODE_CATEGORY_LABELS, NodeCategoryFilter, toNodeCategoryFilter } from '../workflow/schema/nodeCategory'
 import './WorkflowPage.css'
 
 type WorkflowNodeData = {
@@ -64,10 +67,21 @@ type NodeContextMenuState = {
     y: number
 }
 
+type WorkflowCategoryGroup = {
+    category: NodeCategory
+    label: string
+    nodes: NodeManifest[]
+}
+
+type CategoryExpansionState = Record<NodeCategory, boolean>
+
+type NodeAccentStyle = CSSProperties & { '--node-accent': string }
+
 const NODE_MIN_WIDTH = 240
 const NODE_MAX_WIDTH = 680
 const NODE_MIN_HEIGHT = 140
 const NODE_MAX_HEIGHT = 760
+const NODE_LIBRARY_MIME = 'application/x-paragraph-node'
 
 function defaultParameters(manifest: NodeManifest): Record<string, unknown> {
     return Object.fromEntries(manifest.parameters.map((parameter) => [parameter.name, parameter.default ?? '']))
@@ -96,11 +110,38 @@ function parseValue(parameter: NodeParameterDefinition, rawValue: string | boole
     return rawValue
 }
 
-type NodeAccentStyle = CSSProperties & { '--node-accent': string }
-
 function isStructuredNode(manifest: NodeManifest): boolean {
     return manifest.id.includes('STRUCTURED_RESPONSE')
 }
+
+function manifestKey(manifest: NodeManifest): string {
+    return `${manifest.id}:${manifest.version}`
+}
+
+function createExpandedCategoriesState(): CategoryExpansionState {
+    return NODE_CATEGORY_ORDER.reduce<CategoryExpansionState>((state, category) => {
+        state[category] = true
+        return state
+    }, {} as CategoryExpansionState)
+}
+
+function buildNodeSummary(manifest: NodeManifest): string {
+    const text = manifest.description.trim()
+    if (!text) {
+        return 'Configure inputs and parameters for this node.'
+    }
+
+    const segments = text
+        .split(/(?<=[.!?])\s+/)
+        .map((part) => part.trim())
+        .filter(Boolean)
+
+    if (segments.length === 0) {
+        return text
+    }
+    return segments.slice(0, 2).join(' ')
+}
+
 
 function formatParameterValue(parameter: NodeParameterDefinition, value: unknown): string {
     if (parameter.ui_control === 'json') {
@@ -116,6 +157,9 @@ function formatParameterValue(parameter: NodeParameterDefinition, value: unknown
     return String(value ?? '')
 }
 
+function preventNodeInteractionDrag(event: ReactPointerEvent<HTMLElement> | ReactMouseEvent<HTMLElement>): void {
+    event.stopPropagation()
+}
 function getDynamicModelOptions(
     manifest: NodeManifest,
     parameters: Record<string, unknown>,
@@ -186,27 +230,6 @@ function renderRuntimeOutput(runtimeOutput: Record<string, unknown> | null): str
     return JSON.stringify(runtimeOutput, null, 2)
 }
 
-function buildNodeSummary(manifest: NodeManifest): string {
-    const text = manifest.description.trim()
-    if (!text) {
-        return 'Configure inputs and parameters for this node.'
-    }
-
-    const segments = text
-        .split(/(?<=[.!?])\s+/)
-        .map((part) => part.trim())
-        .filter(Boolean)
-
-    if (segments.length === 0) {
-        return text
-    }
-    return segments.slice(0, 2).join(' ')
-}
-
-function preventNodeInteractionDrag(event: ReactPointerEvent<HTMLElement> | ReactMouseEvent<HTMLElement>): void {
-    event.stopPropagation()
-}
-
 function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
     const nodeStyle: NodeAccentStyle = { '--node-accent': data.manifest.ui.accent_color }
     const structured = isStructuredNode(data.manifest)
@@ -243,7 +266,7 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
                         title={data.collapsed ? 'Expand node' : 'Collapse node'}
                         onClick={data.onToggleCollapse}
                     >
-                        {data.collapsed ? '▸' : '▾'}
+                        {data.collapsed ? '+' : '-'}
                     </button>
                 </div>
             </div>
@@ -276,7 +299,11 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
                             return (
                                 <label
                                     key={parameter.name}
-                                    className={parameter.ui_control === 'textarea' || parameter.ui_control === 'json' ? 'workflow-node-parameter-field workflow-node-parameter-field-multiline' : 'workflow-node-parameter-field'}
+                                    className={
+                                        parameter.ui_control === 'textarea' || parameter.ui_control === 'json'
+                                            ? 'workflow-node-parameter-field workflow-node-parameter-field-multiline'
+                                            : 'workflow-node-parameter-field'
+                                    }
                                 >
                                     <span className="workflow-node-parameter-label">{parameter.name}</span>
                                     <div className="workflow-node-parameter-value">
@@ -287,9 +314,7 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
                                                 value={formatParameterValue(parameter, value)}
                                                 onPointerDown={preventNodeInteractionDrag}
                                                 onMouseDown={preventNodeInteractionDrag}
-                                                onChange={(event) =>
-                                                    data.onParameterChange(parameter.name, parseValue(parameter, event.target.value))
-                                                }
+                                                onChange={(event) => data.onParameterChange(parameter.name, parseValue(parameter, event.target.value))}
                                             />
                                         ) : parameter.ui_control === 'json' ? (
                                             <textarea
@@ -298,25 +323,19 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
                                                 value={formatParameterValue(parameter, value)}
                                                 onPointerDown={preventNodeInteractionDrag}
                                                 onMouseDown={preventNodeInteractionDrag}
-                                                onChange={(event) =>
-                                                    data.onParameterChange(parameter.name, parseValue(parameter, event.target.value))
-                                                }
+                                                onChange={(event) => data.onParameterChange(parameter.name, parseValue(parameter, event.target.value))}
                                             />
                                         ) : parameter.ui_control === 'toggle' ? (
                                             <input
                                                 className="workflow-node-toggle-input"
                                                 type="checkbox"
                                                 checked={Boolean(value)}
-                                                onChange={(event) =>
-                                                    data.onParameterChange(parameter.name, parseValue(parameter, event.target.checked))
-                                                }
+                                                onChange={(event) => data.onParameterChange(parameter.name, parseValue(parameter, event.target.checked))}
                                             />
                                         ) : parameter.ui_control === 'select' && options.length > 0 ? (
                                             <select
                                                 value={String(value ?? '')}
-                                                onChange={(event) =>
-                                                    data.onParameterChange(parameter.name, parseValue(parameter, event.target.value))
-                                                }
+                                                onChange={(event) => data.onParameterChange(parameter.name, parseValue(parameter, event.target.value))}
                                             >
                                                 {!String(value ?? '') && <option value="">Select...</option>}
                                                 {options.map((option) => (
@@ -332,9 +351,7 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
                                                 value={formatParameterValue(parameter, value)}
                                                 onPointerDown={preventNodeInteractionDrag}
                                                 onMouseDown={preventNodeInteractionDrag}
-                                                onChange={(event) =>
-                                                    data.onParameterChange(parameter.name, parseValue(parameter, event.target.value))
-                                                }
+                                                onChange={(event) => data.onParameterChange(parameter.name, parseValue(parameter, event.target.value))}
                                             />
                                         )}
                                     </div>
@@ -374,15 +391,18 @@ function WorkflowEditor() {
     const [statusText, setStatusText] = useState('Ready')
     const [isRunning, setIsRunning] = useState(false)
     const [search, setSearch] = useState('')
-    const [category, setCategory] = useState<NodeCategoryFilter>('all')
+    const [isLibraryVisible, setIsLibraryVisible] = useState(true)
+    const [selectedManifestKey, setSelectedManifestKey] = useState<string | null>(null)
+    const [expandedCategories, setExpandedCategories] = useState<CategoryExpansionState>(() => createExpandedCategoriesState())
     const [runtimeOutputs, setRuntimeOutputs] = useState<Record<string, Record<string, unknown>>>({})
     const [nodeContextMenu, setNodeContextMenu] = useState<NodeContextMenuState | null>(null)
     const [nodes, setNodes, onNodesChange] = useNodesState<Node<WorkflowNodeData>>([])
     const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([])
     const [isGridVisible, setIsGridVisible] = useState(true)
     const stopEventsRef = useRef<(() => void) | null>(null)
+    const draggedManifestKeyRef = useRef<string | null>(null)
     const canvasPanelRef = useRef<HTMLDivElement | null>(null)
-    const { fitView, zoomIn, zoomTo, getZoom } = useReactFlow<Node<WorkflowNodeData>, Edge>()
+    const { fitView, getZoom, screenToFlowPosition, zoomIn, zoomTo } = useReactFlow<Node<WorkflowNodeData>, Edge>()
 
     useEffect(() => {
         return () => {
@@ -392,13 +412,23 @@ function WorkflowEditor() {
 
     useEffect(() => {
         void fetchProviderModels()
-            .then((payload) => {
-                setProviderModels(payload.models)
-            })
+            .then((payload) => setProviderModels(payload.models))
             .catch((loadError) => {
                 setStatusText(loadError instanceof Error ? loadError.message : 'Failed to load provider models')
             })
     }, [])
+
+    useEffect(() => {
+        setSelectedManifestKey((current) => {
+            if (catalog.length === 0) {
+                return null
+            }
+            if (current && catalog.some((manifest) => manifestKey(manifest) === current)) {
+                return current
+            }
+            return manifestKey(catalog[0])
+        })
+    }, [catalog])
 
     useEffect(() => {
         setNodes((current) =>
@@ -472,16 +502,28 @@ function WorkflowEditor() {
 
     const filteredCatalog = useMemo(() => {
         const normalized = search.trim().toLowerCase()
-        return catalog.filter((manifest) => {
-            if (category !== 'all' && manifest.category !== category) {
-                return false
+        return catalog.filter((manifest) => !normalized || manifest.name.toLowerCase().includes(normalized))
+    }, [catalog, search])
+
+    const groupedCatalog = useMemo<WorkflowCategoryGroup[]>(() => {
+        return NODE_CATEGORY_ORDER.map((category) => ({
+            category,
+            label: NODE_CATEGORY_LABELS[category],
+            nodes: filteredCatalog.filter((manifest) => manifest.category === category),
+        })).filter((group) => group.nodes.length > 0)
+    }, [filteredCatalog])
+
+    const selectedManifest = useMemo(() => {
+        if (selectedManifestKey) {
+            const currentMatch = catalog.find((manifest) => manifestKey(manifest) === selectedManifestKey)
+            if (currentMatch) {
+                return currentMatch
             }
-            if (!normalized) {
-                return true
-            }
-            return `${manifest.name} ${manifest.id}`.toLowerCase().includes(normalized)
-        })
-    }, [catalog, category, search])
+        }
+        return filteredCatalog[0] ?? catalog[0] ?? null
+    }, [catalog, filteredCatalog, selectedManifestKey])
+
+    const effectiveSelectedManifestKey = selectedManifest ? manifestKey(selectedManifest) : null
 
     function updateNode(nodeId: string, updater: (node: Node<WorkflowNodeData>) => Node<WorkflowNodeData>): void {
         setNodes((current) => current.map((node) => (node.id === nodeId ? updater(node) : node)))
@@ -503,9 +545,9 @@ function WorkflowEditor() {
         void zoomTo(nextZoom, { duration: 110 })
     }
 
-    function addManifestNode(manifest: NodeManifest): void {
+    function addManifestNode(manifest: NodeManifest, position?: XYPosition): void {
         const nodeId = `${manifest.id.toLowerCase()}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`
-        const position = { x: 80 + nodes.length * 28, y: 80 + nodes.length * 22 }
+        const resolvedPosition = position ?? { x: 80 + nodes.length * 28, y: 80 + nodes.length * 22 }
         const collapsed = manifest.ui.collapsed_by_default
         const defaultWidth = Math.min(Math.max(manifest.ui.default_width, NODE_MIN_WIDTH), NODE_MAX_WIDTH)
         const initialParameters = defaultParameters(manifest)
@@ -513,10 +555,11 @@ function WorkflowEditor() {
         if (initialModels.length > 0 && !String(initialParameters.model_name ?? '').trim()) {
             initialParameters.model_name = initialModels[0].model
         }
+
         const node: Node<WorkflowNodeData> = {
             id: nodeId,
             type: 'manifest',
-            position,
+            position: resolvedPosition,
             draggable: true,
             data: {
                 manifest,
@@ -548,16 +591,11 @@ function WorkflowEditor() {
                     updateNode(nodeId, (current) => ({
                         ...current,
                         data: { ...current.data, collapsed: !current.data.collapsed },
-                        style: {
-                            ...current.style,
-                            width: current.style?.width ?? defaultWidth,
-                        },
+                        style: { ...current.style, width: current.style?.width ?? defaultWidth },
                     }))
                 },
             },
-            style: {
-                width: defaultWidth,
-            },
+            style: { width: defaultWidth },
         }
         setNodes((current) => [...current, node])
     }
@@ -620,6 +658,38 @@ function WorkflowEditor() {
         return !targetAlreadyConnected
     }
 
+    function handleTreeDragStart(event: ReactDragEvent<HTMLButtonElement>, manifest: NodeManifest): void {
+        const key = manifestKey(manifest)
+        draggedManifestKeyRef.current = key
+        event.dataTransfer.effectAllowed = 'copy'
+        event.dataTransfer.setData(NODE_LIBRARY_MIME, key)
+        setSelectedManifestKey(key)
+    }
+
+    function handleCanvasDragOver(event: ReactDragEvent<HTMLDivElement>): void {
+        event.preventDefault()
+        event.dataTransfer.dropEffect = 'copy'
+    }
+
+    function handleCanvasDrop(event: ReactDragEvent<HTMLDivElement>): void {
+        event.preventDefault()
+        const droppedManifestKey = event.dataTransfer.getData(NODE_LIBRARY_MIME) || draggedManifestKeyRef.current
+        draggedManifestKeyRef.current = null
+        if (!droppedManifestKey) {
+            return
+        }
+
+        const manifest = catalog.find((item) => manifestKey(item) === droppedManifestKey)
+        if (!manifest) {
+            setStatusText('Unable to resolve the dragged node')
+            return
+        }
+
+        addManifestNode(manifest, screenToFlowPosition({ x: event.clientX, y: event.clientY }))
+        setSelectedManifestKey(droppedManifestKey)
+        setStatusText(`Added ${manifest.name}`)
+    }
+
     async function runWorkflow(): Promise<void> {
         if (isRunning) {
             return
@@ -675,6 +745,7 @@ function WorkflowEditor() {
                     <strong>{statusText}</strong>
                 </div>
                 <div className="workflow-toolbar-actions">
+
                     <button type="button" onClick={() => void fitView({ padding: 0.2, duration: 180 })}>
                         Fit View
                     </button>
@@ -703,8 +774,118 @@ function WorkflowEditor() {
 
             {error && <div className="workflow-error">{error}</div>}
 
-            <div className="workflow-layout">
-                <div className="workflow-canvas-panel" ref={canvasPanelRef}>
+            <div className="workflow-layout" data-library-hidden={!isLibraryVisible || undefined}>
+                {isLibraryVisible && (
+                    <aside className="workflow-library-shell" aria-label="Node tree viewer">
+                        <div className="workflow-tree-header">
+                            <div>
+                                <h2>Node tree</h2>
+                                <p className="workflow-tree-caption">Search and drag nodes into the canvas.</p>
+                            </div>
+                            <button
+                                type="button"
+                                className="workflow-tree-hide-button"
+                                aria-label="Hide node tree"
+                                onClick={() => setIsLibraryVisible(false)}
+                            >
+                                Hide
+                            </button>
+                        </div>
+
+                        <div className="workflow-tree-toolbar">
+                            <div className="workflow-tree-search">
+                                <input
+                                    type="search"
+                                    value={search}
+                                    placeholder="Search nodes"
+                                    onChange={(event) => setSearch(event.target.value)}
+                                />
+                            </div>
+                            <span className="workflow-tree-count">{filteredCatalog.length} visible</span>
+                        </div>
+
+                        <div className="workflow-tree-body" role="tree" aria-label="Node catalog tree">
+                            {loading && <p className="workflow-tree-empty">Loading node catalog...</p>}
+                            {!loading && groupedCatalog.length === 0 && (
+                                <p className="workflow-tree-empty">No nodes match the current search.</p>
+                            )}
+                            {!loading &&
+                                groupedCatalog.map((group) => {
+                                    const isExpanded = expandedCategories[group.category]
+                                    return (
+                                        <section key={group.category} className="workflow-tree-group">
+                                            <button
+                                                type="button"
+                                                className="workflow-tree-group-toggle"
+                                                aria-expanded={isExpanded}
+                                                onClick={() =>
+                                                    setExpandedCategories((current) => ({
+                                                        ...current,
+                                                        [group.category]: !current[group.category],
+                                                    }))
+                                                }
+                                            >
+                                                <span className="workflow-tree-group-indicator" aria-hidden="true">
+                                                    {isExpanded ? '-' : '+'}
+                                                </span>
+                                                <span className="workflow-tree-group-name">{group.label}</span>
+                                                <span className="workflow-tree-group-count">{group.nodes.length}</span>
+                                            </button>
+                                            {isExpanded && (
+                                                <div className="workflow-tree-children">
+                                                    {group.nodes.map((manifest) => {
+                                                        const key = manifestKey(manifest)
+                                                        return (
+                                                            <button
+                                                                key={key}
+                                                                type="button"
+                                                                className="workflow-tree-node"
+                                                                draggable
+                                                                data-selected={key === effectiveSelectedManifestKey || undefined}
+                                                                onClick={() => setSelectedManifestKey(key)}
+                                                                onDragStart={(event) => handleTreeDragStart(event, manifest)}
+                                                                onDragEnd={() => {
+                                                                    draggedManifestKeyRef.current = null
+                                                                }}
+                                                            >
+                                                                <span className="workflow-tree-node-branch" aria-hidden="true" />
+                                                                <span className="workflow-tree-node-content">
+                                                                    <strong>{manifest.name}</strong>
+                                                                    <small>{manifest.inputs.length} in / {manifest.outputs.length} out</small>
+                                                                </span>
+                                                            </button>
+                                                        )
+                                                    })}
+                                                </div>
+                                            )}
+                                        </section>
+                                    )
+                                })}
+                        </div>
+
+                        <div className="workflow-tree-preview">
+                            {selectedManifest ? (
+                                <div className="workflow-tree-preview-card">
+                                    <strong>{selectedManifest.name}</strong>
+                                    <p>{buildNodeSummary(selectedManifest)}</p>
+                                </div>
+                            ) : (
+                                <p className="workflow-tree-preview-empty">Select a node to inspect it before dragging it onto the canvas.</p>
+                            )}
+                        </div>
+                    </aside>
+                )}
+
+                <div className="workflow-canvas-panel" ref={canvasPanelRef} onDragOver={handleCanvasDragOver} onDrop={handleCanvasDrop}>
+                    {!isLibraryVisible && (
+                        <button
+                            type="button"
+                            className="workflow-canvas-tree-toggle"
+                            onClick={() => setIsLibraryVisible(true)}
+                        >
+                            Show tree
+                        </button>
+                    )}
                     <ReactFlow
                         nodes={nodes}
                         edges={edges}
@@ -772,20 +953,10 @@ function WorkflowEditor() {
                             </ControlButton>
                         </Controls>
                         {isGridVisible && (
-                            <Background
-                                variant={BackgroundVariant.Lines}
-                                gap={24}
-                                size={1}
-                                color="rgba(87, 112, 152, 0.42)"
-                            />
+                            <Background variant={BackgroundVariant.Lines} gap={24} size={1} color="rgba(87, 112, 152, 0.42)" />
                         )}
                     </ReactFlow>
-                    <a
-                        className="workflow-reactflow-credit"
-                        href="https://reactflow.dev/"
-                        target="_blank"
-                        rel="noreferrer"
-                    >
+                    <a className="workflow-reactflow-credit" href="https://reactflow.dev/" target="_blank" rel="noreferrer">
                         Built with React Flow
                     </a>
                     {nodeContextMenu && (
@@ -808,46 +979,6 @@ function WorkflowEditor() {
                     )}
                     {loading && <div className="workflow-loading">Loading node catalog...</div>}
                 </div>
-
-                <aside className="workflow-sidepanel">
-                    <section className="workflow-panel workflow-node-library">
-                        <div className="workflow-panel-header">
-                            <h2>Node Library</h2>
-                            <p>{filteredCatalog.length} visible</p>
-                        </div>
-                        <div className="workflow-node-library-controls">
-                            <input
-                                type="search"
-                                value={search}
-                                placeholder="Search by name"
-                                onChange={(event) => setSearch(event.target.value)}
-                            />
-                            <select
-                                aria-label="Filter node category"
-                                value={category}
-                                onChange={(event) => setCategory(toNodeCategoryFilter(event.target.value))}
-                            >
-                                <option value="all">All categories</option>
-                                {Object.entries(NODE_CATEGORY_LABELS).map(([value, label]) => (
-                                    <option key={value} value={value}>
-                                        {label}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                        <div className="workflow-node-list">
-                            {filteredCatalog.map((manifest) => (
-                                <button key={manifest.id} type="button" onClick={() => addManifestNode(manifest)}>
-                                    <strong>{manifest.name}</strong>
-                                    <span>{manifest.description}</span>
-                                </button>
-                            ))}
-                            {!loading && filteredCatalog.length === 0 && (
-                                <p className="workflow-node-empty">No nodes match the current filter.</p>
-                            )}
-                        </div>
-                    </section>
-                </aside>
             </div>
         </section>
     )
@@ -860,4 +991,9 @@ export default function WorkflowPage() {
         </ReactFlowProvider>
     )
 }
+
+
+
+
+
 

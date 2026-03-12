@@ -97,15 +97,15 @@ The current implementation uses a React Flow editor, JSON node manifests, and a 
 
 ### 4.1 Nodes page
 - Two-column layout.
-- Left column: compact, fixed-height preview widget with searchable/filterable manifest rows.
-- Right column: JSON paste/import panel backed by `POST /nodes/import`.
-- Core artifacts and reference rail were removed.
+- Left column: category checkbox toolbar plus a searchable node preview list with icon, description, and I/O summaries per row.
+- Right column: supporting JSON import workspace backed by `POST /nodes/import`, including a manifest template helper.
+- The page avoids heavy card nesting and keeps the catalog/filter interactions in a lighter rail + list structure.
 
 ### 4.2 Workflow page
 - React Flow canvas with custom Comfy-style node cards.
 - Node cards support compact inline widgets, italic subtitle text, collapse/expand controls, and drag-resize handles.
 - Node parameters, collapse state, delete action, and runtime output preview live inside the node card.
-- Right rail is a compact node library only; `Inspector` and `Runtime Events` panels were removed.
+- The node library is now a left tree viewer with expandable categories, in-tree search, a selected-node preview, and drag-only node insertion onto the canvas.
 - Client-side connection checks mirror backend rules for type compatibility and multiplicity.
 
 ### 4.3 Configurations page
@@ -121,3 +121,4 @@ The current implementation uses a React Flow editor, JSON node manifests, and a 
 - The legacy `/workflow/*` compatibility API is no longer part of the active application surface.
 - Existing persisted workflow documents are migrated on read into schema `2` shapes.
 - The initial executable manifest set is limited to the base nodes required by the current editor/runtime; retrieval/RAG expansion is a follow-up wave.
+
