@@ -8,22 +8,33 @@ Source of truth: `ParaGraph/resources/nodes/*.json`
 
 | Node ID | Version | Name | Category | Manifest |
 |---|---:|---|---|---|
+| `API_FETCHER` | 1 | API Fetcher | input | `api_fetcher_v1.json` |
+| `BATCH_EMBEDDER` | 1 | Batch Embedder | model | `batch_embedder_v1.json` |
+| `CHUNKER` | 1 | Chunker | processing | `chunker_v1.json` |
+| `CONTEXT_INJECTOR` | 1 | Context Injector | processing | `context_injector_v1.json` |
+| `DIRECTORY_LOADER` | 1 | Directory Loader | input | `directory_loader_v1.json` |
+| `DOCUMENT_LOADER` | 1 | Document Loader | input | `document_loader_v1.json` |
 | `EMBEDDING_MODEL` | 1 | Embedding Model | model | `embedding_model_v1.json` |
 | `IF` | 1 | If | control | `if_v1.json` |
 | `IMAGE_INPUT` | 1 | Image Input | input | `image_input_v1.json` |
 | `IMAGE_OUTPUT` | 1 | Image Output | output | `image_output_v1.json` |
+| `JSON_OUTPUT` | 1 | JSON Output | output | `json_output_v1.json` |
 | `LLM_CHAT` | 1 | LLM Chat | model | `llm_chat_v1.json` |
 | `LLM_STRUCTURED` | 1 | LLM Structured | model | `llm_structured_v1.json` |
 | `LOAD_TEXT` | 1 | Load Text | serialization | `load_text_v1.json` |
 | `MODEL_PROVIDER` | 1 | Model Provider | model | `model_provider_v1.json` |
 | `ROUTER` | 1 | Router | control | `router_v1.json` |
 | `SAVE_TEXT` | 1 | Save Text | serialization | `save_text_v1.json` |
+| `SIMILARITY_SEARCH` | 1 | Similarity Search | processing | `similarity_search_v1.json` |
 | `SYSTEM_PROMPT` | 1 | System Prompt | input | `system_prompt_v1.json` |
 | `TEMPLATE_FORMAT` | 1 | Template Format | processing | `template_format_v1.json` |
+| `TEXT_CLEANER` | 1 | Text Cleaner | processing | `text_cleaner_v1.json` |
 | `TEXT_OUTPUT` | 1 | Text Output | output | `text_output_v1.json` |
 | `TEXT_SPLIT` | 1 | Text Split | processing | `text_split_v1.json` |
 | `TOKENIZE` | 1 | Tokenize | processing | `tokenize_v1.json` |
 | `USER_PROMPT` | 1 | User Prompt | input | `user_prompt_v1.json` |
+| `VECTOR_DB_WRITER` | 1 | Vector DB Writer | serialization | `vector_db_writer_v1.json` |
+| `WEB_SCRAPER` | 1 | Web Scraper | input | `web_scraper_v1.json` |
 
 ---
 
@@ -382,3 +393,117 @@ Parameters:
 | Name | Data Type | Default | UI Control | Required | Description |
 |---|---|---|---|---:|---|
 | `prompt_text` | `TEXT` | `""` | `textarea` | Yes | Prompt text emitted as the user message. |
+
+---
+
+## Phase 1 RAG Payload Types
+
+- `DOCUMENT_LIST`: normalized documents with `id`, `text`, `source_uri`, `mime_type`, and `metadata`.
+- `CHUNK_LIST`: document chunks with `document_id`, `chunk_index`, `token_count`, and inherited metadata.
+- `VECTOR_POINT_LIST`: embedded chunks plus vector values and embedding provider/model metadata.
+- `VECTOR_STORE_HANDLE`: persisted vector store metadata for downstream retrieval nodes.
+- `RETRIEVAL_RESULTS`: `{ query, hits[] }` payload used between retrieval and prompt-construction nodes.
+
+## `DOCUMENT_LOADER` (v1)
+
+- Name: Document Loader
+- Category: `input`
+- Description: Load a single supported local document into a normalized `DOCUMENT_LIST` payload.
+
+Inputs: None.
+
+Outputs:
+
+| Name | Data Type | Required |
+|---|---|---:|
+| `documents` | `DOCUMENT_LIST` | Yes |
+
+Parameters: `file_path`.
+
+## `DIRECTORY_LOADER` (v1)
+
+- Name: Directory Loader
+- Category: `input`
+- Description: Load supported files from a directory into a normalized `DOCUMENT_LIST` payload.
+
+Parameters: `directory_path`, `recursive`, `include_extensions`.
+
+## `WEB_SCRAPER` (v1)
+
+- Name: Web Scraper
+- Category: `input`
+- Description: Fetch one HTML page and emit plain-text content as `DOCUMENT_LIST`.
+
+Parameters: `url`, `timeout_s`, `strip_html_content`.
+
+## `API_FETCHER` (v1)
+
+- Name: API Fetcher
+- Category: `input`
+- Description: Fetch HTTP JSON/text content and emit it as `DOCUMENT_LIST`.
+
+Parameters: `url`, `timeout_s`, `response_selector`.
+
+## `TEXT_CLEANER` (v1)
+
+- Name: Text Cleaner
+- Category: `processing`
+- Description: Normalize document text while preserving metadata.
+
+Inputs: `documents: DOCUMENT_LIST`.
+Outputs: `documents: DOCUMENT_LIST`.
+Parameters: `strip_html_content`, `collapse_whitespace`.
+
+## `CHUNKER` (v1)
+
+- Name: Chunker
+- Category: `processing`
+- Description: Convert `DOCUMENT_LIST` into `CHUNK_LIST` with configurable token sizing and overlap.
+
+Parameters: `strategy`, `chunk_size_tokens`, `chunk_overlap_tokens`, `respect_sentence_boundaries`.
+
+## `BATCH_EMBEDDER` (v1)
+
+- Name: Batch Embedder
+- Category: `model`
+- Description: Convert `CHUNK_LIST` into `VECTOR_POINT_LIST` using the configured embedding provider/model.
+
+Parameters: `provider`, `model_name`, `batch_size`, `dimensions`, `normalize`, `max_retries`.
+
+## `VECTOR_DB_WRITER` (v1)
+
+- Name: Vector DB Writer
+- Category: `serialization`
+- Description: Persist `VECTOR_POINT_LIST` into a local FAISS-backed store under `ParaGraph/resources/artifacts/vectorstores`.
+
+Outputs: `store: VECTOR_STORE_HANDLE`.
+Parameters: `backend`, `index_name`, `metric`, `index_type`, `write_mode`, `nlist`, `hnsw_m`.
+
+## `SIMILARITY_SEARCH` (v1)
+
+- Name: Similarity Search
+- Category: `processing`
+- Description: Embed a query with the store metadata and return ranked `RETRIEVAL_RESULTS`.
+
+Inputs: `query: TEXT`, `store: VECTOR_STORE_HANDLE`.
+Outputs: `results: RETRIEVAL_RESULTS`.
+Parameters: `top_k`, `score_threshold`, `filter`, `include_metadata`.
+
+## `CONTEXT_INJECTOR` (v1)
+
+- Name: Context Injector
+- Category: `processing`
+- Description: Convert `RETRIEVAL_RESULTS` into prompt-ready `TEXT` with optional citations.
+
+Parameters: `max_context_items`, `include_citations`, `separator`.
+
+## `JSON_OUTPUT` (v1)
+
+- Name: JSON Output
+- Category: `output`
+- Description: Expose final structured JSON results.
+
+Inputs: `value: JSON`.
+Outputs: None.
+
+

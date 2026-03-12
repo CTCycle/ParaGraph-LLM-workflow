@@ -11,7 +11,14 @@ NodeDataType = Literal[
     "IMAGE",
     "VIDEO",
     "AUDIO",
+    "DOCUMENT",
+    "DOCUMENT_LIST",
+    "CHUNK",
+    "CHUNK_LIST",
     "EMBEDDING",
+    "VECTOR_POINT_LIST",
+    "VECTOR_STORE_HANDLE",
+    "RETRIEVAL_RESULTS",
     "TOKEN_IDS",
     "JSON",
     "MODEL_HANDLE",
@@ -93,3 +100,4 @@ class ProviderModelDefinition(BaseModel):
 
 class ProviderModelCatalogResponse(BaseModel):
     models: list[ProviderModelDefinition] = Field(default_factory=list)
+

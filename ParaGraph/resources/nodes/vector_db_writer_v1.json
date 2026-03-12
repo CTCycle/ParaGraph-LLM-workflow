@@ -1,0 +1,73 @@
+{
+  "id": "VECTOR_DB_WRITER",
+  "version": 1,
+  "name": "Vector DB Writer",
+  "category": "serialization",
+  "description": "Persist vector points into a local FAISS-backed vector store and emit a reusable store handle.",
+  "inputs": [
+    {"name": "points", "data_type": "VECTOR_POINT_LIST", "required": true}
+  ],
+  "outputs": [
+    {"name": "store", "data_type": "VECTOR_STORE_HANDLE", "required": true}
+  ],
+  "parameters": [
+    {
+      "name": "backend",
+      "data_type": "TEXT",
+      "default": "faiss",
+      "constraints": {"options": ["faiss"]},
+      "ui_control": "select",
+      "description": "Vector store backend. Phase 1 uses local FAISS persistence."
+    },
+    {
+      "name": "index_name",
+      "data_type": "TEXT",
+      "default": "default-index",
+      "constraints": {"required": true},
+      "ui_control": "text",
+      "description": "Stable local index name under ParaGraph/resources/artifacts/vectorstores."
+    },
+    {
+      "name": "metric",
+      "data_type": "TEXT",
+      "default": "cosine",
+      "constraints": {"options": ["cosine", "ip", "l2"]},
+      "ui_control": "select",
+      "description": "Similarity metric for search and indexing."
+    },
+    {
+      "name": "index_type",
+      "data_type": "TEXT",
+      "default": "flat",
+      "constraints": {"options": ["flat", "hnsw_flat", "ivf_flat"]},
+      "ui_control": "select",
+      "description": "FAISS index type."
+    },
+    {
+      "name": "write_mode",
+      "data_type": "TEXT",
+      "default": "overwrite",
+      "constraints": {"options": ["overwrite", "append"]},
+      "ui_control": "select",
+      "description": "Overwrite or append to an existing local store."
+    },
+    {
+      "name": "nlist",
+      "data_type": "JSON",
+      "default": 64,
+      "constraints": {"min": 1, "max": 4096},
+      "ui_control": "number",
+      "description": "FAISS IVF list count. Used when index_type is ivf_flat."
+    },
+    {
+      "name": "hnsw_m",
+      "data_type": "JSON",
+      "default": 32,
+      "constraints": {"min": 4, "max": 128},
+      "ui_control": "number",
+      "description": "FAISS HNSW graph connectivity. Used when index_type is hnsw_flat."
+    }
+  ],
+  "ui": {"default_width": 360, "accent_color": "#7c3aed"},
+  "runtime": {"executor_key": "vector_db_writer", "cacheable": false, "deterministic": false, "side_effecting": true}
+}

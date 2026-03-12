@@ -67,7 +67,7 @@ class ExecutionService:
                 if step.cacheable and cache_key in cache:
                     port_outputs = cache[cache_key]
                 else:
-                    port_outputs = node_registry.execute(step.executor_key, step.parameters, resolved_inputs)
+                    port_outputs = node_registry.execute(step.node_type, step.node_version, step.parameters, resolved_inputs)
                     if step.cacheable:
                         cache[cache_key] = port_outputs
 
@@ -129,9 +129,10 @@ class ExecutionService:
             value = source_ports.get(binding.source_output)
             if binding.input_name not in resolved:
                 if manifests_by_input.get(binding.input_name) and manifests_by_input[binding.input_name].accepts_multiple:
-                    resolved[binding.input_name] = []
+                    resolved[binding.input_name] = [value]
                 else:
                     resolved[binding.input_name] = value
+                continue
 
             current = resolved[binding.input_name]
             if isinstance(current, list):
@@ -141,13 +142,16 @@ class ExecutionService:
 
         return resolved
 
+    def _json_safe(self, value: Any) -> Any:
+        return json.loads(json.dumps(value, default=str))
+
     def _build_cache_key(self, step, resolved_inputs: dict[str, Any]) -> str:
         payload = json.dumps(
             {
                 "node_type": step.node_type,
                 "node_version": step.node_version,
-                "parameters": step.parameters,
-                "inputs": resolved_inputs,
+                "parameters": self._json_safe(step.parameters),
+                "inputs": self._json_safe(resolved_inputs),
             },
             sort_keys=True,
             default=str,
@@ -183,3 +187,10 @@ class ExecutionService:
 
 
 execution_service = ExecutionService()
+
+
+
+
+
+
+

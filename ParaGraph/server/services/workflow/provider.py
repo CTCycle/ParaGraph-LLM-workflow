@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import hashlib
 from typing import Any
+
+import httpx
 
 from ParaGraph.server.entities.configuration import DEFAULT_SESSION_NAME
 from ParaGraph.server.entities.nodecatalog import (
@@ -288,18 +291,96 @@ class ProviderService:
         except (LLMError, OllamaError) as exc:
             raise ValueError(str(exc)) from exc
 
-    def embed_text(self, *, provider: str, model: str, text: str) -> list[float]:
-        normalized_provider = _normalize_provider(provider)
-        self.assert_capabilities(normalized_provider, embeddings=True)
-        seed = f"{normalized_provider}:{model}:{text}".encode("utf-8")
-        import hashlib
-
-        digest = hashlib.sha256(seed).digest()
+    def _fallback_embedding(self, *, provider: str, model: str, text: str, dimensions: int | None) -> list[float]:
+        target_dimensions = dimensions or 12
+        digest = hashlib.sha256(f"{provider}:{model}:{text}".encode("utf-8")).digest()
         values: list[float] = []
-        for index in range(0, 24, 2):
-            chunk = int.from_bytes(digest[index:index + 2], byteorder="big", signed=False)
+        for index in range(target_dimensions):
+            start = (index * 2) % len(digest)
+            chunk = int.from_bytes(digest[start:start + 2], byteorder="big", signed=False)
             values.append(round(chunk / 65535.0, 6))
         return values
 
+    def _ollama_embed(self, *, model: str, text: str, session_name: str) -> list[float]:
+        base_url = self._load_configuration(session_name).ollama.base_url.rstrip("/")
+        payloads = (
+            {"model": model, "input": text},
+            {"model": model, "prompt": text},
+        )
+        last_error: Exception | None = None
+        for path, payload in (("/api/embed", payloads[0]), ("/api/embeddings", payloads[1])):
+            try:
+                response = httpx.post(f"{base_url}{path}", json=payload, timeout=30.0)
+                if response.status_code == 404:
+                    continue
+                response.raise_for_status()
+                data = response.json()
+                if isinstance(data, dict):
+                    embeddings = data.get("embeddings")
+                    if isinstance(embeddings, list) and embeddings and isinstance(embeddings[0], list):
+                        return [float(item) for item in embeddings[0]]
+                    embedding = data.get("embedding")
+                    if isinstance(embedding, list):
+                        return [float(item) for item in embedding]
+                raise ValueError("Invalid Ollama embeddings response")
+            except Exception as exc:  # noqa: BLE001
+                last_error = exc
+        raise ValueError(str(last_error or "Unable to generate Ollama embeddings"))
+
+    def _openai_embed(
+        self,
+        *,
+        model: str,
+        text: str,
+        session_name: str,
+        dimensions: int | None,
+    ) -> list[float]:
+        access_key = self._get_access_key("openai", session_name)
+        api_key = access_key.api_key if access_key else None
+        base_url = (access_key.base_url if access_key and access_key.base_url else "https://api.openai.com/v1").rstrip("/")
+        if not api_key:
+            raise ValueError("Provider 'openai' requires an access key in Configurations")
+        payload: dict[str, Any] = {"model": model, "input": text}
+        if dimensions is not None:
+            payload["dimensions"] = dimensions
+        response = httpx.post(
+            f"{base_url}/embeddings",
+            json=payload,
+            timeout=30.0,
+            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+        )
+        response.raise_for_status()
+        data = response.json()
+        items = data.get("data", []) if isinstance(data, dict) else []
+        if not items or not isinstance(items[0], dict) or not isinstance(items[0].get("embedding"), list):
+            raise ValueError("Invalid OpenAI embeddings response")
+        return [float(item) for item in items[0]["embedding"]]
+
+    def embed_text(
+        self,
+        *,
+        provider: str,
+        model: str,
+        text: str,
+        dimensions: int | None = None,
+        session_name: str = DEFAULT_SESSION_NAME,
+    ) -> list[float]:
+        normalized_provider = _normalize_provider(provider)
+        self.assert_capabilities(normalized_provider, embeddings=True)
+        try:
+            if normalized_provider == "ollama":
+                vector = self._ollama_embed(model=model, text=text, session_name=session_name)
+            elif normalized_provider == "openai":
+                vector = self._openai_embed(model=model, text=text, session_name=session_name, dimensions=dimensions)
+            else:
+                vector = self._fallback_embedding(provider=normalized_provider, model=model, text=text, dimensions=dimensions)
+        except httpx.HTTPError as exc:
+            raise ValueError(f"{normalized_provider} embeddings request failed: {exc}") from exc
+        if dimensions is not None and len(vector) != dimensions:
+            raise ValueError(f"Embedding dimension mismatch: expected {dimensions}, got {len(vector)}")
+        return vector
+
 
 provider_service = ProviderService()
+
+

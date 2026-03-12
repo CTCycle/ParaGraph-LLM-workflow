@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from collections import defaultdict, deque
 from uuid import uuid4
 
@@ -14,22 +13,6 @@ MODEL_NODE_TYPES = {"LLM_CHAT", "LLM_STRUCTURED"}
 STRUCTURED_NODE_TYPES = {"LLM_STRUCTURED"}
 
 
-def _parse_schema_parameter(value) -> dict:
-    if isinstance(value, dict):
-        schema = value
-    elif isinstance(value, str):
-        schema = json.loads(value)
-    else:
-        raise ValueError("response_schema must be a JSON object")
-    if not isinstance(schema, dict):
-        raise ValueError("response_schema must be a JSON object")
-    allowed_keys = {"type", "properties", "required", "items", "additionalProperties", "enum"}
-    unsupported = sorted(set(schema) - allowed_keys)
-    if unsupported:
-        raise ValueError(f"Unsupported JSON Schema keys: {', '.join(unsupported)}")
-    return schema
-
-
 def _resolve_provider(parameters: dict[str, object], default: str = "ollama") -> str:
     provider = str(parameters.get("provider", default)).strip().lower()
     if provider == "anthropic":
@@ -39,7 +22,7 @@ def _resolve_provider(parameters: dict[str, object], default: str = "ollama") ->
 
 class CompilerService:
     def compile(self, definition: WorkflowDefinition) -> CompileWorkflowResponse:
-        diagnostics = self._collect_diagnostics(definition)
+        diagnostics, validated_parameters = self._collect_diagnostics(definition)
         if diagnostics:
             return CompileWorkflowResponse(valid=False, diagnostics=diagnostics, plan=None)
 
@@ -73,7 +56,7 @@ class CompilerService:
                     node_version=node.node_version,
                     category=manifest.category,
                     executor_key=manifest.runtime.executor_key,
-                    parameters=node.parameters,
+                    parameters=validated_parameters.get(node.node_id, node.parameters),
                     bindings=bindings,
                     cacheable=manifest.runtime.cacheable,
                 )
@@ -90,8 +73,9 @@ class CompilerService:
             ),
         )
 
-    def _collect_diagnostics(self, definition: WorkflowDefinition) -> list[CompilerDiagnostic]:
+    def _collect_diagnostics(self, definition: WorkflowDefinition) -> tuple[list[CompilerDiagnostic], dict[str, dict[str, object]]]:
         diagnostics: list[CompilerDiagnostic] = []
+        validated_parameters_by_node: dict[str, dict[str, object]] = {}
         node_ids_seen: set[str] = set()
         node_by_id = {node.node_id: node for node in definition.nodes}
         connection_keys: set[tuple[str, str, str, str]] = set()
@@ -102,11 +86,7 @@ class CompilerService:
         for node in definition.nodes:
             if node.node_id in node_ids_seen:
                 diagnostics.append(
-                    CompilerDiagnostic(
-                        code="duplicate_node_id",
-                        message=f"Duplicate node id: {node.node_id}",
-                        node_id=node.node_id,
-                    )
+                    CompilerDiagnostic(code="duplicate_node_id", message=f"Duplicate node id: {node.node_id}", node_id=node.node_id)
                 )
             node_ids_seen.add(node.node_id)
 
@@ -132,27 +112,29 @@ class CompilerService:
                         )
                     )
 
-            if node.node_type in STRUCTURED_NODE_TYPES:
-                try:
-                    _parse_schema_parameter(node.parameters.get("response_schema"))
-                except (TypeError, ValueError, json.JSONDecodeError) as exc:
-                    diagnostics.append(
-                        CompilerDiagnostic(
-                            code="invalid_response_schema",
-                            message=str(exc),
-                            node_id=node.node_id,
-                        )
+            try:
+                validated_parameters_by_node[node.node_id] = node_registry.validate_parameters(
+                    node.node_type,
+                    node.node_version,
+                    node.parameters,
+                )
+            except ValueError as exc:
+                diagnostic_code = "invalid_parameter"
+                if node.node_type in STRUCTURED_NODE_TYPES and "response_schema" in str(exc):
+                    diagnostic_code = "invalid_response_schema"
+                diagnostics.append(
+                    CompilerDiagnostic(
+                        code=diagnostic_code,
+                        message=str(exc),
+                        node_id=node.node_id,
                     )
+                )
 
         for connection in definition.connections:
             connection_key = (connection.from_node, connection.from_output, connection.to_node, connection.to_input)
             if connection_key in connection_keys:
                 diagnostics.append(
-                    CompilerDiagnostic(
-                        code="duplicate_connection",
-                        message="Duplicate connection detected",
-                        connection=connection,
-                    )
+                    CompilerDiagnostic(code="duplicate_connection", message="Duplicate connection detected", connection=connection)
                 )
             connection_keys.add(connection_key)
 
@@ -247,6 +229,7 @@ class CompilerService:
             manifest = node_registry.get(node.node_type, node.node_version)
             if manifest is None:
                 continue
+            parameters = validated_parameters_by_node.get(node.node_id, node.parameters)
             for port in manifest.inputs:
                 if port.required and inbound_counts[(node.node_id, port.name)] == 0:
                     diagnostics.append(
@@ -258,8 +241,8 @@ class CompilerService:
                     )
 
             if node.node_type == "MODEL_PROVIDER":
-                provider = _resolve_provider(node.parameters)
-                model_name = str(node.parameters.get("model_name") or "").strip()
+                provider = _resolve_provider(parameters)
+                model_name = str(parameters.get("model_name") or "").strip()
                 if not model_name:
                     diagnostics.append(
                         CompilerDiagnostic(
@@ -273,11 +256,7 @@ class CompilerService:
                     provider_service.get_model_metadata(provider, model_name)
                 except ValueError as exc:
                     diagnostics.append(
-                        CompilerDiagnostic(
-                            code="invalid_model_selection",
-                            message=str(exc),
-                            node_id=node.node_id,
-                        )
+                        CompilerDiagnostic(code="invalid_model_selection", message=str(exc), node_id=node.node_id)
                     )
                 continue
 
@@ -299,11 +278,12 @@ class CompilerService:
                 if model_binding is not None:
                     source_node = node_by_id.get(model_binding.from_node)
                     if source_node is not None:
-                        provider = _resolve_provider(source_node.parameters)
-                        model_name = str(source_node.parameters.get("model_name") or "").strip()
+                        source_parameters = validated_parameters_by_node.get(source_node.node_id, source_node.parameters)
+                        provider = _resolve_provider(source_parameters)
+                        model_name = str(source_parameters.get("model_name") or "").strip()
                 else:
-                    provider = _resolve_provider(node.parameters)
-                    model_name = str(node.parameters.get("model_name") or "").strip()
+                    provider = _resolve_provider(parameters)
+                    model_name = str(parameters.get("model_name") or "").strip()
 
                 if not model_name:
                     diagnostics.append(
@@ -321,18 +301,15 @@ class CompilerService:
                         model=model_name,
                         structured_output=node.node_type in STRUCTURED_NODE_TYPES,
                         requires_image=image_count > 0,
-                        use_reasoning=bool(node.parameters.get("use_reasoning", False)),
+                        use_reasoning=bool(parameters.get("use_reasoning", False)),
                     )
                 except ValueError as exc:
                     diagnostics.append(
-                        CompilerDiagnostic(
-                            code="provider_capability_error",
-                            message=str(exc),
-                            node_id=node.node_id,
-                        )
+                        CompilerDiagnostic(code="provider_capability_error", message=str(exc), node_id=node.node_id)
                     )
+
             if node.node_type == "EMBEDDING_MODEL":
-                provider = str(node.parameters.get("provider", "ollama")).lower()
+                provider = str(parameters.get("provider", "ollama")).lower()
                 try:
                     provider_service.assert_capabilities(provider, embeddings=True)
                 except ValueError as exc:
@@ -345,7 +322,7 @@ class CompilerService:
         except ValueError as exc:
             diagnostics.append(CompilerDiagnostic(code="graph_cycle", message=str(exc)))
 
-        return diagnostics
+        return diagnostics, validated_parameters_by_node
 
     def _topological_order(self, definition: WorkflowDefinition) -> list[str]:
         node_ids = [node.node_id for node in definition.nodes]
@@ -375,3 +352,4 @@ class CompilerService:
 
 
 compiler_service = CompilerService()
+

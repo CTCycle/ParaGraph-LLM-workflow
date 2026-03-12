@@ -126,9 +126,17 @@ The current implementation uses a React Flow editor, JSON node manifests, and a 
 
 ---
 
-## 5. Notes
+## 5. Phase 1 RAG Runtime
+- New ingestion nodes emit normalized `DOCUMENT_LIST` payloads from local files and HTTP sources.
+- `TEXT_CLEANER` and `CHUNKER` convert documents into `CHUNK_LIST` payloads suitable for retrieval.
+- `BATCH_EMBEDDER` turns chunks into `VECTOR_POINT_LIST` payloads using provider-backed embeddings.
+- `VECTOR_DB_WRITER` persists local FAISS indexes under `ParaGraph/resources/artifacts/vectorstores/<index_name>/` with metadata sidecars.
+- `SIMILARITY_SEARCH` embeds the query using the store handle metadata and returns typed `RETRIEVAL_RESULTS`.
+- `CONTEXT_INJECTOR` converts retrieval hits into prompt-ready `TEXT` for the existing `LLM_CHAT` / `LLM_STRUCTURED` nodes.
 
+---
+
+## 6. Notes
 - The legacy `/workflow/*` compatibility API is no longer part of the active application surface.
 - Existing persisted workflow documents are migrated on read into schema `2` shapes.
-- The initial executable manifest set is limited to the base nodes required by the current editor/runtime; retrieval/RAG expansion is a follow-up wave.
-
+- The executable manifest set now includes a Phase 1 typed RAG slice for ingestion, chunking, embedding, vector storage, retrieval, and context injection.

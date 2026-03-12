@@ -1,0 +1,37 @@
+{
+  "id": "DIRECTORY_LOADER",
+  "version": 1,
+  "name": "Directory Loader",
+  "category": "input",
+  "description": "Recursively load supported documents from a local directory into a normalized document list.",
+  "inputs": [],
+  "outputs": [
+    {"name": "documents", "data_type": "DOCUMENT_LIST", "required": true}
+  ],
+  "parameters": [
+    {
+      "name": "directory_path",
+      "data_type": "TEXT",
+      "default": "",
+      "constraints": {"required": true},
+      "ui_control": "text",
+      "description": "Absolute or workspace-relative path to the source directory."
+    },
+    {
+      "name": "recursive",
+      "data_type": "BOOLEAN",
+      "default": true,
+      "ui_control": "toggle",
+      "description": "Whether to scan nested folders."
+    },
+    {
+      "name": "include_extensions",
+      "data_type": "JSON",
+      "default": [".docx", ".htm", ".html", ".json", ".markdown", ".md", ".pdf", ".txt"],
+      "ui_control": "json",
+      "description": "JSON array of file extensions to include."
+    }
+  ],
+  "ui": {"default_width": 340, "accent_color": "#0f766e"},
+  "runtime": {"executor_key": "directory_loader", "cacheable": true, "deterministic": true, "side_effecting": false}
+}
