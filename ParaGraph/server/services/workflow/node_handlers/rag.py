@@ -30,6 +30,7 @@ class BatchEmbedderParameters(BaseModel):
 class VectorWriterParameters(BaseModel):
     backend: str = "faiss"
     index_name: str
+    storage_directory: str = ""
     metric: str = "cosine"
     index_type: str = "flat"
     write_mode: str = "overwrite"
@@ -130,6 +131,7 @@ def _vector_db_writer_executor(parameters: dict[str, Any], inputs: dict[str, Any
     adapter = get_vector_store_adapter(coerce_text(parameters.get("backend") or "faiss"))
     handle = adapter.write_points(
         index_name=coerce_text(parameters.get("index_name")).strip(),
+        storage_directory=coerce_text(parameters.get("storage_directory") or "").strip(),
         metric=coerce_text(parameters.get("metric") or "cosine"),
         index_type=coerce_text(parameters.get("index_type") or "flat"),
         write_mode=coerce_text(parameters.get("write_mode") or "overwrite"),
@@ -200,5 +202,3 @@ RAG_HANDLERS = {
     "similarity_search": NodeHandler(executor=_similarity_search_executor, parameter_model=SimilaritySearchParameters),
     "context_injector": NodeHandler(executor=_context_injector_executor, parameter_model=ContextInjectorParameters),
 }
-
-

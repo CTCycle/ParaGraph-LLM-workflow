@@ -15,6 +15,18 @@ ARTIFACT_ROOT = Path(RESOURCES_PATH) / "artifacts"
 VECTORSTORE_ROOT = ARTIFACT_ROOT / "vectorstores"
 
 
+def _resolve_vectorstore_root(storage_directory: str | None) -> Path:
+    selected = str(storage_directory or "").strip()
+    if not selected:
+        return VECTORSTORE_ROOT.resolve()
+    candidate = Path(selected).expanduser()
+    if candidate.is_absolute():
+        return candidate.resolve()
+    # Keep legacy relative roots anchored under artifacts/vectorstores.
+    return (VECTORSTORE_ROOT / candidate).resolve()
+
+
+
 class VectorStoreError(ValueError):
     pass
 
@@ -48,8 +60,8 @@ def _normalize_vectors(vectors: np.ndarray) -> np.ndarray:
     return vectors / safe_norms
 
 
-def _index_paths(index_name: str) -> tuple[Path, Path, Path, Path]:
-    store_path = VECTORSTORE_ROOT / index_name
+def _index_paths(root_path: Path, index_name: str) -> tuple[Path, Path, Path, Path]:
+    store_path = root_path / index_name
     return (
         store_path,
         store_path / "manifest.json",
@@ -58,9 +70,8 @@ def _index_paths(index_name: str) -> tuple[Path, Path, Path, Path]:
     )
 
 
-def _index_file_path(index_name: str) -> Path:
-    return VECTORSTORE_ROOT / index_name / "index.faiss"
-
+def _index_file_path(store_path: Path) -> Path:
+    return store_path / "index.faiss"
 
 def _build_index(
     vectors: np.ndarray,
@@ -97,20 +108,37 @@ def _build_index(
     return index
 
 
-def _load_store(index_name: str) -> tuple[dict[str, Any], list[dict[str, Any]], np.ndarray, Any]:
-    store_path, manifest_path, metadata_path, vectors_path = _index_paths(index_name)
-    index_path = _index_file_path(index_name)
+def _resolve_store_path_from_handle(store: VectorStoreHandle | dict[str, Any]) -> Path:
+    artifact_path = str(_store_attr(store, "artifact_path") or "").strip()
+    if artifact_path:
+        candidate = Path(artifact_path).expanduser()
+        if candidate.is_absolute():
+            return candidate.resolve()
+        return (ARTIFACT_ROOT / candidate).resolve()
+
+    index_name = str(_store_attr(store, "index_name") or "").strip()
+    if not index_name:
+        raise VectorStoreError("Vector store handle is missing index_name")
+    root = _resolve_vectorstore_root(_store_attr(store, "storage_directory"))
+    return (root / index_name).resolve()
+
+
+def _load_store(store: VectorStoreHandle | dict[str, Any]) -> tuple[dict[str, Any], list[dict[str, Any]], np.ndarray, Any]:
+    store_path = _resolve_store_path_from_handle(store)
+    manifest_path = store_path / "manifest.json"
+    metadata_path = store_path / "metadata.json"
+    vectors_path = store_path / "vectors.npy"
+    index_path = _index_file_path(store_path)
     if not store_path.exists():
-        raise VectorStoreError(f"Vector store not found: {index_name}")
+        raise VectorStoreError(f"Vector store not found: {store_path}")
     if not manifest_path.exists() or not metadata_path.exists() or not vectors_path.exists() or not index_path.exists():
-        raise VectorStoreError(f"Vector store is incomplete: {index_name}")
+        raise VectorStoreError(f"Vector store is incomplete: {store_path}")
 
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
     vectors = np.load(vectors_path)
     index = faiss.read_index(str(index_path))
     return manifest, metadata, vectors, index
-
 
 def _candidate_value(item: dict[str, Any], field_name: str) -> Any:
     current: Any = item
@@ -203,6 +231,7 @@ class VectorStoreAdapter:
         self,
         *,
         index_name: str,
+        storage_directory: str,
         metric: str,
         index_type: str,
         write_mode: str,
@@ -213,7 +242,8 @@ class VectorStoreAdapter:
         if not points:
             raise VectorStoreError("VECTOR_DB_WRITER requires at least one vector point")
 
-        VECTORSTORE_ROOT.mkdir(parents=True, exist_ok=True)
+        root_path = _resolve_vectorstore_root(storage_directory)
+        root_path.mkdir(parents=True, exist_ok=True)
         dimension = len(_point_attr(points[0], "vector"))
         if any(len(_point_attr(point, "vector")) != dimension for point in points):
             raise VectorStoreError("All vector points must have the same dimension")
@@ -227,11 +257,11 @@ class VectorStoreAdapter:
             vectors = _normalize_vectors(vectors)
 
         metadata_entries = [_sanitize_metadata_entry(point) for point in points]
-        store_path, manifest_path, metadata_path, vectors_path = _index_paths(index_name)
-        index_path = _index_file_path(index_name)
+        store_path, manifest_path, metadata_path, vectors_path = _index_paths(root_path, index_name)
+        index_path = _index_file_path(store_path)
 
         if write_mode_normalized == "append" and store_path.exists():
-            existing_manifest, existing_metadata, existing_vectors, _ = _load_store(index_name)
+            existing_manifest, existing_metadata, existing_vectors, _ = _load_store({"artifact_path": str(store_path)})
             if int(existing_manifest.get("dimension", 0)) != dimension:
                 raise VectorStoreError("Existing vector store dimension does not match incoming vectors")
             if str(existing_manifest.get("metric", "")).lower() != metric.lower().strip():
@@ -268,7 +298,7 @@ class VectorStoreAdapter:
         return VectorStoreHandle(
             backend=self.backend,
             index_name=index_name,
-            artifact_path=str(store_path.relative_to(ARTIFACT_ROOT)),
+            artifact_path=str(store_path),
             metric=manifest["metric"],
             dimension=dimension,
             embedding_provider=str(_point_attr(points[0], "embedding_provider") or ""),
@@ -278,6 +308,7 @@ class VectorStoreAdapter:
                 "count": manifest["count"],
                 "nlist": nlist,
                 "hnsw_m": hnsw_m,
+                "storage_directory": str(root_path),
             },
         )
 
@@ -291,7 +322,7 @@ class VectorStoreAdapter:
         filter_spec: dict[str, Any] | None,
         include_metadata: bool,
     ) -> list[RetrievalHit]:
-        manifest, metadata, vectors, index = _load_store(str(_store_attr(store, "index_name") or ""))
+        manifest, metadata, vectors, index = _load_store(store)
         if len(query_vector) != int(manifest.get("dimension", 0)):
             raise VectorStoreError("Query vector dimension does not match the vector store")
 

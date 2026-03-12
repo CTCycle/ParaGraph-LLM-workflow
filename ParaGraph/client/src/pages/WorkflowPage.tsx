@@ -43,7 +43,6 @@ import { useNodeCatalog } from '../workflow/hooks/useNodeCatalog'
 import { NODE_CATEGORY_LABELS, NODE_CATEGORY_ORDER } from '../workflow/schema/nodeCategory'
 import {
     CompiledExecutionPlan,
-    ExecutionRunState,
     NodeCategory,
     NodeManifest,
     NodeParameterDefinition,
@@ -58,7 +57,6 @@ type WorkflowNodeData = {
     parameters: Record<string, unknown>
     collapsed: boolean
     isActive: boolean
-    runtimeOutput: Record<string, unknown> | null
     providerModels: ProviderModelDefinition[]
     onParameterChange: (parameterName: string, value: unknown) => void
     onStatusChange: (message: string) => void
@@ -104,7 +102,6 @@ type PersistedWorkflowEdge = {
 type PersistedWorkflowState = {
     nodes: PersistedWorkflowNode[]
     edges: PersistedWorkflowEdge[]
-    runtime_outputs: Record<string, Record<string, unknown>>
     is_library_visible: boolean
     is_grid_visible: boolean
     search: string
@@ -282,19 +279,9 @@ function readPersistedWorkflowState(): PersistedWorkflowState | null {
                 })
                 .filter((value): value is PersistedWorkflowEdge => value !== null)
             : []
-
-        const runtimeOutputs = isRecord(parsed.runtime_outputs)
-            ? Object.fromEntries(
-                Object.entries(parsed.runtime_outputs).filter(
-                    (entry): entry is [string, Record<string, unknown>] => isRecord(entry[1]),
-                ),
-            )
-            : {}
-
         return {
             nodes,
             edges,
-            runtime_outputs: runtimeOutputs,
             is_library_visible:
                 typeof parsed.is_library_visible === 'boolean' ? parsed.is_library_visible : true,
             is_grid_visible: typeof parsed.is_grid_visible === 'boolean' ? parsed.is_grid_visible : true,
@@ -417,36 +404,6 @@ function getParameterOptions(
     return options
         .filter((option): option is string => typeof option === 'string')
         .map((option) => ({ value: option, label: option }))
-}
-
-function buildRuntimeOutputs(run: ExecutionRunState): Record<string, Record<string, unknown>> {
-    return run.steps.reduce<Record<string, Record<string, unknown>>>((accumulator, step) => {
-        const outputPorts = step.output?.ports
-        if (outputPorts && typeof outputPorts === 'object') {
-            accumulator[step.node_id] = outputPorts as Record<string, unknown>
-        }
-        return accumulator
-    }, {})
-}
-
-function renderRuntimeOutput(runtimeOutput: Record<string, unknown> | null): string {
-    if (!runtimeOutput) {
-        return ''
-    }
-    if (typeof runtimeOutput.response === 'string') {
-        return runtimeOutput.response
-    }
-    if ('result' in runtimeOutput) {
-        try {
-            return JSON.stringify(runtimeOutput.result, null, 2)
-        } catch {
-            return String(runtimeOutput.result)
-        }
-    }
-    if (typeof runtimeOutput.text === 'string') {
-        return runtimeOutput.text
-    }
-    return JSON.stringify(runtimeOutput, null, 2)
 }
 
 function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
@@ -689,19 +646,6 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
                 </div>
             )}
 
-            {data.runtimeOutput && !data.collapsed && (
-                <div className="workflow-node-runtime">
-                    <span className="workflow-node-runtime-label">{structured ? 'Structured Output' : 'Runtime Output'}</span>
-                    <textarea
-                        className="workflow-node-runtime-output nodrag nopan"
-                        readOnly
-                        rows={structured ? 6 : 4}
-                        value={renderRuntimeOutput(data.runtimeOutput)}
-                        onPointerDown={preventNodeInteractionDrag}
-                        onMouseDown={preventNodeInteractionDrag}
-                    />
-                </div>
-            )}
 
             <div className="workflow-node-footer">
                 <span>{NODE_CATEGORY_LABELS[data.manifest.category]}</span>
@@ -721,7 +665,6 @@ function WorkflowEditor() {
     const [isLibraryVisible, setIsLibraryVisible] = useState(true)
     const [selectedManifestKey, setSelectedManifestKey] = useState<string | null>(null)
     const [expandedCategories, setExpandedCategories] = useState<CategoryExpansionState>(() => createExpandedCategoriesState())
-    const [runtimeOutputs, setRuntimeOutputs] = useState<Record<string, Record<string, unknown>>>({})
     const [activeNodeId, setActiveNodeId] = useState<string | null>(null)
     const [nodeContextMenu, setNodeContextMenu] = useState<NodeContextMenuState | null>(null)
     const [nodes, setNodes, onNodesChange] = useNodesState<Node<WorkflowNodeData>>([])
@@ -767,12 +710,11 @@ function WorkflowEditor() {
                 data: {
                     ...node.data,
                     isActive: node.id === activeNodeId,
-                    runtimeOutput: runtimeOutputs[node.id] ?? null,
                     providerModels,
                 },
             })),
         )
-    }, [activeNodeId, providerModels, runtimeOutputs, setNodes])
+    }, [activeNodeId, providerModels, setNodes])
 
     useEffect(() => {
         if (providerModels.length === 0) {
@@ -865,7 +807,6 @@ function WorkflowEditor() {
                     collapsed: snapshot.collapsed,
                     width: snapshot.width,
                     height: snapshot.height,
-                    runtimeOutput: persisted.runtime_outputs[snapshot.id] ?? null,
                 }),
             ]
         })
@@ -884,7 +825,6 @@ function WorkflowEditor() {
 
         setNodes(restoredNodes)
         setEdges(restoredEdges)
-        setRuntimeOutputs(persisted.runtime_outputs)
         setIsLibraryVisible(persisted.is_library_visible)
         setIsGridVisible(persisted.is_grid_visible)
         setSearch(persisted.search)
@@ -934,13 +874,12 @@ function WorkflowEditor() {
         persistWorkflowState({
             nodes: persistedNodes,
             edges: persistedEdges,
-            runtime_outputs: runtimeOutputs,
             is_library_visible: isLibraryVisible,
             is_grid_visible: isGridVisible,
             search,
             selected_manifest_key: selectedManifestKey,
         })
-    }, [edges, isGridVisible, isLibraryVisible, nodes, runtimeOutputs, search, selectedManifestKey])
+    }, [edges, isGridVisible, isLibraryVisible, nodes, search, selectedManifestKey])
 
     const filteredCatalog = useMemo(() => {
         const normalized = search.trim().toLowerCase()
@@ -974,11 +913,6 @@ function WorkflowEditor() {
     function removeNode(nodeId: string): void {
         setNodes((current) => current.filter((node) => node.id !== nodeId))
         setEdges((current) => current.filter((edge) => edge.source !== nodeId && edge.target !== nodeId))
-        setRuntimeOutputs((current) => {
-            const next = { ...current }
-            delete next[nodeId]
-            return next
-        })
         setNodeContextMenu((current) => (current?.nodeId === nodeId ? null : current))
     }
 
@@ -995,7 +929,6 @@ function WorkflowEditor() {
         collapsed?: boolean
         width?: number
         height?: number
-        runtimeOutput?: Record<string, unknown> | null
     }): Node<WorkflowNodeData> {
         const nodeId =
             input.nodeId ||
@@ -1026,7 +959,6 @@ function WorkflowEditor() {
                 providerModels,
                 collapsed: input.collapsed ?? input.manifest.ui.collapsed_by_default,
                 isActive: nodeId === activeNodeId,
-                runtimeOutput: input.runtimeOutput ?? runtimeOutputs[nodeId] ?? null,
                 onParameterChange: (parameterName, value) => {
                     updateNode(nodeId, (current) => {
                         const nextParameters = { ...current.data.parameters, [parameterName]: value }
@@ -1162,7 +1094,6 @@ function WorkflowEditor() {
             return
         }
         setIsRunning(true)
-        setRuntimeOutputs({})
         setActiveNodeId(null)
         setStatusText('Compiling workflow...')
 
@@ -1198,7 +1129,6 @@ function WorkflowEditor() {
                 setStatusText(`Run ${run.status} (${Math.round(run.progress)}%)`)
             })
 
-            setRuntimeOutputs(buildRuntimeOutputs(finalState))
             setActiveNodeId(null)
             if (finalState.status === 'completed') {
                 setStatusText('Workflow completed')
@@ -1236,7 +1166,6 @@ function WorkflowEditor() {
                         onClick={() => {
                             setNodes([])
                             setEdges([])
-                            setRuntimeOutputs({})
                             setActiveNodeId(null)
                             setNodeContextMenu(null)
                         }}
@@ -1409,17 +1338,7 @@ function WorkflowEditor() {
                                 y: Math.max(10, y),
                             })
                         }}
-                        onNodesDelete={(deletedNodes) => {
-                            setRuntimeOutputs((current) => {
-                                if (deletedNodes.length === 0) {
-                                    return current
-                                }
-                                const next = { ...current }
-                                deletedNodes.forEach((node) => {
-                                    delete next[node.id]
-                                })
-                                return next
-                            })
+                        onNodesDelete={() => {
                             setNodeContextMenu(null)
                         }}
                         proOptions={{ hideAttribution: true }}
@@ -1471,15 +1390,4 @@ export default function WorkflowPage() {
         </ReactFlowProvider>
     )
 }
-
-
-
-
-
-
-
-
-
-
-
 

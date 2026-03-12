@@ -207,7 +207,7 @@ Parameters: None.
 
 - Name: Load Text
 - Category: `serialization`
-- Description: Load text content from the artifacts directory.
+- Description: Load text content from a local file path.
 
 Inputs: None.
 
@@ -221,7 +221,7 @@ Parameters:
 
 | Name | Data Type | Default | UI Control | Required | Description |
 |---|---|---|---|---:|---|
-| `storage_path` | `TEXT` | `saved_text.txt` | `text` | No | Relative path inside ParaGraph/resources/artifacts. |
+| `storage_path` | `TEXT` | `""` | `file` | No | Absolute local source file path. Relative paths remain rooted in ParaGraph/resources/artifacts for legacy workflows. |
 
 ## `ROUTER` (v1)
 
@@ -252,7 +252,7 @@ Parameters:
 
 - Name: Save Text
 - Category: `serialization`
-- Description: Persist text content to the artifacts directory.
+- Description: Persist text content to a local file path.
 
 Inputs:
 
@@ -270,7 +270,7 @@ Parameters:
 
 | Name | Data Type | Default | UI Control | Required | Description |
 |---|---|---|---|---:|---|
-| `storage_path` | `TEXT` | `saved_text.txt` | `text` | No | Relative path inside ParaGraph/resources/artifacts. |
+| `storage_path` | `TEXT` | `""` | `file` | No | Absolute local destination file path. Relative paths remain rooted in ParaGraph/resources/artifacts for legacy workflows. |
 
 ## `SYSTEM_PROMPT` (v1)
 
@@ -491,10 +491,10 @@ Parameters: `provider`, `model_name`, `batch_size`, `dimensions`, `normalize`, `
 
 - Name: Vector DB Writer
 - Category: `serialization`
-- Description: Persist `VECTOR_POINT_LIST` into a local FAISS-backed store under `ParaGraph/resources/artifacts/vectorstores`.
+- Description: Persist `VECTOR_POINT_LIST` into a local FAISS-backed store under a selected destination directory (or artifacts/vectorstores when omitted).
 
 Outputs: `store: VECTOR_STORE_HANDLE`.
-Parameters: `backend`, `index_name`, `metric`, `index_type`, `write_mode`, `nlist`, `hnsw_m`.
+Parameters: `backend`, `index_name`, `storage_directory`, `metric`, `index_type`, `write_mode`, `nlist`, `hnsw_m`.
 
 ## `SIMILARITY_SEARCH` (v1)
 

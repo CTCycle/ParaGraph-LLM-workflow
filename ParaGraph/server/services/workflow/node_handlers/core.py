@@ -74,11 +74,22 @@ class TemplateParameters(BaseModel):
 
 
 class StorageParameters(BaseModel):
-    storage_path: str = "saved_text.txt"
+    storage_path: str = ""
 
 
 class RouterParameters(BaseModel):
     expected_value: str = ""
+
+
+def _resolve_storage_file_path(raw_path: Any) -> Path:
+    storage_path = coerce_text(raw_path).strip()
+    if not storage_path:
+        raise ValueError("storage_path is required. Select a local file path.")
+    candidate = Path(storage_path).expanduser()
+    if candidate.is_absolute():
+        return candidate.resolve()
+    # Keep legacy relative paths rooted in artifacts for existing workflows.
+    return (ARTIFACT_ROOT / candidate).resolve()
 
 
 def _prompt_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
@@ -320,25 +331,22 @@ def _template_format_executor(parameters: dict[str, Any], inputs: dict[str, Any]
 
 def _save_text_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
     text = coerce_text(inputs.get("text") or "")
-    storage_path = coerce_text(parameters.get("storage_path") or "saved_text.txt").strip() or "saved_text.txt"
-    destination = (ARTIFACT_ROOT / storage_path).resolve()
-    artifact_root = ARTIFACT_ROOT.resolve()
-    if artifact_root not in destination.parents and destination != artifact_root:
-        raise ValueError("storage_path must stay inside ParaGraph/resources/artifacts")
+    destination = _resolve_storage_file_path(parameters.get("storage_path"))
     destination.parent.mkdir(parents=True, exist_ok=True)
     destination.write_text(text, encoding="utf-8")
-    return {"artifact": {"path": str(destination.relative_to(artifact_root))}}
+    artifact_root = ARTIFACT_ROOT.resolve()
+    try:
+        output_path = str(destination.relative_to(artifact_root))
+    except ValueError:
+        output_path = str(destination)
+    return {"artifact": {"path": output_path}}
 
 
 def _load_text_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
     _ = inputs
-    storage_path = coerce_text(parameters.get("storage_path") or "saved_text.txt").strip() or "saved_text.txt"
-    source = (ARTIFACT_ROOT / storage_path).resolve()
-    artifact_root = ARTIFACT_ROOT.resolve()
-    if artifact_root not in source.parents and source != artifact_root:
-        raise ValueError("storage_path must stay inside ParaGraph/resources/artifacts")
+    source = _resolve_storage_file_path(parameters.get("storage_path"))
     if not source.exists():
-        raise ValueError(f"Text artifact not found: {storage_path}")
+        raise ValueError(f"Text file not found: {source}")
     return {"text": source.read_text(encoding="utf-8")}
 
 
@@ -371,3 +379,4 @@ CORE_HANDLERS = {
     "if": NodeHandler(executor=_if_executor),
     "router": NodeHandler(executor=_router_executor, parameter_model=RouterParameters),
 }
+

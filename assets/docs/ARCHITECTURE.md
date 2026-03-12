@@ -113,9 +113,9 @@ The current implementation uses a React Flow editor, JSON node manifests, and a 
 ### 4.2 Workflow page
 - React Flow canvas with custom Comfy-style node cards.
 - Node cards support compact inline widgets, italic subtitle text, collapse/expand controls, and drag-resize handles.
-- Path-backed parameters can now open native file/folder pickers and persist selected source paths directly in node parameters.
+- Path-backed parameters can open native file/folder pickers and persist selected source or destination paths directly in node parameters (including serialization file paths).
 - Parameter rows use a denser Comfy-inspired control treatment for higher information density without changing the overall card shell.
-- Node parameters, collapse state, delete action, and runtime output preview live inside the node card.
+- Node parameters, collapse state, and delete action live inside the node card; execution outputs are consumed through dedicated output nodes.
 - The node library is now a left tree viewer with expandable categories, in-tree search, a selected-node preview, and drag-only node insertion onto the canvas.
 - The first category is compact on first visit, then category expansion state is persisted.
 - Workflow canvas state (nodes, edges, layout metadata) persists in browser storage across page navigation.
@@ -135,7 +135,7 @@ The current implementation uses a React Flow editor, JSON node manifests, and a 
 - DATABASE_CONNECTION emits a typed read-only connection manifest consumed by DATABASE_QUERY.
 - `TEXT_CLEANER` and `CHUNKER` convert documents into `CHUNK_LIST` payloads suitable for retrieval.
 - `BATCH_EMBEDDER` turns chunks into `VECTOR_POINT_LIST` payloads using provider-backed embeddings.
-- `VECTOR_DB_WRITER` persists local FAISS indexes under `ParaGraph/resources/artifacts/vectorstores/<index_name>/` with metadata sidecars.
+- `VECTOR_DB_WRITER` persists local FAISS indexes under `<storage_directory>/<index_name>/` (defaulting to `ParaGraph/resources/artifacts/vectorstores`) with metadata sidecars.
 - `SIMILARITY_SEARCH` embeds the query using the store handle metadata and returns typed `RETRIEVAL_RESULTS`.
 - `CONTEXT_INJECTOR` converts retrieval hits into prompt-ready `TEXT` for the existing `LLM_CHAT` / `LLM_STRUCTURED` nodes.
 
