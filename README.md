@@ -14,11 +14,6 @@ ParaGraph/
 - resources/                # logs, checkpoints, database, runtime data
 - start_on_windows.bat      # Windows launcher and runtime bootstrap
 
-docker/
-- backend.Dockerfile
-- frontend.Dockerfile
-- nginx/default.conf
-
 tests/
 - conftest.py
 - run_tests.bat
@@ -59,11 +54,15 @@ Platform APIs:
 ### 4.1 Windows (recommended)
 
 1. Ensure `ParaGraph/settings/.env` exists.
-2. Launch:
+2. Launch the local web app:
 
 ```cmd
 ParaGraph\start_on_windows.bat
 ```
+
+Supported local delivery modes:
+- local web app started by `ParaGraph\start_on_windows.bat`
+- packaged desktop app distributed separately as a Tauri build
 
 ### 4.2 macOS / Linux (manual)
 
@@ -108,16 +107,3 @@ Important variables:
 - `GEMINI_API_KEY`, `GEMINI_BASE_URL`
 - `ANTHROPIC_API_KEY`
 - `LLM_TIMEOUT_S`
-
-## 7. Docker
-
-```bash
-docker compose --env-file ParaGraph/settings/.env build --no-cache
-docker compose --env-file ParaGraph/settings/.env up -d
-```
-
-Stop:
-
-```bash
-docker compose --env-file ParaGraph/settings/.env down
-```

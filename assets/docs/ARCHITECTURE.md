@@ -71,7 +71,7 @@ The current implementation uses a React Flow editor, JSON node manifests, and a 
 ### 2.5 Relational persistence model
 - `user_sessions`: session identity plus Ollama defaults (`base_url`, chat model, embedding model).
 - `nodes`: imported node manifest snapshots keyed by session + node id/version.
-- `access_keys`: provider-scoped key material (cloud + Hugging Face) linked to a session.
+- `access_keys`: provider-scoped key material (LLM providers + Hugging Face) linked to a session.
 - `configuration_profiles`: named full configuration snapshots (access keys + Ollama defaults) linked to a session.
 
 ---
@@ -125,7 +125,7 @@ The current implementation uses a React Flow editor, JSON node manifests, and a 
 ### 4.3 Configurations page
 - Two-column layout with a left configuration rail and right reserved workspace.
 - Left top panel manages Ollama base URL and exposes a runtime status check action.
-- Left bottom panel manages cloud/Hugging Face keys and opens modal dialogs for named Load/Save profile flows.
+- Left bottom panel manages provider/Hugging Face keys and opens modal dialogs for named Load/Save profile flows.
 - Active payloads are still loaded/saved through `/configurations`, while named profiles are persisted via `/configurations/profiles/*`.
 
 ---
