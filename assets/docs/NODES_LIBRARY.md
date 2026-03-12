@@ -8,17 +8,14 @@ Source of truth: `ParaGraph/resources/nodes/*.json`
 
 | Node ID | Version | Name | Category | Manifest |
 |---|---:|---|---|---|
-| `CLOUD_LLM_CHAT` | 1 | Cloud LLM Chat | model | `cloud_llm_chat_v1.json` |
-| `CLOUD_STRUCTURED_RESPONSE` | 1 | Cloud Structured Response | model | `cloud_structured_response_v1.json` |
 | `EMBEDDING_MODEL` | 1 | Embedding Model | model | `embedding_model_v1.json` |
-| `HUGGINGFACE_LLM_CHAT` | 1 | HuggingFace LLM Chat | model | `huggingface_llm_chat_v1.json` |
-| `HUGGINGFACE_STRUCTURED_RESPONSE` | 1 | HuggingFace Structured Response | model | `huggingface_structured_response_v1.json` |
 | `IF` | 1 | If | control | `if_v1.json` |
 | `IMAGE_INPUT` | 1 | Image Input | input | `image_input_v1.json` |
 | `IMAGE_OUTPUT` | 1 | Image Output | output | `image_output_v1.json` |
+| `LLM_CHAT` | 1 | LLM Chat | model | `llm_chat_v1.json` |
+| `LLM_STRUCTURED` | 1 | LLM Structured | model | `llm_structured_v1.json` |
 | `LOAD_TEXT` | 1 | Load Text | serialization | `load_text_v1.json` |
-| `OLLAMA_LLM_CHAT` | 1 | Ollama LLM Chat | model | `ollama_llm_chat_v1.json` |
-| `OLLAMA_STRUCTURED_RESPONSE` | 1 | Ollama Structured Response | model | `ollama_structured_response_v1.json` |
+| `MODEL_PROVIDER` | 1 | Model Provider | model | `model_provider_v1.json` |
 | `ROUTER` | 1 | Router | control | `router_v1.json` |
 | `SAVE_TEXT` | 1 | Save Text | serialization | `save_text_v1.json` |
 | `SYSTEM_PROMPT` | 1 | System Prompt | input | `system_prompt_v1.json` |
@@ -30,16 +27,38 @@ Source of truth: `ParaGraph/resources/nodes/*.json`
 
 ---
 
-## `CLOUD_LLM_CHAT` (v1)
+## `MODEL_PROVIDER` (v1)
 
-- Name: Cloud LLM Chat
+- Name: Model Provider
 - Category: `model`
-- Description: Chat with an OpenAI, Gemini, or Claude model and return plain text.
+- Description: Select a provider and model, then expose a reusable typed model handle to connected LLM nodes.
+
+Inputs: None.
+
+Outputs:
+
+| Name | Data Type | Required |
+|---|---|---:|
+| `model` | `MODEL_HANDLE` | Yes |
+
+Parameters:
+
+| Name | Data Type | Default | UI Control | Required | Description |
+|---|---|---|---|---:|---|
+| `provider` | `TEXT` | `ollama` | `select` | Yes | Model provider. |
+| `model_name` | `TEXT` | `""` | `select` | Yes | Model identifier available for the selected provider. |
+
+## `LLM_CHAT` (v1)
+
+- Name: LLM Chat
+- Category: `model`
+- Description: Run a chat completion with a typed model handle selected by a provider node and return plain text.
 
 Inputs:
 
 | Name | Data Type | Required |
 |---|---|---:|
+| `model` | `MODEL_HANDLE` | No |
 | `user_prompt` | `TEXT` | No |
 | `system_prompt` | `TEXT` | No |
 | `image` | `IMAGE` | No |
@@ -54,21 +73,21 @@ Parameters:
 
 | Name | Data Type | Default | UI Control | Required | Description |
 |---|---|---|---|---:|---|
-| `provider` | `TEXT` | `openai` | `select` | Yes | Cloud provider selection. |
-| `model_name` | `TEXT` | `""` | `select` | Yes | Provider model identifier. |
+| `context_window` | `JSON` | `0` | `number` | No | Context window size. Use `0` for provider-managed context. |
 | `max_tokens` | `JSON` | `512` | `number` | No | Maximum output token count. |
-| `use_reasoning` | `BOOLEAN` | `false` | `toggle` | No | Enable provider-specific reasoning behavior when available. |
+| `use_reasoning` | `BOOLEAN` | `false` | `toggle` | No | Enable reasoning-oriented execution when the selected model supports it. |
 
-## `CLOUD_STRUCTURED_RESPONSE` (v1)
+## `LLM_STRUCTURED` (v1)
 
-- Name: Cloud Structured Response
+- Name: LLM Structured
 - Category: `model`
-- Description: Generate typed JSON responses with an OpenAI, Gemini, or Claude model.
+- Description: Run a structured generation with a typed model handle selected by a provider node and return validated JSON.
 
 Inputs:
 
 | Name | Data Type | Required |
 |---|---|---:|
+| `model` | `MODEL_HANDLE` | No |
 | `user_prompt` | `TEXT` | No |
 | `system_prompt` | `TEXT` | No |
 | `image` | `IMAGE` | No |
@@ -83,10 +102,9 @@ Parameters:
 
 | Name | Data Type | Default | UI Control | Required | Description |
 |---|---|---|---|---:|---|
-| `provider` | `TEXT` | `openai` | `select` | Yes | Cloud provider selection. |
-| `model_name` | `TEXT` | `""` | `select` | Yes | Provider model identifier. |
+| `context_window` | `JSON` | `0` | `number` | No | Context window size. Use `0` for provider-managed context. |
 | `max_tokens` | `JSON` | `512` | `number` | No | Maximum output token count. |
-| `use_reasoning` | `BOOLEAN` | `false` | `toggle` | No | Enable provider-specific reasoning behavior when available. |
+| `use_reasoning` | `BOOLEAN` | `false` | `toggle` | No | Enable reasoning-oriented execution when the selected model supports it. |
 | `response_schema` | `JSON` | `{"type":"object","properties":{},"required":[]}` | `json` | Yes | JSON Schema used to validate the structured response. |
 
 ## `EMBEDDING_MODEL` (v1)
@@ -113,65 +131,6 @@ Parameters:
 |---|---|---|---|---:|---|
 | `provider` | `TEXT` | `ollama` | `select` | No | Provider name. |
 | `model_name` | `TEXT` | `nomic-embed-text` | `text` | No | Embedding model identifier. |
-
-## `HUGGINGFACE_LLM_CHAT` (v1)
-
-- Name: HuggingFace LLM Chat
-- Category: `model`
-- Description: Chat with a locally served HuggingFace model and return plain text.
-
-Inputs:
-
-| Name | Data Type | Required |
-|---|---|---:|
-| `user_prompt` | `TEXT` | No |
-| `system_prompt` | `TEXT` | No |
-| `image` | `IMAGE` | No |
-
-Outputs:
-
-| Name | Data Type | Required |
-|---|---|---:|
-| `response` | `TEXT` | Yes |
-
-Parameters:
-
-| Name | Data Type | Default | UI Control | Required | Description |
-|---|---|---|---|---:|---|
-| `model_name` | `TEXT` | `""` | `select` | Yes | HuggingFace model identifier. |
-| `context_window` | `JSON` | `0` | `number` | No | Context window size. Use `0` for provider-managed context. |
-| `max_tokens` | `JSON` | `512` | `number` | No | Maximum output token count. |
-| `use_reasoning` | `BOOLEAN` | `false` | `toggle` | No | Enable reasoning-oriented execution when the model supports it. |
-
-## `HUGGINGFACE_STRUCTURED_RESPONSE` (v1)
-
-- Name: HuggingFace Structured Response
-- Category: `model`
-- Description: Generate typed JSON responses with a locally served HuggingFace model.
-
-Inputs:
-
-| Name | Data Type | Required |
-|---|---|---:|
-| `user_prompt` | `TEXT` | No |
-| `system_prompt` | `TEXT` | No |
-| `image` | `IMAGE` | No |
-
-Outputs:
-
-| Name | Data Type | Required |
-|---|---|---:|
-| `result` | `JSON` | Yes |
-
-Parameters:
-
-| Name | Data Type | Default | UI Control | Required | Description |
-|---|---|---|---|---:|---|
-| `model_name` | `TEXT` | `""` | `select` | Yes | HuggingFace model identifier. |
-| `context_window` | `JSON` | `0` | `number` | No | Context window size. Use `0` for provider-managed context. |
-| `max_tokens` | `JSON` | `512` | `number` | No | Maximum output token count. |
-| `use_reasoning` | `BOOLEAN` | `false` | `toggle` | No | Enable reasoning-oriented execution when the model supports it. |
-| `response_schema` | `JSON` | `{"type":"object","properties":{},"required":[]}` | `json` | Yes | JSON Schema used to validate the structured response. |
 
 ## `IF` (v1)
 
@@ -250,65 +209,6 @@ Parameters:
 | Name | Data Type | Default | UI Control | Required | Description |
 |---|---|---|---|---:|---|
 | `storage_path` | `TEXT` | `saved_text.txt` | `text` | No | Relative path inside ParaGraph/resources/artifacts. |
-
-## `OLLAMA_LLM_CHAT` (v1)
-
-- Name: Ollama LLM Chat
-- Category: `model`
-- Description: Chat with an Ollama-served language model and return plain text.
-
-Inputs:
-
-| Name | Data Type | Required |
-|---|---|---:|
-| `user_prompt` | `TEXT` | No |
-| `system_prompt` | `TEXT` | No |
-| `image` | `IMAGE` | No |
-
-Outputs:
-
-| Name | Data Type | Required |
-|---|---|---:|
-| `response` | `TEXT` | Yes |
-
-Parameters:
-
-| Name | Data Type | Default | UI Control | Required | Description |
-|---|---|---|---|---:|---|
-| `model_name` | `TEXT` | `""` | `select` | Yes | Ollama model identifier. |
-| `context_window` | `JSON` | `0` | `number` | No | Context window size. Use `0` for provider-managed context. |
-| `max_tokens` | `JSON` | `512` | `number` | No | Maximum output token count. |
-| `use_reasoning` | `BOOLEAN` | `false` | `toggle` | No | Enable reasoning-oriented execution when the model supports it. |
-
-## `OLLAMA_STRUCTURED_RESPONSE` (v1)
-
-- Name: Ollama Structured Response
-- Category: `model`
-- Description: Generate typed JSON responses with an Ollama-served model.
-
-Inputs:
-
-| Name | Data Type | Required |
-|---|---|---:|
-| `user_prompt` | `TEXT` | No |
-| `system_prompt` | `TEXT` | No |
-| `image` | `IMAGE` | No |
-
-Outputs:
-
-| Name | Data Type | Required |
-|---|---|---:|
-| `result` | `JSON` | Yes |
-
-Parameters:
-
-| Name | Data Type | Default | UI Control | Required | Description |
-|---|---|---|---|---:|---|
-| `model_name` | `TEXT` | `""` | `select` | Yes | Ollama model identifier. |
-| `context_window` | `JSON` | `0` | `number` | No | Context window size. Use `0` for provider-managed context. |
-| `max_tokens` | `JSON` | `512` | `number` | No | Maximum output token count. |
-| `use_reasoning` | `BOOLEAN` | `false` | `toggle` | No | Enable reasoning-oriented execution when the model supports it. |
-| `response_schema` | `JSON` | `{"type":"object","properties":{},"required":[]}` | `json` | Yes | JSON Schema used to validate the structured response. |
 
 ## `ROUTER` (v1)
 

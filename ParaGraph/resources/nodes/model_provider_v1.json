@@ -1,0 +1,56 @@
+{
+  "id": "MODEL_PROVIDER",
+  "version": 1,
+  "name": "Model Provider",
+  "category": "model",
+  "description": "Select a provider and model, then expose a reusable typed model handle to connected LLM nodes.",
+  "inputs": [],
+  "outputs": [
+    {
+      "name": "model",
+      "data_type": "MODEL_HANDLE",
+      "required": true
+    }
+  ],
+  "parameters": [
+    {
+      "name": "provider",
+      "data_type": "TEXT",
+      "default": "ollama",
+      "constraints": {
+        "required": true,
+        "options": [
+          "ollama",
+          "openai",
+          "gemini",
+          "claude",
+          "huggingface"
+        ]
+      },
+      "ui_control": "select",
+      "description": "Model provider."
+    },
+    {
+      "name": "model_name",
+      "data_type": "TEXT",
+      "default": "",
+      "constraints": {
+        "required": true,
+        "provider_source": "provider"
+      },
+      "ui_control": "select",
+      "description": "Model identifier available for the selected provider."
+    }
+  ],
+  "ui": {
+    "default_width": 340,
+    "accent_color": "#7c9dfd",
+    "collapsed_by_default": false
+  },
+  "runtime": {
+    "executor_key": "model_provider",
+    "cacheable": true,
+    "deterministic": true,
+    "side_effecting": false
+  }
+}

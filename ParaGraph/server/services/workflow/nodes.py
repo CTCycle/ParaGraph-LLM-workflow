@@ -4,8 +4,10 @@ import json
 from pathlib import Path
 from typing import Any, Callable
 
+from pydantic import ValidationError
+
 from ParaGraph.server.common.constants import RESOURCES_PATH
-from ParaGraph.server.entities.nodecatalog import NodeCatalogResponse, NodeManifest
+from ParaGraph.server.entities.nodecatalog import NodeCatalogResponse, NodeManifest, ProviderModelDefinition
 from ParaGraph.server.services.configuration import configuration_service
 from ParaGraph.server.services.workflow.provider import provider_service
 
@@ -16,19 +18,8 @@ NODE_ROOT = Path(RESOURCES_PATH) / "nodes"
 ARTIFACT_ROOT = Path(RESOURCES_PATH) / "artifacts"
 _HF_MODEL_CACHE: dict[str, tuple[Any, Any]] = {}
 
-MODEL_NODE_IDS = {
-    "OLLAMA_LLM_CHAT",
-    "CLOUD_LLM_CHAT",
-    "HUGGINGFACE_LLM_CHAT",
-    "OLLAMA_STRUCTURED_RESPONSE",
-    "CLOUD_STRUCTURED_RESPONSE",
-    "HUGGINGFACE_STRUCTURED_RESPONSE",
-}
-STRUCTURED_NODE_IDS = {
-    "OLLAMA_STRUCTURED_RESPONSE",
-    "CLOUD_STRUCTURED_RESPONSE",
-    "HUGGINGFACE_STRUCTURED_RESPONSE",
-}
+MODEL_NODE_IDS = {"LLM_CHAT", "LLM_STRUCTURED"}
+STRUCTURED_NODE_IDS = {"LLM_STRUCTURED"}
 
 
 def _coerce_text(value: Any) -> str:
@@ -229,6 +220,30 @@ def _get_schema(parameters: dict[str, Any]) -> dict[str, Any]:
     return schema
 
 
+def _normalize_provider_name(provider: Any, default: str = "ollama") -> str:
+    normalized = _coerce_text(provider or default).strip().lower()
+    if normalized == "anthropic":
+        return "claude"
+    return normalized or default
+
+
+def _resolve_model_selection(parameters: dict[str, Any], inputs: dict[str, Any]) -> ProviderModelDefinition:
+    model_input = inputs.get("model")
+    if model_input is not None:
+        try:
+            return ProviderModelDefinition.model_validate(model_input)
+        except ValidationError as exc:
+            raise ValueError("model input must be a valid model handle") from exc
+
+    provider = _normalize_provider_name(parameters.get("provider"), default="ollama")
+    model_name = _coerce_text(parameters.get("model_name")).strip()
+    if not model_name and provider == "ollama":
+        model_name = _coerce_text(configuration_service.load_configuration().ollama.chat_model).strip()
+    if not model_name:
+        raise ValueError("LLM nodes require a connected model provider node")
+    return provider_service.build_model_definition(provider, model_name)
+
+
 def _run_huggingface_chat(
     *,
     model_name: str,
@@ -335,84 +350,33 @@ def _execute_model_node(
     return {"response": text}
 
 
-def _ollama_llm_chat_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
-    model_name = _coerce_text(parameters.get("model_name") or configuration_service.load_configuration().ollama.chat_model).strip()
+def _model_provider_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
+    _ = inputs
+    provider = _normalize_provider_name(parameters.get("provider"), default="ollama")
+    model_name = _coerce_text(parameters.get("model_name")).strip()
+    if not model_name and provider == "ollama":
+        model_name = _coerce_text(configuration_service.load_configuration().ollama.chat_model).strip()
     if not model_name:
-        raise ValueError("OLLAMA_LLM_CHAT requires a model_name")
+        raise ValueError("MODEL_PROVIDER requires a model_name")
+    return {"model": provider_service.build_model_definition(provider, model_name).model_dump(mode="json")}
+
+
+def _llm_chat_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
+    selection = _resolve_model_selection(parameters, inputs)
     return _execute_model_node(
-        provider="ollama",
-        model_name=model_name,
+        provider=selection.provider,
+        model_name=selection.model,
         parameters=parameters,
         inputs=inputs,
         structured_output=False,
     )
 
 
-def _cloud_llm_chat_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
-    provider = _coerce_text(parameters.get("provider", "openai")).strip().lower()
-    if provider == "anthropic":
-        provider = "claude"
-    model_name = _coerce_text(parameters.get("model_name")).strip()
-    if not model_name:
-        raise ValueError("CLOUD_LLM_CHAT requires a model_name")
+def _llm_structured_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
+    selection = _resolve_model_selection(parameters, inputs)
     return _execute_model_node(
-        provider=provider,
-        model_name=model_name,
-        parameters=parameters,
-        inputs=inputs,
-        structured_output=False,
-    )
-
-
-def _huggingface_llm_chat_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
-    model_name = _coerce_text(parameters.get("model_name")).strip()
-    if not model_name:
-        raise ValueError("HUGGINGFACE_LLM_CHAT requires a model_name")
-    return _execute_model_node(
-        provider="huggingface",
-        model_name=model_name,
-        parameters=parameters,
-        inputs=inputs,
-        structured_output=False,
-    )
-
-
-def _ollama_structured_response_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
-    model_name = _coerce_text(parameters.get("model_name") or configuration_service.load_configuration().ollama.chat_model).strip()
-    if not model_name:
-        raise ValueError("OLLAMA_STRUCTURED_RESPONSE requires a model_name")
-    return _execute_model_node(
-        provider="ollama",
-        model_name=model_name,
-        parameters=parameters,
-        inputs=inputs,
-        structured_output=True,
-    )
-
-
-def _cloud_structured_response_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
-    provider = _coerce_text(parameters.get("provider", "openai")).strip().lower()
-    if provider == "anthropic":
-        provider = "claude"
-    model_name = _coerce_text(parameters.get("model_name")).strip()
-    if not model_name:
-        raise ValueError("CLOUD_STRUCTURED_RESPONSE requires a model_name")
-    return _execute_model_node(
-        provider=provider,
-        model_name=model_name,
-        parameters=parameters,
-        inputs=inputs,
-        structured_output=True,
-    )
-
-
-def _huggingface_structured_response_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
-    model_name = _coerce_text(parameters.get("model_name")).strip()
-    if not model_name:
-        raise ValueError("HUGGINGFACE_STRUCTURED_RESPONSE requires a model_name")
-    return _execute_model_node(
-        provider="huggingface",
-        model_name=model_name,
+        provider=selection.provider,
+        model_name=selection.model,
         parameters=parameters,
         inputs=inputs,
         structured_output=True,
@@ -499,12 +463,9 @@ EXECUTORS: dict[str, Executor] = {
     "user_prompt": _prompt_executor,
     "system_prompt": _prompt_executor,
     "image_input": _image_input_executor,
-    "ollama_llm_chat": _ollama_llm_chat_executor,
-    "cloud_llm_chat": _cloud_llm_chat_executor,
-    "huggingface_llm_chat": _huggingface_llm_chat_executor,
-    "ollama_structured_response": _ollama_structured_response_executor,
-    "cloud_structured_response": _cloud_structured_response_executor,
-    "huggingface_structured_response": _huggingface_structured_response_executor,
+    "model_provider": _model_provider_executor,
+    "llm_chat": _llm_chat_executor,
+    "llm_structured": _llm_structured_executor,
     "embedding_model": _embedding_executor,
     "tokenize": _tokenize_executor,
     "text_split": _text_split_executor,

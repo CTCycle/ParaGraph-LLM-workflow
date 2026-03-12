@@ -146,11 +146,24 @@ function parseValue(parameter: NodeParameterDefinition, rawValue: string | boole
 }
 
 function isStructuredNode(manifest: NodeManifest): boolean {
-    return manifest.id.includes('STRUCTURED_RESPONSE')
+    return manifest.id === 'LLM_STRUCTURED' || manifest.id.includes('STRUCTURED')
+}
+
+const LEGACY_MANIFEST_ID_MAP: Record<string, string> = {
+    OLLAMA_LLM_CHAT: 'LLM_CHAT',
+    CLOUD_LLM_CHAT: 'LLM_CHAT',
+    HUGGINGFACE_LLM_CHAT: 'LLM_CHAT',
+    OLLAMA_STRUCTURED_RESPONSE: 'LLM_STRUCTURED',
+    CLOUD_STRUCTURED_RESPONSE: 'LLM_STRUCTURED',
+    HUGGINGFACE_STRUCTURED_RESPONSE: 'LLM_STRUCTURED',
 }
 
 function manifestKey(manifest: NodeManifest): string {
     return `${manifest.id}:${manifest.version}`
+}
+
+function resolveManifestId(manifestId: string): string {
+    return LEGACY_MANIFEST_ID_MAP[manifestId] ?? manifestId
 }
 
 function createDefaultExpandedCategoriesState(): CategoryExpansionState {
@@ -338,14 +351,8 @@ function getDynamicModelOptions(
     parameters: Record<string, unknown>,
     providerModels: ProviderModelDefinition[],
 ): ProviderModelDefinition[] {
-    if (manifest.id.startsWith('OLLAMA_')) {
-        return providerModels.filter((item) => item.provider === 'ollama')
-    }
-    if (manifest.id.startsWith('HUGGINGFACE_')) {
-        return providerModels.filter((item) => item.provider === 'huggingface')
-    }
-    if (manifest.id.startsWith('CLOUD_')) {
-        const provider = normalizeProvider(parameters.provider ?? 'openai') || 'openai'
+    if (manifest.id === 'MODEL_PROVIDER') {
+        const provider = normalizeProvider(parameters.provider ?? 'ollama') || 'ollama'
         return providerModels.filter((item) => item.provider === provider)
     }
     return []
@@ -432,6 +439,7 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
                     <p className="workflow-node-subtitle">{buildNodeSummary(data.manifest)}</p>
                 </div>
                 <div className="workflow-node-header-actions">
+                    {data.isActive && <span className="workflow-node-badge workflow-node-badge-running">Running</span>}
                     {structured && <span className="workflow-node-badge">Structured</span>}
                     <button
                         type="button"
@@ -629,7 +637,7 @@ function WorkflowEditor() {
         setNodes((current) =>
             current.map((node) => {
                 const modelParameter = node.data.manifest.parameters.find((item) => item.name === 'model_name')
-                if (!modelParameter) {
+                if (!modelParameter || node.data.manifest.id !== 'MODEL_PROVIDER') {
                     return node
                 }
                 const options = getDynamicModelOptions(node.data.manifest, node.data.parameters, providerModels)
@@ -699,7 +707,7 @@ function WorkflowEditor() {
 
         const catalogByKey = new Map(catalog.map((manifest) => [manifestKey(manifest), manifest]))
         const restoredNodes = persisted.nodes.flatMap((snapshot) => {
-            const manifest = catalogByKey.get(`${snapshot.manifest_id}:${snapshot.manifest_version}`)
+            const manifest = catalogByKey.get(`${resolveManifestId(snapshot.manifest_id)}:${snapshot.manifest_version}`)
             if (!manifest) {
                 return []
             }
@@ -851,7 +859,7 @@ function WorkflowEditor() {
         const defaultWidth = Math.min(Math.max(input.manifest.ui.default_width, NODE_MIN_WIDTH), NODE_MAX_WIDTH)
         const initialParameters = { ...defaultParameters(input.manifest), ...(input.parameters || {}) }
         const initialModels = getDynamicModelOptions(input.manifest, initialParameters, providerModels)
-        if (initialModels.length > 0 && !String(initialParameters.model_name ?? '').trim()) {
+        if (input.manifest.id === 'MODEL_PROVIDER' && initialModels.length > 0 && !String(initialParameters.model_name ?? '').trim()) {
             initialParameters.model_name = initialModels[0].model
         }
 

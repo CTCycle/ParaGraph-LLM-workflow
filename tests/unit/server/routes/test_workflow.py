@@ -4,6 +4,7 @@ from collections.abc import Callable
 
 from fastapi.testclient import TestClient
 
+from ParaGraph.server.entities.nodecatalog import ProviderModelDefinition
 from ParaGraph.server.services.workflow import nodes as node_module
 
 
@@ -21,21 +22,28 @@ def build_simple_definition(prompt_text: str) -> dict[str, object]:
     }
 
 
-def build_chat_definition() -> dict[str, object]:
+def build_provider_chat_definition() -> dict[str, object]:
     return {
         'schema_version': 2,
         'nodes': [
             {'node_id': 'system_1', 'node_type': 'SYSTEM_PROMPT', 'node_version': 1, 'parameters': {'prompt_text': 'Follow the rules'}},
             {'node_id': 'user_1', 'node_type': 'USER_PROMPT', 'node_version': 1, 'parameters': {'prompt_text': 'Say hello'}},
             {
-                'node_id': 'chat_1',
-                'node_type': 'OLLAMA_LLM_CHAT',
+                'node_id': 'provider_1',
+                'node_type': 'MODEL_PROVIDER',
                 'node_version': 1,
-                'parameters': {'model_name': 'llama3.2', 'context_window': 0, 'max_tokens': 64, 'use_reasoning': False},
+                'parameters': {'provider': 'ollama', 'model_name': 'llama3.2'},
+            },
+            {
+                'node_id': 'chat_1',
+                'node_type': 'LLM_CHAT',
+                'node_version': 1,
+                'parameters': {'context_window': 0, 'max_tokens': 64, 'use_reasoning': False},
             },
             {'node_id': 'output_1', 'node_type': 'TEXT_OUTPUT', 'node_version': 1, 'parameters': {}},
         ],
         'connections': [
+            {'from_node': 'provider_1', 'from_output': 'model', 'to_node': 'chat_1', 'to_input': 'model'},
             {'from_node': 'user_1', 'from_output': 'text', 'to_node': 'chat_1', 'to_input': 'user_prompt'},
             {'from_node': 'system_1', 'from_output': 'text', 'to_node': 'chat_1', 'to_input': 'system_prompt'},
             {'from_node': 'chat_1', 'from_output': 'response', 'to_node': 'output_1', 'to_input': 'text'},
@@ -44,17 +52,22 @@ def build_chat_definition() -> dict[str, object]:
     }
 
 
-def build_structured_definition(schema: object) -> dict[str, object]:
+def build_provider_structured_definition(schema: object) -> dict[str, object]:
     return {
         'schema_version': 2,
         'nodes': [
             {'node_id': 'user_1', 'node_type': 'USER_PROMPT', 'node_version': 1, 'parameters': {'prompt_text': 'Return a person record'}},
             {
+                'node_id': 'provider_1',
+                'node_type': 'MODEL_PROVIDER',
+                'node_version': 1,
+                'parameters': {'provider': 'ollama', 'model_name': 'llama3.2'},
+            },
+            {
                 'node_id': 'structured_1',
-                'node_type': 'OLLAMA_STRUCTURED_RESPONSE',
+                'node_type': 'LLM_STRUCTURED',
                 'node_version': 1,
                 'parameters': {
-                    'model_name': 'llama3.2',
                     'context_window': 0,
                     'max_tokens': 64,
                     'use_reasoning': False,
@@ -63,7 +76,27 @@ def build_structured_definition(schema: object) -> dict[str, object]:
             },
         ],
         'connections': [
+            {'from_node': 'provider_1', 'from_output': 'model', 'to_node': 'structured_1', 'to_input': 'model'},
             {'from_node': 'user_1', 'from_output': 'text', 'to_node': 'structured_1', 'to_input': 'user_prompt'},
+        ],
+        'metadata': {},
+    }
+
+
+def build_legacy_chat_definition() -> dict[str, object]:
+    return {
+        'schema_version': 2,
+        'nodes': [
+            {'node_id': 'user_1', 'node_type': 'USER_PROMPT', 'node_version': 1, 'parameters': {'prompt_text': 'Say hello'}},
+            {
+                'node_id': 'chat_1',
+                'node_type': 'OLLAMA_LLM_CHAT',
+                'node_version': 1,
+                'parameters': {'model_name': 'llama3.2', 'context_window': 0, 'max_tokens': 64, 'use_reasoning': False},
+            },
+        ],
+        'connections': [
+            {'from_node': 'user_1', 'from_output': 'text', 'to_node': 'chat_1', 'to_input': 'user_prompt'},
         ],
         'metadata': {},
     }
@@ -107,13 +140,34 @@ def test_compile_rejects_cycles(client: TestClient) -> None:
 def test_compile_rejects_invalid_structured_schema(client: TestClient) -> None:
     response = client.post(
         '/executions/compile',
-        json={'definition': build_structured_definition({'type': 'object', 'pattern': 'x'})},
+        json={'definition': build_provider_structured_definition({'type': 'object', 'pattern': 'x'})},
     )
 
     assert response.status_code == 200
     payload = response.json()
     assert payload['valid'] is False
     assert any(item['code'] == 'invalid_response_schema' for item in payload['diagnostics'])
+
+
+def test_compile_migrates_legacy_llm_nodes(client: TestClient) -> None:
+    response = client.post('/executions/compile', json={'definition': build_legacy_chat_definition()})
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload['valid'] is True
+    assert payload['plan']['steps'][1]['node_type'] == 'LLM_CHAT'
+    assert payload['plan']['steps'][1]['parameters']['provider'] == 'ollama'
+
+
+def build_stub_model_definition(provider: str, model: str) -> ProviderModelDefinition:
+    return ProviderModelDefinition(
+        provider=provider,
+        model=model,
+        label=model,
+        supports_image=False,
+        supports_reasoning=True,
+        supports_structured_output=True,
+    )
 
 
 def test_execute_returns_run_and_persists_output_payload(
@@ -129,8 +183,13 @@ def test_execute_returns_run_and_persists_output_payload(
 
     monkeypatch.setattr(node_module.provider_service, 'chat', fake_chat)
     monkeypatch.setattr(node_module.provider_service, 'validate_model_request', lambda **kwargs: None)
+    monkeypatch.setattr(
+        node_module.provider_service,
+        'build_model_definition',
+        lambda provider, model, session_name='default': build_stub_model_definition(provider, model),
+    )
 
-    compile_response = client.post('/executions/compile', json={'definition': build_chat_definition()})
+    compile_response = client.post('/executions/compile', json={'definition': build_provider_chat_definition()})
     plan = compile_response.json()['plan']
 
     start_response = client.post('/executions', json={'workflow_id': None, 'plan': plan})
@@ -160,11 +219,16 @@ def test_execute_structured_node_rejects_invalid_output(
 ) -> None:
     monkeypatch.setattr(node_module.provider_service, 'chat', lambda **kwargs: '{"name": 12}')
     monkeypatch.setattr(node_module.provider_service, 'validate_model_request', lambda **kwargs: None)
+    monkeypatch.setattr(
+        node_module.provider_service,
+        'build_model_definition',
+        lambda provider, model, session_name='default': build_stub_model_definition(provider, model),
+    )
 
     compile_response = client.post(
         '/executions/compile',
         json={
-            'definition': build_structured_definition(
+            'definition': build_provider_structured_definition(
                 {'type': 'object', 'properties': {'name': {'type': 'string'}}, 'required': ['name']},
             )
         },
@@ -179,5 +243,4 @@ def test_execute_structured_node_rejects_invalid_output(
 
     assert final_status['status'] == 'failed'
     assert 'must be a string' in str(final_status['error'])
-    assert run_payload['steps'][1]['status'] == 'failed'
-
+    assert run_payload['steps'][2]['status'] == 'failed'

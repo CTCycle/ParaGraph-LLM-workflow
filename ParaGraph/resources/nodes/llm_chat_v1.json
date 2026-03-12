@@ -1,0 +1,76 @@
+{
+  "id": "LLM_CHAT",
+  "version": 1,
+  "name": "LLM Chat",
+  "category": "model",
+  "description": "Run a chat completion with a typed model handle selected by a provider node and return plain text.",
+  "inputs": [
+    {
+      "name": "model",
+      "data_type": "MODEL_HANDLE",
+      "required": false
+    },
+    {
+      "name": "user_prompt",
+      "data_type": "TEXT",
+      "required": false
+    },
+    {
+      "name": "system_prompt",
+      "data_type": "TEXT",
+      "required": false
+    },
+    {
+      "name": "image",
+      "data_type": "IMAGE",
+      "required": false
+    }
+  ],
+  "outputs": [
+    {
+      "name": "response",
+      "data_type": "TEXT",
+      "required": true
+    }
+  ],
+  "parameters": [
+    {
+      "name": "context_window",
+      "data_type": "JSON",
+      "default": 0,
+      "constraints": {
+        "min": 0
+      },
+      "ui_control": "number",
+      "description": "Context window size. Use 0 for provider-managed context."
+    },
+    {
+      "name": "max_tokens",
+      "data_type": "JSON",
+      "default": 512,
+      "constraints": {
+        "min": 1
+      },
+      "ui_control": "number",
+      "description": "Maximum output token count."
+    },
+    {
+      "name": "use_reasoning",
+      "data_type": "BOOLEAN",
+      "default": false,
+      "ui_control": "toggle",
+      "description": "Enable reasoning-oriented execution when the selected model supports it."
+    }
+  ],
+  "ui": {
+    "default_width": 360,
+    "accent_color": "#5f9bff",
+    "collapsed_by_default": false
+  },
+  "runtime": {
+    "executor_key": "llm_chat",
+    "cacheable": false,
+    "deterministic": false,
+    "side_effecting": false
+  }
+}
