@@ -180,7 +180,6 @@ export default function ConfigurationsPage() {
     return (
         <section className="config-page">
             <header className="config-page-header">
-                <p className="config-page-eyebrow">Configuration</p>
                 <h1>Provider and runtime settings</h1>
                 <p className="config-page-lede">Store access keys and local inference defaults for your current workspace.</p>
             </header>
@@ -301,3 +300,5 @@ export default function ConfigurationsPage() {
         </section>
     )
 }
+
+

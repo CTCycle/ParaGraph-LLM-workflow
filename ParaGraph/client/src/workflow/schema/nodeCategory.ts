@@ -2,6 +2,15 @@ import { NodeCategory } from './types'
 
 export type NodeCategoryFilter = 'all' | NodeCategory
 
+export const NODE_CATEGORY_ORDER: NodeCategory[] = [
+    'input',
+    'model',
+    'processing',
+    'output',
+    'serialization',
+    'control',
+]
+
 export const NODE_CATEGORY_LABELS: Record<NodeCategory, string> = {
     input: 'Input',
     model: 'Model',
@@ -24,3 +33,4 @@ export function toNodeCategoryFilter(value: string): NodeCategoryFilter {
     }
     return 'all'
 }
+
