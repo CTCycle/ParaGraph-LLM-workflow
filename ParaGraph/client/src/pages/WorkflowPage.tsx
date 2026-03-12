@@ -31,6 +31,8 @@ import {
 } from '@xyflow/react'
 
 import {
+    browseNodeDirectory,
+    browseNodeFiles,
     compileWorkflow,
     fetchProviderModels,
     pollExecution,
@@ -59,6 +61,7 @@ type WorkflowNodeData = {
     runtimeOutput: Record<string, unknown> | null
     providerModels: ProviderModelDefinition[]
     onParameterChange: (parameterName: string, value: unknown) => void
+    onStatusChange: (message: string) => void
     onToggleCollapse: () => void
 }
 
@@ -343,6 +346,42 @@ function formatParameterValue(parameter: NodeParameterDefinition, value: unknown
     return String(value ?? '')
 }
 
+function normalizeStringList(value: unknown): string[] {
+    if (Array.isArray(value)) {
+        return value
+            .filter((item): item is string => typeof item === 'string')
+            .map((item) => item.trim())
+            .filter(Boolean)
+    }
+    if (typeof value === 'string') {
+        const trimmed = value.trim()
+        if (!trimmed) {
+            return []
+        }
+        try {
+            const parsed: unknown = JSON.parse(trimmed)
+            if (Array.isArray(parsed)) {
+                return normalizeStringList(parsed)
+            }
+        } catch {
+            // Fall back to newline-delimited parsing.
+        }
+        return trimmed
+            .split(/\r?\n/)
+            .map((item) => item.trim())
+            .filter(Boolean)
+    }
+    return []
+}
+
+function formatPathListValue(value: unknown): string {
+    return normalizeStringList(value).join('\n')
+}
+
+function isMultilineControl(parameter: NodeParameterDefinition): boolean {
+    return parameter.ui_control === 'textarea' || parameter.ui_control === 'json' || parameter.ui_control === 'file-list'
+}
+
 function preventNodeInteractionDrag(event: ReactPointerEvent<HTMLElement> | ReactMouseEvent<HTMLElement>): void {
     event.stopPropagation()
 }
@@ -413,6 +452,45 @@ function renderRuntimeOutput(runtimeOutput: Record<string, unknown> | null): str
 function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
     const nodeStyle: NodeAccentStyle = { '--node-accent': data.manifest.ui.accent_color }
     const structured = isStructuredNode(data.manifest)
+    const [browseTarget, setBrowseTarget] = useState<string | null>(null)
+
+    async function handlePathBrowse(parameter: NodeParameterDefinition): Promise<void> {
+        setBrowseTarget(parameter.name)
+        try {
+            if (parameter.ui_control === 'directory') {
+                const selection = await browseNodeDirectory()
+                if (selection.path) {
+                    data.onParameterChange(parameter.name, selection.path)
+                    data.onStatusChange(`Selected ${selection.path}`)
+                } else {
+                    data.onStatusChange('Directory selection cancelled')
+                }
+                return
+            }
+
+            const selection = await browseNodeFiles(parameter.ui_control === 'file-list')
+            if (selection.paths.length === 0) {
+                data.onStatusChange('File selection cancelled')
+                return
+            }
+
+            if (parameter.ui_control === 'file-list') {
+                data.onParameterChange(parameter.name, selection.paths)
+                data.onStatusChange(`Selected ${selection.paths.length} file${selection.paths.length === 1 ? '' : 's'}`)
+                return
+            }
+
+            const [firstPath] = selection.paths
+            data.onParameterChange(parameter.name, firstPath ?? '')
+            if (firstPath) {
+                data.onStatusChange(`Selected ${firstPath}`)
+            }
+        } catch (error) {
+            data.onStatusChange(error instanceof Error ? error.message : 'Unable to browse for a path')
+        } finally {
+            setBrowseTarget(null)
+        }
+    }
 
     return (
         <div
@@ -435,7 +513,6 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
             <div className="workflow-node-header">
                 <div className="workflow-node-title-block">
                     <strong>{data.manifest.name}</strong>
-                    <span>{data.manifest.id}</span>
                     <p className="workflow-node-subtitle">{buildNodeSummary(data.manifest)}</p>
                 </div>
                 <div className="workflow-node-header-actions">
@@ -478,16 +555,42 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
                         {data.manifest.parameters.map((parameter) => {
                             const value = data.parameters[parameter.name] ?? parameter.default ?? ''
                             const options = getParameterOptions(parameter, data.manifest, data.parameters, data.providerModels)
+                            const multiline = isMultilineControl(parameter)
+                            const isBrowsing = browseTarget === parameter.name
+                            const selectedPaths = parameter.ui_control === 'file-list' ? normalizeStringList(value) : []
                             return (
                                 <label
                                     key={parameter.name}
                                     className={
-                                        parameter.ui_control === 'textarea' || parameter.ui_control === 'json'
+                                        multiline
                                             ? 'workflow-node-parameter-field workflow-node-parameter-field-multiline'
                                             : 'workflow-node-parameter-field'
                                     }
                                 >
-                                    <span className="workflow-node-parameter-label">{parameter.name}</span>
+                                    <div className="workflow-node-parameter-header">
+                                        <span className="workflow-node-parameter-label">{parameter.name}</span>
+                                        {parameter.ui_control === 'file-list' && (
+                                            <div className="workflow-node-parameter-actions">
+                                                <button
+                                                    type="button"
+                                                    className="workflow-node-picker-button"
+                                                    disabled={isBrowsing}
+                                                    onClick={() => void handlePathBrowse(parameter)}
+                                                >
+                                                    {isBrowsing ? '...' : 'Browse'}
+                                                </button>
+                                                {selectedPaths.length > 0 && (
+                                                    <button
+                                                        type="button"
+                                                        className="workflow-node-picker-clear"
+                                                        onClick={() => data.onParameterChange(parameter.name, [])}
+                                                    >
+                                                        Clear
+                                                    </button>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
                                     <div className="workflow-node-parameter-value">
                                         {parameter.ui_control === 'textarea' ? (
                                             <textarea
@@ -507,6 +610,15 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
                                                 onMouseDown={preventNodeInteractionDrag}
                                                 onChange={(event) => data.onParameterChange(parameter.name, parseValue(parameter, event.target.value))}
                                             />
+                                        ) : parameter.ui_control === 'file-list' ? (
+                                            <textarea
+                                                rows={4}
+                                                className="workflow-node-path-list-input nodrag nopan"
+                                                value={formatPathListValue(value)}
+                                                onPointerDown={preventNodeInteractionDrag}
+                                                onMouseDown={preventNodeInteractionDrag}
+                                                onChange={(event) => data.onParameterChange(parameter.name, normalizeStringList(event.target.value))}
+                                            />
                                         ) : parameter.ui_control === 'toggle' ? (
                                             <input
                                                 className="workflow-node-toggle-input"
@@ -516,7 +628,10 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
                                             />
                                         ) : parameter.ui_control === 'select' && options.length > 0 ? (
                                             <select
+                                                className="nodrag nopan"
                                                 value={String(value ?? '')}
+                                                onPointerDown={preventNodeInteractionDrag}
+                                                onMouseDown={preventNodeInteractionDrag}
                                                 onChange={(event) => data.onParameterChange(parameter.name, parseValue(parameter, event.target.value))}
                                             >
                                                 {!String(value ?? '') && <option value="">Select...</option>}
@@ -526,10 +641,40 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
                                                     </option>
                                                 ))}
                                             </select>
+                                        ) : parameter.ui_control === 'file' || parameter.ui_control === 'directory' ? (
+                                            <div className="workflow-node-inline-input">
+                                                <input
+                                                    className="nodrag nopan"
+                                                    type="text"
+                                                    value={formatParameterValue(parameter, value)}
+                                                    onPointerDown={preventNodeInteractionDrag}
+                                                    onMouseDown={preventNodeInteractionDrag}
+                                                    onChange={(event) => data.onParameterChange(parameter.name, event.target.value)}
+                                                />
+                                                <div className="workflow-node-parameter-actions">
+                                                    <button
+                                                        type="button"
+                                                        className="workflow-node-picker-button"
+                                                        disabled={isBrowsing}
+                                                        onClick={() => void handlePathBrowse(parameter)}
+                                                    >
+                                                        {isBrowsing ? '...' : 'Browse'}
+                                                    </button>
+                                                    {String(value ?? '').trim() && (
+                                                        <button
+                                                            type="button"
+                                                            className="workflow-node-picker-clear"
+                                                            onClick={() => data.onParameterChange(parameter.name, '')}
+                                                        >
+                                                            Clear
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
                                         ) : (
                                             <input
                                                 className="nodrag nopan"
-                                                type={parameter.ui_control === 'number' ? 'number' : 'text'}
+                                                type={parameter.ui_control === 'number' ? 'number' : parameter.ui_control === 'password' ? 'password' : 'text'}
                                                 value={formatParameterValue(parameter, value)}
                                                 onPointerDown={preventNodeInteractionDrag}
                                                 onMouseDown={preventNodeInteractionDrag}
@@ -901,6 +1046,9 @@ function WorkflowEditor() {
                             },
                         }
                     })
+                },
+                onStatusChange: (message) => {
+                    setStatusText(message)
                 },
                 onToggleCollapse: () => {
                     updateNode(nodeId, (current) => ({

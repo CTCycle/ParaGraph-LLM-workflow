@@ -13,6 +13,7 @@ NodeDataType = Literal[
     "AUDIO",
     "DOCUMENT",
     "DOCUMENT_LIST",
+    "DATABASE_CONNECTION",
     "CHUNK",
     "CHUNK_LIST",
     "EMBEDDING",
@@ -100,4 +101,3 @@ class ProviderModelDefinition(BaseModel):
 
 class ProviderModelCatalogResponse(BaseModel):
     models: list[ProviderModelDefinition] = Field(default_factory=list)
-

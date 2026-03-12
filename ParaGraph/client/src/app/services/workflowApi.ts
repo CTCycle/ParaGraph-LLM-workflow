@@ -25,6 +25,23 @@ export function importNodeManifest(manifest: NodeManifest): Promise<NodeManifest
     })
 }
 
+export interface PickedPathsResponse {
+    paths: string[]
+}
+
+export interface PickedDirectoryResponse {
+    path: string | null
+}
+
+export function browseNodeFiles(multiple = false): Promise<PickedPathsResponse> {
+    const params = new URLSearchParams({ multiple: String(multiple) })
+    return requestJson<PickedPathsResponse>(`/nodes/dialog/files?${params.toString()}`)
+}
+
+export function browseNodeDirectory(): Promise<PickedDirectoryResponse> {
+    return requestJson<PickedDirectoryResponse>('/nodes/dialog/directory')
+}
+
 export function fetchProviderModels(sessionName = 'default'): Promise<ProviderModelCatalogResponse> {
     const params = new URLSearchParams({ session_name: sessionName })
     return requestJson<ProviderModelCatalogResponse>(`/providers/models?${params.toString()}`)

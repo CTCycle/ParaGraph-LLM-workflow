@@ -5,6 +5,7 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 
 from ParaGraph.server.entities.nodecatalog import ProviderModelCatalogResponse, ProviderModelDefinition
+from ParaGraph.server.routes import nodes as node_routes
 from ParaGraph.server.services.workflow import nodes as node_module
 from ParaGraph.server.services.workflow import provider_service
 
@@ -30,7 +31,17 @@ def test_nodes_catalog_exposes_registry(client: TestClient) -> None:
     payload = response.json()
 
     ids = {node['id'] for node in payload['nodes']}
-    assert {'USER_PROMPT', 'SYSTEM_PROMPT', 'MODEL_PROVIDER', 'LLM_CHAT', 'LLM_STRUCTURED', 'TEXT_OUTPUT'}.issubset(ids)
+    assert {
+        'USER_PROMPT',
+        'SYSTEM_PROMPT',
+        'MODEL_PROVIDER',
+        'LLM_CHAT',
+        'LLM_STRUCTURED',
+        'TEXT_OUTPUT',
+        'DOCUMENT_LOADER',
+        'DATABASE_CONNECTION',
+        'DATABASE_QUERY',
+    }.issubset(ids)
     assert 'PROMPT' not in ids
     assert 'LLM_GENERATE' not in ids
 
@@ -63,6 +74,24 @@ def test_nodes_import_persists_manifest(client: TestClient, monkeypatch, tmp_pat
     assert response.status_code == 201
     assert response.json()['id'] == 'CUSTOM_ECHO'
     assert (node_dir / 'custom_echo_v1.json').exists()
+
+
+def test_nodes_dialog_files_returns_selected_paths(client: TestClient, monkeypatch) -> None:
+    monkeypatch.setattr(node_routes, 'pick_files', lambda multiple: ['C:/tmp/a.txt', 'C:/tmp/b.txt'] if multiple else ['C:/tmp/a.txt'])
+
+    response = client.get('/nodes/dialog/files?multiple=true')
+
+    assert response.status_code == 200
+    assert response.json() == {'paths': ['C:/tmp/a.txt', 'C:/tmp/b.txt']}
+
+
+def test_nodes_dialog_directory_returns_selected_path(client: TestClient, monkeypatch) -> None:
+    monkeypatch.setattr(node_routes, 'pick_directory', lambda: 'C:/tmp/data')
+
+    response = client.get('/nodes/dialog/directory')
+
+    assert response.status_code == 200
+    assert response.json() == {'path': 'C:/tmp/data'}
 
 
 def test_provider_models_endpoint_returns_catalog(client: TestClient, monkeypatch) -> None:

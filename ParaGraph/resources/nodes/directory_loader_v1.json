@@ -14,8 +14,8 @@
       "data_type": "TEXT",
       "default": "",
       "constraints": {"required": true},
-      "ui_control": "text",
-      "description": "Absolute or workspace-relative path to the source directory."
+      "ui_control": "directory",
+      "description": "Absolute or workspace-relative path to the source directory. The selected path is persisted in the workflow."
     },
     {
       "name": "recursive",
@@ -32,6 +32,6 @@
       "description": "JSON array of file extensions to include."
     }
   ],
-  "ui": {"default_width": 340, "accent_color": "#0f766e"},
+  "ui": {"default_width": 352, "accent_color": "#0f766e"},
   "runtime": {"executor_key": "directory_loader", "cacheable": true, "deterministic": true, "side_effecting": false}
 }
