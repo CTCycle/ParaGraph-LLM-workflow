@@ -4,6 +4,7 @@ import './MainLayout.css'
 const NAV_ITEMS = [
     { to: '/', label: 'Workflow' },
     { to: '/nodes', label: 'Nodes' },
+    { to: '/models', label: 'Models' },
     { to: '/config', label: 'Configurations' },
 ]
 

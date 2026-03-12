@@ -40,6 +40,7 @@ import {
 import { useNodeCatalog } from '../workflow/hooks/useNodeCatalog'
 import { NODE_CATEGORY_LABELS, NODE_CATEGORY_ORDER } from '../workflow/schema/nodeCategory'
 import {
+    CompiledExecutionPlan,
     ExecutionRunState,
     NodeCategory,
     NodeManifest,
@@ -54,6 +55,7 @@ type WorkflowNodeData = {
     manifest: NodeManifest
     parameters: Record<string, unknown>
     collapsed: boolean
+    isActive: boolean
     runtimeOutput: Record<string, unknown> | null
     providerModels: ProviderModelDefinition[]
     onParameterChange: (parameterName: string, value: unknown) => void
@@ -77,11 +79,44 @@ type CategoryExpansionState = Record<NodeCategory, boolean>
 
 type NodeAccentStyle = CSSProperties & { '--node-accent': string }
 
+type PersistedWorkflowNode = {
+    id: string
+    manifest_id: string
+    manifest_version: number
+    position: XYPosition
+    width?: number
+    height?: number
+    parameters: Record<string, unknown>
+    collapsed: boolean
+}
+
+type PersistedWorkflowEdge = {
+    id: string
+    source: string
+    target: string
+    source_handle: string | null
+    target_handle: string | null
+}
+
+type PersistedWorkflowState = {
+    nodes: PersistedWorkflowNode[]
+    edges: PersistedWorkflowEdge[]
+    runtime_outputs: Record<string, Record<string, unknown>>
+    is_library_visible: boolean
+    is_grid_visible: boolean
+    search: string
+    selected_manifest_key: string | null
+}
+
 const NODE_MIN_WIDTH = 240
 const NODE_MAX_WIDTH = 680
 const NODE_MIN_HEIGHT = 140
 const NODE_MAX_HEIGHT = 760
 const NODE_LIBRARY_MIME = 'application/x-paragraph-node'
+const WORKFLOW_TREE_STATE_STORAGE_KEY = 'paragraph.workflow.tree.expansion.v1'
+const WORKFLOW_STATE_STORAGE_KEY = 'paragraph.workflow.state.v1'
+const WORKFLOW_EDGE_MARKER = { type: MarkerType.ArrowClosed as const, width: 18, height: 18 }
+const WORKFLOW_EDGE_STYLE = { stroke: '#5ba7ff', strokeWidth: 2.2 }
 
 function defaultParameters(manifest: NodeManifest): Record<string, unknown> {
     return Object.fromEntries(manifest.parameters.map((parameter) => [parameter.name, parameter.default ?? '']))
@@ -118,11 +153,149 @@ function manifestKey(manifest: NodeManifest): string {
     return `${manifest.id}:${manifest.version}`
 }
 
-function createExpandedCategoriesState(): CategoryExpansionState {
-    return NODE_CATEGORY_ORDER.reduce<CategoryExpansionState>((state, category) => {
-        state[category] = true
-        return state
+function createDefaultExpandedCategoriesState(): CategoryExpansionState {
+    const state = NODE_CATEGORY_ORDER.reduce<CategoryExpansionState>((accumulator, category) => {
+        accumulator[category] = true
+        return accumulator
     }, {} as CategoryExpansionState)
+
+    const firstCategory = NODE_CATEGORY_ORDER[0]
+    if (firstCategory) {
+        state[firstCategory] = false
+    }
+    return state
+}
+
+function createExpandedCategoriesState(): CategoryExpansionState {
+    const fallback = createDefaultExpandedCategoriesState()
+    if (typeof window === 'undefined') {
+        return fallback
+    }
+
+    try {
+        const raw = window.localStorage.getItem(WORKFLOW_TREE_STATE_STORAGE_KEY)
+        if (!raw) {
+            return fallback
+        }
+        const parsed: unknown = JSON.parse(raw)
+        if (typeof parsed !== 'object' || parsed === null) {
+            return fallback
+        }
+        const candidate = parsed as Record<string, unknown>
+        return NODE_CATEGORY_ORDER.reduce<CategoryExpansionState>((accumulator, category) => {
+            const stored = candidate[category]
+            accumulator[category] = typeof stored === 'boolean' ? stored : fallback[category]
+            return accumulator
+        }, {} as CategoryExpansionState)
+    } catch {
+        return fallback
+    }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null
+}
+
+function isFiniteNumber(value: unknown): value is number {
+    return typeof value === 'number' && Number.isFinite(value)
+}
+
+function readPersistedWorkflowState(): PersistedWorkflowState | null {
+    if (typeof window === 'undefined') {
+        return null
+    }
+
+    try {
+        const raw = window.localStorage.getItem(WORKFLOW_STATE_STORAGE_KEY)
+        if (!raw) {
+            return null
+        }
+        const parsed: unknown = JSON.parse(raw)
+        if (!isRecord(parsed)) {
+            return null
+        }
+
+        const nodes = Array.isArray(parsed.nodes)
+            ? parsed.nodes
+                .filter((value): value is Record<string, unknown> => isRecord(value))
+                .map<PersistedWorkflowNode | null>((value) => {
+                    const position = value.position
+                    if (
+                        typeof value.id !== 'string' ||
+                        typeof value.manifest_id !== 'string' ||
+                        !isFiniteNumber(value.manifest_version) ||
+                        !isRecord(position) ||
+                        !isFiniteNumber(position.x) ||
+                        !isFiniteNumber(position.y)
+                    ) {
+                        return null
+                    }
+                    return {
+                        id: value.id,
+                        manifest_id: value.manifest_id,
+                        manifest_version: value.manifest_version,
+                        position: { x: position.x, y: position.y },
+                        width: isFiniteNumber(value.width) ? value.width : undefined,
+                        height: isFiniteNumber(value.height) ? value.height : undefined,
+                        parameters: isRecord(value.parameters) ? value.parameters : {},
+                        collapsed: Boolean(value.collapsed),
+                    }
+                })
+                .filter((value): value is PersistedWorkflowNode => value !== null)
+            : []
+
+        const edges = Array.isArray(parsed.edges)
+            ? parsed.edges
+                .filter((value): value is Record<string, unknown> => isRecord(value))
+                .map<PersistedWorkflowEdge | null>((value) => {
+                    if (typeof value.source !== 'string' || typeof value.target !== 'string') {
+                        return null
+                    }
+                    const sourceHandle = value.source_handle
+                    const targetHandle = value.target_handle
+                    return {
+                        id:
+                            typeof value.id === 'string' && value.id.trim()
+                                ? value.id
+                                : `${value.source}-${String(sourceHandle ?? '')}-${value.target}-${String(targetHandle ?? '')}`,
+                        source: value.source,
+                        target: value.target,
+                        source_handle: typeof sourceHandle === 'string' ? sourceHandle : null,
+                        target_handle: typeof targetHandle === 'string' ? targetHandle : null,
+                    }
+                })
+                .filter((value): value is PersistedWorkflowEdge => value !== null)
+            : []
+
+        const runtimeOutputs = isRecord(parsed.runtime_outputs)
+            ? Object.fromEntries(
+                Object.entries(parsed.runtime_outputs).filter(
+                    (entry): entry is [string, Record<string, unknown>] => isRecord(entry[1]),
+                ),
+            )
+            : {}
+
+        return {
+            nodes,
+            edges,
+            runtime_outputs: runtimeOutputs,
+            is_library_visible:
+                typeof parsed.is_library_visible === 'boolean' ? parsed.is_library_visible : true,
+            is_grid_visible: typeof parsed.is_grid_visible === 'boolean' ? parsed.is_grid_visible : true,
+            search: typeof parsed.search === 'string' ? parsed.search : '',
+            selected_manifest_key:
+                typeof parsed.selected_manifest_key === 'string' ? parsed.selected_manifest_key : null,
+        }
+    } catch {
+        return null
+    }
+}
+
+function persistWorkflowState(state: PersistedWorkflowState): void {
+    if (typeof window === 'undefined') {
+        return
+    }
+    window.localStorage.setItem(WORKFLOW_STATE_STORAGE_KEY, JSON.stringify(state))
 }
 
 function buildNodeSummary(manifest: NodeManifest): string {
@@ -239,6 +412,7 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
             className="workflow-node"
             style={nodeStyle}
             data-selected={selected || undefined}
+            data-active={data.isActive || undefined}
             data-collapsed={data.collapsed || undefined}
             data-structured={structured || undefined}
         >
@@ -395,11 +569,14 @@ function WorkflowEditor() {
     const [selectedManifestKey, setSelectedManifestKey] = useState<string | null>(null)
     const [expandedCategories, setExpandedCategories] = useState<CategoryExpansionState>(() => createExpandedCategoriesState())
     const [runtimeOutputs, setRuntimeOutputs] = useState<Record<string, Record<string, unknown>>>({})
+    const [activeNodeId, setActiveNodeId] = useState<string | null>(null)
     const [nodeContextMenu, setNodeContextMenu] = useState<NodeContextMenuState | null>(null)
     const [nodes, setNodes, onNodesChange] = useNodesState<Node<WorkflowNodeData>>([])
     const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([])
     const [isGridVisible, setIsGridVisible] = useState(true)
     const stopEventsRef = useRef<(() => void) | null>(null)
+    const activePlanRef = useRef<CompiledExecutionPlan | null>(null)
+    const hasHydratedWorkflowRef = useRef(false)
     const draggedManifestKeyRef = useRef<string | null>(null)
     const canvasPanelRef = useRef<HTMLDivElement | null>(null)
     const { fitView, getZoom, screenToFlowPosition, zoomIn, zoomTo } = useReactFlow<Node<WorkflowNodeData>, Edge>()
@@ -436,12 +613,13 @@ function WorkflowEditor() {
                 ...node,
                 data: {
                     ...node.data,
+                    isActive: node.id === activeNodeId,
                     runtimeOutput: runtimeOutputs[node.id] ?? null,
                     providerModels,
                 },
             })),
         )
-    }, [providerModels, runtimeOutputs, setNodes])
+    }, [activeNodeId, providerModels, runtimeOutputs, setNodes])
 
     useEffect(() => {
         if (providerModels.length === 0) {
@@ -500,6 +678,117 @@ function WorkflowEditor() {
         }
     }, [nodeContextMenu])
 
+    useEffect(() => {
+        try {
+            window.localStorage.setItem(WORKFLOW_TREE_STATE_STORAGE_KEY, JSON.stringify(expandedCategories))
+        } catch {
+            // Ignore local storage persistence errors.
+        }
+    }, [expandedCategories])
+
+    useEffect(() => {
+        if (hasHydratedWorkflowRef.current || catalog.length === 0) {
+            return
+        }
+
+        hasHydratedWorkflowRef.current = true
+        const persisted = readPersistedWorkflowState()
+        if (!persisted) {
+            return
+        }
+
+        const catalogByKey = new Map(catalog.map((manifest) => [manifestKey(manifest), manifest]))
+        const restoredNodes = persisted.nodes.flatMap((snapshot) => {
+            const manifest = catalogByKey.get(`${snapshot.manifest_id}:${snapshot.manifest_version}`)
+            if (!manifest) {
+                return []
+            }
+            return [
+                createWorkflowNode({
+                    manifest,
+                    nodeId: snapshot.id,
+                    position: snapshot.position,
+                    parameters: snapshot.parameters,
+                    collapsed: snapshot.collapsed,
+                    width: snapshot.width,
+                    height: snapshot.height,
+                    runtimeOutput: persisted.runtime_outputs[snapshot.id] ?? null,
+                }),
+            ]
+        })
+        const restoredNodeIds = new Set(restoredNodes.map((node) => node.id))
+        const restoredEdges: Edge[] = persisted.edges
+            .filter((edge) => restoredNodeIds.has(edge.source) && restoredNodeIds.has(edge.target))
+            .map((edge) => ({
+                id: edge.id,
+                source: edge.source,
+                target: edge.target,
+                sourceHandle: edge.source_handle,
+                targetHandle: edge.target_handle,
+                markerEnd: WORKFLOW_EDGE_MARKER,
+                style: WORKFLOW_EDGE_STYLE,
+            }))
+
+        setNodes(restoredNodes)
+        setEdges(restoredEdges)
+        setRuntimeOutputs(persisted.runtime_outputs)
+        setIsLibraryVisible(persisted.is_library_visible)
+        setIsGridVisible(persisted.is_grid_visible)
+        setSearch(persisted.search)
+        setSelectedManifestKey(persisted.selected_manifest_key)
+        if (restoredNodes.length > 0 || restoredEdges.length > 0) {
+            setStatusText('Restored workflow state')
+        }
+    }, [catalog, providerModels, setEdges, setNodes])
+
+    useEffect(() => {
+        if (!hasHydratedWorkflowRef.current) {
+            return
+        }
+
+        const persistedNodes: PersistedWorkflowNode[] = nodes.map((node) => {
+            const widthFromStyle = node.style?.width
+            const heightFromStyle = node.style?.height
+            return {
+                id: node.id,
+                manifest_id: node.data.manifest.id,
+                manifest_version: node.data.manifest.version,
+                position: node.position,
+                width:
+                    typeof node.width === 'number'
+                        ? node.width
+                        : typeof widthFromStyle === 'number'
+                            ? widthFromStyle
+                            : undefined,
+                height:
+                    typeof node.height === 'number'
+                        ? node.height
+                        : typeof heightFromStyle === 'number'
+                            ? heightFromStyle
+                            : undefined,
+                parameters: node.data.parameters,
+                collapsed: node.data.collapsed,
+            }
+        })
+        const persistedEdges: PersistedWorkflowEdge[] = edges.map((edge) => ({
+            id: edge.id,
+            source: edge.source,
+            target: edge.target,
+            source_handle: edge.sourceHandle || null,
+            target_handle: edge.targetHandle || null,
+        }))
+
+        persistWorkflowState({
+            nodes: persistedNodes,
+            edges: persistedEdges,
+            runtime_outputs: runtimeOutputs,
+            is_library_visible: isLibraryVisible,
+            is_grid_visible: isGridVisible,
+            search,
+            selected_manifest_key: selectedManifestKey,
+        })
+    }, [edges, isGridVisible, isLibraryVisible, nodes, runtimeOutputs, search, selectedManifestKey])
+
     const filteredCatalog = useMemo(() => {
         const normalized = search.trim().toLowerCase()
         return catalog.filter((manifest) => !normalized || manifest.name.toLowerCase().includes(normalized))
@@ -545,28 +834,46 @@ function WorkflowEditor() {
         void zoomTo(nextZoom, { duration: 110 })
     }
 
-    function addManifestNode(manifest: NodeManifest, position?: XYPosition): void {
-        const nodeId = `${manifest.id.toLowerCase()}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`
-        const resolvedPosition = position ?? { x: 80 + nodes.length * 28, y: 80 + nodes.length * 22 }
-        const collapsed = manifest.ui.collapsed_by_default
-        const defaultWidth = Math.min(Math.max(manifest.ui.default_width, NODE_MIN_WIDTH), NODE_MAX_WIDTH)
-        const initialParameters = defaultParameters(manifest)
-        const initialModels = getDynamicModelOptions(manifest, initialParameters, providerModels)
+    function createWorkflowNode(input: {
+        manifest: NodeManifest
+        nodeId?: string
+        position?: XYPosition
+        parameters?: Record<string, unknown>
+        collapsed?: boolean
+        width?: number
+        height?: number
+        runtimeOutput?: Record<string, unknown> | null
+    }): Node<WorkflowNodeData> {
+        const nodeId =
+            input.nodeId ||
+            `${input.manifest.id.toLowerCase()}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`
+        const resolvedPosition = input.position ?? { x: 80 + nodes.length * 28, y: 80 + nodes.length * 22 }
+        const defaultWidth = Math.min(Math.max(input.manifest.ui.default_width, NODE_MIN_WIDTH), NODE_MAX_WIDTH)
+        const initialParameters = { ...defaultParameters(input.manifest), ...(input.parameters || {}) }
+        const initialModels = getDynamicModelOptions(input.manifest, initialParameters, providerModels)
         if (initialModels.length > 0 && !String(initialParameters.model_name ?? '').trim()) {
             initialParameters.model_name = initialModels[0].model
         }
 
-        const node: Node<WorkflowNodeData> = {
+        const style: CSSProperties = {
+            width: input.width ?? defaultWidth,
+        }
+        if (typeof input.height === 'number') {
+            style.height = input.height
+        }
+
+        return {
             id: nodeId,
             type: 'manifest',
             position: resolvedPosition,
             draggable: true,
             data: {
-                manifest,
+                manifest: input.manifest,
                 parameters: initialParameters,
                 providerModels,
-                collapsed,
-                runtimeOutput: null,
+                collapsed: input.collapsed ?? input.manifest.ui.collapsed_by_default,
+                isActive: nodeId === activeNodeId,
+                runtimeOutput: input.runtimeOutput ?? runtimeOutputs[nodeId] ?? null,
                 onParameterChange: (parameterName, value) => {
                     updateNode(nodeId, (current) => {
                         const nextParameters = { ...current.data.parameters, [parameterName]: value }
@@ -595,8 +902,12 @@ function WorkflowEditor() {
                     }))
                 },
             },
-            style: { width: defaultWidth },
+            style,
         }
+    }
+
+    function addManifestNode(manifest: NodeManifest, position?: XYPosition): void {
+        const node = createWorkflowNode({ manifest, position })
         setNodes((current) => [...current, node])
     }
 
@@ -696,6 +1007,7 @@ function WorkflowEditor() {
         }
         setIsRunning(true)
         setRuntimeOutputs({})
+        setActiveNodeId(null)
         setStatusText('Compiling workflow...')
 
         try {
@@ -704,12 +1016,19 @@ function WorkflowEditor() {
                 throw new Error(compileResponse.diagnostics.map((item) => item.message).join('; ') || 'Compilation failed')
             }
 
+            activePlanRef.current = compileResponse.plan
             const execution = await startExecution(compileResponse.plan)
             setStatusText('Running workflow...')
             stopEventsRef.current?.()
             stopEventsRef.current = subscribeExecutionEvents(execution.run_id, {
                 onEvent(event) {
                     if (event.event_type === 'execution.step.started') {
+                        const fromPayload = typeof event.payload.node_id === 'string' ? event.payload.node_id : null
+                        const fromPlan =
+                            event.step_id
+                                ? activePlanRef.current?.steps.find((step) => step.step_id === event.step_id)?.node_id ?? null
+                                : null
+                        setActiveNodeId(fromPayload || fromPlan)
                         setStatusText(`Running ${event.step_id || 'step'}...`)
                     }
                 },
@@ -719,10 +1038,12 @@ function WorkflowEditor() {
             })
 
             const finalState = await pollExecution(execution.run_id, execution.poll_interval, (run) => {
+                setActiveNodeId(run.steps.find((step) => step.status === 'running')?.node_id ?? null)
                 setStatusText(`Run ${run.status} (${Math.round(run.progress)}%)`)
             })
 
             setRuntimeOutputs(buildRuntimeOutputs(finalState))
+            setActiveNodeId(null)
             if (finalState.status === 'completed') {
                 setStatusText('Workflow completed')
             } else if (finalState.status === 'failed') {
@@ -731,9 +1052,11 @@ function WorkflowEditor() {
                 setStatusText(`Workflow ${finalState.status}`)
             }
         } catch (runError) {
+            setActiveNodeId(null)
             setStatusText(runError instanceof Error ? runError.message : 'Execution failed')
         } finally {
             setIsRunning(false)
+            activePlanRef.current = null
         }
     }
 
@@ -758,6 +1081,7 @@ function WorkflowEditor() {
                             setNodes([])
                             setEdges([])
                             setRuntimeOutputs({})
+                            setActiveNodeId(null)
                             setNodeContextMenu(null)
                         }}
                     >
@@ -902,8 +1226,8 @@ function WorkflowEditor() {
                                     {
                                         ...connection,
                                         id: `${connection.source}-${connection.sourceHandle}-${connection.target}-${connection.targetHandle}`,
-                                        markerEnd: { type: MarkerType.ArrowClosed, width: 18, height: 18 },
-                                        style: { stroke: '#5ba7ff', strokeWidth: 2.2 },
+                                        markerEnd: WORKFLOW_EDGE_MARKER,
+                                        style: WORKFLOW_EDGE_STYLE,
                                     },
                                     current,
                                 ),

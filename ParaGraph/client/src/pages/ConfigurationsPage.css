@@ -1,5 +1,5 @@
 .config-page {
-    min-height: calc(100vh - 48px);
+    min-height: calc(100vh - 56px);
     padding: 26px;
     background:
         radial-gradient(circle at 100% 0%, rgba(74, 163, 255, 0.15), transparent 30%),
@@ -8,7 +8,7 @@
 }
 
 .config-page-header {
-    margin-bottom: 18px;
+    margin-bottom: 16px;
 }
 
 .config-page-header h1 {
@@ -22,19 +22,6 @@
     color: #b9cce3;
 }
 
-.config-page-banner,
-.config-panel {
-    border: 1px solid rgba(73, 95, 128, 0.72);
-    border-radius: 16px;
-    background: rgba(10, 17, 31, 0.88);
-}
-
-.config-page-banner {
-    margin-bottom: 14px;
-    padding: 10px 14px;
-    color: #d7ecff;
-}
-
 .config-page-layout {
     display: grid;
     grid-template-columns: minmax(420px, 0.95fr) minmax(0, 1.05fr);
@@ -43,9 +30,9 @@
 }
 
 .config-page-left-column {
-    display: flex;
-    flex-direction: column;
+    display: grid;
     gap: 14px;
+    grid-template-rows: repeat(2, minmax(0, auto));
 }
 
 .config-page-right-column {
@@ -53,6 +40,8 @@
 }
 
 .config-panel {
+    border: 1px solid rgba(73, 95, 128, 0.72);
+    background: rgba(10, 17, 31, 0.88);
     padding: 14px;
 }
 
@@ -86,7 +75,6 @@
     min-width: 62px;
     padding: 0 10px;
     border: 1px solid rgba(72, 96, 126, 0.82);
-    border-radius: 8px;
     background: rgba(6, 13, 24, 0.95);
     color: #e7f1ff;
     cursor: pointer;
@@ -113,7 +101,8 @@
     gap: 6px;
 }
 
-.config-panel-fields span {
+.config-panel-fields span,
+.config-modal-input span {
     font-size: 0.77rem;
     text-transform: uppercase;
     letter-spacing: 0.05em;
@@ -121,14 +110,20 @@
 }
 
 .config-panel-fields input,
-.config-panel-fields select {
+.config-panel-fields select,
+.config-modal-input input {
     width: 100%;
     min-width: 0;
     padding: 9px 10px;
-    border-radius: 10px;
     border: 1px solid rgba(72, 96, 126, 0.82);
     background: rgba(4, 10, 20, 0.96);
     color: #eef6ff;
+}
+
+.config-panel-note {
+    margin: 12px 0 0;
+    color: #b5cae6;
+    font-size: 0.84rem;
 }
 
 .config-panel-empty {
@@ -152,6 +147,90 @@
 .config-panel-empty p {
     margin: 8px 0 0;
     max-width: 40ch;
+}
+
+.config-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(2, 8, 17, 0.68);
+    display: grid;
+    place-items: center;
+    z-index: 40;
+}
+
+.config-modal {
+    width: min(520px, calc(100vw - 28px));
+    border: 1px solid rgba(73, 95, 128, 0.92);
+    background: #081426;
+    padding: 14px;
+    display: grid;
+    gap: 12px;
+}
+
+.config-modal h3 {
+    margin: 0;
+    font-size: 1rem;
+}
+
+.config-modal p {
+    margin: 0;
+    color: #9ab1ce;
+}
+
+.config-modal-list {
+    border: 1px solid rgba(73, 95, 128, 0.72);
+    background: rgba(4, 10, 20, 0.6);
+    max-height: 280px;
+    overflow: auto;
+}
+
+.config-modal-empty {
+    margin: 0;
+    padding: 12px;
+}
+
+.config-modal-option {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: center;
+    padding: 10px 12px;
+    border-top: 1px solid rgba(73, 95, 128, 0.4);
+    cursor: pointer;
+}
+
+.config-modal-option:first-child {
+    border-top: 0;
+}
+
+.config-modal-option small {
+    color: #8ea8c8;
+    font-size: 0.74rem;
+}
+
+.config-modal-input {
+    display: grid;
+    gap: 6px;
+}
+
+.config-modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.config-modal-actions button {
+    height: 30px;
+    min-width: 72px;
+    border: 1px solid rgba(72, 96, 126, 0.82);
+    background: rgba(6, 13, 24, 0.95);
+    color: #e7f1ff;
+    cursor: pointer;
+}
+
+.config-modal-actions button:last-child {
+    background: rgba(48, 134, 255, 0.9);
+    border-color: rgba(48, 134, 255, 0.9);
 }
 
 @media (max-width: 1160px) {
@@ -178,7 +257,4 @@
         justify-content: flex-end;
     }
 }
-
-
-
 

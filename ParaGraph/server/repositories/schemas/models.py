@@ -39,6 +39,12 @@ class UserSession(Base):
         cascade="all, delete-orphan",
         passive_deletes=True,
     )
+    configuration_profiles = relationship(
+        "ConfigurationProfile",
+        back_populates="session",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
 
 
 ###############################################################################
@@ -61,6 +67,25 @@ class NodeConfiguration(Base):
         Index("ix_nodes_session_type", "session_id", "node_type"),
     )
 
+
+
+###############################################################################
+class ConfigurationProfile(Base):
+    __tablename__ = "configuration_profiles"
+
+    configuration_profile_id = Column(Integer, primary_key=True, autoincrement=True)
+    session_id = Column(Integer, ForeignKey("user_sessions.session_id", ondelete="CASCADE"), nullable=False, index=True)
+    profile_name = Column(String(120), nullable=False)
+    configuration_json = Column(JSONSequence, nullable=False)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utcnow)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow)
+
+    session = relationship("UserSession", back_populates="configuration_profiles")
+
+    __table_args__ = (
+        UniqueConstraint("session_id", "profile_name", name="uq_configuration_profiles_session_name"),
+        Index("ix_configuration_profiles_session_name", "session_id", "profile_name"),
+    )
 
 ###############################################################################
 class AccessKey(Base):

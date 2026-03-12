@@ -244,3 +244,21 @@ export interface AppConfigurationPayload {
     access_keys: AccessKeyConfiguration[]
     ollama: OllamaConfiguration
 }
+
+export interface ConfigurationProfileSummary {
+    profile_name: string
+    created_at: string
+    updated_at: string
+}
+
+export interface ConfigurationProfileListResponse {
+    session_name: string
+    profiles: ConfigurationProfileSummary[]
+}
+
+export interface OllamaStatusResponse {
+    ok: boolean
+    message: string
+    base_url: string
+    model_count: number
+}

@@ -1,15 +1,19 @@
 import { useEffect, useMemo, useState } from 'react'
 
-import StatusBanner from '../components/StatusBanner'
-import { fetchConfigurations, saveConfigurations } from '../app/services/workflowApi'
-import { AccessKeyConfiguration, AppConfigurationPayload } from '../workflow/schema/types'
+import {
+    fetchConfigurations,
+    listConfigurationProfiles,
+    loadConfigurationProfile,
+    pingOllama,
+    saveConfigurationProfile,
+} from '../app/services/workflowApi'
+import { AccessKeyConfiguration, AppConfigurationPayload, ConfigurationProfileSummary } from '../workflow/schema/types'
 import './ConfigurationsPage.css'
 
 type CloudProvider = 'openai' | 'gemini' | 'claude'
 
 type ProviderCredential = {
     apiKey: string
-    baseUrl: string
 }
 
 const DEFAULT_SESSION_NAME = 'default'
@@ -20,9 +24,9 @@ const CLOUD_PROVIDER_OPTIONS: Array<{ value: CloudProvider; label: string }> = [
 ]
 
 const EMPTY_CLOUD_CREDENTIALS: Record<CloudProvider, ProviderCredential> = {
-    openai: { apiKey: '', baseUrl: '' },
-    gemini: { apiKey: '', baseUrl: '' },
-    claude: { apiKey: '', baseUrl: '' },
+    openai: { apiKey: '' },
+    gemini: { apiKey: '' },
+    claude: { apiKey: '' },
 }
 
 function normalizeText(value: string | null | undefined): string {
@@ -63,14 +67,11 @@ function mapPayloadToForm(payload: AppConfigurationPayload): {
         }
 
         const provider = toCloudProvider(item.provider)
-        if (provider === 'openai' || provider === 'gemini' || provider === 'claude') {
-            cloudCredentials[provider] = {
-                apiKey: normalizeText(item.api_key),
-                baseUrl: normalizeText(item.base_url),
-            }
-            if (!selectedCloudProvider || normalizeText(item.api_key)) {
-                selectedCloudProvider = provider
-            }
+        cloudCredentials[provider] = {
+            apiKey: normalizeText(item.api_key),
+        }
+        if (normalizeText(item.api_key)) {
+            selectedCloudProvider = provider
         }
     })
 
@@ -93,8 +94,18 @@ export default function ConfigurationsPage() {
     const [ollamaChatModel, setOllamaChatModel] = useState('llama3.2')
     const [ollamaEmbeddingModel, setOllamaEmbeddingModel] = useState('nomic-embed-text')
     const [statusMessage, setStatusMessage] = useState<string | null>(null)
+    const [ollamaStatus, setOllamaStatus] = useState<string | null>(null)
     const [isLoading, setIsLoading] = useState(true)
-    const [isSaving, setIsSaving] = useState(false)
+    const [isSavingProfile, setIsSavingProfile] = useState(false)
+    const [isPingingOllama, setIsPingingOllama] = useState(false)
+
+    const [isLoadModalOpen, setIsLoadModalOpen] = useState(false)
+    const [isSaveModalOpen, setIsSaveModalOpen] = useState(false)
+    const [profiles, setProfiles] = useState<ConfigurationProfileSummary[]>([])
+    const [isLoadingProfiles, setIsLoadingProfiles] = useState(false)
+    const [isLoadingProfile, setIsLoadingProfile] = useState(false)
+    const [selectedProfileName, setSelectedProfileName] = useState('')
+    const [saveProfileName, setSaveProfileName] = useState('')
 
     const currentCloudCredentials = useMemo(
         () => cloudCredentials[selectedCloudProvider],
@@ -111,28 +122,28 @@ export default function ConfigurationsPage() {
         setSelectedCloudProvider(mapped.selectedCloudProvider)
     }
 
-    async function loadConfigurations(): Promise<void> {
+    async function loadCurrentConfiguration(): Promise<void> {
         setIsLoading(true)
         try {
             const payload = await fetchConfigurations(DEFAULT_SESSION_NAME)
             applyPayload(payload)
-            setStatusMessage('Configurations loaded')
+            setStatusMessage('Configuration loaded')
         } catch (error) {
-            setStatusMessage(error instanceof Error ? error.message : 'Unable to load configurations')
+            setStatusMessage(error instanceof Error ? error.message : 'Unable to load configuration')
         } finally {
             setIsLoading(false)
         }
     }
 
     useEffect(() => {
-        void loadConfigurations()
+        void loadCurrentConfiguration()
     }, [])
 
     function buildPayload(): AppConfigurationPayload {
         const accessKeys: AccessKeyConfiguration[] = CLOUD_PROVIDER_OPTIONS.map((option) => ({
             provider: option.value,
             api_key: normalizeText(cloudCredentials[option.value].apiKey) || null,
-            base_url: normalizeText(cloudCredentials[option.value].baseUrl) || null,
+            base_url: null,
             metadata: {},
         }))
 
@@ -154,16 +165,72 @@ export default function ConfigurationsPage() {
         }
     }
 
-    async function handleSave(): Promise<void> {
-        setIsSaving(true)
+    async function openLoadModal(): Promise<void> {
+        setIsLoadModalOpen(true)
+        setIsLoadingProfiles(true)
+        setStatusMessage(null)
         try {
-            const saved = await saveConfigurations(buildPayload())
-            applyPayload(saved)
-            setStatusMessage('Configurations saved')
+            const response = await listConfigurationProfiles(DEFAULT_SESSION_NAME)
+            setProfiles(response.profiles)
+            setSelectedProfileName(response.profiles[0]?.profile_name ?? '')
         } catch (error) {
-            setStatusMessage(error instanceof Error ? error.message : 'Unable to save configurations')
+            setStatusMessage(error instanceof Error ? error.message : 'Unable to list saved configurations')
         } finally {
-            setIsSaving(false)
+            setIsLoadingProfiles(false)
+        }
+    }
+
+    async function handleLoadSelectedProfile(): Promise<void> {
+        if (!selectedProfileName) {
+            return
+        }
+
+        setIsLoadingProfile(true)
+        setStatusMessage(null)
+        try {
+            const payload = await loadConfigurationProfile(selectedProfileName, DEFAULT_SESSION_NAME)
+            applyPayload(payload)
+            setStatusMessage(`Loaded configuration '${selectedProfileName}'`)
+            setIsLoadModalOpen(false)
+        } catch (error) {
+            setStatusMessage(error instanceof Error ? error.message : 'Unable to load selected configuration')
+        } finally {
+            setIsLoadingProfile(false)
+        }
+    }
+
+    async function handleSaveProfile(): Promise<void> {
+        const profileName = normalizeText(saveProfileName)
+        if (!profileName) {
+            setStatusMessage('Enter a configuration name')
+            return
+        }
+
+        setIsSavingProfile(true)
+        setStatusMessage(null)
+        try {
+            const payload = await saveConfigurationProfile(profileName, buildPayload())
+            applyPayload(payload)
+            setStatusMessage(`Saved configuration '${profileName}'`)
+            setIsSaveModalOpen(false)
+            setSaveProfileName('')
+        } catch (error) {
+            setStatusMessage(error instanceof Error ? error.message : 'Unable to save configuration')
+        } finally {
+            setIsSavingProfile(false)
+        }
+    }
+
+    async function handlePingOllama(): Promise<void> {
+        setIsPingingOllama(true)
+        setOllamaStatus(null)
+        try {
+            const response = await pingOllama(normalizeText(ollamaBaseUrl) || null)
+            setOllamaStatus(response.message)
+        } catch (error) {
+            setOllamaStatus(error instanceof Error ? error.message : 'Unable to check Ollama status')
+        } finally {
+            setIsPingingOllama(false)
         }
     }
 
@@ -184,22 +251,55 @@ export default function ConfigurationsPage() {
                 <p className="config-page-lede">Store access keys and local inference defaults for your current workspace.</p>
             </header>
 
-            <StatusBanner className="config-page-banner" message={statusMessage} />
-
             <div className="config-page-layout">
                 <div className="config-page-left-column">
                     <section className="config-panel">
                         <div className="config-panel-header">
                             <div>
-                                <h2>Access Keys</h2>
-                                <p>Cloud provider + Hugging Face credentials.</p>
+                                <h2>Ollama configuration</h2>
+                                <p>Set the local Ollama base URL used by runtime nodes.</p>
                             </div>
                             <div className="config-panel-actions">
-                                <button type="button" onClick={() => void loadConfigurations()} disabled={isLoading || isSaving}>
+                                <button type="button" onClick={() => void handlePingOllama()} disabled={isPingingOllama || isLoading}>
+                                    {isPingingOllama ? 'Checking...' : 'Check Status'}
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="config-panel-fields">
+                            <label>
+                                <span>Base URL</span>
+                                <input
+                                    type="text"
+                                    value={ollamaBaseUrl}
+                                    onChange={(event) => setOllamaBaseUrl(event.target.value)}
+                                    placeholder="http://127.0.0.1:11434"
+                                />
+                            </label>
+                        </div>
+
+                        {ollamaStatus && <p className="config-panel-note">{ollamaStatus}</p>}
+                    </section>
+
+                    <section className="config-panel">
+                        <div className="config-panel-header">
+                            <div>
+                                <h2>Access Keys</h2>
+                                <p>Cloud provider and Hugging Face credentials.</p>
+                            </div>
+                            <div className="config-panel-actions">
+                                <button type="button" onClick={() => void openLoadModal()} disabled={isLoading || isLoadingProfiles}>
                                     Load
                                 </button>
-                                <button type="button" onClick={() => void handleSave()} disabled={isLoading || isSaving}>
-                                    {isSaving ? 'Saving...' : 'Save'}
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setSaveProfileName('')
+                                        setIsSaveModalOpen(true)
+                                    }}
+                                    disabled={isLoading || isSavingProfile}
+                                >
+                                    Save
                                 </button>
                             </div>
                         </div>
@@ -230,16 +330,6 @@ export default function ConfigurationsPage() {
                             </label>
 
                             <label>
-                                <span>Base URL (optional)</span>
-                                <input
-                                    type="text"
-                                    value={currentCloudCredentials.baseUrl}
-                                    placeholder="https://api.example.com/v1"
-                                    onChange={(event) => updateCurrentCloudCredential('baseUrl', event.target.value)}
-                                />
-                            </label>
-
-                            <label>
                                 <span>Hugging Face API Key</span>
                                 <input
                                     type="password"
@@ -249,44 +339,8 @@ export default function ConfigurationsPage() {
                                 />
                             </label>
                         </div>
-                    </section>
 
-                    <section className="config-panel">
-                        <div className="config-panel-header">
-                            <div>
-                                <h2>Ollama</h2>
-                                <p>Local provider defaults used by model nodes.</p>
-                            </div>
-                        </div>
-
-                        <div className="config-panel-fields">
-                            <label>
-                                <span>Base URL</span>
-                                <input
-                                    type="text"
-                                    value={ollamaBaseUrl}
-                                    onChange={(event) => setOllamaBaseUrl(event.target.value)}
-                                />
-                            </label>
-
-                            <label>
-                                <span>Chat Model</span>
-                                <input
-                                    type="text"
-                                    value={ollamaChatModel}
-                                    onChange={(event) => setOllamaChatModel(event.target.value)}
-                                />
-                            </label>
-
-                            <label>
-                                <span>Embedding Model</span>
-                                <input
-                                    type="text"
-                                    value={ollamaEmbeddingModel}
-                                    onChange={(event) => setOllamaEmbeddingModel(event.target.value)}
-                                />
-                            </label>
-                        </div>
+                        {statusMessage && <p className="config-panel-note">{statusMessage}</p>}
                     </section>
                 </div>
 
@@ -297,8 +351,75 @@ export default function ConfigurationsPage() {
                     </section>
                 </aside>
             </div>
+
+            {isLoadModalOpen && (
+                <div className="config-modal-backdrop" role="presentation">
+                    <div className="config-modal" role="dialog" aria-modal="true" aria-label="Load configuration">
+                        <h3>Load configuration</h3>
+                        <p>Choose one saved configuration profile.</p>
+                        <div className="config-modal-list">
+                            {isLoadingProfiles && <p className="config-modal-empty">Loading...</p>}
+                            {!isLoadingProfiles && profiles.length === 0 && (
+                                <p className="config-modal-empty">No saved configurations found.</p>
+                            )}
+                            {!isLoadingProfiles &&
+                                profiles.map((profile) => (
+                                    <label key={profile.profile_name} className="config-modal-option">
+                                        <input
+                                            type="radio"
+                                            name="configuration-profile"
+                                            value={profile.profile_name}
+                                            checked={selectedProfileName === profile.profile_name}
+                                            onChange={(event) => setSelectedProfileName(event.target.value)}
+                                        />
+                                        <span>{profile.profile_name}</span>
+                                        <small>{new Date(profile.updated_at).toLocaleString()}</small>
+                                    </label>
+                                ))}
+                        </div>
+                        <div className="config-modal-actions">
+                            <button type="button" onClick={() => setIsLoadModalOpen(false)} disabled={isLoadingProfile}>
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => void handleLoadSelectedProfile()}
+                                disabled={!selectedProfileName || isLoadingProfile || isLoadingProfiles}
+                            >
+                                {isLoadingProfile ? 'Loading...' : 'Load'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {isSaveModalOpen && (
+                <div className="config-modal-backdrop" role="presentation">
+                    <div className="config-modal" role="dialog" aria-modal="true" aria-label="Save configuration">
+                        <h3>Save configuration</h3>
+                        <p>Name this configuration profile.</p>
+                        <label className="config-modal-input">
+                            <span>Configuration name</span>
+                            <input
+                                type="text"
+                                value={saveProfileName}
+                                onChange={(event) => setSaveProfileName(event.target.value)}
+                                placeholder="My setup"
+                                maxLength={120}
+                            />
+                        </label>
+                        <div className="config-modal-actions">
+                            <button type="button" onClick={() => setIsSaveModalOpen(false)} disabled={isSavingProfile}>
+                                Cancel
+                            </button>
+                            <button type="button" onClick={() => void handleSaveProfile()} disabled={isSavingProfile}>
+                                {isSavingProfile ? 'Saving...' : 'Save'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </section>
     )
 }
-
 
