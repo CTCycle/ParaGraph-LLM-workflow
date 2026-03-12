@@ -6,6 +6,7 @@ export type NodeDataType =
     | 'AUDIO'
     | 'DOCUMENT'
     | 'DOCUMENT_LIST'
+    | 'DATABASE_CONNECTION'
     | 'CHUNK'
     | 'CHUNK_LIST'
     | 'EMBEDDING'

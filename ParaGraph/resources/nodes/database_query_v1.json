@@ -1,0 +1,34 @@
+{
+  "id": "DATABASE_QUERY",
+  "version": 1,
+  "name": "Database Query",
+  "category": "input",
+  "description": "Run a single read-only SQL query against a connected database and emit rows as documents and raw records.",
+  "inputs": [
+    {"name": "connection", "data_type": "DATABASE_CONNECTION", "required": true}
+  ],
+  "outputs": [
+    {"name": "documents", "data_type": "DOCUMENT_LIST", "required": true},
+    {"name": "records", "data_type": "JSON", "required": true}
+  ],
+  "parameters": [
+    {
+      "name": "query_text",
+      "data_type": "TEXT",
+      "default": "SELECT * FROM table_name",
+      "constraints": {"required": true},
+      "ui_control": "textarea",
+      "description": "Single read-only SQL statement to execute."
+    },
+    {
+      "name": "row_limit",
+      "data_type": "JSON",
+      "default": 250,
+      "constraints": {"min": 1, "max": 5000},
+      "ui_control": "number",
+      "description": "Maximum number of rows to materialize from the result set."
+    }
+  ],
+  "ui": {"default_width": 360, "accent_color": "#a16207"},
+  "runtime": {"executor_key": "database_query", "cacheable": false, "deterministic": false, "side_effecting": false}
+}

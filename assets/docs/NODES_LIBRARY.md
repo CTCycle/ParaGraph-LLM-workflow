@@ -12,6 +12,8 @@ Source of truth: `ParaGraph/resources/nodes/*.json`
 | `BATCH_EMBEDDER` | 1 | Batch Embedder | model | `batch_embedder_v1.json` |
 | `CHUNKER` | 1 | Chunker | processing | `chunker_v1.json` |
 | `CONTEXT_INJECTOR` | 1 | Context Injector | processing | `context_injector_v1.json` |
+| `DATABASE_CONNECTION` | 1 | Database Connection | input | `database_connection_v1.json` |
+| `DATABASE_QUERY` | 1 | Database Query | input | `database_query_v1.json` |
 | `DIRECTORY_LOADER` | 1 | Directory Loader | input | `directory_loader_v1.json` |
 | `DOCUMENT_LOADER` | 1 | Document Loader | input | `document_loader_v1.json` |
 | `EMBEDDING_MODEL` | 1 | Embedding Model | model | `embedding_model_v1.json` |
@@ -399,6 +401,7 @@ Parameters:
 ## Phase 1 RAG Payload Types
 
 - `DOCUMENT_LIST`: normalized documents with `id`, `text`, `source_uri`, `mime_type`, and `metadata`.
+- `DATABASE_CONNECTION`: read-only database connection manifest with engine-specific connection details.
 - `CHUNK_LIST`: document chunks with `document_id`, `chunk_index`, `token_count`, and inherited metadata.
 - `VECTOR_POINT_LIST`: embedded chunks plus vector values and embedding provider/model metadata.
 - `VECTOR_STORE_HANDLE`: persisted vector store metadata for downstream retrieval nodes.
@@ -408,17 +411,11 @@ Parameters:
 
 - Name: Document Loader
 - Category: `input`
-- Description: Load a single supported local document into a normalized `DOCUMENT_LIST` payload.
+- Description: Load one or more supported local documents into a normalized `DOCUMENT_LIST` payload.
 
 Inputs: None.
-
-Outputs:
-
-| Name | Data Type | Required |
-|---|---|---:|
-| `documents` | `DOCUMENT_LIST` | Yes |
-
-Parameters: `file_path`.
+Outputs: `documents: DOCUMENT_LIST`.
+Parameters: `file_paths`.
 
 ## `DIRECTORY_LOADER` (v1)
 
@@ -440,9 +437,29 @@ Parameters: `url`, `timeout_s`, `strip_html_content`.
 
 - Name: API Fetcher
 - Category: `input`
-- Description: Fetch HTTP JSON/text content and emit it as `DOCUMENT_LIST`.
+- Description: Fetch HTTP JSON/text content from one or more endpoints and emit it as `DOCUMENT_LIST`.
 
-Parameters: `url`, `timeout_s`, `response_selector`.
+Parameters: `url`, `request_urls`, `headers`, `timeout_s`, `response_selector`, `max_calls`, `allow_concurrency`.
+
+## `DATABASE_CONNECTION` (v1)
+
+- Name: Database Connection
+- Category: `input`
+- Description: Validate and emit a reusable read-only `DATABASE_CONNECTION` manifest for SQLite or PostgreSQL.
+
+Inputs: None.
+Outputs: `connection: DATABASE_CONNECTION`.
+Parameters: `engine`, `file_path`, `host`, `port`, `database_name`, `username`, `password`, `options`, `connect_timeout_s`.
+
+## `DATABASE_QUERY` (v1)
+
+- Name: Database Query
+- Category: `input`
+- Description: Execute a single read-only SQL statement against a connected database and emit both normalized documents and raw records.
+
+Inputs: `connection: DATABASE_CONNECTION`.
+Outputs: `documents: DOCUMENT_LIST`, `records: JSON`.
+Parameters: `query_text`, `row_limit`.
 
 ## `TEXT_CLEANER` (v1)
 
@@ -505,5 +522,3 @@ Parameters: `max_context_items`, `include_citations`, `separator`.
 
 Inputs: `value: JSON`.
 Outputs: None.
-
-

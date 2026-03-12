@@ -262,6 +262,7 @@
 .workflow-tree-group-count {
     color: #8fbdf8;
     font-size: 0.68rem;
+    cursor: pointer;
 }
 
 .workflow-tree-group-name {
@@ -528,19 +529,17 @@
 
 .workflow-node-title-block {
     display: grid;
-    gap: 3px;
+    gap: 4px;
     min-width: 0;
 }
 
 .workflow-node-header strong {
-    font-size: 0.94rem;
+    font-size: 0.96rem;
     line-height: 1.2;
 }
 
-.workflow-node-header span,
 .workflow-node-footer span,
 .workflow-node-subtitle,
-.workflow-node-parameter-label,
 .workflow-node-runtime-label {
     color: #9bb0ca;
     font-size: 0.7rem;
@@ -634,53 +633,166 @@
     padding: 8px 10px 10px;
 }
 
+.workflow-node-runtime {
+    border: 1px solid rgba(197, 216, 242, 0.15);
+    border-radius: 14px;
+    background: linear-gradient(180deg, rgba(16, 22, 37, 0.88) 0%, rgba(11, 16, 28, 0.92) 100%);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
 .workflow-node-parameters-grid {
     display: flex;
     flex-direction: column;
     gap: 6px;
 }
 
-.workflow-node-parameter-field,
-.workflow-node-runtime {
+.workflow-node-parameter-field {
     display: grid;
-    grid-template-columns: minmax(82px, 36%) minmax(0, 1fr);
-    gap: 8px;
-    align-items: flex-start;
+    grid-template-columns: minmax(96px, 40%) minmax(0, 1fr);
+    gap: 10px;
+    align-items: center;
+    padding: 6px 10px;
+    border: 1px solid rgba(197, 216, 242, 0.15);
+    border-radius: 16px;
+    background: linear-gradient(180deg, rgba(16, 22, 37, 0.88) 0%, rgba(11, 16, 28, 0.92) 100%);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
-.workflow-node-parameter-field-multiline {
+.workflow-node-parameter-field:focus-within,
+.workflow-node-runtime:focus-within {
+    border-color: color-mix(in srgb, var(--node-accent) 58%, rgba(255, 255, 255, 0.18));
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.08),
+        0 0 0 1px color-mix(in srgb, var(--node-accent) 32%, transparent);
+}
+
+.workflow-node-parameter-field-multiline,
+.workflow-node-runtime {
     grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+    padding-top: 8px;
+    padding-bottom: 8px;
+    border-radius: 14px;
+}
+
+.workflow-node-parameter-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    min-width: 0;
+}
+
+.workflow-node-parameter-label {
+    color: #dbe7f7;
+    font-size: 0.76rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.workflow-node-parameter-value {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.workflow-node-inline-input {
+    width: 100%;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.workflow-node-parameter-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.workflow-node-picker-button,
+.workflow-node-picker-clear {
+    height: 24px;
+    padding: 0 8px;
+    border: 1px solid rgba(188, 209, 236, 0.16);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.06);
+    color: #dbe9fb;
+    font-size: 0.68rem;
+    cursor: pointer;
+}
+
+.workflow-node-picker-button:hover,
+.workflow-node-picker-clear:hover {
+    border-color: rgba(188, 209, 236, 0.28);
+    background: rgba(255, 255, 255, 0.11);
+}
+
+.workflow-node-picker-button:disabled {
+    opacity: 0.56;
+    cursor: wait;
 }
 
 .workflow-node-parameter-value > input,
 .workflow-node-parameter-value > textarea,
 .workflow-node-parameter-value > select,
+.workflow-node-inline-input > input,
 .workflow-node input,
 .workflow-node textarea,
 .workflow-node select {
     width: 100%;
     min-width: 0;
-    padding: 5px 7px;
-    border-radius: 7px;
-    font-size: 0.76rem;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    color: #f5f9ff;
+    font-size: 0.8rem;
+    line-height: 1.25;
+    box-shadow: none;
+}
+
+.workflow-node input::placeholder,
+.workflow-node textarea::placeholder {
+    color: #6f829d;
+}
+
+.workflow-node select {
+    appearance: none;
+}
+
+.workflow-node textarea {
+    resize: vertical;
 }
 
 .workflow-node-parameter-textbox {
-    min-height: 84px;
+    min-height: 58px;
+    padding-top: 4px;
 }
 
-.workflow-node-json-input {
-    min-height: 96px;
-    font-family: 'Consolas', 'Courier New', monospace;
+.workflow-node-json-input,
+.workflow-node-path-list-input {
+    min-height: 82px;
+    padding-top: 4px;
+    font-family: 'Cascadia Mono', 'Consolas', 'Courier New', monospace;
 }
 
 .workflow-node-runtime-output {
     min-height: 84px;
+    padding: 8px 10px;
+    border-radius: 12px;
+    border: 1px solid rgba(188, 209, 236, 0.12);
+    background: rgba(10, 15, 27, 0.78);
 }
 
 .workflow-node-toggle-input {
-    width: auto;
-    margin: 0;
+    width: 16px !important;
+    height: 16px;
+    margin: 0 0 0 auto;
     accent-color: var(--node-accent);
 }
 

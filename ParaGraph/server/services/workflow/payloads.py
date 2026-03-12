@@ -23,6 +23,20 @@ class DocumentRecord(BaseModel):
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
+class DatabaseConnectionHandle(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    engine: str
+    database_name: str | None = None
+    host: str | None = None
+    port: int | None = None
+    username: str | None = None
+    password: str | None = None
+    file_path: str | None = None
+    read_only: bool = True
+    options: dict[str, Any] = Field(default_factory=dict)
+
+
 class ChunkRecord(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -109,6 +123,7 @@ DATA_TYPE_ADAPTERS: dict[NodeDataType, TypeAdapter[Any]] = {
     "AUDIO": TypeAdapter(dict[str, Any]),
     "DOCUMENT": TypeAdapter(DocumentRecord),
     "DOCUMENT_LIST": TypeAdapter(list[DocumentRecord]),
+    "DATABASE_CONNECTION": TypeAdapter(DatabaseConnectionHandle),
     "CHUNK": TypeAdapter(ChunkRecord),
     "CHUNK_LIST": TypeAdapter(list[ChunkRecord]),
     "EMBEDDING": TypeAdapter(list[float]),
@@ -136,4 +151,3 @@ def _normalize_validated_value(value: Any) -> Any:
 
 def validate_data_type(data_type: NodeDataType, value: Any) -> Any:
     return _normalize_validated_value(DATA_TYPE_ADAPTERS[data_type].validate_python(value))
-

@@ -36,6 +36,8 @@ The current implementation uses a React Flow editor, JSON node manifests, and a 
 ### 2.1 Node manifests
 - `GET /nodes/catalog` returns live `NodeManifest[]`.
 - `POST /nodes/import` validates and persists a single manifest JSON object.
+- `GET /nodes/dialog/files` opens a native file picker on the local machine and returns selected paths for path-backed node widgets.
+- `GET /nodes/dialog/directory` opens a native folder picker on the local machine and returns the selected directory path.
 - The active model authoring flow uses a `MODEL_PROVIDER` node that emits a typed `MODEL_HANDLE`, consumed by unified `LLM_CHAT` and `LLM_STRUCTURED` nodes.
 - Each manifest declares:
   - metadata (`id`, `version`, `name`, `category`, `description`)
@@ -111,6 +113,8 @@ The current implementation uses a React Flow editor, JSON node manifests, and a 
 ### 4.2 Workflow page
 - React Flow canvas with custom Comfy-style node cards.
 - Node cards support compact inline widgets, italic subtitle text, collapse/expand controls, and drag-resize handles.
+- Path-backed parameters can now open native file/folder pickers and persist selected source paths directly in node parameters.
+- Parameter rows use a denser Comfy-inspired control treatment for higher information density without changing the overall card shell.
 - Node parameters, collapse state, delete action, and runtime output preview live inside the node card.
 - The node library is now a left tree viewer with expandable categories, in-tree search, a selected-node preview, and drag-only node insertion onto the canvas.
 - The first category is compact on first visit, then category expansion state is persisted.
@@ -127,7 +131,8 @@ The current implementation uses a React Flow editor, JSON node manifests, and a 
 ---
 
 ## 5. Phase 1 RAG Runtime
-- New ingestion nodes emit normalized `DOCUMENT_LIST` payloads from local files and HTTP sources.
+- New ingestion nodes emit normalized DOCUMENT_LIST payloads from local files, HTTP sources, and read-only database queries.
+- DATABASE_CONNECTION emits a typed read-only connection manifest consumed by DATABASE_QUERY.
 - `TEXT_CLEANER` and `CHUNKER` convert documents into `CHUNK_LIST` payloads suitable for retrieval.
 - `BATCH_EMBEDDER` turns chunks into `VECTOR_POINT_LIST` payloads using provider-backed embeddings.
 - `VECTOR_DB_WRITER` persists local FAISS indexes under `ParaGraph/resources/artifacts/vectorstores/<index_name>/` with metadata sidecars.
