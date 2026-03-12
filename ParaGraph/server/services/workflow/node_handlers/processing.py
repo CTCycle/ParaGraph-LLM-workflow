@@ -83,15 +83,12 @@ def _chunk_text(text: str, chunk_size: int, chunk_overlap: int, respect_sentence
     chunks: list[str] = []
     current_tokens: list[str] = []
 
-    def flush_current() -> None:
-        if current_tokens:
-            chunks.append(" ".join(current_tokens).strip())
 
     for sentence in sentences:
         sentence_tokens = sentence.split()
         if len(sentence_tokens) > chunk_size:
             if current_tokens:
-                flush_current()
+                _flush_current_chunk(current_tokens, chunks)
                 overlap_tokens = current_tokens[-chunk_overlap:] if chunk_overlap > 0 else []
                 current_tokens = list(overlap_tokens)
             start = 0
@@ -106,14 +103,19 @@ def _chunk_text(text: str, chunk_size: int, chunk_overlap: int, respect_sentence
 
         candidate = [*current_tokens, *sentence_tokens]
         if current_tokens and len(candidate) > chunk_size:
-            flush_current()
+            _flush_current_chunk(current_tokens, chunks)
             overlap_tokens = current_tokens[-chunk_overlap:] if chunk_overlap > 0 else []
             current_tokens = [*overlap_tokens, *sentence_tokens]
         else:
             current_tokens = candidate
 
-    flush_current()
+    _flush_current_chunk(current_tokens, chunks)
     return [chunk for chunk in chunks if chunk]
+
+
+def _flush_current_chunk(current_tokens: list[str], chunks: list[str]) -> None:
+    if current_tokens:
+        chunks.append(" ".join(current_tokens).strip())
 
 
 def _chunker_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:

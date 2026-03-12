@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 
+import { useModalState } from '../app/hooks/useModalState'
 import {
     fetchConfigurations,
     listConfigurationProfiles,
@@ -7,6 +8,7 @@ import {
     pingOllama,
     saveConfigurationProfile,
 } from '../app/services/workflowApi'
+import ModalDialog from '../components/ModalDialog'
 import { AccessKeyConfiguration, AppConfigurationPayload, ConfigurationProfileSummary } from '../workflow/schema/types'
 import './ConfigurationsPage.css'
 
@@ -14,6 +16,15 @@ type CloudProvider = 'openai' | 'gemini' | 'claude'
 
 type ProviderCredential = {
     apiKey: string
+}
+
+type ConfigurationFormValues = {
+    cloudCredentials: Record<CloudProvider, ProviderCredential>
+    huggingFaceKey: string
+    ollamaBaseUrl: string
+    ollamaChatModel: string
+    ollamaEmbeddingModel: string
+    selectedCloudProvider: CloudProvider
 }
 
 const DEFAULT_SESSION_NAME = 'default'
@@ -43,14 +54,7 @@ function toCloudProvider(value: string): CloudProvider {
     return 'openai'
 }
 
-function mapPayloadToForm(payload: AppConfigurationPayload): {
-    cloudCredentials: Record<CloudProvider, ProviderCredential>
-    huggingFaceKey: string
-    ollamaBaseUrl: string
-    ollamaChatModel: string
-    ollamaEmbeddingModel: string
-    selectedCloudProvider: CloudProvider
-} {
+function mapPayloadToForm(payload: AppConfigurationPayload): ConfigurationFormValues {
     const cloudCredentials: Record<CloudProvider, ProviderCredential> = {
         openai: { ...EMPTY_CLOUD_CREDENTIALS.openai },
         gemini: { ...EMPTY_CLOUD_CREDENTIALS.gemini },
@@ -99,8 +103,8 @@ export default function ConfigurationsPage() {
     const [isSavingProfile, setIsSavingProfile] = useState(false)
     const [isPingingOllama, setIsPingingOllama] = useState(false)
 
-    const [isLoadModalOpen, setIsLoadModalOpen] = useState(false)
-    const [isSaveModalOpen, setIsSaveModalOpen] = useState(false)
+    const loadModal = useModalState(false)
+    const saveModal = useModalState(false)
     const [profiles, setProfiles] = useState<ConfigurationProfileSummary[]>([])
     const [isLoadingProfiles, setIsLoadingProfiles] = useState(false)
     const [isLoadingProfile, setIsLoadingProfile] = useState(false)
@@ -166,7 +170,7 @@ export default function ConfigurationsPage() {
     }
 
     async function openLoadModal(): Promise<void> {
-        setIsLoadModalOpen(true)
+        loadModal.open()
         setIsLoadingProfiles(true)
         setStatusMessage(null)
         try {
@@ -191,7 +195,7 @@ export default function ConfigurationsPage() {
             const payload = await loadConfigurationProfile(selectedProfileName, DEFAULT_SESSION_NAME)
             applyPayload(payload)
             setStatusMessage(`Loaded configuration '${selectedProfileName}'`)
-            setIsLoadModalOpen(false)
+            loadModal.close()
         } catch (error) {
             setStatusMessage(error instanceof Error ? error.message : 'Unable to load selected configuration')
         } finally {
@@ -212,7 +216,7 @@ export default function ConfigurationsPage() {
             const payload = await saveConfigurationProfile(profileName, buildPayload())
             applyPayload(payload)
             setStatusMessage(`Saved configuration '${profileName}'`)
-            setIsSaveModalOpen(false)
+            saveModal.close()
             setSaveProfileName('')
         } catch (error) {
             setStatusMessage(error instanceof Error ? error.message : 'Unable to save configuration')
@@ -295,7 +299,7 @@ export default function ConfigurationsPage() {
                                     type="button"
                                     onClick={() => {
                                         setSaveProfileName('')
-                                        setIsSaveModalOpen(true)
+                                        saveModal.open()
                                     }}
                                     disabled={isLoading || isSavingProfile}
                                 >
@@ -352,74 +356,75 @@ export default function ConfigurationsPage() {
                 </aside>
             </div>
 
-            {isLoadModalOpen && (
-                <div className="config-modal-backdrop" role="presentation">
-                    <div className="config-modal" role="dialog" aria-modal="true" aria-label="Load configuration">
-                        <h3>Load configuration</h3>
-                        <p>Choose one saved configuration profile.</p>
-                        <div className="config-modal-list">
-                            {isLoadingProfiles && <p className="config-modal-empty">Loading...</p>}
-                            {!isLoadingProfiles && profiles.length === 0 && (
-                                <p className="config-modal-empty">No saved configurations found.</p>
-                            )}
-                            {!isLoadingProfiles &&
-                                profiles.map((profile) => (
-                                    <label key={profile.profile_name} className="config-modal-option">
-                                        <input
-                                            type="radio"
-                                            name="configuration-profile"
-                                            value={profile.profile_name}
-                                            checked={selectedProfileName === profile.profile_name}
-                                            onChange={(event) => setSelectedProfileName(event.target.value)}
-                                        />
-                                        <span>{profile.profile_name}</span>
-                                        <small>{new Date(profile.updated_at).toLocaleString()}</small>
-                                    </label>
-                                ))}
-                        </div>
-                        <div className="config-modal-actions">
-                            <button type="button" onClick={() => setIsLoadModalOpen(false)} disabled={isLoadingProfile}>
-                                Cancel
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => void handleLoadSelectedProfile()}
-                                disabled={!selectedProfileName || isLoadingProfile || isLoadingProfiles}
-                            >
-                                {isLoadingProfile ? 'Loading...' : 'Load'}
-                            </button>
-                        </div>
-                    </div>
+            <ModalDialog
+                isOpen={loadModal.isOpen}
+                ariaLabel="Load configuration"
+                title="Load configuration"
+                description="Choose one saved configuration profile."
+                actions={(
+                    <>
+                        <button type="button" onClick={loadModal.close} disabled={isLoadingProfile}>
+                            Cancel
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => void handleLoadSelectedProfile()}
+                            disabled={!selectedProfileName || isLoadingProfile || isLoadingProfiles}
+                        >
+                            {isLoadingProfile ? 'Loading...' : 'Load'}
+                        </button>
+                    </>
+                )}
+            >
+                <div className="config-modal-list">
+                    {isLoadingProfiles && <p className="config-modal-empty">Loading...</p>}
+                    {!isLoadingProfiles && profiles.length === 0 && (
+                        <p className="config-modal-empty">No saved configurations found.</p>
+                    )}
+                    {!isLoadingProfiles &&
+                        profiles.map((profile) => (
+                            <label key={profile.profile_name} className="config-modal-option">
+                                <input
+                                    type="radio"
+                                    name="configuration-profile"
+                                    value={profile.profile_name}
+                                    checked={selectedProfileName === profile.profile_name}
+                                    onChange={(event) => setSelectedProfileName(event.target.value)}
+                                />
+                                <span>{profile.profile_name}</span>
+                                <small>{new Date(profile.updated_at).toLocaleString()}</small>
+                            </label>
+                        ))}
                 </div>
-            )}
+            </ModalDialog>
 
-            {isSaveModalOpen && (
-                <div className="config-modal-backdrop" role="presentation">
-                    <div className="config-modal" role="dialog" aria-modal="true" aria-label="Save configuration">
-                        <h3>Save configuration</h3>
-                        <p>Name this configuration profile.</p>
-                        <label className="config-modal-input">
-                            <span>Configuration name</span>
-                            <input
-                                type="text"
-                                value={saveProfileName}
-                                onChange={(event) => setSaveProfileName(event.target.value)}
-                                placeholder="My setup"
-                                maxLength={120}
-                            />
-                        </label>
-                        <div className="config-modal-actions">
-                            <button type="button" onClick={() => setIsSaveModalOpen(false)} disabled={isSavingProfile}>
-                                Cancel
-                            </button>
-                            <button type="button" onClick={() => void handleSaveProfile()} disabled={isSavingProfile}>
-                                {isSavingProfile ? 'Saving...' : 'Save'}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            <ModalDialog
+                isOpen={saveModal.isOpen}
+                ariaLabel="Save configuration"
+                title="Save configuration"
+                description="Name this configuration profile."
+                actions={(
+                    <>
+                        <button type="button" onClick={saveModal.close} disabled={isSavingProfile}>
+                            Cancel
+                        </button>
+                        <button type="button" onClick={() => void handleSaveProfile()} disabled={isSavingProfile}>
+                            {isSavingProfile ? 'Saving...' : 'Save'}
+                        </button>
+                    </>
+                )}
+            >
+                <label className="config-modal-input">
+                    <span>Configuration name</span>
+                    <input
+                        type="text"
+                        value={saveProfileName}
+                        onChange={(event) => setSaveProfileName(event.target.value)}
+                        placeholder="My setup"
+                        maxLength={120}
+                    />
+                </label>
+            </ModalDialog>
         </section>
     )
 }
-
