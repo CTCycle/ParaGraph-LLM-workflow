@@ -2,7 +2,7 @@
 ParaGraph/resources/models/**
 ParaGraph/resources/checkpoints/**
 ParaGraph/resources/database/**
-ParaGraph/resources/runtimes/**
+runtimes/**
 ParaGraph/resources/logs/**
 ParaGraph/resources/workflows/**
 ParaGraph/client/node_modules/

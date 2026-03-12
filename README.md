@@ -64,6 +64,13 @@ Supported local delivery modes:
 - local web app started by `ParaGraph\start_on_windows.bat`
 - packaged desktop app distributed separately as a Tauri build
 
+Runtime layout used by launcher/packaging:
+- `runtimes/python/python.exe`
+- `runtimes/uv/uv.exe`
+- `runtimes/nodejs/node.exe`
+- `runtimes/.venv`
+- `runtimes/uv.lock`
+
 ### 4.2 macOS / Linux (manual)
 
 Prerequisites:
@@ -90,7 +97,7 @@ tests\run_tests.bat
 Or:
 
 ```cmd
-.\.venv\Scripts\python.exe -m pytest tests/unit -v
+.\runtimes\.venv\Scripts\python.exe -m pytest tests/unit -v
 ```
 
 ## 6. Configuration

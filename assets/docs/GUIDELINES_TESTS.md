@@ -43,7 +43,7 @@ tests\run_tests.bat
 Direct invocation:
 
 ```cmd
-.\.venv\Scripts\python.exe -m pytest tests/unit -v
+.\runtimes\.venv\Scripts\python.exe -m pytest tests/unit -v
 ```
 
 Run a smaller slice:
@@ -94,6 +94,6 @@ When adding tests:
 
 ## Troubleshooting
 
-- `pytest` not found: install the `test` extra into `.venv`.
+- `pytest` not found: install the `test` extra into `runtimes/.venv`.
 - Import errors: run tests from repo root so `ParaGraph` imports resolve.
 - Flaky job assertions: ensure test state is isolated and avoid shared global mutations outside fixtures.

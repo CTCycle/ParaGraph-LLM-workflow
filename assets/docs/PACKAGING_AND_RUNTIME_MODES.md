@@ -46,8 +46,10 @@ This mode is fully local.
 ### Launcher behavior summary
 
 `start_on_windows.bat` currently:
-- installs portable Python 3.14, `uv`, and Node.js under `ParaGraph/resources/runtimes`
-- syncs backend deps from `pyproject.toml` (with `uv.lock` when available)
+- installs portable Python 3.14, `uv`, and Node.js under `runtimes/` at repository root
+- syncs backend deps from `pyproject.toml` using runtime-local state:
+  - virtual environment: `runtimes/.venv`
+  - lockfile source of truth: `runtimes/uv.lock` (mirrored through root `uv.lock` during sync)
 - installs frontend deps and builds client when needed
 - starts backend (Uvicorn) and frontend preview server
 
@@ -61,6 +63,7 @@ ParaGraph also supports local desktop distribution as a packaged Tauri applicati
 
 ## 6. Deterministic Build Notes
 
-- Backend dependencies are lockfile-backed through `uv.lock` and installed via `uv sync --frozen` when possible.
+- Backend dependencies are lockfile-backed through `runtimes/uv.lock` and installed into `runtimes/.venv`.
 - Frontend dependencies are lockfile-backed via `ParaGraph/client/package-lock.json` and installed via `npm ci` fallbacking to `npm install`.
+- Tauri packaging requires Rust tooling on the build host (`cargo` + a default `rustup` toolchain such as `stable`).
 
