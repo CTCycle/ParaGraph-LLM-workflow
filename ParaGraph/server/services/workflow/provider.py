@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from functools import lru_cache
 from typing import Any
 
 from ParaGraph.server.entities.configuration import DEFAULT_SESSION_NAME
@@ -81,18 +80,23 @@ PROVIDER_CAPABILITIES = {
 
 CURATED_MODELS: dict[str, tuple[ModelMetadata, ...]] = {
     "openai": (
-        ModelMetadata(provider="openai", model="gpt-4o-mini", label="GPT-4o mini", supports_image=True),
-        ModelMetadata(provider="openai", model="gpt-4o", label="GPT-4o", supports_image=True),
-        ModelMetadata(provider="openai", model="o3-mini", label="o3-mini", supports_reasoning=True),
+        ModelMetadata(provider="openai", model="gpt-5.4", label="GPT-5.4", supports_image=True, supports_reasoning=True),
+        ModelMetadata(provider="openai", model="gpt-5-mini", label="GPT-5 mini", supports_image=True, supports_reasoning=True),
+        ModelMetadata(provider="openai", model="gpt-5-nano", label="GPT-5 nano", supports_image=True, supports_reasoning=True),
+        ModelMetadata(provider="openai", model="gpt-4.1", label="GPT-4.1", supports_image=True),
     ),
     "gemini": (
-        ModelMetadata(provider="gemini", model="gemini-2.0-flash", label="Gemini 2.0 Flash", supports_image=True),
-        ModelMetadata(provider="gemini", model="gemini-2.5-flash", label="Gemini 2.5 Flash", supports_image=True, supports_reasoning=True),
+        ModelMetadata(provider="gemini", model="gemini-3-pro-preview", label="Gemini 3 Pro Preview", supports_image=True, supports_reasoning=True),
+        ModelMetadata(provider="gemini", model="gemini-3-flash-preview", label="Gemini 3 Flash Preview", supports_image=True, supports_reasoning=True),
         ModelMetadata(provider="gemini", model="gemini-2.5-pro", label="Gemini 2.5 Pro", supports_image=True, supports_reasoning=True),
+        ModelMetadata(provider="gemini", model="gemini-2.5-flash", label="Gemini 2.5 Flash", supports_image=True, supports_reasoning=True),
+        ModelMetadata(provider="gemini", model="gemini-2.5-flash-lite", label="Gemini 2.5 Flash-Lite", supports_image=True, supports_reasoning=True),
     ),
     "claude": (
-        ModelMetadata(provider="claude", model="claude-3-5-haiku-latest", label="Claude 3.5 Haiku", supports_image=True),
-        ModelMetadata(provider="claude", model="claude-3-5-sonnet-latest", label="Claude 3.5 Sonnet", supports_image=True, supports_reasoning=True),
+        ModelMetadata(provider="claude", model="claude-opus-4-1-20250805", label="Claude Opus 4.1", supports_image=True, supports_reasoning=True),
+        ModelMetadata(provider="claude", model="claude-sonnet-4-20250514", label="Claude Sonnet 4", supports_image=True, supports_reasoning=True),
+        ModelMetadata(provider="claude", model="claude-3-7-sonnet-latest", label="Claude Sonnet 3.7", supports_image=True, supports_reasoning=True),
+        ModelMetadata(provider="claude", model="claude-3-5-haiku-latest", label="Claude Haiku 3.5", supports_image=True),
     ),
     "huggingface": (
         ModelMetadata(provider="huggingface", model="meta-llama/Llama-3.2-3B-Instruct", label="Llama 3.2 3B Instruct"),
@@ -145,15 +149,14 @@ class ProviderService:
         return ProviderCatalogResponse(
             providers=[
                 ProviderCapability(
-                    provider=metadata.name,
-                    supports_chat=metadata.supports_chat,
-                    supports_embeddings=metadata.supports_embeddings,
-                    supports_structured_output=metadata.supports_structured_output,
-                    supports_streaming=metadata.supports_streaming,
-                    supports_tool_calling=metadata.supports_tool_calling,
+                    provider=PROVIDER_CAPABILITIES[name].name,
+                    supports_chat=PROVIDER_CAPABILITIES[name].supports_chat,
+                    supports_embeddings=PROVIDER_CAPABILITIES[name].supports_embeddings,
+                    supports_structured_output=PROVIDER_CAPABILITIES[name].supports_structured_output,
+                    supports_streaming=PROVIDER_CAPABILITIES[name].supports_streaming,
+                    supports_tool_calling=PROVIDER_CAPABILITIES[name].supports_tool_calling,
                 )
-                for name, metadata in PROVIDER_CAPABILITIES.items()
-                if name in ordered
+                for name in ordered
             ]
         )
 
@@ -206,6 +209,14 @@ class ProviderService:
             supports_structured_output=metadata.supports_structured_output,
         )
 
+    def build_model_definition(
+        self,
+        provider: str,
+        model: str,
+        session_name: str = DEFAULT_SESSION_NAME,
+    ) -> ProviderModelDefinition:
+        return self._to_model_definition(self.get_model_metadata(provider, model, session_name))
+
     def get_model_metadata(
         self,
         provider: str,
@@ -219,7 +230,7 @@ class ProviderService:
                     return item
             return _infer_ollama_metadata(model)
 
-        for item in CURATED_MODELS.get(normalized_provider, ()):
+        for item in CURATED_MODELS.get(normalized_provider, ()):  # pragma: no branch
             if item.model == model:
                 return item
         raise ValueError(f"Unknown model '{model}' for provider '{normalized_provider}'")

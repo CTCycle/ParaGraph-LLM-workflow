@@ -36,6 +36,7 @@ The current implementation uses a React Flow editor, JSON node manifests, and a 
 ### 2.1 Node manifests
 - `GET /nodes/catalog` returns live `NodeManifest[]`.
 - `POST /nodes/import` validates and persists a single manifest JSON object.
+- The active model authoring flow uses a `MODEL_PROVIDER` node that emits a typed `MODEL_HANDLE`, consumed by unified `LLM_CHAT` and `LLM_STRUCTURED` nodes.
 - Each manifest declares:
   - metadata (`id`, `version`, `name`, `category`, `description`)
   - typed `inputs[]` and `outputs[]`

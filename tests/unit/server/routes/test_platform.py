@@ -30,7 +30,7 @@ def test_nodes_catalog_exposes_registry(client: TestClient) -> None:
     payload = response.json()
 
     ids = {node['id'] for node in payload['nodes']}
-    assert {'USER_PROMPT', 'SYSTEM_PROMPT', 'OLLAMA_LLM_CHAT', 'CLOUD_STRUCTURED_RESPONSE', 'TEXT_OUTPUT'}.issubset(ids)
+    assert {'USER_PROMPT', 'SYSTEM_PROMPT', 'MODEL_PROVIDER', 'LLM_CHAT', 'LLM_STRUCTURED', 'TEXT_OUTPUT'}.issubset(ids)
     assert 'PROMPT' not in ids
     assert 'LLM_GENERATE' not in ids
 

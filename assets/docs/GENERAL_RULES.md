@@ -11,7 +11,7 @@ Document index:
 - `GUIDELINES_TYPESCRIPT.md`, when using TypeScript
 - `GUIDELINES_TESTS.md`, when writing tests
 - `ARCHITECTURE.md`, system structure and APIs
-- `NODES_LIBRARY.md`, available workflow nodes and parameters
+- `NODES_LIBRARY.md`, available workflow nodes, parameters, and provider/model node contracts
 - `BACKGROUND_JOBS.md`, background job management
 - `README_WRITING.md`, required README structure and standards
 

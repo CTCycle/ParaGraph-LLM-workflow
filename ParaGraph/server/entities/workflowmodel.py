@@ -15,15 +15,15 @@ LEGACY_NODE_TYPE_MAP = {
     "Retrieval": "TEXT_SPLIT",
     "VectorDB": "LOAD_TEXT",
 }
-
-MODEL_NODE_TYPES = {
-    "OLLAMA_LLM_CHAT",
-    "CLOUD_LLM_CHAT",
-    "HUGGINGFACE_LLM_CHAT",
-    "OLLAMA_STRUCTURED_RESPONSE",
-    "CLOUD_STRUCTURED_RESPONSE",
-    "HUGGINGFACE_STRUCTURED_RESPONSE",
+LEGACY_LLM_NODE_TYPE_MAP: dict[str, tuple[str, str]] = {
+    "OLLAMA_LLM_CHAT": ("LLM_CHAT", "ollama"),
+    "CLOUD_LLM_CHAT": ("LLM_CHAT", "openai"),
+    "HUGGINGFACE_LLM_CHAT": ("LLM_CHAT", "huggingface"),
+    "OLLAMA_STRUCTURED_RESPONSE": ("LLM_STRUCTURED", "ollama"),
+    "CLOUD_STRUCTURED_RESPONSE": ("LLM_STRUCTURED", "openai"),
+    "HUGGINGFACE_STRUCTURED_RESPONSE": ("LLM_STRUCTURED", "huggingface"),
 }
+MODEL_NODE_TYPES = {"LLM_CHAT", "LLM_STRUCTURED"}
 
 
 def _normalize_provider_name(provider: Any) -> str:
@@ -38,17 +38,18 @@ def _normalize_legacy_model_node(node_type: str, parameters: dict[str, Any]) -> 
     if "provider" in next_parameters:
         next_parameters["provider"] = _normalize_provider_name(next_parameters.get("provider"))
 
+    if node_type in LEGACY_LLM_NODE_TYPE_MAP:
+        mapped_type, default_provider = LEGACY_LLM_NODE_TYPE_MAP[node_type]
+        next_parameters.setdefault("provider", default_provider)
+        return mapped_type, next_parameters
+
     if node_type != "LLM_GENERATE":
         mapped = LEGACY_NODE_TYPE_MAP.get(node_type, node_type)
         return mapped, next_parameters
 
     provider = _normalize_provider_name(next_parameters.get("provider", "ollama"))
-    if provider == "huggingface":
-        return "HUGGINGFACE_LLM_CHAT", next_parameters
-    if provider in {"openai", "gemini", "claude"}:
-        return "CLOUD_LLM_CHAT", next_parameters
-    next_parameters["provider"] = "ollama"
-    return "OLLAMA_LLM_CHAT", next_parameters
+    next_parameters["provider"] = provider
+    return "LLM_CHAT", next_parameters
 
 
 class WorkflowNodeInstance(BaseModel):
