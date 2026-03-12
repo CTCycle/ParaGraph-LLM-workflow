@@ -57,10 +57,14 @@ const NODE_MANIFEST_TEMPLATE = `{
     "collapsed_by_default": false
   },
   "runtime": {
-    "executor_key": "custom.executor",
+    "executor_key": "custom.plugin",
     "cacheable": false,
     "deterministic": true,
-    "side_effecting": false
+    "side_effecting": false,
+    "plugin": {
+      "script_path": "plugins/custom_node.py",
+      "entrypoint": "execute"
+    }
   }
 }`
 
@@ -280,7 +284,7 @@ export default function NodesPage() {
 
                     <form className="nodes-import-form" onSubmit={(event) => void handleImport(event)}>
                         <div className="nodes-import-toolbar">
-                            <span>Template includes metadata, ports, parameters, UI, and runtime fields.</span>
+                            <span>Template includes metadata, ports, parameters, UI, runtime, and optional plugin script wiring.</span>
                             <button type="button" onClick={() => setJsonText(NODE_MANIFEST_TEMPLATE)}>
                                 Use template
                             </button>

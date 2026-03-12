@@ -60,6 +60,10 @@
     overflow: hidden;
 }
 
+.workflow-hidden-file-input {
+    display: none;
+}
+
 .workflow-toolbar button,
 .workflow-tree-search input,
 .workflow-tree-node,

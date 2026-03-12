@@ -53,11 +53,17 @@ class NodeUiDefinition(BaseModel):
     collapsed_by_default: bool = False
 
 
+class NodePluginRuntimeDefinition(BaseModel):
+    script_path: str
+    entrypoint: str = "execute"
+
+
 class NodeRuntimeDefinition(BaseModel):
     executor_key: str
     cacheable: bool = False
     deterministic: bool = True
     side_effecting: bool = False
+    plugin: NodePluginRuntimeDefinition | None = None
 
 
 class NodeManifest(BaseModel):
@@ -101,3 +107,4 @@ class ProviderModelDefinition(BaseModel):
 
 class ProviderModelCatalogResponse(BaseModel):
     models: list[ProviderModelDefinition] = Field(default_factory=list)
+

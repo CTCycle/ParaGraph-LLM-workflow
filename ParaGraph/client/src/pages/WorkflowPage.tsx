@@ -1,5 +1,6 @@
 import {
     type CSSProperties,
+    type ChangeEvent as ReactChangeEvent,
     type DragEvent as ReactDragEvent,
     type MouseEvent as ReactMouseEvent,
     type PointerEvent as ReactPointerEvent,
@@ -35,6 +36,7 @@ import {
     browseNodeFiles,
     compileWorkflow,
     fetchProviderModels,
+    importNodeManifest,
     pollExecution,
     startExecution,
     subscribeExecutionEvents,
@@ -47,8 +49,10 @@ import {
     NodeManifest,
     NodeParameterDefinition,
     ProviderModelDefinition,
+    VisualGraph,
     WorkflowConnection,
     WorkflowDefinition,
+    WorkflowShareBundle,
 } from '../workflow/schema/types'
 import './WorkflowPage.css'
 
@@ -117,6 +121,8 @@ const WORKFLOW_TREE_STATE_STORAGE_KEY = 'paragraph.workflow.tree.expansion.v1'
 const WORKFLOW_STATE_STORAGE_KEY = 'paragraph.workflow.state.v1'
 const WORKFLOW_EDGE_MARKER = { type: MarkerType.ArrowClosed as const, width: 18, height: 18 }
 const WORKFLOW_EDGE_STYLE = { stroke: '#5ba7ff', strokeWidth: 2.2 }
+const WORKFLOW_BUNDLE_VERSION = 1
+const WORKFLOW_BUNDLE_APP = 'ParaGraph'
 
 function defaultParameters(manifest: NodeManifest): Record<string, unknown> {
     return Object.fromEntries(manifest.parameters.map((parameter) => [parameter.name, parameter.default ?? '']))
@@ -211,6 +217,75 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function isFiniteNumber(value: unknown): value is number {
     return typeof value === 'number' && Number.isFinite(value)
+}
+
+type ImportedWorkflowPayload = {
+    name: string
+    definition: WorkflowDefinition
+    visualGraph: VisualGraph
+    requiredNodes: NodeManifest[]
+}
+
+function isNodeManifestPayload(value: unknown): value is NodeManifest {
+    if (!isRecord(value)) {
+        return false
+    }
+    return (
+        typeof value.id === 'string' &&
+        isFiniteNumber(value.version) &&
+        typeof value.name === 'string' &&
+        typeof value.category === 'string' &&
+        typeof value.description === 'string' &&
+        Array.isArray(value.inputs) &&
+        Array.isArray(value.outputs) &&
+        Array.isArray(value.parameters) &&
+        isRecord(value.ui) &&
+        isRecord(value.runtime)
+    )
+}
+
+function isWorkflowShareBundlePayload(value: unknown): value is WorkflowShareBundle {
+    if (!isRecord(value) || !isRecord(value.workflow)) {
+        return false
+    }
+
+    const workflow = value.workflow as Record<string, unknown>
+    return (
+        isFiniteNumber(value.bundle_version) &&
+        typeof value.app === 'string' &&
+        typeof value.created_at === 'string' &&
+        Array.isArray(value.required_nodes) &&
+        typeof workflow.name === 'string' &&
+        isRecord(workflow.definition) &&
+        isRecord(workflow.visual_graph)
+    )
+}
+
+function readImportedWorkflowPayload(value: unknown): ImportedWorkflowPayload {
+    if (isWorkflowShareBundlePayload(value)) {
+        return {
+            name: value.workflow.name,
+            definition: value.workflow.definition,
+            visualGraph: value.workflow.visual_graph,
+            requiredNodes: value.required_nodes.filter(isNodeManifestPayload),
+        }
+    }
+
+    if (
+        isRecord(value) &&
+        typeof value.name === 'string' &&
+        isRecord(value.definition) &&
+        isRecord(value.visual_graph)
+    ) {
+        return {
+            name: value.name,
+            definition: value.definition as unknown as WorkflowDefinition,
+            visualGraph: value.visual_graph as unknown as VisualGraph,
+            requiredNodes: [],
+        }
+    }
+
+    throw new Error('Unsupported workflow JSON. Expected a ParaGraph workflow bundle.')
 }
 
 function readPersistedWorkflowState(): PersistedWorkflowState | null {
@@ -657,7 +732,7 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
 const nodeTypes = { manifest: ManifestNode }
 
 function WorkflowEditor() {
-    const { catalog, loading, error } = useNodeCatalog()
+    const { catalog, loading, error, reload } = useNodeCatalog()
     const [providerModels, setProviderModels] = useState<ProviderModelDefinition[]>([])
     const [statusText, setStatusText] = useState('Ready')
     const [isRunning, setIsRunning] = useState(false)
@@ -674,6 +749,7 @@ function WorkflowEditor() {
     const activePlanRef = useRef<CompiledExecutionPlan | null>(null)
     const hasHydratedWorkflowRef = useRef(false)
     const draggedManifestKeyRef = useRef<string | null>(null)
+    const importFileInputRef = useRef<HTMLInputElement | null>(null)
     const canvasPanelRef = useRef<HTMLDivElement | null>(null)
     const { fitView, getZoom, screenToFlowPosition, zoomIn, zoomTo } = useReactFlow<Node<WorkflowNodeData>, Edge>()
 
@@ -1019,6 +1095,202 @@ function WorkflowEditor() {
             metadata: {},
         }
     }
+    function buildVisualGraph(): VisualGraph {
+        return {
+            schema_version: 2,
+            nodes: nodes.map((node) => {
+                const widthFromStyle = node.style?.width
+                const heightFromStyle = node.style?.height
+                return {
+                    node_id: node.id,
+                    x: node.position.x,
+                    y: node.position.y,
+                    width:
+                        typeof node.width === 'number'
+                            ? node.width
+                            : typeof widthFromStyle === 'number'
+                                ? widthFromStyle
+                                : node.data.manifest.ui.default_width,
+                    height:
+                        typeof node.height === 'number'
+                            ? node.height
+                            : typeof heightFromStyle === 'number'
+                                ? heightFromStyle
+                                : NODE_MIN_HEIGHT,
+                    collapsed: node.data.collapsed,
+                }
+            }),
+            groups: [],
+            comments: [],
+        }
+    }
+
+    function buildWorkflowBundle(): WorkflowShareBundle {
+        const workflowName = 'Shared Workflow'
+        const requiredNodesMap = new Map<string, NodeManifest>()
+        for (const node of nodes) {
+            requiredNodesMap.set(manifestKey(node.data.manifest), node.data.manifest)
+        }
+
+        return {
+            bundle_version: WORKFLOW_BUNDLE_VERSION,
+            app: WORKFLOW_BUNDLE_APP,
+            created_at: new Date().toISOString(),
+            workflow: {
+                name: workflowName,
+                definition: buildDefinition(),
+                visual_graph: buildVisualGraph(),
+            },
+            required_nodes: Array.from(requiredNodesMap.values()),
+        }
+    }
+
+    function hydrateWorkflowFromPayload(payload: ImportedWorkflowPayload, manifests: NodeManifest[]): void {
+        const manifestByKey = new Map(manifests.map((manifest) => [manifestKey(manifest), manifest]))
+        const visualGraphNodes = Array.isArray(payload.visualGraph.nodes) ? payload.visualGraph.nodes : []
+        const visualByNodeId = new Map<string, Record<string, unknown>>()
+        for (const visualNode of visualGraphNodes) {
+            if (isRecord(visualNode) && typeof visualNode.node_id === 'string') {
+                visualByNodeId.set(visualNode.node_id, visualNode)
+            }
+        }
+
+        const definitionNodes: unknown[] = Array.isArray(payload.definition.nodes) ? payload.definition.nodes : []
+        const restoredNodes: Node<WorkflowNodeData>[] = definitionNodes.map((rawNode, index) => {
+            if (!isRecord(rawNode) || typeof rawNode.node_id !== 'string' || typeof rawNode.node_type !== 'string') {
+                throw new Error('Workflow JSON includes an invalid node entry')
+            }
+
+            const nodeVersion = isFiniteNumber(rawNode.node_version) ? rawNode.node_version : 1
+            const manifestId = resolveManifestId(rawNode.node_type)
+            const manifest = manifestByKey.get(`${manifestId}:${nodeVersion}`)
+            if (!manifest) {
+                throw new Error(`Missing node manifest: ${manifestId} v${nodeVersion}`)
+            }
+
+            const visualNode = visualByNodeId.get(rawNode.node_id)
+            const fallbackPosition = { x: 80 + index * 34, y: 80 + index * 26 }
+            const position =
+                visualNode && isFiniteNumber(visualNode.x) && isFiniteNumber(visualNode.y)
+                    ? { x: visualNode.x, y: visualNode.y }
+                    : fallbackPosition
+            const width = visualNode && isFiniteNumber(visualNode.width) ? visualNode.width : undefined
+            const height = visualNode && isFiniteNumber(visualNode.height) ? visualNode.height : undefined
+            const collapsed = visualNode ? Boolean(visualNode.collapsed) : manifest.ui.collapsed_by_default
+            const parameters = isRecord(rawNode.parameters) ? rawNode.parameters : {}
+
+            return createWorkflowNode({
+                manifest,
+                nodeId: rawNode.node_id,
+                position,
+                parameters,
+                collapsed,
+                width,
+                height,
+            })
+        })
+
+        const restoredNodeIds = new Set(restoredNodes.map((node) => node.id))
+        const definitionConnections: unknown[] = Array.isArray(payload.definition.connections) ? payload.definition.connections : []
+        const restoredEdges: Edge[] = definitionConnections
+            .filter((connection): connection is Record<string, unknown> => isRecord(connection))
+            .flatMap((connection) => {
+                if (
+                    typeof connection.from_node !== 'string' ||
+                    typeof connection.from_output !== 'string' ||
+                    typeof connection.to_node !== 'string' ||
+                    typeof connection.to_input !== 'string'
+                ) {
+                    return []
+                }
+                if (!restoredNodeIds.has(connection.from_node) || !restoredNodeIds.has(connection.to_node)) {
+                    return []
+                }
+                return [
+                    {
+                        id: `${connection.from_node}-${connection.from_output}-${connection.to_node}-${connection.to_input}`,
+                        source: connection.from_node,
+                        target: connection.to_node,
+                        sourceHandle: connection.from_output,
+                        targetHandle: connection.to_input,
+                        markerEnd: WORKFLOW_EDGE_MARKER,
+                        style: WORKFLOW_EDGE_STYLE,
+                    },
+                ]
+            })
+
+        setNodes(restoredNodes)
+        setEdges(restoredEdges)
+        setNodeContextMenu(null)
+        setActiveNodeId(null)
+        if (restoredNodes[0]) {
+            setSelectedManifestKey(manifestKey(restoredNodes[0].data.manifest))
+        }
+    }
+
+    function exportWorkflowBundle(): void {
+        try {
+            const bundle = buildWorkflowBundle()
+            const payload = JSON.stringify(bundle, null, 2)
+            const stamp = new Date().toISOString().replace(/[:.]/g, '-')
+            const downloadUrl = window.URL.createObjectURL(new Blob([payload], { type: 'application/json' }))
+            const anchor = document.createElement('a')
+            anchor.href = downloadUrl
+            anchor.download = `paragraph-workflow-${stamp}.json`
+            anchor.click()
+            window.URL.revokeObjectURL(downloadUrl)
+            setStatusText(`Exported workflow JSON (${bundle.workflow.definition.nodes.length} nodes)`)
+        } catch (error) {
+            setStatusText(error instanceof Error ? error.message : 'Unable to export workflow JSON')
+        }
+    }
+
+    async function importWorkflowBundle(event: ReactChangeEvent<HTMLInputElement>): Promise<void> {
+        const file = event.target.files?.[0]
+        if (!file) {
+            return
+        }
+
+        try {
+            const parsed: unknown = JSON.parse(await file.text())
+            const payload = readImportedWorkflowPayload(parsed)
+
+            const existingManifestMap = new Map(catalog.map((manifest) => [manifestKey(manifest), manifest]))
+            const importedManifests: NodeManifest[] = []
+            for (const manifest of payload.requiredNodes) {
+                const key = manifestKey(manifest)
+                if (existingManifestMap.has(key)) {
+                    continue
+                }
+                const created = await importNodeManifest(manifest)
+                existingManifestMap.set(key, created)
+                importedManifests.push(created)
+            }
+
+            if (importedManifests.length > 0) {
+                await reload()
+            }
+
+            const mergedManifestMap = new Map<string, NodeManifest>()
+            for (const manifest of catalog) {
+                mergedManifestMap.set(manifestKey(manifest), manifest)
+            }
+            for (const manifest of importedManifests) {
+                mergedManifestMap.set(manifestKey(manifest), manifest)
+            }
+
+            hydrateWorkflowFromPayload(payload, Array.from(mergedManifestMap.values()))
+            const importedLabel =
+                importedManifests.length > 0
+                    ? ` and installed ${importedManifests.length} custom node${importedManifests.length === 1 ? '' : 's'}`
+                    : ''
+            setStatusText(`Imported workflow "${payload.name}"${importedLabel}`)
+        } catch (error) {
+            setStatusText(error instanceof Error ? error.message : 'Unable to import workflow JSON')
+        } finally {
+            event.target.value = ''
+        }
+    }
 
     function isValidConnection(connection: Connection): boolean {
         if (!connection.source || !connection.target || !connection.sourceHandle || !connection.targetHandle) {
@@ -1154,12 +1426,25 @@ function WorkflowEditor() {
                     <strong>{statusText}</strong>
                 </div>
                 <div className="workflow-toolbar-actions">
+                    <input
+                        ref={importFileInputRef}
+                        type="file"
+                        accept="application/json,.json"
+                        className="workflow-hidden-file-input"
+                        onChange={(event) => void importWorkflowBundle(event)}
+                    />
 
                     <button type="button" onClick={() => void fitView({ padding: 0.2, duration: 180 })}>
                         Fit View
                     </button>
                     <button type="button" onClick={() => setIsGridVisible((visible) => !visible)}>
                         {isGridVisible ? 'Hide Grid' : 'Show Grid'}
+                    </button>
+                    <button type="button" onClick={exportWorkflowBundle}>
+                        Export JSON
+                    </button>
+                    <button type="button" onClick={() => importFileInputRef.current?.click()}>
+                        Import JSON
                     </button>
                     <button
                         type="button"

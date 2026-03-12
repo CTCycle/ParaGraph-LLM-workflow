@@ -4,6 +4,15 @@ This document is the reference for all currently implemented workflow nodes and 
 
 Source of truth: `ParaGraph/resources/nodes/*.json`
 
+## Custom Plugin Nodes
+
+Custom nodes can be declared through a manifest plus a Python script:
+- `runtime.plugin.script_path`: relative path from the manifest file to the script.
+- `runtime.plugin.entrypoint`: callable function name (default `execute`).
+- Entry point contract: `execute(parameters: dict, inputs: dict) -> dict`.
+
+For cross-machine sharing, keep plugin scripts alongside the manifest (for example `plugins/my_node.py`) and avoid absolute paths.
+
 ## Node Index
 
 | Node ID | Version | Name | Category | Manifest |
@@ -522,3 +531,4 @@ Parameters: `max_context_items`, `include_citations`, `separator`.
 
 Inputs: `value: JSON`.
 Outputs: None.
+
