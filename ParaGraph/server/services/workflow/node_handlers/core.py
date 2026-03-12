@@ -4,6 +4,8 @@ import json
 from pathlib import Path
 from typing import Any
 
+import torch
+from transformers import AutoModelForCausalLM, AutoTokenizer
 from pydantic import BaseModel, Field, ValidationError, field_validator
 
 from ParaGraph.server.common.constants import RESOURCES_PATH
@@ -167,11 +169,6 @@ def _run_huggingface_chat(
     context_window: int,
     access_token: str,
 ) -> str:
-    try:
-        import torch
-        from transformers import AutoModelForCausalLM, AutoTokenizer
-    except ImportError as exc:  # pragma: no cover - optional dependency path
-        raise ValueError("HuggingFace execution requires the optional dependencies 'transformers' and 'torch'") from exc
 
     if model_name not in _HF_MODEL_CACHE:
         tokenizer = AutoTokenizer.from_pretrained(model_name, token=access_token)
@@ -374,4 +371,3 @@ CORE_HANDLERS = {
     "if": NodeHandler(executor=_if_executor),
     "router": NodeHandler(executor=_router_executor, parameter_model=RouterParameters),
 }
-

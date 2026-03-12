@@ -8,10 +8,13 @@ from urllib.parse import urlparse
 from uuid import uuid5, NAMESPACE_URL
 
 import httpx
+from bs4 import BeautifulSoup
+from docx import Document
+from pypdf import PdfReader
 from pydantic import BaseModel, Field, field_validator
 
 from ParaGraph.server.services.workflow.node_handlers.base import NodeHandler
-from ParaGraph.server.services.workflow.node_handlers.common import coerce_bool, coerce_float, coerce_text, parse_json_value, strip_html
+from ParaGraph.server.services.workflow.node_handlers.common import coerce_bool, coerce_float, coerce_text, parse_json_value
 
 
 SUPPORTED_DOCUMENT_EXTENSIONS = {".txt", ".md", ".markdown", ".html", ".htm", ".json", ".pdf", ".docx"}
@@ -52,10 +55,6 @@ def _make_document_id(source_uri: str) -> str:
 
 
 def _html_to_text(raw_html: str) -> str:
-    try:
-        from bs4 import BeautifulSoup
-    except ImportError:
-        return strip_html(raw_html)
     soup = BeautifulSoup(raw_html, "html.parser")
     for tag in soup(["script", "style"]):
         tag.decompose()
@@ -63,19 +62,11 @@ def _html_to_text(raw_html: str) -> str:
 
 
 def _load_docx_text(path: Path) -> str:
-    try:
-        from docx import Document
-    except ImportError as exc:  # pragma: no cover - optional dependency path
-        raise ValueError("DOCX loading requires the optional dependency 'python-docx'") from exc
     document = Document(str(path))
     return "\n".join(paragraph.text.strip() for paragraph in document.paragraphs if paragraph.text.strip())
 
 
 def _load_pdf_text(path: Path) -> str:
-    try:
-        from pypdf import PdfReader
-    except ImportError as exc:  # pragma: no cover - optional dependency path
-        raise ValueError("PDF loading requires the optional dependency 'pypdf'") from exc
     reader = PdfReader(str(path))
     return "\n\n".join((page.extract_text() or "").strip() for page in reader.pages if (page.extract_text() or "").strip())
 

@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
-
+import faiss
 from ParaGraph.server.common.constants import RESOURCES_PATH
 from ParaGraph.server.services.workflow.payloads import RetrievalHit, VectorPoint, VectorStoreHandle
 
@@ -17,6 +17,7 @@ VECTORSTORE_ROOT = ARTIFACT_ROOT / "vectorstores"
 
 class VectorStoreError(ValueError):
     pass
+
 def _point_attr(point: VectorPoint | dict[str, Any], name: str) -> Any:
     if isinstance(point, dict):
         return point.get(name)
@@ -29,16 +30,8 @@ def _store_attr(store: VectorStoreHandle | dict[str, Any], name: str) -> Any:
     return getattr(store, name)
 
 
-def _require_faiss():
-    try:
-        import faiss  # type: ignore[import-not-found]
-    except ImportError as exc:  # pragma: no cover - depends on optional dependency
-        raise VectorStoreError("FAISS support requires the optional dependency 'faiss-cpu'") from exc
-    return faiss
-
 
 def _metric_code(metric: str):
-    faiss = _require_faiss()
     normalized = metric.lower().strip()
     if normalized == "cosine":
         return faiss.METRIC_INNER_PRODUCT
@@ -77,7 +70,6 @@ def _build_index(
     nlist: int,
     hnsw_m: int,
 ):
-    faiss = _require_faiss()
     dim = int(vectors.shape[1])
     normalized_metric = metric.lower().strip()
     normalized_index_type = index_type.lower().strip()
@@ -106,7 +98,6 @@ def _build_index(
 
 
 def _load_store(index_name: str) -> tuple[dict[str, Any], list[dict[str, Any]], np.ndarray, Any]:
-    faiss = _require_faiss()
     store_path, manifest_path, metadata_path, vectors_path = _index_paths(index_name)
     index_path = _index_file_path(index_name)
     if not store_path.exists():
@@ -256,7 +247,6 @@ class VectorStoreAdapter:
 
         store_path.mkdir(parents=True, exist_ok=True)
         index = _build_index(vectors, metric=metric, index_type=index_type, nlist=nlist, hnsw_m=hnsw_m)
-        faiss = _require_faiss()
         faiss.write_index(index, str(index_path))
         np.save(vectors_path, vectors)
 
@@ -362,4 +352,3 @@ def get_vector_store_adapter(backend: str) -> VectorStoreAdapter:
     if adapter is None:
         raise VectorStoreError(f"Unsupported vector store backend: {backend}")
     return adapter
-
