@@ -25,7 +25,14 @@
       "default": "default-index",
       "constraints": {"required": true},
       "ui_control": "text",
-      "description": "Stable local index name under ParaGraph/resources/artifacts/vectorstores."
+      "description": "Stable index folder name used under the selected storage directory."
+    },
+    {
+      "name": "storage_directory",
+      "data_type": "TEXT",
+      "default": "",
+      "ui_control": "directory",
+      "description": "Optional local destination directory. Defaults to ParaGraph/resources/artifacts/vectorstores when omitted."
     },
     {
       "name": "metric",
