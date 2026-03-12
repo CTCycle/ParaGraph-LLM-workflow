@@ -16,7 +16,7 @@ set "SCRIPT_DIR=%~dp0"
 for %%I in ("%SCRIPT_DIR%..") do set "PROJECT_ROOT=%%~fI"
 set "PARAGRAPH_DIR=%PROJECT_ROOT%\ParaGraph"
 set "DOTENV=%PARAGRAPH_DIR%\settings\.env"
-set "VENV_PYTHON=%PROJECT_ROOT%\.venv\Scripts\python.exe"
+set "VENV_PYTHON=%PROJECT_ROOT%\runtimes\.venv\Scripts\python.exe"
 set "FASTAPI_HOST=127.0.0.1"
 set "FASTAPI_PORT=8000"
 set "UI_HOST=127.0.0.1"
@@ -72,14 +72,14 @@ echo [INFO] Test target: %TEST_TARGET%
 if exist "%VENV_PYTHON%" (
     set "PYTHON_CMD=%VENV_PYTHON%"
 ) else (
-    echo [ERROR] .venv not found at "%VENV_PYTHON%".
+    echo [ERROR] Runtime .venv not found at "%VENV_PYTHON%".
     echo [ERROR] Run ParaGraph\start_on_windows.bat to create the environment.
     exit /b 1
 )
 
 "%PYTHON_CMD%" -c "import pytest" >nul 2>&1
 if %ERRORLEVEL% neq 0 (
-    echo [ERROR] pytest is not installed in .venv.
+    echo [ERROR] pytest is not installed in runtimes\.venv.
     echo [ERROR] Sync the test extra first: uv sync --extra test
     echo [ERROR] Or set OPTIONAL_DEPENDENCIES=true and run ParaGraph\start_on_windows.bat.
     exit /b 1
@@ -88,7 +88,7 @@ if %ERRORLEVEL% neq 0 (
 if /i "%OPTIONAL_DEPENDENCIES%"=="true" (
     "%PYTHON_CMD%" -c "import psutil" >nul 2>&1
     if %ERRORLEVEL% neq 0 (
-        echo [ERROR] psutil is not installed in .venv.
+        echo [ERROR] psutil is not installed in runtimes\.venv.
         echo [ERROR] Sync the test extra first: uv sync --extra test
         exit /b 1
     )
