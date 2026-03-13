@@ -40,6 +40,7 @@ def test_nodes_catalog_exposes_registry(client: TestClient) -> None:
         'LLM_STRUCTURED',
         'SQL_DATABASE',
         'SQL_FILE_DATABASE',
+        'FIXED_SIZE_CHUNKS',
         'TEXT_OUTPUT',
         'JSON_OUTPUT',
         'LOAD_DOCUMENTS',

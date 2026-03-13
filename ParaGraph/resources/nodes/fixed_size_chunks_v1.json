@@ -1,0 +1,83 @@
+{
+  "id": "FIXED_SIZE_CHUNKS",
+  "version": 1,
+  "name": "Fixed Size Chunks",
+  "category": "fragmentation",
+  "description": "Split documents or incoming chunks into fixed-size chunks for chained fragmentation pipelines.",
+  "inputs": [
+    {
+      "name": "documents",
+      "data_type": "DOCUMENT_LIST",
+      "required": false,
+      "accepts_multiple": false,
+      "description": "Document collection to fragment."
+    },
+    {
+      "name": "chunks",
+      "data_type": "CHUNK_LIST",
+      "required": false,
+      "accepts_multiple": false,
+      "description": "Optional upstream chunks for chained fragmentation."
+    }
+  ],
+  "outputs": [
+    {
+      "name": "chunks",
+      "data_type": "CHUNK_LIST",
+      "required": true,
+      "accepts_multiple": false,
+      "description": "Generated fixed-size chunks."
+    }
+  ],
+  "parameters": [
+    {
+      "name": "chunk_size",
+      "data_type": "JSON",
+      "default": 800,
+      "constraints": {
+        "required": true,
+        "min": 1,
+        "max": 100000
+      },
+      "ui_control": "number",
+      "description": "Maximum number of words or characters per chunk, depending on unit."
+    },
+    {
+      "name": "chunk_overlap",
+      "data_type": "JSON",
+      "default": 80,
+      "constraints": {
+        "required": true,
+        "min": 0,
+        "max": 99999
+      },
+      "ui_control": "number",
+      "description": "Number of overlapping words or characters between adjacent chunks."
+    },
+    {
+      "name": "unit",
+      "data_type": "TEXT",
+      "default": "words",
+      "constraints": {
+        "required": true,
+        "options": [
+          "words",
+          "characters"
+        ]
+      },
+      "ui_control": "select",
+      "description": "Counting unit used by chunk_size and chunk_overlap."
+    }
+  ],
+  "ui": {
+    "default_width": 360,
+    "accent_color": "#d99128",
+    "collapsed_by_default": false
+  },
+  "runtime": {
+    "executor_key": "fixed_size_chunks",
+    "cacheable": false,
+    "deterministic": true,
+    "side_effecting": false
+  }
+}

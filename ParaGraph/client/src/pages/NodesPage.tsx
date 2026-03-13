@@ -6,6 +6,7 @@ import {
     Database,
     GitBranch,
     Cog,
+    Scissors,
     type LucideIcon,
 } from 'lucide-react'
 
@@ -73,6 +74,7 @@ const NODE_CATEGORY_ICONS: Record<NodeCategory, LucideIcon> = {
     input: ArrowDownToLine,
     model: BrainCircuit,
     processing: Cog,
+    fragmentation: Scissors,
     output: ArrowUpToLine,
     serialization: Database,
     control: GitBranch,
@@ -336,3 +338,4 @@ export default function NodesPage() {
         </section>
     )
 }
+
