@@ -25,7 +25,7 @@ The current implementation uses a React Flow editor, JSON node manifests, and a 
   - `src/app/services/api.ts`: shared request helper.
   - `src/app/services/workflowApi.ts`: node catalog, compile, execute, events, configurations, and profile/Ollama status client surface.
   - `src/workflow/schema/types.ts`: shared frontend contracts for manifests, workflows, execution responses, and configuration/profile payloads.
-- `ParaGraph/resources/nodes`: JSON node manifests loaded dynamically at server startup and on import.
+- `ParaGraph/resources/nodes`: JSON node manifests loaded dynamically at server startup and on import. The `custom_nodes/` subfolder is used for custom node pack assets (scripts/examples/manifests).
 - `ParaGraph/resources/workflows`: persisted workflow documents and version history.
 - `ParaGraph/resources/artifacts`: file-backed save/load targets for serialization nodes.
 
@@ -51,6 +51,8 @@ The current implementation uses a React Flow editor, JSON node manifests, and a 
 - `definition.nodes[]`: `{ node_id, node_type, node_version, parameters }`
 - `definition.connections[]`: `{ from_node, from_output, to_node, to_input }`
 - visual state stays separate in `visual_graph.nodes[]` with position, size, and collapse metadata.
+- `GET /workflows/dialog/import-json` opens a native JSON file picker (default folder: `ParaGraph/resources/workflows`) and returns the selected file content.
+- `POST /workflows/dialog/export-json` opens a native save dialog (default folder: `ParaGraph/resources/workflows`) and writes the workflow JSON payload to the chosen path.
 
 ### 2.3 Execution APIs
 - `POST /executions/compile`: validates the graph and returns diagnostics plus a compiled plan when valid.
@@ -118,16 +120,16 @@ The current implementation uses a React Flow editor, JSON node manifests, and a 
 - Parameter rows use a denser Comfy-inspired control treatment for higher information density without changing the overall card shell.
 - Node parameters, collapse state, and delete action live inside the node card; execution outputs are consumed through dedicated output nodes.
 - The node library is now a left tree viewer with expandable categories, in-tree search, a selected-node preview, and drag-only node insertion onto the canvas.
-- The first category is compact on first visit, then category expansion state is persisted.
+- All node categories are collapsed on first visit, then category expansion state is persisted.
 - Workflow canvas state (nodes, edges, layout metadata) persists in browser storage across page navigation.
-- Workflow JSON bundles can be exported/imported directly from the editor, including required node manifests for shareable execution across ParaGraph installations.
+- Workflow JSON bundles are exported/imported through native file dialogs (default folder: `ParaGraph/resources/workflows`), including required node manifests for shareable execution across ParaGraph installations.
 - Runtime execution highlights the currently running node in-canvas for step-by-step guidance.
 - Client-side connection checks mirror backend rules for type compatibility and multiplicity.
 
 ### 4.3 Configurations page
-- Two-column layout with a left configuration rail and right reserved workspace.
-- Left top panel manages Ollama base URL and exposes a runtime status check action.
-- Left bottom panel manages provider/Hugging Face keys and opens modal dialogs for named Load/Save profile flows.
+- Two-column layout with dedicated panels: Ollama settings on the left and Access Keys on the right.
+- Left panel manages Ollama base URL and exposes a runtime status check action.
+- Right panel manages provider/Hugging Face keys and opens modal dialogs for named Load/Save profile flows.
 - Active payloads are still loaded/saved through `/configurations`, while named profiles are persisted via `/configurations/profiles/*`.
 
 ---
@@ -147,4 +149,7 @@ The current implementation uses a React Flow editor, JSON node manifests, and a 
 - The legacy `/workflow/*` compatibility API is no longer part of the active application surface.
 - Existing persisted workflow documents are migrated on read into schema `2` shapes.
 - The executable manifest set now includes a Phase 1 typed RAG slice for ingestion, chunking, embedding, vector storage, retrieval, and context injection.
+
+
+
 

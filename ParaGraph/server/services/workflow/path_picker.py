@@ -15,6 +15,20 @@ def _build_root():
     return root
 
 
+DEFAULT_JSON_FILE_TYPES: tuple[tuple[str, str], ...] = (
+    ("JSON files", "*.json"),
+    ("All files", "*.*"),
+)
+
+
+def _normalize_initial_directory(initial_directory: str | Path | None) -> str:
+    if initial_directory is None:
+        return str(Path.home())
+    path = Path(initial_directory).expanduser().resolve()
+    path.mkdir(parents=True, exist_ok=True)
+    return str(path)
+
+
 def pick_files(*, multiple: bool) -> list[str]:
     from tkinter import filedialog
 
@@ -38,5 +52,54 @@ def pick_directory() -> str | None:
         if not selected:
             return None
         return str(Path(selected).resolve())
+    finally:
+        root.destroy()
+
+
+def pick_open_file(
+    *,
+    title: str,
+    initial_directory: str | Path | None = None,
+    file_types: tuple[tuple[str, str], ...] = DEFAULT_JSON_FILE_TYPES,
+) -> str | None:
+    from tkinter import filedialog
+
+    root = _build_root()
+    try:
+        selected = filedialog.askopenfilename(
+            title=title,
+            initialdir=_normalize_initial_directory(initial_directory),
+            filetypes=file_types,
+        )
+        if not selected:
+            return None
+        return str(Path(selected).resolve())
+    finally:
+        root.destroy()
+
+
+def pick_save_file(
+    *,
+    title: str,
+    initial_directory: str | Path | None = None,
+    initial_file_name: str = "",
+    file_types: tuple[tuple[str, str], ...] = DEFAULT_JSON_FILE_TYPES,
+    default_extension: str = ".json",
+) -> str | None:
+    from tkinter import filedialog
+
+    root = _build_root()
+    try:
+        selected = filedialog.asksaveasfilename(
+            title=title,
+            initialdir=_normalize_initial_directory(initial_directory),
+            initialfile=initial_file_name,
+            filetypes=file_types,
+            defaultextension=default_extension,
+        )
+        if not selected:
+            return None
+        path = Path(selected).expanduser()
+        return str(path.resolve())
     finally:
         root.destroy()

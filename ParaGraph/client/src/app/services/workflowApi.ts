@@ -33,6 +33,20 @@ export interface PickedDirectoryResponse {
     path: string | null
 }
 
+export interface WorkflowDialogImportResponse {
+    path: string | null
+    json_payload: string | null
+}
+
+export interface WorkflowDialogExportRequest {
+    json_payload: string
+    suggested_filename: string
+}
+
+export interface WorkflowDialogExportResponse {
+    path: string | null
+}
+
 export function browseNodeFiles(multiple = false): Promise<PickedPathsResponse> {
     const params = new URLSearchParams({ multiple: String(multiple) })
     return requestJson<PickedPathsResponse>(`/nodes/dialog/files?${params.toString()}`)
@@ -40,6 +54,19 @@ export function browseNodeFiles(multiple = false): Promise<PickedPathsResponse> 
 
 export function browseNodeDirectory(): Promise<PickedDirectoryResponse> {
     return requestJson<PickedDirectoryResponse>('/nodes/dialog/directory')
+}
+
+export function importWorkflowJsonWithDialog(): Promise<WorkflowDialogImportResponse> {
+    return requestJson<WorkflowDialogImportResponse>('/workflows/dialog/import-json')
+}
+
+export function exportWorkflowJsonWithDialog(
+    request: WorkflowDialogExportRequest,
+): Promise<WorkflowDialogExportResponse> {
+    return requestJson<WorkflowDialogExportResponse>('/workflows/dialog/export-json', {
+        method: 'POST',
+        body: JSON.stringify(request),
+    })
 }
 
 export function fetchProviderModels(sessionName = 'default'): Promise<ProviderModelCatalogResponse> {

@@ -180,7 +180,7 @@
 }
 
 .workflow-tree-hide-button {
-    border-radius: 5px;
+    border-radius: 9px;
     padding: 0 8px;
     min-height: 24px;
     background: rgba(12, 24, 42, 0.96);
@@ -209,9 +209,9 @@
 .workflow-tree-search input {
     width: 100%;
     min-width: 0;
-    min-height: 28px;
-    padding: 3px 8px;
-    border-radius: 4px;
+    min-height: 26px;
+    padding: 2px 8px;
+    border-radius: 9px;
     font-size: 0.8rem;
     border-color: rgba(58, 80, 108, 0.7);
 }
@@ -385,9 +385,9 @@
     top: 8px;
     left: 8px;
     z-index: 12;
-    min-height: 28px;
+    min-height: 26px;
     padding: 0 10px;
-    border-radius: 7px;
+    border-radius: 9px;
     background: rgba(7, 17, 31, 0.94);
     cursor: pointer;
     font-size: 0.8rem;
@@ -401,7 +401,7 @@
 .workflow-canvas-panel .react-flow__controls {
     margin: 10px;
     border: 1px solid rgba(72, 96, 126, 0.9);
-    border-radius: 5px;
+    border-radius: 9px;
     overflow: hidden;
     box-shadow: 0 8px 18px rgba(0, 0, 0, 0.32);
     background: rgba(5, 11, 22, 0.95);
@@ -564,7 +564,7 @@
 .workflow-node-badge {
     display: inline-flex;
     align-items: center;
-    padding: 3px 8px;
+    padding: 2px 8px;
     border-radius: 999px;
     background: color-mix(in srgb, var(--node-accent) 24%, rgba(255, 255, 255, 0.06));
     color: #eaf4ff;
@@ -864,4 +864,14 @@
 .workflow-diagnostics ul {
     margin: 0;
     padding-left: 18px;
+}
+
+.workflow-node input[type='number'] {
+    color-scheme: dark;
+}
+
+.workflow-node input[type='number']::-webkit-inner-spin-button,
+.workflow-node input[type='number']::-webkit-outer-spin-button {
+    filter: brightness(1.15) saturate(1.2) hue-rotate(172deg);
+    opacity: 0.92;
 }

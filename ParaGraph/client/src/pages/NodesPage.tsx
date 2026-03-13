@@ -9,6 +9,7 @@ import {
     type LucideIcon,
 } from 'lucide-react'
 
+import { usePageMetadata } from '../app/hooks/usePageMetadata'
 import StatusBanner from '../components/StatusBanner'
 import { importNodeManifest } from '../app/services/workflowApi'
 import { useNodeCatalog } from '../workflow/hooks/useNodeCatalog'
@@ -113,7 +114,24 @@ function formatPortSummary(names: string[]): string {
     return `${names.slice(0, 3).join(', ')} +${names.length - 3}`
 }
 
+function buildNodeExplanation(node: NodeManifest): string {
+    const description = node.description.trim()
+    const inputCount = node.inputs.length
+    const outputCount = node.outputs.length
+    const ioSummary = `${inputCount} input${inputCount === 1 ? '' : 's'} -> ${outputCount} output${outputCount === 1 ? '' : 's'}`
+    if (!description) {
+        return `Node details: ${ioSummary}.`
+    }
+    return `${description} (${ioSummary})`
+}
+
 export default function NodesPage() {
+    usePageMetadata({
+        title: 'Nodes Catalog',
+        description:
+            'Browse available ParaGraph nodes, filter by category, and import custom node manifests from JSON.',
+    })
+
     const { catalog, loading, error, reload } = useNodeCatalog()
     const [search, setSearch] = useState('')
     const [selectedCategories, setSelectedCategories] = useState<NodeCategory[]>(() => [...NODE_CATEGORY_ORDER])
@@ -184,10 +202,9 @@ export default function NodesPage() {
     return (
         <section className="nodes-page">
             <header className="nodes-header">
-                <h1>Filter the catalog and stage new manifest imports</h1>
+                <h1>Nodes Catalog and Import</h1>
                 <p className="nodes-lede">
-                    Keep the preview list focused with category toggles on the left, then prepare or import a custom node
-                    manifest from the supporting column.
+                    Filter the node catalog by category, review node behavior, and import custom manifests from JSON.
                 </p>
             </header>
 
@@ -198,7 +215,7 @@ export default function NodesPage() {
                     <aside className="nodes-category-toolbar" aria-label="Category filters">
                         <div className="nodes-section-heading">
                             <h2>Categories</h2>
-                            <p>Use checkboxes to narrow the preview list.</p>
+                            <p>Select the groups you want to keep in the preview list.</p>
                         </div>
                         <div className="nodes-category-actions">
                             <button type="button" onClick={() => setSelectedCategories([...NODE_CATEGORY_ORDER])}>
@@ -233,7 +250,7 @@ export default function NodesPage() {
                         <div className="nodes-preview-header">
                             <div className="nodes-section-heading">
                                 <h2>Node preview</h2>
-                                <p>{filteredCatalog.length} visible in the current selection.</p>
+                                <p>{filteredCatalog.length} nodes match the current filters.</p>
                             </div>
                             <input
                                 type="search"
@@ -261,7 +278,7 @@ export default function NodesPage() {
                                                     <h3>{node.name}</h3>
                                                     <span>{NODE_CATEGORY_LABELS[node.category]}</span>
                                                 </div>
-                                                <p>{node.description}</p>
+                                                <p>{buildNodeExplanation(node)}</p>
                                                 <div className="nodes-preview-io">
                                                     <strong>In</strong>
                                                     <span>{formatPortSummary(node.inputs.map((port) => port.name))}</span>
@@ -279,7 +296,7 @@ export default function NodesPage() {
                 <aside className="nodes-support-column">
                     <div className="nodes-section-heading">
                         <h2>Custom node JSON</h2>
-                        <p>Start from the template, validate the manifest, then import it into the live registry.</p>
+                        <p>Start from the template, validate your manifest, then import it into the active catalog.</p>
                     </div>
 
                     <form className="nodes-import-form" onSubmit={(event) => void handleImport(event)}>
@@ -319,4 +336,3 @@ export default function NodesPage() {
         </section>
     )
 }
-
