@@ -39,6 +39,7 @@ The node category set remains:
 | `MODEL_PROVIDER` | 1 | Model Provider | model | `model_provider_v1.json` |
 | `PROMPT` | 1 | Prompt | input | `prompt_v1.json` |
 | `WEB_SCRAPER` | 1 | Web Scraper | input | `web_scraper_v1.json` |
+| `LOAD_DOCUMENTS` | 1 | Load Documents | serialization | `load_documents_v1.json` |
 | `SQL_DATABASE` | 1 | SQL Database | control | `sql_database_v1.json` |
 | `SQL_FILE_DATABASE` | 1 | SQL File Database | control | `sql_file_database_v1.json` |
 | `TEXT_OUTPUT` | 1 | Text Output | output | `text_output_v1.json` |
@@ -180,11 +181,37 @@ Parameters:
 | `timeout_s` | `JSON` | `15` | `number` | No | Request timeout in seconds. |
 | `strip_html_content` | `BOOLEAN` | `true` | `toggle` | No | Convert fetched content to plain text before emitting it. |
 
+## `LOAD_DOCUMENTS` (v1)
+
+- Name: Load Documents
+- Category: `serialization`
+- Description: Scan a selected folder and emit a deferred `DOCUMENT_LIST` payload containing document file-path references.
+
+Inputs: None.
+
+Outputs:
+
+| Name | Data Type | Required |
+|---|---|---:|
+| `documents` | `DOCUMENT_LIST` | Yes |
+
+Parameters:
+
+| Name | Data Type | Default | UI Control | Required | Description |
+|---|---|---|---|---:|---|
+| `folder_path` | `TEXT` | `""` | `directory` | Yes | Folder path selected from the local folder browser. |
+| `recursive` | `BOOLEAN` | `true` | `toggle` | No | Include files from subdirectories when enabled. |
+
+Behavior notes:
+- Supported extensions include `.txt`, `.pdf`, `.doc`, `.docx`, `.md`, plus common text formats (`.html`, `.json`, `.csv`, `.xml`, `.yaml`, `.log`, etc.).
+- The node does **not** load file contents into memory.
+- It emits documents with deferred metadata (`metadata.deferred_load = true`) so downstream processing nodes can load content only when needed.
 ## `SQL_DATABASE` (v1)
 
 - Name: SQL Database
 - Category: `control`
 - Description: Configure a server SQL database connection and expose a reusable typed controller handle.
+- UI behavior: Includes a node-level **Check Connection** button that validates connectivity and reports success/failure.
 
 Inputs: None.
 
@@ -215,6 +242,7 @@ Parameters:
 - Name: SQL File Database
 - Category: `control`
 - Description: Configure a file-based SQL dataset (SQLite for v1) and expose a reusable typed controller handle.
+- UI behavior: Includes a node-level **Check Connection** button that validates connectivity and reports success/failure.
 
 Inputs: None.
 
@@ -261,6 +289,7 @@ Parameters: None.
 - Name: JSON Output
 - Category: `output`
 - Description: Expose final JSON results.
+- UI behavior: JSON widget boxes include a **Validate** button that marks valid/invalid JSON with neon border feedback (and pretty-prints valid JSON).
 
 Inputs:
 

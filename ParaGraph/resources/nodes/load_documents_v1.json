@@ -1,0 +1,45 @@
+{
+  "id": "LOAD_DOCUMENTS",
+  "version": 1,
+  "name": "Load Documents",
+  "category": "serialization",
+  "description": "Scan a folder and emit a deferred document collection as file-path references for downstream processing.",
+  "inputs": [],
+  "outputs": [
+    {
+      "name": "documents",
+      "data_type": "DOCUMENT_LIST",
+      "required": true
+    }
+  ],
+  "parameters": [
+    {
+      "name": "folder_path",
+      "data_type": "TEXT",
+      "default": "",
+      "constraints": {
+        "required": true
+      },
+      "ui_control": "directory",
+      "description": "Folder path to scan for supported document files."
+    },
+    {
+      "name": "recursive",
+      "data_type": "BOOLEAN",
+      "default": true,
+      "ui_control": "toggle",
+      "description": "Include files from nested subfolders."
+    }
+  ],
+  "ui": {
+    "default_width": 360,
+    "accent_color": "#7c8cff",
+    "collapsed_by_default": false
+  },
+  "runtime": {
+    "executor_key": "load_documents",
+    "cacheable": false,
+    "deterministic": true,
+    "side_effecting": false
+  }
+}

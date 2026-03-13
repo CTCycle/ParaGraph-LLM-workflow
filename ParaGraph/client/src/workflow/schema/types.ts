@@ -360,3 +360,8 @@ export interface OllamaStatusResponse {
     model_count: number
 }
 
+export interface DatabaseConnectionCheckResponse {
+    ok: boolean
+    message: string
+}
+

@@ -10,6 +10,7 @@ import {
     ProviderModelCatalogResponse,
     StartExecutionResponse,
     OllamaStatusResponse,
+    DatabaseConnectionCheckResponse,
     WorkflowDefinition,
 } from '../../workflow/schema/types'
 import { requestJson } from './api'
@@ -40,6 +41,21 @@ export function browseNodeFiles(multiple = false): Promise<PickedPathsResponse> 
 
 export function browseNodeDirectory(): Promise<PickedDirectoryResponse> {
     return requestJson<PickedDirectoryResponse>('/nodes/dialog/directory')
+}
+
+export function checkDatabaseConnection(
+    nodeType: 'SQL_DATABASE' | 'SQL_FILE_DATABASE',
+    nodeVersion: number,
+    parameters: Record<string, unknown>,
+): Promise<DatabaseConnectionCheckResponse> {
+    return requestJson<DatabaseConnectionCheckResponse>('/nodes/check-database-connection', {
+        method: 'POST',
+        body: JSON.stringify({
+            node_type: nodeType,
+            node_version: nodeVersion,
+            parameters,
+        }),
+    })
 }
 
 export function fetchProviderModels(sessionName = 'default'): Promise<ProviderModelCatalogResponse> {

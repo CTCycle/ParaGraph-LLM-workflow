@@ -27,6 +27,24 @@ from ParaGraph.server.services.workflow.node_handlers.common import (
 
 
 SUPPORTED_DOCUMENT_EXTENSIONS = {".txt", ".md", ".markdown", ".html", ".htm", ".json", ".pdf", ".docx"}
+LOAD_DOCUMENTS_SUPPORTED_EXTENSIONS = {
+    ".txt",
+    ".md",
+    ".markdown",
+    ".pdf",
+    ".doc",
+    ".docx",
+    ".rtf",
+    ".html",
+    ".htm",
+    ".json",
+    ".csv",
+    ".tsv",
+    ".log",
+    ".xml",
+    ".yaml",
+    ".yml",
+}
 SUPPORTED_DATABASE_ENGINES = {"sqlite", "postgres", "postgresql", "mysql"}
 READ_ONLY_QUERY_PREFIXES = ("select", "with", "pragma", "show", "describe", "explain")
 
@@ -107,6 +125,19 @@ class DirectoryLoaderParameters(BaseModel):
         if not isinstance(parsed, list) or not all(isinstance(item, str) for item in parsed):
             raise ValueError("include_extensions must be a JSON array of file extensions")
         return [item.lower() if item.startswith(".") else f".{item.lower()}" for item in parsed]
+
+
+class LoadDocumentsParameters(BaseModel):
+    folder_path: str
+    recursive: bool = True
+
+    @field_validator("folder_path")
+    @classmethod
+    def validate_folder_path(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("folder_path must not be empty")
+        return normalized
 
 
 class WebScraperParameters(BaseModel):
@@ -298,17 +329,44 @@ def _load_pdf_text(path: Path) -> str:
     return "\n\n".join(parts)
 
 
+def _read_text_file(path: Path) -> str:
+    try:
+        return path.read_text(encoding="utf-8")
+    except UnicodeDecodeError:
+        return path.read_text(encoding="latin-1")
+
+
+def _load_doc_text_fallback(path: Path) -> str:
+    # Legacy .doc extraction fallback: preserve printable text when a binary parser is unavailable.
+    raw = path.read_bytes()
+    for encoding in ("utf-8", "latin-1"):
+        decoded = raw.decode(encoding, errors="ignore")
+        compact = "\n".join(line.strip() for line in decoded.splitlines() if line.strip())
+        if compact:
+            return compact
+    return ""
+
+
 def _load_file_text(path: Path) -> tuple[str, str]:
     suffix = path.suffix.lower()
     if suffix in {".txt", ".md", ".markdown"}:
-        return path.read_text(encoding="utf-8"), mimetypes.guess_type(str(path))[0] or "text/plain"
+        return _read_text_file(path), mimetypes.guess_type(str(path))[0] or "text/plain"
     if suffix in {".html", ".htm"}:
-        raw = path.read_text(encoding="utf-8")
+        raw = _read_text_file(path)
         return _html_to_text(raw), mimetypes.guess_type(str(path))[0] or "text/html"
     if suffix == ".json":
-        payload = json.loads(path.read_text(encoding="utf-8"))
+        payload = json.loads(_read_text_file(path))
         text_payload = payload if isinstance(payload, str) else json.dumps(payload, indent=2, ensure_ascii=True, default=str)
         return text_payload, "application/json"
+    if suffix in {".csv", ".tsv", ".log", ".xml", ".yaml", ".yml"}:
+        return _read_text_file(path), mimetypes.guess_type(str(path))[0] or "text/plain"
+    if suffix == ".rtf":
+        return _read_text_file(path), "application/rtf"
+    if suffix == ".doc":
+        extracted = _load_doc_text_fallback(path)
+        if not extracted.strip():
+            raise ValueError(f"Unable to extract readable text from legacy .doc file: {path}")
+        return extracted, "application/msword"
     if suffix == ".pdf":
         return _load_pdf_text(path), "application/pdf"
     if suffix == ".docx":
@@ -522,6 +580,40 @@ def _directory_loader_executor(parameters: dict[str, Any], inputs: dict[str, Any
     return {"documents": documents}
 
 
+def _load_documents_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
+    _ = inputs
+    parsed = LoadDocumentsParameters.model_validate(parameters)
+    directory = _resolve_local_path(parsed.folder_path)
+    if not directory.exists() or not directory.is_dir():
+        raise ValueError(f"Directory not found: {directory}")
+
+    paths = directory.rglob("*") if parsed.recursive else directory.glob("*")
+    documents: list[dict[str, Any]] = []
+    for path in sorted(paths):
+        if not path.is_file():
+            continue
+        extension = path.suffix.lower()
+        if extension not in LOAD_DOCUMENTS_SUPPORTED_EXTENSIONS:
+            continue
+        resolved = str(path.resolve())
+        documents.append(
+            _build_document(
+                resolved,
+                "",
+                mimetypes.guess_type(resolved)[0] or "text/plain",
+                {
+                    "extension": extension,
+                    "file_name": path.name,
+                    "relative_path": str(path.relative_to(directory)),
+                    "size_bytes": path.stat().st_size,
+                    "deferred_load": True,
+                    "file_path": resolved,
+                },
+            )
+        )
+    return {"documents": documents}
+
+
 def _web_scraper_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
     _ = inputs
     url = coerce_text(parameters.get("url")).strip()
@@ -668,6 +760,7 @@ def _database_query_executor(parameters: dict[str, Any], inputs: dict[str, Any])
 INGESTION_HANDLERS = {
     "document_loader": NodeHandler(executor=_document_loader_executor, parameter_model=DocumentLoaderParameters),
     "directory_loader": NodeHandler(executor=_directory_loader_executor, parameter_model=DirectoryLoaderParameters),
+    "load_documents": NodeHandler(executor=_load_documents_executor, parameter_model=LoadDocumentsParameters),
     "web_scraper": NodeHandler(executor=_web_scraper_executor, parameter_model=WebScraperParameters),
     "api_fetcher": NodeHandler(executor=_api_fetcher_executor, parameter_model=ApiFetcherParameters),
     "sql_database": NodeHandler(executor=_sql_database_executor, parameter_model=SQLDatabaseParameters),

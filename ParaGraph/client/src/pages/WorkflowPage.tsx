@@ -33,6 +33,7 @@ import {
 import {
     browseNodeDirectory,
     browseNodeFiles,
+    checkDatabaseConnection,
     compileWorkflow,
     fetchProviderModels,
     importNodeManifest,
@@ -45,6 +46,7 @@ import { useNodeCatalog } from '../workflow/hooks/useNodeCatalog'
 import { NODE_CATEGORY_LABELS, NODE_CATEGORY_ORDER } from '../workflow/schema/nodeCategory'
 import {
     CompiledExecutionPlan,
+    ExecutionRunState,
     NodeCategory,
     NodeManifest,
     NodeParameterDefinition,
@@ -86,6 +88,13 @@ type WorkflowCategoryGroup = {
 type CategoryExpansionState = Record<NodeCategory, boolean>
 
 type NodeAccentStyle = CSSProperties & { '--node-accent': string }
+
+type JsonValidationState = 'idle' | 'valid' | 'invalid'
+
+type WorkflowExecutionErrorModal = {
+    title: string
+    message: string
+}
 
 type PersistedWorkflowNode = {
     id: string
@@ -346,6 +355,32 @@ function parseValue(parameter: NodeParameterDefinition, rawValue: string | boole
 
 function isStructuredNode(manifest: NodeManifest): boolean {
     return manifest.id === 'LLM_STRUCTURED' || manifest.id.includes('STRUCTURED')
+}
+
+function isSqlConnectionNode(manifest: NodeManifest): manifest is NodeManifest & { id: 'SQL_DATABASE' | 'SQL_FILE_DATABASE' } {
+    return manifest.id === 'SQL_DATABASE' || manifest.id === 'SQL_FILE_DATABASE'
+}
+
+function formatWorkflowExecutionError(error: unknown, runState: ExecutionRunState | null): string {
+    const reason = error instanceof Error ? error.message : 'Execution failed for an unknown reason.'
+    const failedStep = runState?.steps.find((step) => step.status === 'failed')
+    const stepMessage = failedStep
+        ? `Step ${failedStep.step_id} (${failedStep.node_type}) failed on node ${failedStep.node_id}.`
+        : null
+
+    return [
+        'The workflow execution stopped because an error occurred.',
+        '',
+        `Reason: ${reason}`,
+        stepMessage ? `Failed step: ${stepMessage}` : null,
+        '',
+        'Suggested checks:',
+        '1. Verify required node parameters are set and valid.',
+        '2. Verify upstream outputs and downstream input types are compatible.',
+        '3. For external resources (DB/API/files), verify connectivity, permissions, and paths.',
+    ]
+        .filter((line): line is string => Boolean(line))
+        .join('\n')
 }
 
 const LEGACY_MANIFEST_ID_MAP: Record<string, string> = {
@@ -749,8 +784,12 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
     const nodeStyle: NodeAccentStyle = { '--node-accent': data.manifest.ui.accent_color }
     const structured = isStructuredNode(data.manifest)
     const isJsonOutputNode = data.manifest.id === 'JSON_OUTPUT'
+    const sqlConnectionNode = isSqlConnectionNode(data.manifest)
     const [browseTarget, setBrowseTarget] = useState<string | null>(null)
     const [jsonDrafts, setJsonDrafts] = useState<Record<string, string>>({})
+    const [jsonValidationStates, setJsonValidationStates] = useState<Record<string, JsonValidationState>>({})
+    const [runtimeJsonValidation, setRuntimeJsonValidation] = useState<JsonValidationState>('idle')
+    const [connectionCheckState, setConnectionCheckState] = useState<'idle' | 'checking' | 'success' | 'error'>('idle')
 
     const runtimeOutputText = isJsonOutputNode ? formatJsonOutputRuntime(data.runtimeOutput) : formatRuntimeOutput(data.runtimeOutput)
     const shouldShowRuntimeOutput = Boolean(runtimeOutputText) || isJsonOutputNode
@@ -779,6 +818,60 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
             return current
         })
     }, [data.manifest.parameters, data.parameters])
+
+    useEffect(() => {
+        setConnectionCheckState('idle')
+    }, [data.manifest.id, data.parameters])
+
+    useEffect(() => {
+        setRuntimeJsonValidation('idle')
+    }, [runtimeOutputText])
+
+    function validateJsonDraft(parameterName: string, rawValue: string): void {
+        const candidate = rawValue.trim()
+        try {
+            const parsed = JSON.parse(candidate)
+            const pretty = JSON.stringify(parsed, null, 2)
+            setJsonDrafts((current) => ({ ...current, [parameterName]: pretty }))
+            setJsonValidationStates((current) => ({ ...current, [parameterName]: 'valid' }))
+            data.onParameterChange(parameterName, pretty)
+            data.onStatusChange('JSON is valid')
+        } catch (error) {
+            setJsonValidationStates((current) => ({ ...current, [parameterName]: 'invalid' }))
+            data.onStatusChange(error instanceof Error ? `Invalid JSON: ${error.message}` : 'Invalid JSON payload')
+        }
+    }
+
+    function validateRuntimeJsonOutput(): void {
+        try {
+            JSON.parse(runtimeOutputText)
+            setRuntimeJsonValidation('valid')
+            data.onStatusChange('JSON output is valid')
+        } catch (error) {
+            setRuntimeJsonValidation('invalid')
+            data.onStatusChange(error instanceof Error ? `Output is not valid JSON: ${error.message}` : 'Output is not valid JSON')
+        }
+    }
+
+    async function handleConnectionCheck(): Promise<void> {
+        if (!sqlConnectionNode) {
+            return
+        }
+        setConnectionCheckState('checking')
+        try {
+            const response = await checkDatabaseConnection(data.manifest.id as 'SQL_DATABASE' | 'SQL_FILE_DATABASE', data.manifest.version, data.parameters)
+            if (response.ok) {
+                setConnectionCheckState('success')
+                data.onStatusChange(response.message)
+            } else {
+                setConnectionCheckState('error')
+                data.onStatusChange(response.message)
+            }
+        } catch (error) {
+            setConnectionCheckState('error')
+            data.onStatusChange(error instanceof Error ? error.message : 'Database connectivity check failed')
+        }
+    }
 
     async function handlePathBrowse(parameter: NodeParameterDefinition): Promise<void> {
         setBrowseTarget(parameter.name)
@@ -851,21 +944,44 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
                     {data.isActive && <span className="workflow-node-badge workflow-node-badge-running">Running</span>}
                     {data.skipped && <span className="workflow-node-badge workflow-node-badge-skipped">Skipped</span>}
                     {structured && <span className="workflow-node-badge">Structured</span>}
+                    {sqlConnectionNode && (
+                        <button
+                            type="button"
+                            className={`workflow-node-db-check workflow-node-db-check-${connectionCheckState} nodrag nopan`}
+                            aria-label="Check database connection"
+                            title="Check database connection"
+                            onPointerDown={preventNodeInteractionDrag}
+                            onMouseDown={preventNodeInteractionDrag}
+                            onClick={() => void handleConnectionCheck()}
+                        >
+                            {connectionCheckState === 'checking' ? '...' : 'DB'}
+                        </button>
+                    )}
                     <button
                         type="button"
-                        className="workflow-node-ping"
+                        className="workflow-node-ping nodrag nopan"
                         aria-label={data.pinged ? 'Unping node' : 'Ping node'}
                         title={data.pinged ? 'Unping node' : 'Ping node'}
-                        onClick={data.onTogglePing}
+                        onPointerDown={preventNodeInteractionDrag}
+                        onMouseDown={preventNodeInteractionDrag}
+                        onClick={(event) => {
+                            event.stopPropagation()
+                            data.onTogglePing()
+                        }}
                     >
                         {data.pinged ? '◎' : '○'}
                     </button>
                     <button
                         type="button"
-                        className="workflow-node-toggle"
+                        className="workflow-node-toggle nodrag nopan"
                         aria-label={data.collapsed ? 'Expand node' : 'Collapse node'}
                         title={data.collapsed ? 'Expand node' : 'Collapse node'}
-                        onClick={data.onToggleCollapse}
+                        onPointerDown={preventNodeInteractionDrag}
+                        onMouseDown={preventNodeInteractionDrag}
+                        onClick={(event) => {
+                            event.stopPropagation()
+                            data.onToggleCollapse()
+                        }}
                     >
                         {data.collapsed ? '+' : '-'}
                     </button>
@@ -970,18 +1086,35 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
                                                 onChange={(event) => data.onParameterChange(parameter.name, parseValue(parameter, event.target.value))}
                                             />
                                         ) : parameter.ui_control === 'json' ? (
-                                            <textarea
-                                                rows={10}
-                                                className="workflow-node-json-input nodrag nopan"
-                                                value={jsonDrafts[parameter.name] ?? normalizeJsonParameterValue(value)}
-                                                onPointerDown={preventNodeInteractionDrag}
-                                                onMouseDown={preventNodeInteractionDrag}
-                                                onChange={(event) => {
-                                                    const nextValue = event.target.value
-                                                    setJsonDrafts((current) => ({ ...current, [parameter.name]: nextValue }))
-                                                    data.onParameterChange(parameter.name, parseValue(parameter, nextValue))
-                                                }}
-                                            />
+                                            <div className="workflow-node-json-widget">
+                                                <button
+                                                    type="button"
+                                                    className="workflow-node-json-validate nodrag nopan"
+                                                    onPointerDown={preventNodeInteractionDrag}
+                                                    onMouseDown={preventNodeInteractionDrag}
+                                                    onClick={() =>
+                                                        validateJsonDraft(
+                                                            parameter.name,
+                                                            jsonDrafts[parameter.name] ?? normalizeJsonParameterValue(value),
+                                                        )
+                                                    }
+                                                >
+                                                    Validate
+                                                </button>
+                                                <textarea
+                                                    rows={10}
+                                                    className={`workflow-node-json-input workflow-node-json-input-${jsonValidationStates[parameter.name] ?? 'idle'} nodrag nopan`}
+                                                    value={jsonDrafts[parameter.name] ?? normalizeJsonParameterValue(value)}
+                                                    onPointerDown={preventNodeInteractionDrag}
+                                                    onMouseDown={preventNodeInteractionDrag}
+                                                    onChange={(event) => {
+                                                        const nextValue = event.target.value
+                                                        setJsonDrafts((current) => ({ ...current, [parameter.name]: nextValue }))
+                                                        setJsonValidationStates((current) => ({ ...current, [parameter.name]: 'idle' }))
+                                                        data.onParameterChange(parameter.name, parseValue(parameter, nextValue))
+                                                    }}
+                                                />
+                                            </div>
                                         ) : parameter.ui_control === 'file-list' ? (
                                             <textarea
                                                 rows={4}
@@ -1063,10 +1196,21 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
 
             {shouldShowRuntimeOutput && (
                 <div className="workflow-node-runtime">
+                    {isJsonOutputNode && (
+                        <button
+                            type="button"
+                            className="workflow-node-json-validate workflow-node-json-validate-runtime nodrag nopan"
+                            onPointerDown={preventNodeInteractionDrag}
+                            onMouseDown={preventNodeInteractionDrag}
+                            onClick={() => validateRuntimeJsonOutput()}
+                        >
+                            Validate
+                        </button>
+                    )}
                     <pre
                         className={
                             isJsonOutputNode
-                                ? 'workflow-node-runtime-output workflow-node-runtime-output-json'
+                                ? `workflow-node-runtime-output workflow-node-runtime-output-json workflow-node-runtime-output-${runtimeJsonValidation}`
                                 : 'workflow-node-runtime-output'
                         }
                     >
@@ -1088,6 +1232,7 @@ function WorkflowEditor() {
     const { catalog, loading, error, reload } = useNodeCatalog()
     const [providerModels, setProviderModels] = useState<ProviderModelDefinition[]>([])
     const [statusText, setStatusText] = useState('Ready')
+    const [executionErrorModal, setExecutionErrorModal] = useState<WorkflowExecutionErrorModal | null>(null)
     const [isRunning, setIsRunning] = useState(false)
     const [search, setSearch] = useState('')
     const [isLibraryVisible, setIsLibraryVisible] = useState(false)
@@ -1563,17 +1708,24 @@ function WorkflowEditor() {
     }
 
     function toggleNodePing(nodeId: string): void {
-        const node = nodes.find((item) => item.id === nodeId)
-        if (!node) {
-            return
+        let statusMessage: string | null = null
+        setNodes((current) =>
+            current.map((node) => {
+                if (node.id !== nodeId) {
+                    return node
+                }
+                const nextPinged = !node.data.pinged
+                statusMessage = (nextPinged ? 'Pinged' : 'Unpinged') + ' ' + node.data.manifest.name
+                return {
+                    ...node,
+                    draggable: !nextPinged,
+                    data: { ...node.data, pinged: nextPinged },
+                }
+            }),
+        )
+        if (statusMessage) {
+            setStatusText(statusMessage)
         }
-        const nextPinged = !node.data.pinged
-        updateNode(nodeId, (current) => ({
-            ...current,
-            draggable: !nextPinged,
-            data: { ...current.data, pinged: nextPinged },
-        }))
-        setStatusText(`${nextPinged ? 'Pinged' : 'Unpinged'} ${node.data.manifest.name}`)
     }
 
     function toggleNodeSkipped(nodeId: string): void {
@@ -2021,6 +2173,7 @@ function WorkflowEditor() {
         if (isRunning) {
             return
         }
+        setExecutionErrorModal(null)
         setIsRunning(true)
         setActiveNodeId(null)
         setNodes((current) =>
@@ -2031,6 +2184,7 @@ function WorkflowEditor() {
         )
         setStatusText('Compiling workflow...')
 
+        let latestRunState: ExecutionRunState | null = null
         try {
             const compileResponse = await compileWorkflow(buildDefinition())
             if (!compileResponse.valid || !compileResponse.plan) {
@@ -2066,6 +2220,7 @@ function WorkflowEditor() {
                 }
             })
 
+            latestRunState = finalState
             setActiveNodeId(null)
             applyRunOutputs(finalState.outputs)
             if (finalState.status === 'completed') {
@@ -2077,7 +2232,12 @@ function WorkflowEditor() {
             }
         } catch (runError) {
             setActiveNodeId(null)
-            setStatusText(runError instanceof Error ? runError.message : 'Execution failed')
+            const message = runError instanceof Error ? runError.message : 'Execution failed'
+            setStatusText(message)
+            setExecutionErrorModal({
+                title: 'Workflow execution failed',
+                message: formatWorkflowExecutionError(runError, latestRunState),
+            })
         } finally {
             setIsRunning(false)
             activePlanRef.current = null
@@ -2123,6 +2283,23 @@ function WorkflowEditor() {
                     </button>
                 </div>
             </div>
+
+            {executionErrorModal && (
+                <div className="workflow-error-modal-backdrop" role="presentation">
+                    <div className="workflow-error-modal" role="dialog" aria-modal="true" aria-label="Workflow execution error">
+                        <button
+                            type="button"
+                            className="workflow-error-modal-close"
+                            aria-label="Close error dialog"
+                            onClick={() => setExecutionErrorModal(null)}
+                        >
+                            X
+                        </button>
+                        <h3>{executionErrorModal.title}</h3>
+                        <pre>{executionErrorModal.message}</pre>
+                    </div>
+                </div>
+            )}
 
             {error && <div className="workflow-error">{error}</div>}
 
@@ -2392,4 +2569,3 @@ export default function WorkflowPage() {
         </ReactFlowProvider>
     )
 }
-

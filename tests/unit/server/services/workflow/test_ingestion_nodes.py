@@ -37,6 +37,49 @@ def test_document_loader_accepts_multiple_files(tmp_path: Path) -> None:
     assert all(document['source_uri'].startswith(str(tmp_path)) for document in payload['documents'])
 
 
+
+def test_load_documents_emits_deferred_records_without_eager_text(tmp_path: Path) -> None:
+    source_dir = tmp_path / 'docs'
+    source_dir.mkdir(parents=True, exist_ok=True)
+    (source_dir / 'one.txt').write_text('alpha', encoding='utf-8')
+    (source_dir / 'two.md').write_text('beta', encoding='utf-8')
+    (source_dir / 'skip.bin').write_bytes(b'\x00\x01')
+
+    payload = node_registry.execute(
+        'LOAD_DOCUMENTS',
+        1,
+        {'folder_path': str(source_dir), 'recursive': False},
+        {},
+    )
+
+    assert [Path(document['source_uri']).name for document in payload['documents']] == ['one.txt', 'two.md']
+    assert all(document['text'] == '' for document in payload['documents'])
+    assert all(document['metadata']['deferred_load'] is True for document in payload['documents'])
+
+
+def test_load_documents_respects_recursive_toggle(tmp_path: Path) -> None:
+    source_dir = tmp_path / 'collection'
+    nested_dir = source_dir / 'nested'
+    nested_dir.mkdir(parents=True, exist_ok=True)
+    (source_dir / 'root.txt').write_text('root', encoding='utf-8')
+    (nested_dir / 'child.txt').write_text('child', encoding='utf-8')
+
+    non_recursive = node_registry.execute(
+        'LOAD_DOCUMENTS',
+        1,
+        {'folder_path': str(source_dir), 'recursive': False},
+        {},
+    )
+    recursive = node_registry.execute(
+        'LOAD_DOCUMENTS',
+        1,
+        {'folder_path': str(source_dir), 'recursive': True},
+        {},
+    )
+
+    assert [Path(document['source_uri']).name for document in non_recursive['documents']] == ['root.txt']
+    assert sorted(Path(document['source_uri']).name for document in recursive['documents']) == ['child.txt', 'root.txt']
+
 def test_api_fetcher_caps_request_list_and_extracts_selected_json(monkeypatch) -> None:
     responses = {
         'https://api.test/first': {'payload': {'text': 'first'}},
@@ -173,4 +216,3 @@ def test_sql_database_requires_required_fields_before_connect_attempt() -> None:
         assert 'db_host' in message or 'db_name' in message
     else:
         raise AssertionError('Expected SQL_DATABASE validation failure for missing required fields')
-
