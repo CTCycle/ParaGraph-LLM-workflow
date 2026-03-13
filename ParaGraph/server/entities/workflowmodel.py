@@ -9,8 +9,10 @@ from ParaGraph.server.entities.execution import CompiledExecutionPlan
 
 
 LEGACY_NODE_TYPE_MAP = {
-    "Prompt": "USER_PROMPT",
-    "PROMPT": "USER_PROMPT",
+    "Prompt": "PROMPT",
+    "PROMPT": "PROMPT",
+    "USER_PROMPT": "PROMPT",
+    "SYSTEM_PROMPT": "PROMPT",
     "Output": "TEXT_OUTPUT",
     "Retrieval": "TEXT_SPLIT",
     "VectorDB": "LOAD_TEXT",
@@ -57,6 +59,7 @@ class WorkflowNodeInstance(BaseModel):
     node_type: str
     node_version: int = 1
     parameters: dict[str, Any] = Field(default_factory=dict)
+    skipped: bool = False
 
     @model_validator(mode="before")
     @classmethod
@@ -76,6 +79,7 @@ class WorkflowNodeInstance(BaseModel):
             "node_type": node_type,
             "node_version": value.get("node_version", 1),
             "parameters": normalized_parameters,
+            "skipped": bool(value.get("skipped", value.get("disabled", False))),
         }
 
 
@@ -202,6 +206,8 @@ class VisualNodeState(BaseModel):
     width: float = 280.0
     height: float = 180.0
     collapsed: bool = False
+    pinged: bool = False
+    skipped: bool = False
 
 
 class VisualGraph(BaseModel):
@@ -265,3 +271,4 @@ class WorkflowListResponse(BaseModel):
 class WorkflowVersionListResponse(BaseModel):
     workflow_id: str
     versions: list[int] = Field(default_factory=list)
+

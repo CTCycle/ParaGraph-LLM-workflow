@@ -90,6 +90,7 @@ export interface WorkflowNodeInstance {
     node_type: string
     node_version: number
     parameters: Record<string, unknown>
+    skipped?: boolean
 }
 
 export interface WorkflowConnection {
@@ -116,6 +117,8 @@ export interface VisualNodeState {
     width: number
     height: number
     collapsed: boolean
+    pinged?: boolean
+    skipped?: boolean
 }
 
 export interface VisualGraph {

@@ -62,17 +62,19 @@ type WorkflowNodeData = {
     manifest: NodeManifest
     parameters: Record<string, unknown>
     collapsed: boolean
+    pinged: boolean
+    skipped: boolean
     isActive: boolean
     runtimeOutput: Record<string, unknown> | null
     providerModels: ProviderModelDefinition[]
     onParameterChange: (parameterName: string, value: unknown) => void
     onStatusChange: (message: string) => void
+    onTogglePing: () => void
     onToggleCollapse: () => void
 }
 
 type NodeContextMenuState = {
     nodeId: string
-    nodeName: string
     x: number
     y: number
 }
@@ -96,6 +98,8 @@ type PersistedWorkflowNode = {
     height?: number
     parameters: Record<string, unknown>
     collapsed: boolean
+    pinged: boolean
+    skipped: boolean
 }
 
 type PersistedWorkflowEdge = {
@@ -115,6 +119,17 @@ type PersistedWorkflowState = {
     selected_manifest_key: string | null
 }
 
+
+type CopiedNodeSnapshot = {
+    manifest: NodeManifest
+    parameters: Record<string, unknown>
+    position: XYPosition
+    width?: number
+    height?: number
+    collapsed: boolean
+    pinged: boolean
+    skipped: boolean
+}
 const NODE_MIN_WIDTH = 240
 const NODE_MAX_WIDTH = 680
 const NODE_MIN_HEIGHT = 140
@@ -181,6 +196,37 @@ function parseHandleId(handleId: string): ParsedHandle | null {
     }
     return { kind, name }
 }
+
+function resolveNodeDimensions(node: Node<WorkflowNodeData>): { width?: number; height?: number } {
+    const widthFromStyle = node.style?.width
+    const heightFromStyle = node.style?.height
+    return {
+        width:
+            typeof node.width === 'number'
+                ? node.width
+                : typeof widthFromStyle === 'number'
+                    ? widthFromStyle
+                    : undefined,
+        height:
+            typeof node.height === 'number'
+                ? node.height
+                : typeof heightFromStyle === 'number'
+                    ? heightFromStyle
+                    : undefined,
+    }
+}
+
+function cloneNodeParameters(parameters: Record<string, unknown>): Record<string, unknown> {
+    if (typeof structuredClone === 'function') {
+        return structuredClone(parameters)
+    }
+    try {
+        return JSON.parse(JSON.stringify(parameters)) as Record<string, unknown>
+    } catch {
+        return { ...parameters }
+    }
+}
+
 function defaultParameters(manifest: NodeManifest): Record<string, unknown> {
     return Object.fromEntries(manifest.parameters.map((parameter) => [parameter.name, parameter.default ?? '']))
 }
@@ -378,6 +424,8 @@ function readPersistedWorkflowState(): PersistedWorkflowState | null {
                         height: isFiniteNumber(value.height) ? value.height : undefined,
                         parameters: isRecord(value.parameters) ? value.parameters : {},
                         collapsed: Boolean(value.collapsed),
+                        pinged: Boolean(value.pinged),
+                        skipped: Boolean(value.skipped),
                     }
                 })
                 .filter((value): value is PersistedWorkflowNode => value !== null)
@@ -511,6 +559,21 @@ function isMultilineControl(parameter: NodeParameterDefinition): boolean {
 function preventNodeInteractionDrag(event: ReactPointerEvent<HTMLElement> | ReactMouseEvent<HTMLElement>): void {
     event.stopPropagation()
 }
+
+function isEditableEventTarget(target: EventTarget | null): boolean {
+    if (!(target instanceof HTMLElement)) {
+        return false
+    }
+    if (target.isContentEditable) {
+        return true
+    }
+    const tagName = target.tagName.toLowerCase()
+    if (tagName === 'input' || tagName === 'textarea' || tagName === 'select') {
+        return true
+    }
+    return Boolean(target.closest('input, textarea, select, [contenteditable="true"]'))
+}
+
 function getDynamicModelOptions(
     manifest: NodeManifest,
     parameters: Record<string, unknown>,
@@ -521,6 +584,22 @@ function getDynamicModelOptions(
         return providerModels.filter((item) => item.provider === provider)
     }
     return []
+}
+
+function buildInitialNodeParameters(
+    manifest: NodeManifest,
+    providerModels: ProviderModelDefinition[],
+    inputParameters?: Record<string, unknown>,
+): Record<string, unknown> {
+    const initialParameters = {
+        ...defaultParameters(manifest),
+        ...(inputParameters ? cloneNodeParameters(inputParameters) : {}),
+    }
+    const initialModels = getDynamicModelOptions(manifest, initialParameters, providerModels)
+    if (manifest.id === 'MODEL_PROVIDER' && initialModels.length > 0 && !String(initialParameters.model_name ?? '').trim()) {
+        initialParameters.model_name = initialModels[0].model
+    }
+    return initialParameters
 }
 
 function getParameterOptions(
@@ -600,6 +679,8 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
             data-selected={selected || undefined}
             data-active={data.isActive || undefined}
             data-collapsed={data.collapsed || undefined}
+            data-pinged={data.pinged || undefined}
+            data-skipped={data.skipped || undefined}
             data-structured={structured || undefined}
         >
             <NodeResizer
@@ -618,7 +699,17 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
                 </div>
                 <div className="workflow-node-header-actions">
                     {data.isActive && <span className="workflow-node-badge workflow-node-badge-running">Running</span>}
+                    {data.skipped && <span className="workflow-node-badge workflow-node-badge-skipped">Skipped</span>}
                     {structured && <span className="workflow-node-badge">Structured</span>}
+                    <button
+                        type="button"
+                        className="workflow-node-ping"
+                        aria-label={data.pinged ? 'Unping node' : 'Ping node'}
+                        title={data.pinged ? 'Unping node' : 'Ping node'}
+                        onClick={data.onTogglePing}
+                    >
+                        {data.pinged ? '◎' : '○'}
+                    </button>
                     <button
                         type="button"
                         className="workflow-node-toggle"
@@ -845,6 +936,8 @@ function WorkflowEditor() {
     const activePlanRef = useRef<CompiledExecutionPlan | null>(null)
     const hasHydratedWorkflowRef = useRef(false)
     const draggedManifestKeyRef = useRef<string | null>(null)
+    const copiedNodeRef = useRef<CopiedNodeSnapshot | null>(null)
+    const pasteCountRef = useRef(0)
     const canvasPanelRef = useRef<HTMLDivElement | null>(null)
     const { fitView, getZoom, screenToFlowPosition, zoomIn, zoomTo } = useReactFlow<Node<WorkflowNodeData>, Edge>()
 
@@ -945,6 +1038,111 @@ function WorkflowEditor() {
     }, [nodeContextMenu])
 
     useEffect(() => {
+        function handleKeyboardShortcuts(event: KeyboardEvent): void {
+            if (isEditableEventTarget(event.target)) {
+                return
+            }
+
+            const normalizedKey = event.key.toLowerCase()
+            const withModifier = event.ctrlKey || event.metaKey
+
+            if (withModifier && normalizedKey === 'c') {
+                const selectedNodes = nodes.filter((node) => node.selected)
+                if (selectedNodes.length === 0) {
+                    return
+                }
+
+                const source = selectedNodes[selectedNodes.length - 1]
+                const dimensions = resolveNodeDimensions(source)
+                copiedNodeRef.current = {
+                    manifest: source.data.manifest,
+                    parameters: cloneNodeParameters(source.data.parameters),
+                    position: source.position,
+                    width: dimensions.width,
+                    height: dimensions.height,
+                    collapsed: source.data.collapsed,
+                    pinged: source.data.pinged,
+                    skipped: source.data.skipped,
+                }
+                pasteCountRef.current = 0
+                setStatusText(`Copied ${source.data.manifest.name}`)
+                event.preventDefault()
+                return
+            }
+
+            if (withModifier && normalizedKey === 'v') {
+                const copied = copiedNodeRef.current
+                if (!copied) {
+                    return
+                }
+
+                event.preventDefault()
+                pasteCountRef.current += 1
+                const offset = 34 + (pasteCountRef.current - 1) * 18
+                const nextNode = createWorkflowNode({
+                    manifest: copied.manifest,
+                    position: {
+                        x: copied.position.x + offset,
+                        y: copied.position.y + offset,
+                    },
+                    parameters: cloneNodeParameters(copied.parameters),
+                    width: copied.width,
+                    height: copied.height,
+                    collapsed: copied.collapsed,
+                    pinged: copied.pinged,
+                    skipped: copied.skipped,
+                    selected: true,
+                })
+                setNodes((current) => [
+                    ...current.map((node) => (node.selected ? { ...node, selected: false } : node)),
+                    nextNode,
+                ])
+                setSelectedManifestKey(manifestKey(copied.manifest))
+                setStatusText(`Pasted ${copied.manifest.name}`)
+                return
+            }
+
+            if (event.key !== 'Delete' && event.key !== 'Backspace') {
+                return
+            }
+
+            const selectedNodeIds = nodes.filter((node) => node.selected).map((node) => node.id)
+            const selectedEdgeIds = new Set(edges.filter((edge) => edge.selected).map((edge) => edge.id))
+            if (selectedNodeIds.length === 0 && selectedEdgeIds.size === 0) {
+                return
+            }
+
+            event.preventDefault()
+            const selectedNodeSet = new Set(selectedNodeIds)
+            setNodes((current) => current.filter((node) => !selectedNodeSet.has(node.id)))
+            setEdges((current) =>
+                current.filter(
+                    (edge) =>
+                        !selectedEdgeIds.has(edge.id) &&
+                        !selectedNodeSet.has(edge.source) &&
+                        !selectedNodeSet.has(edge.target),
+                ),
+            )
+            setNodeContextMenu((current) => (current && selectedNodeSet.has(current.nodeId) ? null : current))
+
+            if (selectedNodeIds.length > 0) {
+                setStatusText(
+                    selectedNodeIds.length === 1
+                        ? 'Removed selected node'
+                        : `Removed ${selectedNodeIds.length} selected nodes`,
+                )
+            } else if (selectedEdgeIds.size > 0) {
+                setStatusText(selectedEdgeIds.size === 1 ? 'Removed selected link' : `Removed ${selectedEdgeIds.size} selected links`)
+            }
+        }
+
+        window.addEventListener('keydown', handleKeyboardShortcuts)
+        return () => {
+            window.removeEventListener('keydown', handleKeyboardShortcuts)
+        }
+    }, [edges, nodes, setEdges, setNodes])
+
+    useEffect(() => {
         try {
             window.localStorage.setItem(WORKFLOW_TREE_STATE_STORAGE_KEY, JSON.stringify(expandedCategories))
         } catch {
@@ -976,6 +1174,8 @@ function WorkflowEditor() {
                     position: snapshot.position,
                     parameters: snapshot.parameters,
                     collapsed: snapshot.collapsed,
+                    pinged: snapshot.pinged,
+                    skipped: snapshot.skipped,
                     width: snapshot.width,
                     height: snapshot.height,
                 }),
@@ -1029,27 +1229,18 @@ function WorkflowEditor() {
         }
 
         const persistedNodes: PersistedWorkflowNode[] = nodes.map((node) => {
-            const widthFromStyle = node.style?.width
-            const heightFromStyle = node.style?.height
+            const dimensions = resolveNodeDimensions(node)
             return {
                 id: node.id,
                 manifest_id: node.data.manifest.id,
                 manifest_version: node.data.manifest.version,
                 position: node.position,
-                width:
-                    typeof node.width === 'number'
-                        ? node.width
-                        : typeof widthFromStyle === 'number'
-                            ? widthFromStyle
-                            : undefined,
-                height:
-                    typeof node.height === 'number'
-                        ? node.height
-                        : typeof heightFromStyle === 'number'
-                            ? heightFromStyle
-                            : undefined,
+                width: dimensions.width,
+                height: dimensions.height,
                 parameters: node.data.parameters,
                 collapsed: node.data.collapsed,
+                pinged: node.data.pinged,
+                skipped: node.data.skipped,
             }
         })
         const persistedEdges: PersistedWorkflowEdge[] = edges.map((edge) => ({
@@ -1094,6 +1285,12 @@ function WorkflowEditor() {
     }, [catalog, filteredCatalog, selectedManifestKey])
 
     const effectiveSelectedManifestKey = selectedManifest ? manifestKey(selectedManifest) : null
+    const contextMenuNode = useMemo(() => {
+        if (!nodeContextMenu) {
+            return null
+        }
+        return nodes.find((node) => node.id === nodeContextMenu.nodeId) ?? null
+    }, [nodeContextMenu, nodes])
 
     function updateNode(nodeId: string, updater: (node: Node<WorkflowNodeData>) => Node<WorkflowNodeData>): void {
         setNodes((current) => current.map((node) => (node.id === nodeId ? updater(node) : node)))
@@ -1116,6 +1313,9 @@ function WorkflowEditor() {
         position?: XYPosition
         parameters?: Record<string, unknown>
         collapsed?: boolean
+        pinged?: boolean
+        skipped?: boolean
+        selected?: boolean
         width?: number
         height?: number
     }): Node<WorkflowNodeData> {
@@ -1124,11 +1324,7 @@ function WorkflowEditor() {
             `${input.manifest.id.toLowerCase()}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`
         const resolvedPosition = input.position ?? { x: 80 + nodes.length * 28, y: 80 + nodes.length * 22 }
         const defaultWidth = Math.min(Math.max(input.manifest.ui.default_width, NODE_MIN_WIDTH), NODE_MAX_WIDTH)
-        const initialParameters = { ...defaultParameters(input.manifest), ...(input.parameters || {}) }
-        const initialModels = getDynamicModelOptions(input.manifest, initialParameters, providerModels)
-        if (input.manifest.id === 'MODEL_PROVIDER' && initialModels.length > 0 && !String(initialParameters.model_name ?? '').trim()) {
-            initialParameters.model_name = initialModels[0].model
-        }
+        const initialParameters = buildInitialNodeParameters(input.manifest, providerModels, input.parameters)
 
         const style: CSSProperties = {
             width: input.width ?? defaultWidth,
@@ -1142,11 +1338,14 @@ function WorkflowEditor() {
             type: 'manifest',
             position: resolvedPosition,
             draggable: true,
+            selected: input.selected,
             data: {
                 manifest: input.manifest,
                 parameters: initialParameters,
                 providerModels,
                 collapsed: input.collapsed ?? input.manifest.ui.collapsed_by_default,
+                pinged: input.pinged ?? false,
+                skipped: input.skipped ?? false,
                 isActive: nodeId === activeNodeId,
                 runtimeOutput: null,
                 onParameterChange: (parameterName, value) => {
@@ -1172,6 +1371,12 @@ function WorkflowEditor() {
                 onStatusChange: (message) => {
                     setStatusText(message)
                 },
+                onTogglePing: () => {
+                    updateNode(nodeId, (current) => ({
+                        ...current,
+                        data: { ...current.data, pinged: !current.data.pinged },
+                    }))
+                },
                 onToggleCollapse: () => {
                     updateNode(nodeId, (current) => ({
                         ...current,
@@ -1184,9 +1389,85 @@ function WorkflowEditor() {
         }
     }
 
-    function addManifestNode(manifest: NodeManifest, position?: XYPosition): void {
-        const node = createWorkflowNode({ manifest, position })
+    function addManifestNode(manifest: NodeManifest, position?: XYPosition, options?: { select?: boolean }): void {
+        const node = createWorkflowNode({ manifest, position, selected: options?.select })
+        if (options?.select) {
+            setNodes((current) => [...current.map((item) => (item.selected ? { ...item, selected: false } : item)), node])
+            return
+        }
         setNodes((current) => [...current, node])
+    }
+
+    function toggleNodePing(nodeId: string): void {
+        const node = nodes.find((item) => item.id === nodeId)
+        if (!node) {
+            return
+        }
+        const nextPinged = !node.data.pinged
+        updateNode(nodeId, (current) => ({
+            ...current,
+            data: { ...current.data, pinged: nextPinged },
+        }))
+        setStatusText(`${nextPinged ? 'Pinged' : 'Unpinged'} ${node.data.manifest.name}`)
+    }
+
+    function toggleNodeSkipped(nodeId: string): void {
+        const node = nodes.find((item) => item.id === nodeId)
+        if (!node) {
+            return
+        }
+        const nextSkipped = !node.data.skipped
+        updateNode(nodeId, (current) => ({
+            ...current,
+            data: { ...current.data, skipped: nextSkipped },
+        }))
+        setStatusText(`${nextSkipped ? 'Skipped' : 'Unskipped'} ${node.data.manifest.name}`)
+    }
+
+    function addSiblingNode(nodeId: string, mode: 'default' | 'clone'): void {
+        const sourceNode = nodes.find((item) => item.id === nodeId)
+        if (!sourceNode) {
+            return
+        }
+
+        const dimensions = resolveNodeDimensions(sourceNode)
+        const sibling = createWorkflowNode({
+            manifest: sourceNode.data.manifest,
+            position: {
+                x: sourceNode.position.x + 44,
+                y: sourceNode.position.y + 34,
+            },
+            parameters: mode === 'clone' ? sourceNode.data.parameters : undefined,
+            collapsed: mode === 'clone' ? sourceNode.data.collapsed : sourceNode.data.manifest.ui.collapsed_by_default,
+            pinged: mode === 'clone' ? sourceNode.data.pinged : false,
+            skipped: mode === 'clone' ? sourceNode.data.skipped : false,
+            width: mode === 'clone' ? dimensions.width : undefined,
+            height: mode === 'clone' ? dimensions.height : undefined,
+            selected: true,
+        })
+
+        setNodes((current) => [...current.map((item) => (item.selected ? { ...item, selected: false } : item)), sibling])
+        setSelectedManifestKey(manifestKey(sourceNode.data.manifest))
+        if (mode === 'clone') {
+            setStatusText(`Cloned ${sourceNode.data.manifest.name}`)
+        } else {
+            setStatusText(`Added ${sourceNode.data.manifest.name}`)
+        }
+    }
+
+    function resetNodeConfiguration(nodeId: string): void {
+        const node = nodes.find((item) => item.id === nodeId)
+        if (!node) {
+            return
+        }
+        updateNode(nodeId, (current) => ({
+            ...current,
+            data: {
+                ...current.data,
+                parameters: buildInitialNodeParameters(current.data.manifest, providerModels),
+            },
+        }))
+        setStatusText(`Reset ${node.data.manifest.name} configuration`)
     }
 
     function applyRunOutputs(outputs: Record<string, Record<string, unknown>>): void {
@@ -1206,6 +1487,7 @@ function WorkflowEditor() {
             node_type: node.data.manifest.id,
             node_version: node.data.manifest.version,
             parameters: node.data.parameters,
+            skipped: node.data.skipped,
         }))
         const definitionConnections = edges.reduce<WorkflowConnection[]>((accumulator, edge) => {
             const source = typeof edge.sourceHandle === 'string' ? parseHandleId(edge.sourceHandle) : null
@@ -1245,25 +1527,16 @@ function WorkflowEditor() {
         return {
             schema_version: 2,
             nodes: nodes.map((node) => {
-                const widthFromStyle = node.style?.width
-                const heightFromStyle = node.style?.height
+                const dimensions = resolveNodeDimensions(node)
                 return {
                     node_id: node.id,
                     x: node.position.x,
                     y: node.position.y,
-                    width:
-                        typeof node.width === 'number'
-                            ? node.width
-                            : typeof widthFromStyle === 'number'
-                                ? widthFromStyle
-                                : node.data.manifest.ui.default_width,
-                    height:
-                        typeof node.height === 'number'
-                            ? node.height
-                            : typeof heightFromStyle === 'number'
-                                ? heightFromStyle
-                                : NODE_MIN_HEIGHT,
+                    width: dimensions.width ?? node.data.manifest.ui.default_width,
+                    height: dimensions.height ?? NODE_MIN_HEIGHT,
                     collapsed: node.data.collapsed,
+                    pinged: node.data.pinged,
+                    skipped: node.data.skipped,
                 }
             }),
             groups: [],
@@ -1323,6 +1596,8 @@ function WorkflowEditor() {
             const width = visualNode && isFiniteNumber(visualNode.width) ? visualNode.width : undefined
             const height = visualNode && isFiniteNumber(visualNode.height) ? visualNode.height : undefined
             const collapsed = visualNode ? Boolean(visualNode.collapsed) : manifest.ui.collapsed_by_default
+            const pinged = visualNode ? Boolean(visualNode.pinged) : false
+            const skipped = typeof rawNode.skipped === 'boolean' ? rawNode.skipped : visualNode ? Boolean(visualNode.skipped) : false
             const parameters = isRecord(rawNode.parameters) ? rawNode.parameters : {}
 
             return createWorkflowNode({
@@ -1331,6 +1606,8 @@ function WorkflowEditor() {
                 position,
                 parameters,
                 collapsed,
+                pinged,
+                skipped,
                 width,
                 height,
             })
@@ -1832,7 +2109,8 @@ function WorkflowEditor() {
                         fitViewOptions={{ padding: 0.18 }}
                         minZoom={0.05}
                         maxZoom={1.8}
-                        deleteKeyCode={['Backspace', 'Delete']}
+                        multiSelectionKeyCode={['Control', 'Meta']}
+                        deleteKeyCode={null}
                         onPaneClick={() => setNodeContextMenu(null)}
                         onNodeContextMenu={(event, node) => {
                             event.preventDefault()
@@ -1841,7 +2119,6 @@ function WorkflowEditor() {
                             const y = panelBounds ? event.clientY - panelBounds.top : event.clientY
                             setNodeContextMenu({
                                 nodeId: node.id,
-                                nodeName: node.data.manifest.name,
                                 x: Math.max(10, x),
                                 y: Math.max(10, y),
                             })
@@ -1866,7 +2143,7 @@ function WorkflowEditor() {
                     <a className="workflow-reactflow-credit" href="https://reactflow.dev/" target="_blank" rel="noreferrer">
                         Built with React Flow
                     </a>
-                    {nodeContextMenu && (
+                    {nodeContextMenu && contextMenuNode && (
                         <div
                             className="workflow-node-context-menu"
                             style={{ left: `${nodeContextMenu.x}px`, top: `${nodeContextMenu.y}px` }}
@@ -1875,9 +2152,62 @@ function WorkflowEditor() {
                         >
                             <button
                                 type="button"
+                                className="workflow-node-context-menu-item"
                                 onClick={() => {
-                                    removeNode(nodeContextMenu.nodeId)
-                                    setStatusText(`Removed ${nodeContextMenu.nodeName}`)
+                                    toggleNodePing(contextMenuNode.id)
+                                    setNodeContextMenu(null)
+                                }}
+                            >
+                                {contextMenuNode.data.pinged ? 'Unping' : 'Ping'}
+                            </button>
+                            <button
+                                type="button"
+                                className="workflow-node-context-menu-item"
+                                onClick={() => {
+                                    addSiblingNode(contextMenuNode.id, 'default')
+                                    setNodeContextMenu(null)
+                                }}
+                            >
+                                Add same node
+                            </button>
+                            <button
+                                type="button"
+                                className="workflow-node-context-menu-item"
+                                onClick={() => {
+                                    addSiblingNode(contextMenuNode.id, 'clone')
+                                    setNodeContextMenu(null)
+                                }}
+                            >
+                                Clone
+                            </button>
+                            <button
+                                type="button"
+                                className="workflow-node-context-menu-item"
+                                onClick={() => {
+                                    resetNodeConfiguration(contextMenuNode.id)
+                                    setNodeContextMenu(null)
+                                }}
+                            >
+                                Reset config
+                            </button>
+                            <button
+                                type="button"
+                                className="workflow-node-context-menu-item"
+                                onClick={() => {
+                                    toggleNodeSkipped(contextMenuNode.id)
+                                    setNodeContextMenu(null)
+                                }}
+                            >
+                                {contextMenuNode.data.skipped ? 'Unskip' : 'Skip'}
+                            </button>
+                            <div className="workflow-node-context-menu-separator" role="separator" />
+                            <button
+                                type="button"
+                                className="workflow-node-context-menu-item workflow-node-context-menu-item-danger"
+                                onClick={() => {
+                                    removeNode(contextMenuNode.id)
+                                    setStatusText(`Removed ${contextMenuNode.data.manifest.name}`)
+                                    setNodeContextMenu(null)
                                 }}
                             >
                                 Remove node
@@ -1904,10 +2234,4 @@ export default function WorkflowPage() {
         </ReactFlowProvider>
     )
 }
-
-
-
-
-
-
 

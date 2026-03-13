@@ -27,19 +27,39 @@ def _binding_sort_key(connection: WorkflowConnection) -> tuple[str, str, str]:
 
 
 class CompilerService:
+    def _active_definition(self, definition: WorkflowDefinition) -> tuple[WorkflowDefinition, list[str]]:
+        skipped_node_ids = [node.node_id for node in definition.nodes if node.skipped]
+        if not skipped_node_ids:
+            return definition, []
+
+        active_node_ids = {node.node_id for node in definition.nodes if not node.skipped}
+        active_definition = definition.model_copy(
+            update={
+                "nodes": [node for node in definition.nodes if node.node_id in active_node_ids],
+                "connections": [
+                    connection
+                    for connection in definition.connections
+                    if connection.from_node in active_node_ids and connection.to_node in active_node_ids
+                ],
+            }
+        )
+        return active_definition, skipped_node_ids
+
     def compile(self, definition: WorkflowDefinition) -> CompileWorkflowResponse:
-        diagnostics, validated_parameters = self._collect_diagnostics(definition)
+        active_definition, skipped_node_ids = self._active_definition(definition)
+
+        diagnostics, validated_parameters = self._collect_diagnostics(active_definition)
         if diagnostics:
             return CompileWorkflowResponse(valid=False, diagnostics=diagnostics, plan=None)
 
-        ordered_node_ids = self._topological_order(definition)
+        ordered_node_ids = self._topological_order(active_definition)
         incoming: dict[str, list[WorkflowConnection]] = defaultdict(list)
-        for connection in definition.connections:
+        for connection in active_definition.connections:
             incoming[connection.to_node].append(connection)
 
         steps: list[ExecutionStepPlan] = []
         for node_id in ordered_node_ids:
-            node = next(item for item in definition.nodes if item.node_id == node_id)
+            node = next(item for item in active_definition.nodes if item.node_id == node_id)
             manifest = node_registry.get(node.node_type, node.node_version)
             if manifest is None:
                 continue
@@ -79,6 +99,10 @@ class CompilerService:
                 )
             )
 
+        plan_metadata: dict[str, object] = {"schema_version": definition.schema_version, **definition.metadata}
+        if skipped_node_ids:
+            plan_metadata["skipped_node_ids"] = skipped_node_ids
+
         return CompileWorkflowResponse(
             valid=True,
             diagnostics=[],
@@ -86,7 +110,7 @@ class CompilerService:
                 plan_id=f"plan_{uuid4().hex[:12]}",
                 step_order=[step.step_id for step in steps],
                 steps=steps,
-                metadata={"schema_version": definition.schema_version, **definition.metadata},
+                metadata=plan_metadata,
             ),
         )
 
@@ -397,3 +421,4 @@ class CompilerService:
 
 
 compiler_service = CompilerService()
+
