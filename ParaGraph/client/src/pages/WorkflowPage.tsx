@@ -1,6 +1,5 @@
 import {
     type CSSProperties,
-    type ChangeEvent as ReactChangeEvent,
     type DragEvent as ReactDragEvent,
     type MouseEvent as ReactMouseEvent,
     type PointerEvent as ReactPointerEvent,
@@ -35,12 +34,15 @@ import {
     browseNodeDirectory,
     browseNodeFiles,
     compileWorkflow,
+    exportWorkflowJsonWithDialog,
     fetchProviderModels,
+    importWorkflowJsonWithDialog,
     importNodeManifest,
     pollExecution,
     startExecution,
     subscribeExecutionEvents,
 } from '../app/services/workflowApi'
+import { usePageMetadata } from '../app/hooks/usePageMetadata'
 import { useNodeCatalog } from '../workflow/hooks/useNodeCatalog'
 import { NODE_CATEGORY_LABELS, NODE_CATEGORY_ORDER } from '../workflow/schema/nodeCategory'
 import {
@@ -173,16 +175,10 @@ function resolveManifestId(manifestId: string): string {
 }
 
 function createDefaultExpandedCategoriesState(): CategoryExpansionState {
-    const state = NODE_CATEGORY_ORDER.reduce<CategoryExpansionState>((accumulator, category) => {
-        accumulator[category] = true
+    return NODE_CATEGORY_ORDER.reduce<CategoryExpansionState>((accumulator, category) => {
+        accumulator[category] = false
         return accumulator
     }, {} as CategoryExpansionState)
-
-    const firstCategory = NODE_CATEGORY_ORDER[0]
-    if (firstCategory) {
-        state[firstCategory] = false
-    }
-    return state
 }
 
 function createExpandedCategoriesState(): CategoryExpansionState {
@@ -749,7 +745,6 @@ function WorkflowEditor() {
     const activePlanRef = useRef<CompiledExecutionPlan | null>(null)
     const hasHydratedWorkflowRef = useRef(false)
     const draggedManifestKeyRef = useRef<string | null>(null)
-    const importFileInputRef = useRef<HTMLInputElement | null>(null)
     const canvasPanelRef = useRef<HTMLDivElement | null>(null)
     const { fitView, getZoom, screenToFlowPosition, zoomIn, zoomTo } = useReactFlow<Node<WorkflowNodeData>, Edge>()
 
@@ -1228,31 +1223,36 @@ function WorkflowEditor() {
         }
     }
 
-    function exportWorkflowBundle(): void {
+    async function exportWorkflowBundle(): Promise<void> {
         try {
             const bundle = buildWorkflowBundle()
             const payload = JSON.stringify(bundle, null, 2)
-            const stamp = new Date().toISOString().replace(/[:.]/g, '-')
-            const downloadUrl = window.URL.createObjectURL(new Blob([payload], { type: 'application/json' }))
-            const anchor = document.createElement('a')
-            anchor.href = downloadUrl
-            anchor.download = `paragraph-workflow-${stamp}.json`
-            anchor.click()
-            window.URL.revokeObjectURL(downloadUrl)
-            setStatusText(`Exported workflow JSON (${bundle.workflow.definition.nodes.length} nodes)`)
+            const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
+            const response = await exportWorkflowJsonWithDialog({
+                json_payload: payload,
+                suggested_filename: `paragraph-workflow-${stamp}.json`,
+            })
+            if (!response.path) {
+                setStatusText('Workflow export cancelled')
+                return
+            }
+            setStatusText(
+                `Exported workflow JSON to ${response.path} (${bundle.workflow.definition.nodes.length} nodes)`,
+            )
         } catch (error) {
             setStatusText(error instanceof Error ? error.message : 'Unable to export workflow JSON')
         }
     }
 
-    async function importWorkflowBundle(event: ReactChangeEvent<HTMLInputElement>): Promise<void> {
-        const file = event.target.files?.[0]
-        if (!file) {
-            return
-        }
-
+    async function importWorkflowBundle(): Promise<void> {
         try {
-            const parsed: unknown = JSON.parse(await file.text())
+            const selection = await importWorkflowJsonWithDialog()
+            if (!selection.json_payload) {
+                setStatusText('Workflow import cancelled')
+                return
+            }
+
+            const parsed: unknown = JSON.parse(selection.json_payload)
             const payload = readImportedWorkflowPayload(parsed)
 
             const existingManifestMap = new Map(catalog.map((manifest) => [manifestKey(manifest), manifest]))
@@ -1284,11 +1284,10 @@ function WorkflowEditor() {
                 importedManifests.length > 0
                     ? ` and installed ${importedManifests.length} custom node${importedManifests.length === 1 ? '' : 's'}`
                     : ''
-            setStatusText(`Imported workflow "${payload.name}"${importedLabel}`)
+            const pathLabel = selection.path ? ` from ${selection.path}` : ''
+            setStatusText(`Imported workflow "${payload.name}"${importedLabel}${pathLabel}`)
         } catch (error) {
             setStatusText(error instanceof Error ? error.message : 'Unable to import workflow JSON')
-        } finally {
-            event.target.value = ''
         }
     }
 
@@ -1425,25 +1424,16 @@ function WorkflowEditor() {
                     <span className="workflow-toolbar-status-label">Status</span>
                     <strong>{statusText}</strong>
                 </div>
-                <div className="workflow-toolbar-actions">
-                    <input
-                        ref={importFileInputRef}
-                        type="file"
-                        accept="application/json,.json"
-                        className="workflow-hidden-file-input"
-                        onChange={(event) => void importWorkflowBundle(event)}
-                    />
-
-                    <button type="button" onClick={() => void fitView({ padding: 0.2, duration: 180 })}>
+                <div className="workflow-toolbar-actions">                    <button type="button" onClick={() => void fitView({ padding: 0.2, duration: 180 })}>
                         Fit View
                     </button>
                     <button type="button" onClick={() => setIsGridVisible((visible) => !visible)}>
                         {isGridVisible ? 'Hide Grid' : 'Show Grid'}
                     </button>
-                    <button type="button" onClick={exportWorkflowBundle}>
+                    <button type="button" onClick={() => void exportWorkflowBundle()}>
                         Export JSON
                     </button>
-                    <button type="button" onClick={() => importFileInputRef.current?.click()}>
+                    <button type="button" onClick={() => void importWorkflowBundle()}>
                         Import JSON
                     </button>
                     <button
@@ -1474,7 +1464,7 @@ function WorkflowEditor() {
                         <div className="workflow-tree-header">
                             <div>
                                 <h2>Node tree</h2>
-                                <p className="workflow-tree-caption">Search and drag nodes into the canvas.</p>
+                                <p className="workflow-tree-caption">Expand categories, then drag nodes onto the canvas.</p>
                             </div>
                             <button
                                 type="button"
@@ -1564,7 +1554,7 @@ function WorkflowEditor() {
                                     <p>{buildNodeSummary(selectedManifest)}</p>
                                 </div>
                             ) : (
-                                <p className="workflow-tree-preview-empty">Select a node to inspect it before dragging it onto the canvas.</p>
+                                <p className="workflow-tree-preview-empty">Select a node to review its summary before adding it to the canvas.</p>
                             )}
                         </div>
                     </aside>
@@ -1577,7 +1567,7 @@ function WorkflowEditor() {
                             className="workflow-canvas-tree-toggle"
                             onClick={() => setIsLibraryVisible(true)}
                         >
-                            Show tree
+                            Show node tree
                         </button>
                     )}
                     <ReactFlow
@@ -1669,10 +1659,22 @@ function WorkflowEditor() {
 }
 
 export default function WorkflowPage() {
+    usePageMetadata({
+        title: 'Workflow Builder',
+        description:
+            'Build, connect, and execute ParaGraph workflows with a visual node canvas and import/export support.',
+    })
+
     return (
         <ReactFlowProvider>
             <WorkflowEditor />
         </ReactFlowProvider>
     )
 }
+
+
+
+
+
+
 

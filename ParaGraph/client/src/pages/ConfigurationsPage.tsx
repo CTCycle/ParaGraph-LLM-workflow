@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 
+import { usePageMetadata } from '../app/hooks/usePageMetadata'
 import { useModalState } from '../app/hooks/useModalState'
 import {
     fetchConfigurations,
@@ -90,6 +91,11 @@ function mapPayloadToForm(payload: AppConfigurationPayload): ConfigurationFormVa
 }
 
 export default function ConfigurationsPage() {
+    usePageMetadata({
+        title: 'Configurations',
+        description:
+            'Configure Ollama defaults and provider access keys for ParaGraph workflow execution in your current session.',
+    })
     const [selectedCloudProvider, setSelectedCloudProvider] = useState<CloudProvider>('openai')
     const [cloudCredentials, setCloudCredentials] =
         useState<Record<CloudProvider, ProviderCredential>>(EMPTY_CLOUD_CREDENTIALS)
@@ -251,109 +257,100 @@ export default function ConfigurationsPage() {
     return (
         <section className="config-page">
             <header className="config-page-header">
-                <h1>Provider and runtime settings</h1>
-                <p className="config-page-lede">Store access keys and local inference defaults for your current workspace.</p>
+                <h1>Runtime and Access Settings</h1>
+                <p className="config-page-lede">Manage local Ollama defaults and cloud credentials used by this ParaGraph session.</p>
             </header>
 
             <div className="config-page-layout">
-                <div className="config-page-left-column">
-                    <section className="config-panel">
-                        <div className="config-panel-header">
-                            <div>
-                                <h2>Ollama configuration</h2>
-                                <p>Set the local Ollama base URL used by runtime nodes.</p>
-                            </div>
-                            <div className="config-panel-actions">
-                                <button type="button" onClick={() => void handlePingOllama()} disabled={isPingingOllama || isLoading}>
-                                    {isPingingOllama ? 'Checking...' : 'Check Status'}
-                                </button>
-                            </div>
+                <section className="config-panel config-panel-column">
+                    <div className="config-panel-header">
+                        <div>
+                            <h2>Ollama</h2>
+                            <p>Set the local runtime endpoint used for model discovery and execution.</p>
                         </div>
-
-                        <div className="config-panel-fields">
-                            <label>
-                                <span>Base URL</span>
-                                <input
-                                    type="text"
-                                    value={ollamaBaseUrl}
-                                    onChange={(event) => setOllamaBaseUrl(event.target.value)}
-                                    placeholder="http://127.0.0.1:11434"
-                                />
-                            </label>
+                        <div className="config-panel-actions">
+                            <button type="button" onClick={() => void handlePingOllama()} disabled={isPingingOllama || isLoading}>
+                                {isPingingOllama ? 'Checking...' : 'Check Status'}
+                            </button>
                         </div>
+                    </div>
 
-                        {ollamaStatus && <p className="config-panel-note">{ollamaStatus}</p>}
-                    </section>
+                    <div className="config-panel-fields">
+                        <label>
+                            <span>Base URL</span>
+                            <input
+                                type="text"
+                                value={ollamaBaseUrl}
+                                onChange={(event) => setOllamaBaseUrl(event.target.value)}
+                                placeholder="http://127.0.0.1:11434"
+                            />
+                        </label>
+                    </div>
 
-                    <section className="config-panel">
-                        <div className="config-panel-header">
-                            <div>
-                                <h2>Access Keys</h2>
-                                <p>Cloud provider and Hugging Face credentials.</p>
-                            </div>
-                            <div className="config-panel-actions">
-                                <button type="button" onClick={() => void openLoadModal()} disabled={isLoading || isLoadingProfiles}>
-                                    Load
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setSaveProfileName('')
-                                        saveModal.open()
-                                    }}
-                                    disabled={isLoading || isSavingProfile}
-                                >
-                                    Save
-                                </button>
-                            </div>
+                    {ollamaStatus && <p className="config-panel-note">{ollamaStatus}</p>}
+                </section>
+
+                <section className="config-panel config-panel-column">
+                    <div className="config-panel-header">
+                        <div>
+                            <h2>Access Keys</h2>
+                            <p>Manage API keys for cloud providers and Hugging Face.</p>
                         </div>
-
-                        <div className="config-panel-fields">
-                            <label>
-                                <span>Cloud Provider</span>
-                                <select
-                                    value={selectedCloudProvider}
-                                    onChange={(event) => setSelectedCloudProvider(toCloudProvider(event.target.value))}
-                                >
-                                    {CLOUD_PROVIDER_OPTIONS.map((option) => (
-                                        <option key={option.value} value={option.value}>
-                                            {option.label}
-                                        </option>
-                                    ))}
-                                </select>
-                            </label>
-
-                            <label>
-                                <span>API Key</span>
-                                <input
-                                    type="password"
-                                    value={currentCloudCredentials.apiKey}
-                                    placeholder="sk-..."
-                                    onChange={(event) => updateCurrentCloudCredential('apiKey', event.target.value)}
-                                />
-                            </label>
-
-                            <label>
-                                <span>Hugging Face API Key</span>
-                                <input
-                                    type="password"
-                                    value={huggingFaceKey}
-                                    placeholder="hf_..."
-                                    onChange={(event) => setHuggingFaceKey(event.target.value)}
-                                />
-                            </label>
+                        <div className="config-panel-actions">
+                            <button type="button" onClick={() => void openLoadModal()} disabled={isLoading || isLoadingProfiles}>
+                                Load
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setSaveProfileName('')
+                                    saveModal.open()
+                                }}
+                                disabled={isLoading || isSavingProfile}
+                            >
+                                Save
+                            </button>
                         </div>
+                    </div>
 
-                        {statusMessage && <p className="config-panel-note">{statusMessage}</p>}
-                    </section>
-                </div>
+                    <div className="config-panel-fields">
+                        <label>
+                            <span>Cloud Provider</span>
+                            <select
+                                value={selectedCloudProvider}
+                                onChange={(event) => setSelectedCloudProvider(toCloudProvider(event.target.value))}
+                            >
+                                {CLOUD_PROVIDER_OPTIONS.map((option) => (
+                                    <option key={option.value} value={option.value}>
+                                        {option.label}
+                                    </option>
+                                ))}
+                            </select>
+                        </label>
 
-                <aside className="config-page-right-column">
-                    <section className="config-panel config-panel-empty" aria-hidden="true">
-                        <h2>Right Column</h2>
-                        <p>Reserved for upcoming configuration modules.</p>
-                    </section>
-                </aside>
+                        <label>
+                            <span>API Key</span>
+                            <input
+                                type="password"
+                                value={currentCloudCredentials.apiKey}
+                                placeholder="sk-..."
+                                onChange={(event) => updateCurrentCloudCredential('apiKey', event.target.value)}
+                            />
+                        </label>
+
+                        <label>
+                            <span>Hugging Face API Key</span>
+                            <input
+                                type="password"
+                                value={huggingFaceKey}
+                                placeholder="hf_..."
+                                onChange={(event) => setHuggingFaceKey(event.target.value)}
+                            />
+                        </label>
+                    </div>
+
+                    {statusMessage && <p className="config-panel-note">{statusMessage}</p>}
+                </section>
             </div>
 
             <ModalDialog
@@ -428,3 +425,4 @@ export default function ConfigurationsPage() {
         </section>
     )
 }
+

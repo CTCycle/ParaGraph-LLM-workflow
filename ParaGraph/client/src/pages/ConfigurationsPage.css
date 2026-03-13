@@ -24,25 +24,22 @@
 
 .config-page-layout {
     display: grid;
-    grid-template-columns: minmax(420px, 0.95fr) minmax(0, 1.05fr);
-    gap: 16px;
-    align-items: stretch;
-}
-
-.config-page-left-column {
-    display: grid;
+    grid-template-columns: repeat(2, minmax(320px, 1fr));
     gap: 14px;
-    grid-template-rows: repeat(2, minmax(0, auto));
-}
-
-.config-page-right-column {
-    min-height: 0;
+    align-items: stretch;
 }
 
 .config-panel {
     border: 1px solid rgba(73, 95, 128, 0.72);
+    border-radius: 14px;
     background: rgba(10, 17, 31, 0.88);
-    padding: 14px;
+    padding: 13px;
+}
+
+.config-panel-column {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
 }
 
 .config-panel-header {
@@ -71,10 +68,11 @@
 }
 
 .config-panel-actions button {
-    height: 30px;
+    height: 29px;
     min-width: 62px;
-    padding: 0 10px;
+    padding: 0 9px;
     border: 1px solid rgba(72, 96, 126, 0.82);
+    border-radius: 9px;
     background: rgba(6, 13, 24, 0.95);
     color: #e7f1ff;
     cursor: pointer;
@@ -114,8 +112,9 @@
 .config-modal-input input {
     width: 100%;
     min-width: 0;
-    padding: 9px 10px;
+    padding: 7px 10px;
     border: 1px solid rgba(72, 96, 126, 0.82);
+    border-radius: 9px;
     background: rgba(4, 10, 20, 0.96);
     color: #eef6ff;
 }
@@ -124,29 +123,6 @@
     margin: 12px 0 0;
     color: #b5cae6;
     font-size: 0.84rem;
-}
-
-.config-panel-empty {
-    height: 100%;
-    min-height: 410px;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    text-align: center;
-    border-style: dashed;
-    color: #99b1cf;
-}
-
-.config-panel-empty h2 {
-    margin: 0;
-    font-size: 1rem;
-    color: #cfe4ff;
-}
-
-.config-panel-empty p {
-    margin: 8px 0 0;
-    max-width: 40ch;
 }
 
 .config-modal-backdrop {
@@ -161,6 +137,7 @@
 .config-modal {
     width: min(520px, calc(100vw - 28px));
     border: 1px solid rgba(73, 95, 128, 0.92);
+    border-radius: 14px;
     background: #081426;
     padding: 14px;
     display: grid;
@@ -179,6 +156,7 @@
 
 .config-modal-list {
     border: 1px solid rgba(73, 95, 128, 0.72);
+    border-radius: 10px;
     background: rgba(4, 10, 20, 0.6);
     max-height: 280px;
     overflow: auto;
@@ -220,9 +198,10 @@
 }
 
 .config-modal-actions button {
-    height: 30px;
+    height: 29px;
     min-width: 72px;
     border: 1px solid rgba(72, 96, 126, 0.82);
+    border-radius: 9px;
     background: rgba(6, 13, 24, 0.95);
     color: #e7f1ff;
     cursor: pointer;
@@ -236,10 +215,6 @@
 @media (max-width: 1160px) {
     .config-page-layout {
         grid-template-columns: 1fr;
-    }
-
-    .config-panel-empty {
-        min-height: 220px;
     }
 }
 
@@ -257,4 +232,3 @@
         justify-content: flex-end;
     }
 }
-
