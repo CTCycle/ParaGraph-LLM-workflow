@@ -5,6 +5,8 @@ import json
 from pathlib import Path
 from typing import Any
 
+from pydantic import ValidationError
+
 from ParaGraph.server.common.constants import RESOURCES_PATH
 from ParaGraph.server.entities.nodecatalog import NodeCatalogResponse, NodeManifest
 from ParaGraph.server.services.configuration import configuration_service
@@ -18,6 +20,21 @@ NODE_ROOT = Path(RESOURCES_PATH) / "nodes"
 ARTIFACT_ROOT = Path(RESOURCES_PATH) / "artifacts"
 MODEL_NODE_IDS = {"LLM_CHAT", "LLM_STRUCTURED"}
 STRUCTURED_NODE_IDS = {"LLM_STRUCTURED"}
+
+def _format_parameter_validation_error(error: ValidationError) -> str:
+    issues = error.errors()
+    if not issues:
+        return str(error)
+
+    messages: list[str] = []
+    for issue in issues[:3]:
+        location = ".".join(str(part) for part in issue.get("loc", ()) if part != "__root__")
+        message = str(issue.get("msg") or "Invalid parameter")
+        messages.append(f"{location}: {message}" if location else message)
+
+    if len(issues) > 3:
+        messages.append(f"(+{len(issues) - 3} more)")
+    return "; ".join(messages)
 
 
 class NodeRegistry:
@@ -182,7 +199,10 @@ class NodeRegistry:
         handler = self._handler_for_manifest(manifest)
         payload = dict(parameters)
         if handler.parameter_model is not None:
-            payload = handler.parameter_model.model_validate(payload).model_dump(mode="json")
+            try:
+                payload = handler.parameter_model.model_validate(payload).model_dump(mode="json")
+            except ValidationError as exc:
+                raise ValueError(_format_parameter_validation_error(exc)) from exc
         self._validate_parameter_constraints(manifest, payload)
         return payload
 
@@ -262,5 +282,4 @@ class NodeRegistry:
 
 
 node_registry = NodeRegistry()
-
 

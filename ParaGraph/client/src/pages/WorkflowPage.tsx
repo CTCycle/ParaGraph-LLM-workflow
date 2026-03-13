@@ -1268,7 +1268,7 @@ function WorkflowEditor() {
                 return
             }
 
-            if (event.key !== 'Delete' && event.key !== 'Backspace') {
+            if (event.key !== 'Delete' && event.key !== 'Backspace' && event.key !== 'Del') {
                 return
             }
 
@@ -1491,6 +1491,7 @@ function WorkflowEditor() {
         const resolvedPosition = input.position ?? { x: 80 + nodes.length * 28, y: 80 + nodes.length * 22 }
         const defaultWidth = Math.min(Math.max(input.manifest.ui.default_width, NODE_MIN_WIDTH), NODE_MAX_WIDTH)
         const initialParameters = buildInitialNodeParameters(input.manifest, providerModels, input.parameters)
+        const isPinged = input.pinged ?? false
 
         const style: CSSProperties = {
             width: input.width ?? defaultWidth,
@@ -1503,14 +1504,14 @@ function WorkflowEditor() {
             id: nodeId,
             type: 'manifest',
             position: resolvedPosition,
-            draggable: true,
+            draggable: !isPinged,
             selected: input.selected,
             data: {
                 manifest: input.manifest,
                 parameters: initialParameters,
                 providerModels,
                 collapsed: input.collapsed ?? input.manifest.ui.collapsed_by_default,
-                pinged: input.pinged ?? false,
+                pinged: isPinged,
                 skipped: input.skipped ?? false,
                 isActive: nodeId === activeNodeId,
                 runtimeOutput: null,
@@ -1538,10 +1539,7 @@ function WorkflowEditor() {
                     setStatusText(message)
                 },
                 onTogglePing: () => {
-                    updateNode(nodeId, (current) => ({
-                        ...current,
-                        data: { ...current.data, pinged: !current.data.pinged },
-                    }))
+                    toggleNodePing(nodeId)
                 },
                 onToggleCollapse: () => {
                     updateNode(nodeId, (current) => ({
@@ -1572,6 +1570,7 @@ function WorkflowEditor() {
         const nextPinged = !node.data.pinged
         updateNode(nodeId, (current) => ({
             ...current,
+            draggable: !nextPinged,
             data: { ...current.data, pinged: nextPinged },
         }))
         setStatusText(`${nextPinged ? 'Pinged' : 'Unpinged'} ${node.data.manifest.name}`)
@@ -2090,7 +2089,7 @@ function WorkflowEditor() {
             <div className="workflow-toolbar" role="navigation" aria-label="Workflow actions">
                 <div className="workflow-toolbar-status">
                     <span className="workflow-toolbar-status-label">Status</span>
-                    <strong>{statusText}</strong>
+                    <strong title={statusText}>{statusText}</strong>
                 </div>
                 <div className="workflow-toolbar-actions">
                     <button type="button" onClick={() => void fitView({ padding: 0.2, duration: 180 })}>
@@ -2393,3 +2392,4 @@ export default function WorkflowPage() {
         </ReactFlowProvider>
     )
 }
+

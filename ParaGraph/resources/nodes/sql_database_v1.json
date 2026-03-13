@@ -1,0 +1,121 @@
+{
+  "id": "SQL_DATABASE",
+  "version": 1,
+  "name": "SQL Database",
+  "category": "control",
+  "description": "Configure a SQL server connection and expose a typed controller handle for downstream SQL nodes.",
+  "inputs": [],
+  "outputs": [],
+  "controllers": [
+    {
+      "name": "connection",
+      "data_type": "DATABASE_CONNECTION",
+      "required": false,
+      "accepts_multiple": true,
+      "description": "Read-only SQL connection handle for downstream SQL nodes.",
+      "scope": "source"
+    }
+  ],
+  "parameters": [
+    {
+      "name": "db_engine",
+      "data_type": "TEXT",
+      "default": "postgres",
+      "constraints": {
+        "required": true,
+        "options": [
+          "postgres",
+          "mysql"
+        ]
+      },
+      "ui_control": "select",
+      "description": "SQL engine for server-based connections."
+    },
+    {
+      "name": "db_host",
+      "data_type": "TEXT",
+      "default": "127.0.0.1",
+      "constraints": {
+        "required": true
+      },
+      "ui_control": "text",
+      "description": "Database host or IP address."
+    },
+    {
+      "name": "db_port",
+      "data_type": "JSON",
+      "default": 5432,
+      "constraints": {
+        "required": true,
+        "min": 1,
+        "max": 65535
+      },
+      "ui_control": "number",
+      "description": "Database port."
+    },
+    {
+      "name": "db_name",
+      "data_type": "TEXT",
+      "default": "",
+      "constraints": {
+        "required": true
+      },
+      "ui_control": "text",
+      "description": "Database name."
+    },
+    {
+      "name": "db_user",
+      "data_type": "TEXT",
+      "default": "postgres",
+      "constraints": {
+        "required": true
+      },
+      "ui_control": "text",
+      "description": "Database username."
+    },
+    {
+      "name": "db_password",
+      "data_type": "TEXT",
+      "default": "change_me",
+      "ui_control": "password",
+      "description": "Database password."
+    },
+    {
+      "name": "db_ssl",
+      "data_type": "BOOLEAN",
+      "default": false,
+      "ui_control": "toggle",
+      "description": "Enable TLS for server-based SQL connections."
+    },
+    {
+      "name": "db_ssl_ca",
+      "data_type": "TEXT",
+      "default": "",
+      "ui_control": "file",
+      "description": "Optional CA certificate path when SSL is enabled."
+    },
+    {
+      "name": "db_connect_timeout",
+      "data_type": "JSON",
+      "default": 30,
+      "constraints": {
+        "min": 1,
+        "max": 120
+      },
+      "ui_control": "number",
+      "description": "Connection timeout in seconds."
+    }
+  ],
+  "ui": {
+    "default_width": 360,
+    "accent_color": "#2f9b7a",
+    "collapsed_by_default": false
+  },
+  "runtime": {
+    "executor_key": "sql_database",
+    "cacheable": false,
+    "deterministic": false,
+    "side_effecting": false
+  }
+}
+
