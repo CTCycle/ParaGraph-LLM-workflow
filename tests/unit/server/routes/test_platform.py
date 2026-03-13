@@ -14,7 +14,7 @@ def build_prompt_to_output_definition() -> dict[str, object]:
     return {
         'schema_version': 2,
         'nodes': [
-            {'node_id': 'prompt_1', 'node_type': 'USER_PROMPT', 'node_version': 1, 'parameters': {'prompt_text': 'Hello graph'}},
+            {'node_id': 'prompt_1', 'node_type': 'PROMPT', 'node_version': 1, 'parameters': {'prompt_text': 'Hello graph'}},
             {'node_id': 'output_1', 'node_type': 'TEXT_OUTPUT', 'node_version': 1, 'parameters': {}},
         ],
         'connections': [
@@ -32,15 +32,16 @@ def test_nodes_catalog_exposes_registry(client: TestClient) -> None:
 
     ids = {node['id'] for node in payload['nodes']}
     assert ids == {
-        'USER_PROMPT',
-        'SYSTEM_PROMPT',
+        'PROMPT',
         'WEB_SCRAPER',
         'MODEL_PROVIDER',
         'LLM_CHAT',
         'LLM_STRUCTURED',
         'TEXT_OUTPUT',
+        'JSON_OUTPUT',
     }
-    assert 'PROMPT' not in ids
+    assert 'USER_PROMPT' not in ids
+    assert 'SYSTEM_PROMPT' not in ids
     assert 'LLM_GENERATE' not in ids
 
 

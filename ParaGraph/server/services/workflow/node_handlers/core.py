@@ -365,6 +365,7 @@ def _router_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict
 
 
 CORE_HANDLERS = {
+    "prompt": NodeHandler(executor=_prompt_executor, parameter_model=PromptParameters),
     "user_prompt": NodeHandler(executor=_prompt_executor, parameter_model=PromptParameters),
     "system_prompt": NodeHandler(executor=_prompt_executor, parameter_model=PromptParameters),
     "image_input": NodeHandler(executor=_image_input_executor, parameter_model=ImageInputParameters),
@@ -380,6 +381,5 @@ CORE_HANDLERS = {
     "if": NodeHandler(executor=_if_executor),
     "router": NodeHandler(executor=_router_executor, parameter_model=RouterParameters),
 }
-
 
 

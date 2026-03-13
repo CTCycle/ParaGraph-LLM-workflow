@@ -45,7 +45,7 @@ def build_rag_definition(source_path: str, index_name: str) -> dict[str, object]
             {'node_id': 'chunk_1', 'node_type': 'CHUNKER', 'node_version': 1, 'parameters': {'strategy': 'token', 'chunk_size_tokens': 100, 'chunk_overlap_tokens': 20, 'respect_sentence_boundaries': True}},
             {'node_id': 'embed_1', 'node_type': 'BATCH_EMBEDDER', 'node_version': 1, 'parameters': {'provider': 'ollama', 'model_name': 'nomic-embed-text', 'batch_size': 4, 'dimensions': 3, 'normalize': True, 'max_retries': 0}},
             {'node_id': 'store_1', 'node_type': 'VECTOR_DB_WRITER', 'node_version': 1, 'parameters': {'backend': 'faiss', 'index_name': index_name, 'metric': 'cosine', 'index_type': 'flat', 'write_mode': 'overwrite', 'nlist': 8, 'hnsw_m': 16}},
-            {'node_id': 'query_1', 'node_type': 'USER_PROMPT', 'node_version': 1, 'parameters': {'prompt_text': 'apples'}},
+            {'node_id': 'query_1', 'node_type': 'PROMPT', 'node_version': 1, 'parameters': {'prompt_text': 'apples'}},
             {'node_id': 'search_1', 'node_type': 'SIMILARITY_SEARCH', 'node_version': 1, 'parameters': {'top_k': 2, 'score_threshold': 0, 'filter': {}, 'include_metadata': True}},
             {'node_id': 'context_1', 'node_type': 'CONTEXT_INJECTOR', 'node_version': 1, 'parameters': {'max_context_items': 2, 'include_citations': True, 'separator': '\n\n'}},
             {'node_id': 'template_1', 'node_type': 'TEMPLATE_FORMAT', 'node_version': 1, 'parameters': {'template': 'Use this context to answer the question:\n{input}'}},
@@ -107,4 +107,3 @@ def test_execute_rag_pipeline_returns_text_output(
         store_path = Path('ParaGraph/resources/artifacts/vectorstores') / index_name
         if store_path.exists():
             shutil.rmtree(store_path)
-

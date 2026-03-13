@@ -231,6 +231,17 @@ function defaultParameters(manifest: NodeManifest): Record<string, unknown> {
     return Object.fromEntries(manifest.parameters.map((parameter) => [parameter.name, parameter.default ?? '']))
 }
 
+function normalizeJsonParameterValue(value: unknown): string {
+    if (typeof value === 'string') {
+        return value
+    }
+    try {
+        return JSON.stringify(value ?? {}, null, 2)
+    } catch {
+        return String(value ?? '')
+    }
+}
+
 function normalizeProvider(value: unknown): string {
     const text = String(value ?? '').trim().toLowerCase()
     return text === 'anthropic' ? 'claude' : text
@@ -520,6 +531,30 @@ function formatRuntimeOutput(value: Record<string, unknown> | null): string {
         return String(value)
     }
 }
+
+function formatJsonOutputRuntime(value: Record<string, unknown> | null): string {
+    if (!value || Object.keys(value).length === 0) {
+        return ''
+    }
+    const candidate = Object.prototype.hasOwnProperty.call(value, 'json') ? value.json : value
+    if (typeof candidate === 'string') {
+        const trimmed = candidate.trim()
+        if (!trimmed) {
+            return ''
+        }
+        try {
+            const parsed = JSON.parse(trimmed)
+            return JSON.stringify(parsed, null, 2)
+        } catch {
+            return candidate
+        }
+    }
+    try {
+        return JSON.stringify(candidate, null, 2)
+    } catch {
+        return String(candidate)
+    }
+}
 function normalizeStringList(value: unknown): string[] {
     if (Array.isArray(value)) {
         return value
@@ -599,6 +634,13 @@ function buildInitialNodeParameters(
     if (manifest.id === 'MODEL_PROVIDER' && initialModels.length > 0 && !String(initialParameters.model_name ?? '').trim()) {
         initialParameters.model_name = initialModels[0].model
     }
+    for (const parameter of manifest.parameters) {
+        if (parameter.ui_control !== 'json') {
+            continue
+        }
+        const value = initialParameters[parameter.name] ?? parameter.default ?? ''
+        initialParameters[parameter.name] = normalizeJsonParameterValue(value)
+    }
     return initialParameters
 }
 
@@ -627,9 +669,37 @@ function getParameterOptions(
 function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
     const nodeStyle: NodeAccentStyle = { '--node-accent': data.manifest.ui.accent_color }
     const structured = isStructuredNode(data.manifest)
+    const isJsonOutputNode = data.manifest.id === 'JSON_OUTPUT'
     const [browseTarget, setBrowseTarget] = useState<string | null>(null)
+    const [jsonDrafts, setJsonDrafts] = useState<Record<string, string>>({})
 
-    const runtimeOutputText = formatRuntimeOutput(data.runtimeOutput)
+    const runtimeOutputText = isJsonOutputNode ? formatJsonOutputRuntime(data.runtimeOutput) : formatRuntimeOutput(data.runtimeOutput)
+    const shouldShowRuntimeOutput = Boolean(runtimeOutputText) || isJsonOutputNode
+
+    useEffect(() => {
+        setJsonDrafts((current) => {
+            const nextJsonDrafts: Record<string, string> = {}
+            for (const parameter of data.manifest.parameters) {
+                if (parameter.ui_control !== 'json') {
+                    continue
+                }
+                const value = data.parameters[parameter.name] ?? parameter.default ?? ''
+                nextJsonDrafts[parameter.name] = normalizeJsonParameterValue(value)
+            }
+
+            const currentKeys = Object.keys(current)
+            const nextKeys = Object.keys(nextJsonDrafts)
+            if (currentKeys.length !== nextKeys.length) {
+                return nextJsonDrafts
+            }
+            for (const key of nextKeys) {
+                if (current[key] !== nextJsonDrafts[key]) {
+                    return nextJsonDrafts
+                }
+            }
+            return current
+        })
+    }, [data.manifest.parameters, data.parameters])
 
     async function handlePathBrowse(parameter: NodeParameterDefinition): Promise<void> {
         setBrowseTarget(parameter.name)
@@ -682,6 +752,7 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
             data-pinged={data.pinged || undefined}
             data-skipped={data.skipped || undefined}
             data-structured={structured || undefined}
+            data-json-output={isJsonOutputNode || undefined}
         >
             <NodeResizer
                 isVisible={selected}
@@ -770,6 +841,8 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
                             const value = data.parameters[parameter.name] ?? parameter.default ?? ''
                             const options = getParameterOptions(parameter, data.manifest, data.parameters, data.providerModels)
                             const multiline = isMultilineControl(parameter)
+                            const showParameterLabel = parameter.ui_control !== 'textarea'
+                            const showHeader = showParameterLabel || parameter.ui_control === 'file-list'
                             const isBrowsing = browseTarget === parameter.name
                             const selectedPaths = parameter.ui_control === 'file-list' ? normalizeStringList(value) : []
                             return (
@@ -781,30 +854,32 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
                                             : 'workflow-node-parameter-field'
                                     }
                                 >
-                                    <div className="workflow-node-parameter-header">
-                                        <span className="workflow-node-parameter-label">{parameter.name}</span>
-                                        {parameter.ui_control === 'file-list' && (
-                                            <div className="workflow-node-parameter-actions">
-                                                <button
-                                                    type="button"
-                                                    className="workflow-node-picker-button"
-                                                    disabled={isBrowsing}
-                                                    onClick={() => void handlePathBrowse(parameter)}
-                                                >
-                                                    {isBrowsing ? '...' : 'Browse'}
-                                                </button>
-                                                {selectedPaths.length > 0 && (
+                                    {showHeader && (
+                                        <div className="workflow-node-parameter-header">
+                                            {showParameterLabel && <span className="workflow-node-parameter-label">{parameter.name}</span>}
+                                            {parameter.ui_control === 'file-list' && (
+                                                <div className="workflow-node-parameter-actions">
                                                     <button
                                                         type="button"
-                                                        className="workflow-node-picker-clear"
-                                                        onClick={() => data.onParameterChange(parameter.name, [])}
+                                                        className="workflow-node-picker-button"
+                                                        disabled={isBrowsing}
+                                                        onClick={() => void handlePathBrowse(parameter)}
                                                     >
-                                                        Clear
+                                                        {isBrowsing ? '...' : 'Browse'}
                                                     </button>
-                                                )}
-                                            </div>
-                                        )}
-                                    </div>
+                                                    {selectedPaths.length > 0 && (
+                                                        <button
+                                                            type="button"
+                                                            className="workflow-node-picker-clear"
+                                                            onClick={() => data.onParameterChange(parameter.name, [])}
+                                                        >
+                                                            Clear
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
                                     <div className="workflow-node-parameter-value">
                                         {parameter.ui_control === 'textarea' ? (
                                             <textarea
@@ -817,12 +892,16 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
                                             />
                                         ) : parameter.ui_control === 'json' ? (
                                             <textarea
-                                                rows={6}
+                                                rows={10}
                                                 className="workflow-node-json-input nodrag nopan"
-                                                value={formatParameterValue(parameter, value)}
+                                                value={jsonDrafts[parameter.name] ?? normalizeJsonParameterValue(value)}
                                                 onPointerDown={preventNodeInteractionDrag}
                                                 onMouseDown={preventNodeInteractionDrag}
-                                                onChange={(event) => data.onParameterChange(parameter.name, parseValue(parameter, event.target.value))}
+                                                onChange={(event) => {
+                                                    const nextValue = event.target.value
+                                                    setJsonDrafts((current) => ({ ...current, [parameter.name]: nextValue }))
+                                                    data.onParameterChange(parameter.name, parseValue(parameter, nextValue))
+                                                }}
                                             />
                                         ) : parameter.ui_control === 'file-list' ? (
                                             <textarea
@@ -903,9 +982,17 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
                 </div>
             )}
 
-            {runtimeOutputText && (
+            {shouldShowRuntimeOutput && (
                 <div className="workflow-node-runtime">
-                    <pre className="workflow-node-runtime-output">{runtimeOutputText}</pre>
+                    <pre
+                        className={
+                            isJsonOutputNode
+                                ? 'workflow-node-runtime-output workflow-node-runtime-output-json'
+                                : 'workflow-node-runtime-output'
+                        }
+                    >
+                        {runtimeOutputText}
+                    </pre>
                 </div>
             )}
 
@@ -2234,4 +2321,3 @@ export default function WorkflowPage() {
         </ReactFlowProvider>
     )
 }
-
