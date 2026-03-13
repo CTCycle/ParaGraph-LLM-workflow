@@ -37,9 +37,9 @@ The node category set remains:
 | `LLM_CHAT` | 1 | LLM Chat | model | `llm_chat_v1.json` |
 | `LLM_STRUCTURED` | 1 | LLM Structured | model | `llm_structured_v1.json` |
 | `MODEL_PROVIDER` | 1 | Model Provider | model | `model_provider_v1.json` |
-| `SYSTEM_PROMPT` | 1 | System Prompt | input | `system_prompt_v1.json` |
+| `PROMPT` | 1 | Prompt | input | `prompt_v1.json` |
 | `TEXT_OUTPUT` | 1 | Text Output | output | `text_output_v1.json` |
-| `USER_PROMPT` | 1 | User Prompt | input | `user_prompt_v1.json` |
+| `JSON_OUTPUT` | 1 | JSON Output | output | `json_output_v1.json` |
 | `WEB_SCRAPER` | 1 | Web Scraper | input | `web_scraper_v1.json` |
 
 ---
@@ -136,11 +136,11 @@ Parameters:
 | `use_reasoning` | `BOOLEAN` | `false` | `toggle` | No | Enable reasoning-oriented execution when the selected model supports it. |
 | `response_schema` | `JSON` | `{"type":"object","properties":{},"required":[]}` | `json` | Yes | JSON Schema used to validate the structured response. |
 
-## `SYSTEM_PROMPT` (v1)
+## `PROMPT` (v1)
 
-- Name: System Prompt
+- Name: Prompt
 - Category: `input`
-- Description: Provide system-role instruction text to the workflow graph.
+- Description: Provide generic prompt text to the workflow graph.
 
 Inputs: None.
 
@@ -154,27 +154,7 @@ Parameters:
 
 | Name | Data Type | Default | UI Control | Required | Description |
 |---|---|---|---|---:|---|
-| `prompt_text` | `TEXT` | `""` | `textarea` | Yes | Instruction text emitted as the system message. |
-
-## `USER_PROMPT` (v1)
-
-- Name: User Prompt
-- Category: `input`
-- Description: Provide user-role prompt text to the workflow graph.
-
-Inputs: None.
-
-Outputs:
-
-| Name | Data Type | Required |
-|---|---|---:|
-| `text` | `TEXT` | Yes |
-
-Parameters:
-
-| Name | Data Type | Default | UI Control | Required | Description |
-|---|---|---|---|---:|---|
-| `prompt_text` | `TEXT` | `""` | `textarea` | Yes | Prompt text emitted as the user message. |
+| `prompt_text` | `TEXT` | `""` | `textarea` | Yes | Prompt text emitted to downstream nodes. |
 
 ## `WEB_SCRAPER` (v1)
 
@@ -209,6 +189,22 @@ Inputs:
 | Name | Data Type | Required |
 |---|---|---:|
 | `text` | `TEXT` | Yes |
+
+Outputs: None.
+
+Parameters: None.
+
+## `JSON_OUTPUT` (v1)
+
+- Name: JSON Output
+- Category: `output`
+- Description: Expose final JSON results.
+
+Inputs:
+
+| Name | Data Type | Required |
+|---|---|---:|
+| `value` | `JSON` | Yes |
 
 Outputs: None.
 

@@ -188,6 +188,17 @@ class ExecutionService:
         if node_type == "IMAGE_OUTPUT":
             image = port_outputs.get("result", resolved_inputs.get("image"))
             return {"image": image}
+        if node_type == "JSON_OUTPUT":
+            raw_value = port_outputs.get("result", resolved_inputs.get("value"))
+            if isinstance(raw_value, str):
+                trimmed = raw_value.strip()
+                if not trimmed:
+                    return {"json": ""}
+                try:
+                    return {"json": json.loads(trimmed)}
+                except json.JSONDecodeError:
+                    return {"json": raw_value}
+            return {"json": raw_value}
         return None
 
     def _set_step_state(self, run_id: str, step_id: str, **updates: Any) -> None:

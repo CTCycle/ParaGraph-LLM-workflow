@@ -865,7 +865,19 @@
     padding-top: 4px;
 }
 
-.workflow-node-json-input,
+.workflow-node-json-input {
+    min-height: 180px;
+    max-height: 320px;
+    padding: 8px 10px;
+    overflow: auto;
+    resize: vertical;
+    line-height: 1.35;
+    tab-size: 2;
+    white-space: pre;
+    word-break: normal;
+    font-family: 'Cascadia Mono', 'Consolas', 'Courier New', monospace;
+}
+
 .workflow-node-path-list-input {
     min-height: 82px;
     padding-top: 4px;
@@ -886,6 +898,13 @@
     word-break: break-word;
 }
 
+.workflow-node-runtime-output-json {
+    min-height: 220px;
+    max-height: 340px;
+    overflow: auto;
+    white-space: pre;
+    word-break: normal;
+}
 .workflow-node-toggle-input {
     width: 16px !important;
     height: 16px;
@@ -968,4 +987,3 @@
     filter: brightness(1.15) saturate(1.2) hue-rotate(172deg);
     opacity: 0.92;
 }
-

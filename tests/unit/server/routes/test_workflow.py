@@ -83,6 +83,38 @@ def build_provider_structured_definition(schema: object) -> dict[str, object]:
     }
 
 
+
+def build_provider_structured_with_json_output_definition(schema: object) -> dict[str, object]:
+    return {
+        'schema_version': 2,
+        'nodes': [
+            {'node_id': 'user_1', 'node_type': 'PROMPT', 'node_version': 1, 'parameters': {'prompt_text': 'Return a person record'}},
+            {
+                'node_id': 'provider_1',
+                'node_type': 'MODEL_PROVIDER',
+                'node_version': 1,
+                'parameters': {'provider': 'ollama', 'model_name': 'llama3.2'},
+            },
+            {
+                'node_id': 'structured_1',
+                'node_type': 'LLM_STRUCTURED',
+                'node_version': 1,
+                'parameters': {
+                    'context_window': 0,
+                    'max_tokens': 64,
+                    'use_reasoning': False,
+                    'response_schema': schema,
+                },
+            },
+            {'node_id': 'output_1', 'node_type': 'JSON_OUTPUT', 'node_version': 1, 'parameters': {}},
+        ],
+        'connections': [
+            {'from_node': 'provider_1', 'connection_type': 'controller', 'from_controller': 'model', 'to_node': 'structured_1', 'to_controller': 'model'},
+            {'from_node': 'user_1', 'from_output': 'text', 'to_node': 'structured_1', 'to_input': 'user_prompt'},
+            {'from_node': 'structured_1', 'from_output': 'result', 'to_node': 'output_1', 'to_input': 'value'},
+        ],
+        'metadata': {},
+    }
 def build_legacy_chat_definition() -> dict[str, object]:
     return {
         'schema_version': 2,
@@ -334,3 +366,37 @@ def test_execute_structured_node_rejects_invalid_output(
     assert 'must be a string' in str(final_status['error'])
     assert run_payload['steps'][2]['status'] == 'failed'
 
+
+
+def test_execute_structured_node_emits_json_output_payload(
+    client: TestClient,
+    monkeypatch,
+    wait_for_job: Callable[[str, float], dict[str, object]],
+) -> None:
+    monkeypatch.setattr(node_module.provider_service, 'chat', lambda **kwargs: '{"name":"Ada"}')
+    monkeypatch.setattr(node_module.provider_service, 'validate_model_request', lambda **kwargs: None)
+    monkeypatch.setattr(
+        node_module.provider_service,
+        'build_model_definition',
+        lambda provider, model, session_name='default': build_stub_model_definition(provider, model),
+    )
+
+    compile_response = client.post(
+        '/executions/compile',
+        json={
+            'definition': build_provider_structured_with_json_output_definition(
+                {'type': 'object', 'properties': {'name': {'type': 'string'}}, 'required': ['name']},
+            )
+        },
+    )
+    plan = compile_response.json()['plan']
+
+    start_response = client.post('/executions', json={'workflow_id': None, 'plan': plan})
+    run_id = start_response.json()['run_id']
+
+    final_status = wait_for_job(str(run_id))
+    run_payload = client.get(f'/executions/{run_id}').json()
+
+    assert final_status['status'] == 'completed'
+    assert final_status['result'] == {'outputs': {'output_1': {'json': {'name': 'Ada'}}}}
+    assert run_payload['outputs'] == {'output_1': {'json': {'name': 'Ada'}}}
