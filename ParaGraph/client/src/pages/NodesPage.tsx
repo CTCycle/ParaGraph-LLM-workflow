@@ -6,7 +6,9 @@ import {
     Database,
     GitBranch,
     Cog,
+    Plus,
     Scissors,
+    X,
     type LucideIcon,
 } from 'lucide-react'
 
@@ -140,6 +142,7 @@ export default function NodesPage() {
     const [jsonText, setJsonText] = useState('')
     const [importStatus, setImportStatus] = useState<string | null>(null)
     const [isImporting, setIsImporting] = useState(false)
+    const [isImportModalOpen, setIsImportModalOpen] = useState(false)
 
     const categoryCounts = useMemo(() => {
         return NODE_CATEGORY_ORDER.reduce<Record<NodeCategory, number>>((counts, category) => {
@@ -175,6 +178,15 @@ export default function NodesPage() {
         return parsed
     }
 
+    function handleJsonValidation(): void {
+        try {
+            const manifest = validateJson()
+            setImportStatus(`Valid manifest: ${manifest.id} v${manifest.version}`)
+        } catch (validationError) {
+            setImportStatus(validationError instanceof Error ? validationError.message : 'Invalid JSON payload')
+        }
+    }
+
     async function handleImport(event: FormEvent<HTMLFormElement>): Promise<void> {
         event.preventDefault()
         setImportStatus(null)
@@ -194,6 +206,7 @@ export default function NodesPage() {
             setImportStatus(`Imported ${created.id} v${created.version}`)
             await reload()
             setJsonText('')
+            setIsImportModalOpen(false)
         } catch (importError) {
             setImportStatus(importError instanceof Error ? importError.message : 'Failed to import node manifest')
         } finally {
@@ -202,140 +215,168 @@ export default function NodesPage() {
     }
 
     return (
-        <section className="nodes-page">
-            <header className="nodes-header">
-                <h1>Nodes Catalog and Import</h1>
-                <p className="nodes-lede">
-                    Filter the node catalog by category, review node behavior, and import custom manifests from JSON.
-                </p>
-            </header>
+        <>
+            <section className="nodes-page">
+                <header className="nodes-header">
+                    <h1>Nodes Catalog and Import</h1>
+                    <p className="nodes-lede">
+                        Filter the node catalog by category, review node behavior, and import custom manifests from JSON.
+                    </p>
+                </header>
 
-            <StatusBanner className="nodes-banner" message={error || importStatus} />
+                <StatusBanner className="nodes-banner" message={error || importStatus} />
 
-            <div className="nodes-layout">
-                <section className="nodes-catalog-column">
-                    <aside className="nodes-category-toolbar" aria-label="Category filters">
-                        <div className="nodes-section-heading">
-                            <h2>Categories</h2>
-                            <p>Select the groups you want to keep in the preview list.</p>
-                        </div>
-                        <div className="nodes-category-actions">
-                            <button type="button" onClick={() => setSelectedCategories([...NODE_CATEGORY_ORDER])}>
-                                Select all
-                            </button>
-                            <button type="button" onClick={() => setSelectedCategories([])}>
-                                Clear
-                            </button>
-                        </div>
-                        <div className="nodes-category-list">
-                            {NODE_CATEGORY_ORDER.map((category) => {
-                                const Icon = NODE_CATEGORY_ICONS[category]
-                                return (
-                                    <label key={category} className="nodes-category-option">
-                                        <input
-                                            type="checkbox"
-                                            checked={selectedCategories.includes(category)}
-                                            onChange={() => toggleCategory(category)}
-                                        />
-                                        <span className="nodes-category-option-icon">
-                                            <Icon size={15} strokeWidth={1.8} />
-                                        </span>
-                                        <span className="nodes-category-option-text">{NODE_CATEGORY_LABELS[category]}</span>
-                                        <span className="nodes-category-option-count">{categoryCounts[category]}</span>
-                                    </label>
-                                )
-                            })}
-                        </div>
-                    </aside>
-
-                    <div className="nodes-preview-shell">
-                        <div className="nodes-preview-header">
+                <div className="nodes-layout">
+                    <section className="nodes-catalog-column">
+                        <aside className="nodes-category-toolbar" aria-label="Category filters">
                             <div className="nodes-section-heading">
-                                <h2>Node preview</h2>
-                                <p>{filteredCatalog.length} nodes match the current filters.</p>
+                                <h2>Categories</h2>
+                                <p>Select the groups you want to keep in the preview list.</p>
                             </div>
-                            <input
-                                type="search"
-                                value={search}
-                                placeholder="Search nodes"
-                                onChange={(event) => setSearch(event.target.value)}
-                            />
-                        </div>
-
-                        <div className="nodes-preview-list" role="list" aria-label="Node previews">
-                            {loading && <div className="nodes-empty">Loading catalog...</div>}
-                            {!loading && filteredCatalog.length === 0 && (
-                                <div className="nodes-empty">No nodes match the current filters.</div>
-                            )}
-                            {!loading &&
-                                filteredCatalog.map((node) => {
-                                    const Icon = NODE_CATEGORY_ICONS[node.category]
+                            <div className="nodes-category-actions">
+                                <button type="button" onClick={() => setSelectedCategories([...NODE_CATEGORY_ORDER])}>
+                                    Select all
+                                </button>
+                                <button type="button" onClick={() => setSelectedCategories([])}>
+                                    Clear
+                                </button>
+                            </div>
+                            <div className="nodes-category-list">
+                                {NODE_CATEGORY_ORDER.map((category) => {
+                                    const Icon = NODE_CATEGORY_ICONS[category]
                                     return (
-                                        <article key={`${node.id}-${node.version}`} className="nodes-preview-row" role="listitem">
-                                            <div className="nodes-preview-icon">
-                                                <Icon size={18} strokeWidth={1.8} />
-                                            </div>
-                                            <div className="nodes-preview-body">
-                                                <div className="nodes-preview-title-row">
-                                                    <h3>{node.name}</h3>
-                                                    <span>{NODE_CATEGORY_LABELS[node.category]}</span>
-                                                </div>
-                                                <p>{buildNodeExplanation(node)}</p>
-                                                <div className="nodes-preview-io">
-                                                    <strong>In</strong>
-                                                    <span>{formatPortSummary(node.inputs.map((port) => port.name))}</span>
-                                                    <strong>Out</strong>
-                                                    <span>{formatPortSummary(node.outputs.map((port) => port.name))}</span>
-                                                </div>
-                                            </div>
-                                        </article>
+                                        <label key={category} className="nodes-category-option">
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedCategories.includes(category)}
+                                                onChange={() => toggleCategory(category)}
+                                            />
+                                            <span className="nodes-category-option-icon">
+                                                <Icon size={15} strokeWidth={1.8} />
+                                            </span>
+                                            <span className="nodes-category-option-text">{NODE_CATEGORY_LABELS[category]}</span>
+                                            <span className="nodes-category-option-count">{categoryCounts[category]}</span>
+                                        </label>
                                     )
                                 })}
-                        </div>
-                    </div>
-                </section>
+                            </div>
+                        </aside>
 
-                <aside className="nodes-support-column">
-                    <div className="nodes-section-heading">
-                        <h2>Custom node JSON</h2>
-                        <p>Start from the template, validate your manifest, then import it into the active catalog.</p>
-                    </div>
+                        <div className="nodes-preview-shell">
+                            <div className="nodes-preview-header">
+                                <div className="nodes-section-heading">
+                                    <h2>Node preview</h2>
+                                    <p>{filteredCatalog.length} nodes match the current filters.</p>
+                                </div>
+                                <div className="nodes-preview-header-controls">
+                                    <input
+                                        type="search"
+                                        value={search}
+                                        placeholder="Search nodes"
+                                        onChange={(event) => setSearch(event.target.value)}
+                                    />
+                                    <button
+                                        type="button"
+                                        className="nodes-preview-add-button"
+                                        aria-label="Open custom node JSON import"
+                                        title="Import custom node JSON"
+                                        onClick={() => setIsImportModalOpen(true)}
+                                    >
+                                        <Plus size={16} strokeWidth={2.1} />
+                                    </button>
+                                </div>
+                            </div>
 
-                    <form className="nodes-import-form" onSubmit={(event) => void handleImport(event)}>
-                        <div className="nodes-import-toolbar">
-                            <span>Template includes metadata, ports, parameters, UI, runtime, and optional plugin script wiring.</span>
-                            <button type="button" onClick={() => setJsonText(NODE_MANIFEST_TEMPLATE)}>
-                                Use template
-                            </button>
+                            <div className="nodes-preview-list" role="list" aria-label="Node previews">
+                                {loading && <div className="nodes-empty">Loading catalog...</div>}
+                                {!loading && filteredCatalog.length === 0 && (
+                                    <div className="nodes-empty">No nodes match the current filters.</div>
+                                )}
+                                {!loading &&
+                                    filteredCatalog.map((node) => {
+                                        const Icon = NODE_CATEGORY_ICONS[node.category]
+                                        return (
+                                            <article key={`${node.id}-${node.version}`} className="nodes-preview-row" role="listitem">
+                                                <div className="nodes-preview-icon">
+                                                    <Icon size={18} strokeWidth={1.8} />
+                                                </div>
+                                                <div className="nodes-preview-body">
+                                                    <div className="nodes-preview-title-row">
+                                                        <h3>{node.name}</h3>
+                                                        <span>{NODE_CATEGORY_LABELS[node.category]}</span>
+                                                    </div>
+                                                    <p>{buildNodeExplanation(node)}</p>
+                                                    <div className="nodes-preview-io">
+                                                        <strong>In</strong>
+                                                        <span>{formatPortSummary(node.inputs.map((port) => port.name))}</span>
+                                                        <strong>Out</strong>
+                                                        <span>{formatPortSummary(node.outputs.map((port) => port.name))}</span>
+                                                    </div>
+                                                </div>
+                                            </article>
+                                        )
+                                    })}
+                            </div>
                         </div>
-                        <textarea
-                            value={jsonText}
-                            onChange={(event) => setJsonText(event.target.value)}
-                            placeholder={NODE_MANIFEST_TEMPLATE}
-                            rows={22}
-                        />
-                        <div className="nodes-import-actions">
+                    </section>
+                </div>
+            </section>
+
+            {isImportModalOpen && (
+                <div
+                    className="nodes-modal-backdrop"
+                    role="presentation"
+                    onMouseDown={(event) => {
+                        if (event.target === event.currentTarget && !isImporting) {
+                            setIsImportModalOpen(false)
+                        }
+                    }}
+                >
+                    <div className="nodes-modal" role="dialog" aria-modal="true" aria-label="Custom node JSON import">
+                        <div className="nodes-modal-header">
+                            <div className="nodes-section-heading">
+                                <h2>Custom node JSON</h2>
+                                <p>Start from the template, validate your manifest, then import it into the active catalog.</p>
+                            </div>
                             <button
                                 type="button"
-                                onClick={() => {
-                                    try {
-                                        const manifest = validateJson()
-                                        setImportStatus(`Valid manifest: ${manifest.id} v${manifest.version}`)
-                                    } catch (validationError) {
-                                        setImportStatus(validationError instanceof Error ? validationError.message : 'Invalid JSON payload')
-                                    }
-                                }}
+                                className="nodes-modal-close"
+                                aria-label="Close import dialog"
+                                onClick={() => setIsImportModalOpen(false)}
+                                disabled={isImporting}
                             >
-                                Validate
-                            </button>
-                            <button type="submit" disabled={isImporting || !jsonText.trim()}>
-                                {isImporting ? 'Importing...' : 'Import Node'}
+                                <X size={16} strokeWidth={2.2} />
                             </button>
                         </div>
-                    </form>
-                </aside>
-            </div>
-        </section>
+
+                        <form className="nodes-import-form" onSubmit={(event) => void handleImport(event)}>
+                            <div className="nodes-import-toolbar">
+                                <span>Template includes metadata, ports, parameters, UI, runtime, and optional plugin script wiring.</span>
+                                <button type="button" onClick={() => setJsonText(NODE_MANIFEST_TEMPLATE)}>
+                                    Use template
+                                </button>
+                            </div>
+                            <textarea
+                                value={jsonText}
+                                onChange={(event) => setJsonText(event.target.value)}
+                                placeholder={NODE_MANIFEST_TEMPLATE}
+                                rows={20}
+                            />
+                            <div className="nodes-import-actions">
+                                <button type="button" onClick={() => setIsImportModalOpen(false)} disabled={isImporting}>
+                                    Cancel
+                                </button>
+                                <button type="button" onClick={handleJsonValidation} disabled={!jsonText.trim() || isImporting}>
+                                    Validate
+                                </button>
+                                <button type="submit" disabled={isImporting || !jsonText.trim()}>
+                                    {isImporting ? 'Importing...' : 'Import Node'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+        </>
     )
 }
-

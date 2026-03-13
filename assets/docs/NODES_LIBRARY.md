@@ -201,13 +201,14 @@ Parameters:
 
 | Name | Data Type | Default | UI Control | Required | Description |
 |---|---|---|---|---:|---|
-| `folder_path` | `TEXT` | `""` | `directory` | Yes | Folder path selected from the local folder browser. |
+| `folder_path` | `TEXT` | `""` | `directory` | Yes | Staged server folder path produced from the frontend folder picker upload flow. |
 | `recursive` | `BOOLEAN` | `true` | `toggle` | No | Include files from subdirectories when enabled. |
 
 Behavior notes:
 - Supported extensions include `.txt`, `.pdf`, `.doc`, `.docx`, `.md`, plus common text formats (`.html`, `.json`, `.csv`, `.xml`, `.yaml`, `.log`, etc.).
-- The node does **not** load file contents into memory.
+- The node does **not** load file contents into memory when scanning an existing server directory path.
 - It emits documents with deferred metadata (`metadata.deferred_load = true`) so downstream processing nodes can load content only when needed.
+- In the workflow UI, the Browse action uses a frontend folder picker and stages selected files into `ParaGraph/resources/artifacts/browser_uploads`; `folder_path` is set to that staged directory.
 
 ## `FIXED_SIZE_CHUNKS` (v1)
 
@@ -334,4 +335,3 @@ Inputs:
 Outputs: None.
 
 Parameters: None.
-

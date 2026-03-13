@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import shutil
 import sqlite3
 
 from fastapi.testclient import TestClient
@@ -96,6 +97,37 @@ def test_nodes_dialog_directory_returns_selected_path(client: TestClient, monkey
 
     assert response.status_code == 200
     assert response.json() == {'path': 'C:/tmp/data'}
+
+
+def test_nodes_upload_directory_stages_browser_selected_folder(client: TestClient) -> None:
+    response = client.post(
+        '/nodes/uploads/directory',
+        files=[
+            ('files', ('dataset/readme.txt', b'hello world', 'text/plain')),
+            ('files', ('dataset/nested/notes.md', b'# Notes', 'text/markdown')),
+        ],
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    staged_root = Path(payload['path'])
+    try:
+        assert payload['file_count'] == 2
+        assert (staged_root / 'dataset' / 'readme.txt').read_text(encoding='utf-8') == 'hello world'
+        assert (staged_root / 'dataset' / 'nested' / 'notes.md').read_text(encoding='utf-8') == '# Notes'
+    finally:
+        if staged_root.exists():
+            shutil.rmtree(staged_root, ignore_errors=True)
+
+
+def test_nodes_upload_directory_rejects_parent_directory_segments(client: TestClient) -> None:
+    response = client.post(
+        '/nodes/uploads/directory',
+        files=[('files', ('../escape.txt', b'invalid', 'text/plain'))],
+    )
+
+    assert response.status_code == 422
+    assert 'relative paths' in response.json()['detail'].lower()
 
 
 

@@ -33,6 +33,7 @@ import {
 import {
     browseNodeDirectory,
     browseNodeFiles,
+    uploadNodeDirectory,
     checkDatabaseConnection,
     compileWorkflow,
     fetchProviderModels,
@@ -153,6 +154,7 @@ const WORKFLOW_EDGE_MARKER = { type: MarkerType.ArrowClosed as const, width: 18,
 const WORKFLOW_EDGE_STYLE = { stroke: '#5ba7ff', strokeWidth: 2.2 }
 const WORKFLOW_BUNDLE_VERSION = 1
 const WORKFLOW_BUNDLE_APP = 'ParaGraph'
+const BROWSER_PICKER_CANCEL_GUARD_MS = 280
 
 type HandleKind = 'input' | 'output' | 'controller'
 type ParsedHandle = { kind: HandleKind; name: string }
@@ -186,6 +188,7 @@ function pickWorkflowJsonFromBrowser(): Promise<SelectedWorkflowJson | null> {
         const input = document.createElement('input')
         input.type = 'file'
         input.accept = '.json,application/json'
+        let changeHandled = false
 
         let settled = false
         const settle = (value: SelectedWorkflowJson | null): void => {
@@ -208,13 +211,14 @@ function pickWorkflowJsonFromBrowser(): Promise<SelectedWorkflowJson | null> {
 
         const handleWindowFocus = (): void => {
             window.setTimeout(() => {
-                if (!settled && !input.files?.length) {
+                if (!settled && !changeHandled && !input.files?.length) {
                     settle(null)
                 }
-            }, 0)
+            }, BROWSER_PICKER_CANCEL_GUARD_MS)
         }
 
         input.addEventListener('change', () => {
+            changeHandled = true
             const file = input.files?.item(0)
             if (!file) {
                 settle(null)
@@ -228,6 +232,66 @@ function pickWorkflowJsonFromBrowser(): Promise<SelectedWorkflowJson | null> {
                 .catch((error) => {
                     fail(error instanceof Error ? error : new Error('Unable to read selected workflow JSON'))
                 })
+        })
+
+        window.addEventListener('focus', handleWindowFocus, { once: true })
+        input.click()
+    })
+}
+
+function formatParameterLabel(parameterName: string): string {
+    return parameterName.replace(/_/g, ' ')
+}
+
+type BrowserDirectorySelection = {
+    files: File[]
+    folderName: string
+}
+
+function inferSelectedFolderName(files: File[]): string {
+    const firstRelativePath = files[0]?.webkitRelativePath || files[0]?.name || ''
+    const [root] = firstRelativePath.split('/').filter(Boolean)
+    return root || 'selected folder'
+}
+
+function pickDirectoryFromBrowser(): Promise<BrowserDirectorySelection | null> {
+    return new Promise((resolve) => {
+        const input = document.createElement('input')
+        input.type = 'file'
+        input.multiple = true
+        input.setAttribute('webkitdirectory', '')
+        input.setAttribute('directory', '')
+        let changeHandled = false
+
+        let settled = false
+        const settle = (value: BrowserDirectorySelection | null): void => {
+            if (settled) {
+                return
+            }
+            settled = true
+            window.removeEventListener('focus', handleWindowFocus)
+            resolve(value)
+        }
+
+        const handleWindowFocus = (): void => {
+            window.setTimeout(() => {
+                if (!settled && !changeHandled && !input.files?.length) {
+                    settle(null)
+                }
+            }, BROWSER_PICKER_CANCEL_GUARD_MS)
+        }
+
+        input.addEventListener('change', () => {
+            changeHandled = true
+            const selectedFiles = Array.from(input.files ?? [])
+            if (selectedFiles.length === 0) {
+                settle(null)
+                return
+            }
+            settle({
+                files: selectedFiles,
+                folderName: inferSelectedFolderName(selectedFiles),
+            })
         })
 
         window.addEventListener('focus', handleWindowFocus, { once: true })
@@ -877,10 +941,28 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
         setBrowseTarget(parameter.name)
         try {
             if (parameter.ui_control === 'directory') {
+                if (data.manifest.id === 'LOAD_DOCUMENTS' && parameter.name === 'folder_path') {
+                    const browserSelection = await pickDirectoryFromBrowser()
+                    if (!browserSelection) {
+                        data.onStatusChange('Directory selection cancelled')
+                        return
+                    }
+
+                    const uploaded = await uploadNodeDirectory(browserSelection.files)
+                    const stagedPath = String(uploaded.path ?? '').trim()
+                    if (!stagedPath) {
+                        throw new Error('Folder upload succeeded but returned an empty path')
+                    }
+                    data.onParameterChange(parameter.name, stagedPath)
+                    const uploadedCountLabel = uploaded.file_count === 1 ? 'file' : 'files'
+                    data.onStatusChange('Selected ' + browserSelection.folderName + ' (' + uploaded.file_count + ' ' + uploadedCountLabel + ')')
+                    return
+                }
+
                 const selection = await browseNodeDirectory()
                 if (selection.path) {
                     data.onParameterChange(parameter.name, selection.path)
-                    data.onStatusChange(`Selected ${selection.path}`)
+                    data.onStatusChange('Selected ' + selection.path)
                 } else {
                     data.onStatusChange('Directory selection cancelled')
                 }
@@ -1051,7 +1133,7 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
                                 >
                                     {showHeader && (
                                         <div className="workflow-node-parameter-header">
-                                            {showParameterLabel && <span className="workflow-node-parameter-label">{parameter.name}</span>}
+                                            {showParameterLabel && <span className="workflow-node-parameter-label">{formatParameterLabel(parameter.name)}</span>}
                                             {parameter.ui_control === 'file-list' && (
                                                 <div className="workflow-node-parameter-actions">
                                                     <button
@@ -2569,3 +2651,5 @@ export default function WorkflowPage() {
         </ReactFlowProvider>
     )
 }
+
+

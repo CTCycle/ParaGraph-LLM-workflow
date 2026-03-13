@@ -37,7 +37,8 @@ The current implementation uses a React Flow editor, JSON node manifests, and a 
 - `GET /nodes/catalog` returns live `NodeManifest[]`.
 - `POST /nodes/import` validates and persists a single manifest JSON object (including optional plugin runtime descriptors).
 - `GET /nodes/dialog/files` opens a native file picker on the local machine and returns selected paths for path-backed node widgets.
-- `GET /nodes/dialog/directory` opens a native folder picker on the local machine and returns the selected directory path.
+- `GET /nodes/dialog/directory` opens a native folder picker on the local machine and returns the selected directory path (used by legacy path fields).
+- `POST /nodes/uploads/directory` accepts browser-selected folder uploads (multipart) and stages them under `ParaGraph/resources/artifacts/browser_uploads`, returning the staged server path for runtime execution.
 - `POST /nodes/check-database-connection` validates SQL node connection parameters (`SQL_DATABASE` / `SQL_FILE_DATABASE`) and returns a success/failure payload for node-level health checks.
 - The active model authoring flow uses a `MODEL_PROVIDER` node that emits a typed `MODEL_HANDLE`, consumed by unified `LLM_CHAT` and `LLM_STRUCTURED` nodes.
 - Each manifest declares:
@@ -109,15 +110,16 @@ The current implementation uses a React Flow editor, JSON node manifests, and a 
 ## 4. Frontend Architecture
 
 ### 4.1 Nodes page
-- Two-column layout.
-- Left column: category checkbox toolbar plus a searchable node preview list with icon, description, and I/O summaries per row.
-- Right column: supporting JSON import workspace backed by `POST /nodes/import`, including a manifest template helper.
-- The page avoids heavy card nesting and keeps the catalog/filter interactions in a lighter rail + list structure.
+- Single catalog surface with category filter rail and searchable node preview list (icon, description, and I/O summaries per row).
+- Node preview header now includes a `+` action that opens a modal JSON import workspace backed by `POST /nodes/import`.
+- The import modal includes template autofill, validation, and import actions without leaving the preview context.
+- The page avoids heavy card nesting and keeps catalog/filter interactions in a lighter rail + list structure.
 
 ### 4.2 Workflow page
 - React Flow canvas with custom Comfy-style node cards.
 - Node cards support compact inline widgets, italic subtitle text, ping + collapse controls, and drag-resize handles.
 - Path-backed parameters can open native file/folder pickers and persist selected source or destination paths directly in node parameters (including serialization file paths).
+- `LOAD_DOCUMENTS` uses a frontend browser folder picker and uploads selected files to a staged server folder path; the picker cancel-detection guard prevents focus/change race conditions from clearing the selected folder path.
 - Parameter rows use a denser Comfy-inspired control treatment for higher information density without changing the overall card shell.
 - Node parameters, collapse state, and delete action live inside the node card; execution outputs are consumed through dedicated output nodes.
 - The node library is now a left tree viewer with expandable categories, in-tree search, a selected-node preview, and drag-only node insertion onto the canvas.
@@ -152,3 +154,4 @@ The current implementation uses a React Flow editor, JSON node manifests, and a 
 - The legacy `/workflow/*` compatibility API is no longer part of the active application surface.
 - Existing persisted workflow documents are migrated on read into schema `2` shapes.
 - The executable manifest set now includes a Phase 1 typed RAG slice for ingestion, chunking, embedding, vector storage, retrieval, and context injection.
+
