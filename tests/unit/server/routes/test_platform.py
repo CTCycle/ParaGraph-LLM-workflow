@@ -31,17 +31,15 @@ def test_nodes_catalog_exposes_registry(client: TestClient) -> None:
     payload = response.json()
 
     ids = {node['id'] for node in payload['nodes']}
-    assert {
+    assert ids == {
         'USER_PROMPT',
         'SYSTEM_PROMPT',
+        'WEB_SCRAPER',
         'MODEL_PROVIDER',
         'LLM_CHAT',
         'LLM_STRUCTURED',
         'TEXT_OUTPUT',
-        'DOCUMENT_LOADER',
-        'DATABASE_CONNECTION',
-        'DATABASE_QUERY',
-    }.issubset(ids)
+    }
     assert 'PROMPT' not in ids
     assert 'LLM_GENERATE' not in ids
 
@@ -125,13 +123,11 @@ def test_compile_endpoint_returns_diagnostics_for_type_mismatch(client: TestClie
             'definition': {
                 'schema_version': 2,
                 'nodes': [
-                    {'node_id': 'prompt_1', 'node_type': 'USER_PROMPT', 'node_version': 1, 'parameters': {'prompt_text': 'Hello'}},
-                    {'node_id': 'embed_1', 'node_type': 'EMBEDDING_MODEL', 'node_version': 1, 'parameters': {}},
+                    {'node_id': 'web_1', 'node_type': 'WEB_SCRAPER', 'node_version': 1, 'parameters': {'url': 'https://example.com'}},
                     {'node_id': 'output_1', 'node_type': 'TEXT_OUTPUT', 'node_version': 1, 'parameters': {}},
                 ],
                 'connections': [
-                    {'from_node': 'prompt_1', 'from_output': 'text', 'to_node': 'embed_1', 'to_input': 'text'},
-                    {'from_node': 'embed_1', 'from_output': 'embedding', 'to_node': 'output_1', 'to_input': 'text'},
+                    {'from_node': 'web_1', 'from_output': 'documents', 'to_node': 'output_1', 'to_input': 'text'},
                 ],
                 'metadata': {},
             }
