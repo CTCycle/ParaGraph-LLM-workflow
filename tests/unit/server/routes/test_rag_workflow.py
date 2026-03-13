@@ -63,7 +63,7 @@ def build_rag_definition(source_path: str, index_name: str) -> dict[str, object]
             {'from_node': 'search_1', 'from_output': 'results', 'to_node': 'context_1', 'to_input': 'results'},
             {'from_node': 'context_1', 'from_output': 'text', 'to_node': 'template_1', 'to_input': 'input'},
             {'from_node': 'template_1', 'from_output': 'text', 'to_node': 'chat_1', 'to_input': 'user_prompt'},
-            {'from_node': 'provider_1', 'from_output': 'model', 'to_node': 'chat_1', 'to_input': 'model'},
+            {'from_node': 'provider_1', 'connection_type': 'controller', 'from_controller': 'model', 'to_node': 'chat_1', 'to_controller': 'model'},
             {'from_node': 'chat_1', 'from_output': 'response', 'to_node': 'output_1', 'to_input': 'text'},
         ],
         'metadata': {},
@@ -107,3 +107,4 @@ def test_execute_rag_pipeline_returns_text_output(
         store_path = Path('ParaGraph/resources/artifacts/vectorstores') / index_name
         if store_path.exists():
             shutil.rmtree(store_path)
+

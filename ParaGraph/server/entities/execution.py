@@ -21,6 +21,7 @@ ExecutionEventType = Literal[
 
 
 class ExecutionBinding(BaseModel):
+    binding_type: Literal["input", "controller"] = "input"
     input_name: str
     source_node_id: str
     source_output: str

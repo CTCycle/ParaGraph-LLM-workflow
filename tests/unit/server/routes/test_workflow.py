@@ -43,7 +43,7 @@ def build_provider_chat_definition() -> dict[str, object]:
             {'node_id': 'output_1', 'node_type': 'TEXT_OUTPUT', 'node_version': 1, 'parameters': {}},
         ],
         'connections': [
-            {'from_node': 'provider_1', 'from_output': 'model', 'to_node': 'chat_1', 'to_input': 'model'},
+            {'from_node': 'provider_1', 'connection_type': 'controller', 'from_controller': 'model', 'to_node': 'chat_1', 'to_controller': 'model'},
             {'from_node': 'user_1', 'from_output': 'text', 'to_node': 'chat_1', 'to_input': 'user_prompt'},
             {'from_node': 'system_1', 'from_output': 'text', 'to_node': 'chat_1', 'to_input': 'system_prompt'},
             {'from_node': 'chat_1', 'from_output': 'response', 'to_node': 'output_1', 'to_input': 'text'},
@@ -76,7 +76,7 @@ def build_provider_structured_definition(schema: object) -> dict[str, object]:
             },
         ],
         'connections': [
-            {'from_node': 'provider_1', 'from_output': 'model', 'to_node': 'structured_1', 'to_input': 'model'},
+            {'from_node': 'provider_1', 'connection_type': 'controller', 'from_controller': 'model', 'to_node': 'structured_1', 'to_controller': 'model'},
             {'from_node': 'user_1', 'from_output': 'text', 'to_node': 'structured_1', 'to_input': 'user_prompt'},
         ],
         'metadata': {},
@@ -89,19 +89,24 @@ def build_legacy_chat_definition() -> dict[str, object]:
         'nodes': [
             {'node_id': 'user_1', 'node_type': 'USER_PROMPT', 'node_version': 1, 'parameters': {'prompt_text': 'Say hello'}},
             {
+                'node_id': 'provider_1',
+                'node_type': 'MODEL_PROVIDER',
+                'node_version': 1,
+                'parameters': {'provider': 'ollama', 'model_name': 'llama3.2'},
+            },
+            {
                 'node_id': 'chat_1',
                 'node_type': 'OLLAMA_LLM_CHAT',
                 'node_version': 1,
-                'parameters': {'model_name': 'llama3.2', 'context_window': 0, 'max_tokens': 64, 'use_reasoning': False},
+                'parameters': {'context_window': 0, 'max_tokens': 64, 'use_reasoning': False},
             },
         ],
         'connections': [
+            {'from_node': 'provider_1', 'from_output': 'model', 'to_node': 'chat_1', 'to_input': 'model'},
             {'from_node': 'user_1', 'from_output': 'text', 'to_node': 'chat_1', 'to_input': 'user_prompt'},
         ],
         'metadata': {},
     }
-
-
 def test_compile_returns_plan_for_legacy_prompt_graph(client: TestClient) -> None:
     response = client.post('/executions/compile', json={'definition': build_simple_definition('Plan me')})
 
@@ -155,10 +160,34 @@ def test_compile_migrates_legacy_llm_nodes(client: TestClient) -> None:
     assert response.status_code == 200
     payload = response.json()
     assert payload['valid'] is True
-    assert payload['plan']['steps'][1]['node_type'] == 'LLM_CHAT'
-    assert payload['plan']['steps'][1]['parameters']['provider'] == 'ollama'
+    chat_step = next(step for step in payload['plan']['steps'] if step['node_id'] == 'chat_1')
+    assert chat_step['node_type'] == 'LLM_CHAT'
+    assert chat_step['parameters']['provider'] == 'ollama'
 
 
+def test_compile_rejects_llm_without_model_controller(client: TestClient) -> None:
+    response = client.post(
+        '/executions/compile',
+        json={
+            'definition': {
+                'schema_version': 2,
+                'nodes': [
+                    {'node_id': 'user_1', 'node_type': 'USER_PROMPT', 'node_version': 1, 'parameters': {'prompt_text': 'Say hello'}},
+                    {'node_id': 'chat_1', 'node_type': 'LLM_CHAT', 'node_version': 1, 'parameters': {'context_window': 0, 'max_tokens': 64, 'use_reasoning': False}},
+                ],
+                'connections': [
+                    {'from_node': 'user_1', 'from_output': 'text', 'to_node': 'chat_1', 'to_input': 'user_prompt'},
+                ],
+                'metadata': {},
+            }
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload['valid'] is False
+    codes = {item['code'] for item in payload['diagnostics']}
+    assert 'missing_required_controller' in codes or 'missing_model_selection' in codes
 def build_stub_model_definition(provider: str, model: str) -> ProviderModelDefinition:
     return ProviderModelDefinition(
         provider=provider,
@@ -244,3 +273,4 @@ def test_execute_structured_node_rejects_invalid_output(
     assert final_status['status'] == 'failed'
     assert 'must be a string' in str(final_status['error'])
     assert run_payload['steps'][2]['status'] == 'failed'
+

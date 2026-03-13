@@ -48,6 +48,17 @@ export interface NodeRuntimePluginDefinition {
     entrypoint: string
 }
 
+export type NodeControllerScope = 'source' | 'target' | 'both'
+
+export interface NodeControllerDefinition {
+    name: string
+    data_type: NodeDataType
+    required: boolean
+    accepts_multiple: boolean
+    scope?: NodeControllerScope
+    description?: string
+}
+
 export interface NodeRuntimeDefinition {
     executor_key: string
     cacheable: boolean
@@ -64,6 +75,7 @@ export interface NodeManifest {
     description: string
     inputs: NodePortDefinition[]
     outputs: NodePortDefinition[]
+    controllers?: NodeControllerDefinition[]
     parameters: NodeParameterDefinition[]
     ui: NodeUiDefinition
     runtime: NodeRuntimeDefinition
@@ -82,9 +94,12 @@ export interface WorkflowNodeInstance {
 
 export interface WorkflowConnection {
     from_node: string
-    from_output: string
     to_node: string
-    to_input: string
+    connection_type?: 'data' | 'controller'
+    from_output?: string
+    to_input?: string
+    from_controller?: string
+    to_controller?: string
 }
 
 export interface WorkflowDefinition {
@@ -133,6 +148,7 @@ export interface WorkflowShareBundle {
 }
 
 export interface ExecutionBinding {
+    binding_type?: 'input' | 'controller'
     input_name: string
     source_node_id: string
     source_output: string

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -81,9 +81,12 @@ class WorkflowNodeInstance(BaseModel):
 
 class WorkflowConnection(BaseModel):
     from_node: str
-    from_output: str
     to_node: str
-    to_input: str
+    connection_type: Literal["data", "controller"] = "data"
+    from_output: str | None = None
+    to_input: str | None = None
+    from_controller: str | None = None
+    to_controller: str | None = None
 
     @model_validator(mode="before")
     @classmethod
@@ -91,13 +94,35 @@ class WorkflowConnection(BaseModel):
         if not isinstance(value, dict):
             return value
         if "from_node" in value:
-            return value
+            migrated = dict(value)
+            if "connection_type" not in migrated:
+                if migrated.get("from_controller") or migrated.get("to_controller"):
+                    migrated["connection_type"] = "controller"
+                else:
+                    migrated["connection_type"] = "data"
+            return migrated
         return {
             "from_node": value.get("source", {}).get("node_id"),
             "from_output": value.get("source", {}).get("port"),
             "to_node": value.get("target", {}).get("node_id"),
             "to_input": value.get("target", {}).get("port"),
+            "connection_type": "data",
         }
+
+    @model_validator(mode="after")
+    def validate_connection_type_contract(self) -> WorkflowConnection:
+        if self.connection_type == "controller":
+            if not self.from_controller or not self.to_controller:
+                raise ValueError("Controller connections require from_controller and to_controller")
+            self.from_output = None
+            self.to_input = None
+            return self
+
+        if not self.from_output or not self.to_input:
+            raise ValueError("Data connections require from_output and to_input")
+        self.from_controller = None
+        self.to_controller = None
+        return self
 
 
 class WorkflowDefinition(BaseModel):
@@ -138,15 +163,31 @@ class WorkflowDefinition(BaseModel):
 
         normalized_connections: list[WorkflowConnection] = []
         for connection in self.connections:
-            to_input = connection.to_input
+            if connection.connection_type == "controller":
+                normalized_connections.append(connection)
+                continue
+
+            to_input = connection.to_input or ""
             target_type = node_types.get(connection.to_node, "")
             if target_type in MODEL_NODE_TYPES and to_input == "prompt":
                 to_input = "user_prompt"
+            if target_type in MODEL_NODE_TYPES and to_input == "model":
+                normalized_connections.append(
+                    WorkflowConnection(
+                        from_node=connection.from_node,
+                        to_node=connection.to_node,
+                        connection_type="controller",
+                        from_controller=connection.from_output or "model",
+                        to_controller="model",
+                    )
+                )
+                continue
             normalized_connections.append(
                 WorkflowConnection(
                     from_node=connection.from_node,
-                    from_output=connection.from_output,
                     to_node=connection.to_node,
+                    connection_type="data",
+                    from_output=connection.from_output,
                     to_input=to_input,
                 )
             )

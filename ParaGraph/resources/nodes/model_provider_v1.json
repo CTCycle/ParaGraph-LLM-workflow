@@ -5,11 +5,15 @@
   "category": "model",
   "description": "Select a provider and model, then expose a reusable typed model handle to connected LLM nodes.",
   "inputs": [],
-  "outputs": [
+  "outputs": [],
+  "controllers": [
     {
       "name": "model",
       "data_type": "MODEL_HANDLE",
-      "required": true
+      "required": false,
+      "accepts_multiple": true,
+      "description": "Controller handle used to configure connected LLM nodes.",
+      "scope": "source"
     }
   ],
   "parameters": [

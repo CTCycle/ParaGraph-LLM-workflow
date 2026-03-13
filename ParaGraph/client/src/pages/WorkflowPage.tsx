@@ -63,6 +63,7 @@ type WorkflowNodeData = {
     parameters: Record<string, unknown>
     collapsed: boolean
     isActive: boolean
+    runtimeOutput: Record<string, unknown> | null
     providerModels: ProviderModelDefinition[]
     onParameterChange: (parameterName: string, value: unknown) => void
     onStatusChange: (message: string) => void
@@ -126,6 +127,60 @@ const WORKFLOW_EDGE_STYLE = { stroke: '#5ba7ff', strokeWidth: 2.2 }
 const WORKFLOW_BUNDLE_VERSION = 1
 const WORKFLOW_BUNDLE_APP = 'ParaGraph'
 
+type HandleKind = 'input' | 'output' | 'controller'
+type ParsedHandle = { kind: HandleKind; name: string }
+
+type ControllerScope = 'source' | 'target' | 'both'
+
+function getControllers(manifest: NodeManifest): NonNullable<NodeManifest['controllers']> {
+    return manifest.controllers ?? []
+}
+
+function getControllerScope(
+    manifest: NodeManifest,
+    controller: { scope?: ControllerScope },
+): ControllerScope {
+    if (controller.scope) {
+        return controller.scope
+    }
+    // Backward-compatible fallback for manifests loaded before scope metadata existed.
+    if (manifest.id === 'MODEL_PROVIDER') {
+        return 'source'
+    }
+    return 'target'
+}
+
+function supportsControllerSource(
+    manifest: NodeManifest,
+    controller: { scope?: ControllerScope },
+): boolean {
+    const scope = getControllerScope(manifest, controller)
+    return scope === 'source' || scope === 'both'
+}
+
+function supportsControllerTarget(
+    manifest: NodeManifest,
+    controller: { scope?: ControllerScope },
+): boolean {
+    const scope = getControllerScope(manifest, controller)
+    return scope === 'target' || scope === 'both'
+}
+function toHandleId(kind: HandleKind, name: string): string {
+    return `${kind}:${name}`
+}
+
+function parseHandleId(handleId: string): ParsedHandle | null {
+    const separatorIndex = handleId.indexOf(':')
+    if (separatorIndex <= 0) {
+        return null
+    }
+    const kind = handleId.slice(0, separatorIndex)
+    const name = handleId.slice(separatorIndex + 1)
+    if ((kind !== 'input' && kind !== 'output' && kind !== 'controller') || !name) {
+        return null
+    }
+    return { kind, name }
+}
 function defaultParameters(manifest: NodeManifest): Record<string, unknown> {
     return Object.fromEntries(manifest.parameters.map((parameter) => [parameter.name, parameter.default ?? '']))
 }
@@ -354,7 +409,7 @@ function readPersistedWorkflowState(): PersistedWorkflowState | null {
             nodes,
             edges,
             is_library_visible:
-                typeof parsed.is_library_visible === 'boolean' ? parsed.is_library_visible : true,
+                typeof parsed.is_library_visible === 'boolean' ? parsed.is_library_visible : false,
             is_grid_visible: typeof parsed.is_grid_visible === 'boolean' ? parsed.is_grid_visible : true,
             search: typeof parsed.search === 'string' ? parsed.search : '',
             selected_manifest_key:
@@ -404,6 +459,19 @@ function formatParameterValue(parameter: NodeParameterDefinition, value: unknown
     return String(value ?? '')
 }
 
+function formatRuntimeOutput(value: Record<string, unknown> | null): string {
+    if (!value || Object.keys(value).length === 0) {
+        return ''
+    }
+    if (typeof value.text === 'string') {
+        return value.text
+    }
+    try {
+        return JSON.stringify(value, null, 2)
+    } catch {
+        return String(value)
+    }
+}
 function normalizeStringList(value: unknown): string[] {
     if (Array.isArray(value)) {
         return value
@@ -482,6 +550,8 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
     const structured = isStructuredNode(data.manifest)
     const [browseTarget, setBrowseTarget] = useState<string | null>(null)
 
+    const runtimeOutputText = formatRuntimeOutput(data.runtimeOutput)
+
     async function handlePathBrowse(parameter: NodeParameterDefinition): Promise<void> {
         setBrowseTarget(parameter.name)
         try {
@@ -520,6 +590,9 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
         }
     }
 
+    const controllers = getControllers(data.manifest)
+    const sourceControllers = controllers.filter((controller) => supportsControllerSource(data.manifest, controller))
+    const targetControllers = controllers.filter((controller) => supportsControllerTarget(data.manifest, controller))
     return (
         <div
             className="workflow-node"
@@ -562,7 +635,18 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
                 <div className="workflow-node-port-column">
                     {data.manifest.inputs.map((port) => (
                         <div key={port.name} className="workflow-node-port workflow-node-port-input">
-                            <Handle type="target" position={Position.Left} id={port.name} />
+                            <Handle type="target" position={Position.Left} id={toHandleId('input', port.name)} />
+                            <span>{port.name}</span>
+                        </div>
+                    ))}
+                    {targetControllers.map((port) => (
+                        <div key={`target-${port.name}`} className="workflow-node-port workflow-node-port-input workflow-node-port-controller-target">
+                            <Handle
+                                type="target"
+                                position={Position.Left}
+                                id={toHandleId('controller', port.name)}
+                                className="workflow-node-handle workflow-node-handle-controller workflow-node-handle-controller-target"
+                            />
                             <span>{port.name}</span>
                         </div>
                     ))}
@@ -571,7 +655,18 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
                     {data.manifest.outputs.map((port) => (
                         <div key={port.name} className="workflow-node-port workflow-node-port-output">
                             <span>{port.name}</span>
-                            <Handle type="source" position={Position.Right} id={port.name} />
+                            <Handle type="source" position={Position.Right} id={toHandleId('output', port.name)} />
+                        </div>
+                    ))}
+                    {sourceControllers.map((port) => (
+                        <div key={`source-${port.name}`} className="workflow-node-port workflow-node-port-output workflow-node-port-controller-source">
+                            <span>{port.name}</span>
+                            <Handle
+                                type="source"
+                                position={Position.Right}
+                                id={toHandleId('controller', port.name)}
+                                className="workflow-node-handle workflow-node-handle-controller workflow-node-handle-controller-source"
+                            />
                         </div>
                     ))}
                 </div>
@@ -717,6 +812,11 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
                 </div>
             )}
 
+            {runtimeOutputText && (
+                <div className="workflow-node-runtime">
+                    <pre className="workflow-node-runtime-output">{runtimeOutputText}</pre>
+                </div>
+            )}
 
             <div className="workflow-node-footer">
                 <span>{NODE_CATEGORY_LABELS[data.manifest.category]}</span>
@@ -733,7 +833,7 @@ function WorkflowEditor() {
     const [statusText, setStatusText] = useState('Ready')
     const [isRunning, setIsRunning] = useState(false)
     const [search, setSearch] = useState('')
-    const [isLibraryVisible, setIsLibraryVisible] = useState(true)
+    const [isLibraryVisible, setIsLibraryVisible] = useState(false)
     const [selectedManifestKey, setSelectedManifestKey] = useState<string | null>(null)
     const [expandedCategories, setExpandedCategories] = useState<CategoryExpansionState>(() => createExpandedCategoriesState())
     const [activeNodeId, setActiveNodeId] = useState<string | null>(null)
@@ -884,19 +984,37 @@ function WorkflowEditor() {
         const restoredNodeIds = new Set(restoredNodes.map((node) => node.id))
         const restoredEdges: Edge[] = persisted.edges
             .filter((edge) => restoredNodeIds.has(edge.source) && restoredNodeIds.has(edge.target))
-            .map((edge) => ({
-                id: edge.id,
-                source: edge.source,
-                target: edge.target,
-                sourceHandle: edge.source_handle,
-                targetHandle: edge.target_handle,
-                markerEnd: WORKFLOW_EDGE_MARKER,
-                style: WORKFLOW_EDGE_STYLE,
-            }))
+            .flatMap((edge) => {
+                if (!edge.source_handle || !edge.target_handle) {
+                    return []
+                }
 
+                const sourceHandle = parseHandleId(edge.source_handle)
+                    ? edge.source_handle
+                    : edge.target_handle === 'model'
+                        ? toHandleId('controller', edge.source_handle)
+                        : toHandleId('output', edge.source_handle)
+                const targetHandle = parseHandleId(edge.target_handle)
+                    ? edge.target_handle
+                    : edge.target_handle === 'model'
+                        ? toHandleId('controller', 'model')
+                        : toHandleId('input', edge.target_handle)
+
+                return [
+                    {
+                        id: edge.id,
+                        source: edge.source,
+                        target: edge.target,
+                        sourceHandle,
+                        targetHandle,
+                        markerEnd: WORKFLOW_EDGE_MARKER,
+                        style: WORKFLOW_EDGE_STYLE,
+                    },
+                ]
+            })
         setNodes(restoredNodes)
         setEdges(restoredEdges)
-        setIsLibraryVisible(persisted.is_library_visible)
+        setIsLibraryVisible(false)
         setIsGridVisible(persisted.is_grid_visible)
         setSearch(persisted.search)
         setSelectedManifestKey(persisted.selected_manifest_key)
@@ -1030,6 +1148,7 @@ function WorkflowEditor() {
                 providerModels,
                 collapsed: input.collapsed ?? input.manifest.ui.collapsed_by_default,
                 isActive: nodeId === activeNodeId,
+                runtimeOutput: null,
                 onParameterChange: (parameterName, value) => {
                     updateNode(nodeId, (current) => {
                         const nextParameters = { ...current.data.parameters, [parameterName]: value }
@@ -1070,6 +1189,17 @@ function WorkflowEditor() {
         setNodes((current) => [...current, node])
     }
 
+    function applyRunOutputs(outputs: Record<string, Record<string, unknown>>): void {
+        setNodes((current) =>
+            current.map((node) => ({
+                ...node,
+                data: {
+                    ...node.data,
+                    runtimeOutput: outputs[node.id] ?? null,
+                },
+            })),
+        )
+    }
     function buildDefinition(): WorkflowDefinition {
         const definitionNodes = nodes.map((node) => ({
             node_id: node.id,
@@ -1077,12 +1207,33 @@ function WorkflowEditor() {
             node_version: node.data.manifest.version,
             parameters: node.data.parameters,
         }))
-        const definitionConnections: WorkflowConnection[] = edges.map((edge) => ({
-            from_node: edge.source,
-            from_output: edge.sourceHandle || '',
-            to_node: edge.target,
-            to_input: edge.targetHandle || '',
-        }))
+        const definitionConnections = edges.reduce<WorkflowConnection[]>((accumulator, edge) => {
+            const source = typeof edge.sourceHandle === 'string' ? parseHandleId(edge.sourceHandle) : null
+            const target = typeof edge.targetHandle === 'string' ? parseHandleId(edge.targetHandle) : null
+            if (!source || !target) {
+                return accumulator
+            }
+            if (source.kind === 'output' && target.kind === 'input') {
+                accumulator.push({
+                    from_node: edge.source,
+                    connection_type: 'data',
+                    from_output: source.name,
+                    to_node: edge.target,
+                    to_input: target.name,
+                })
+                return accumulator
+            }
+            if (source.kind === 'controller' && target.kind === 'controller') {
+                accumulator.push({
+                    from_node: edge.source,
+                    connection_type: 'controller',
+                    from_controller: source.name,
+                    to_node: edge.target,
+                    to_controller: target.name,
+                })
+            }
+            return accumulator
+        }, [])
         return {
             schema_version: 2,
             nodes: definitionNodes,
@@ -1190,6 +1341,35 @@ function WorkflowEditor() {
         const restoredEdges: Edge[] = definitionConnections
             .filter((connection): connection is Record<string, unknown> => isRecord(connection))
             .flatMap((connection) => {
+                const connectionType = connection.connection_type === 'controller' ? 'controller' : 'data'
+
+                if (connectionType === 'controller') {
+                    if (
+                        typeof connection.from_node !== 'string' ||
+                        typeof connection.from_controller !== 'string' ||
+                        typeof connection.to_node !== 'string' ||
+                        typeof connection.to_controller !== 'string'
+                    ) {
+                        return []
+                    }
+                    if (!restoredNodeIds.has(connection.from_node) || !restoredNodeIds.has(connection.to_node)) {
+                        return []
+                    }
+                    const sourceHandle = toHandleId('controller', connection.from_controller)
+                    const targetHandle = toHandleId('controller', connection.to_controller)
+                    return [
+                        {
+                            id: `${connection.from_node}-${sourceHandle}-${connection.to_node}-${targetHandle}`,
+                            source: connection.from_node,
+                            target: connection.to_node,
+                            sourceHandle,
+                            targetHandle,
+                            markerEnd: WORKFLOW_EDGE_MARKER,
+                            style: WORKFLOW_EDGE_STYLE,
+                        },
+                    ]
+                }
+
                 if (
                     typeof connection.from_node !== 'string' ||
                     typeof connection.from_output !== 'string' ||
@@ -1201,19 +1381,28 @@ function WorkflowEditor() {
                 if (!restoredNodeIds.has(connection.from_node) || !restoredNodeIds.has(connection.to_node)) {
                     return []
                 }
+
+                const sourceHandle =
+                    connection.to_input === 'model'
+                        ? toHandleId('controller', connection.from_output)
+                        : toHandleId('output', connection.from_output)
+                const targetHandle =
+                    connection.to_input === 'model'
+                        ? toHandleId('controller', 'model')
+                        : toHandleId('input', connection.to_input)
+
                 return [
                     {
-                        id: `${connection.from_node}-${connection.from_output}-${connection.to_node}-${connection.to_input}`,
+                        id: `${connection.from_node}-${sourceHandle}-${connection.to_node}-${targetHandle}`,
                         source: connection.from_node,
                         target: connection.to_node,
-                        sourceHandle: connection.from_output,
-                        targetHandle: connection.to_input,
+                        sourceHandle,
+                        targetHandle,
                         markerEnd: WORKFLOW_EDGE_MARKER,
                         style: WORKFLOW_EDGE_STYLE,
                     },
                 ]
             })
-
         setNodes(restoredNodes)
         setEdges(restoredEdges)
         setNodeContextMenu(null)
@@ -1299,35 +1488,68 @@ function WorkflowEditor() {
             return false
         }
 
+        const sourceParsed = parseHandleId(connection.sourceHandle)
+        const targetParsed = parseHandleId(connection.targetHandle)
+        if (!sourceParsed || !targetParsed) {
+            return false
+        }
+
         const sourceNode = nodes.find((node) => node.id === connection.source)
         const targetNode = nodes.find((node) => node.id === connection.target)
         if (!sourceNode || !targetNode) {
             return false
         }
 
-        const sourcePort = sourceNode.data.manifest.outputs.find((port) => port.name === connection.sourceHandle)
-        const targetPort = targetNode.data.manifest.inputs.find((port) => port.name === connection.targetHandle)
-        if (!sourcePort || !targetPort) {
-            return false
+        if (sourceParsed.kind === 'output' && targetParsed.kind === 'input') {
+            const sourcePort = sourceNode.data.manifest.outputs.find((port) => port.name === sourceParsed.name)
+            const targetPort = targetNode.data.manifest.inputs.find((port) => port.name === targetParsed.name)
+            if (!sourcePort || !targetPort) {
+                return false
+            }
+
+            const compatible =
+                sourcePort.data_type === targetPort.data_type ||
+                sourcePort.data_type === 'ANY' ||
+                targetPort.data_type === 'ANY'
+            if (!compatible) {
+                return false
+            }
+
+            const targetAlreadyConnected = edges.some(
+                (edge) =>
+                    edge.target === connection.target &&
+                    edge.targetHandle === connection.targetHandle &&
+                    !targetPort.accepts_multiple,
+            )
+            return !targetAlreadyConnected
         }
 
-        const compatible =
-            sourcePort.data_type === targetPort.data_type ||
-            sourcePort.data_type === 'ANY' ||
-            targetPort.data_type === 'ANY'
-        if (!compatible) {
-            return false
+        if (sourceParsed.kind === 'controller' && targetParsed.kind === 'controller') {
+            const sourceController = getControllers(sourceNode.data.manifest).find((port) => port.name === sourceParsed.name)
+            const targetController = getControllers(targetNode.data.manifest).find((port) => port.name === targetParsed.name)
+            if (!sourceController || !targetController) {
+                return false
+            }
+
+            const compatible =
+                sourceController.data_type === targetController.data_type ||
+                sourceController.data_type === 'ANY' ||
+                targetController.data_type === 'ANY'
+            if (!compatible) {
+                return false
+            }
+
+            const targetAlreadyConnected = edges.some(
+                (edge) =>
+                    edge.target === connection.target &&
+                    edge.targetHandle === connection.targetHandle &&
+                    !targetController.accepts_multiple,
+            )
+            return !targetAlreadyConnected
         }
 
-        const targetAlreadyConnected = edges.some(
-            (edge) =>
-                edge.target === connection.target &&
-                edge.targetHandle === connection.targetHandle &&
-                !targetPort.accepts_multiple,
-        )
-        return !targetAlreadyConnected
+        return false
     }
-
     function handleTreeDragStart(event: ReactDragEvent<HTMLButtonElement>, manifest: NodeManifest): void {
         const key = manifestKey(manifest)
         draggedManifestKeyRef.current = key
@@ -1366,6 +1588,12 @@ function WorkflowEditor() {
         }
         setIsRunning(true)
         setActiveNodeId(null)
+        setNodes((current) =>
+            current.map((node) => ({
+                ...node,
+                data: { ...node.data, runtimeOutput: null },
+            })),
+        )
         setStatusText('Compiling workflow...')
 
         try {
@@ -1398,9 +1626,13 @@ function WorkflowEditor() {
             const finalState = await pollExecution(execution.run_id, execution.poll_interval, (run) => {
                 setActiveNodeId(run.steps.find((step) => step.status === 'running')?.node_id ?? null)
                 setStatusText(`Run ${run.status} (${Math.round(run.progress)}%)`)
+                if (run.outputs && Object.keys(run.outputs).length > 0) {
+                    applyRunOutputs(run.outputs)
+                }
             })
 
             setActiveNodeId(null)
+            applyRunOutputs(finalState.outputs)
             if (finalState.status === 'completed') {
                 setStatusText('Workflow completed')
             } else if (finalState.status === 'failed') {
@@ -1424,7 +1656,8 @@ function WorkflowEditor() {
                     <span className="workflow-toolbar-status-label">Status</span>
                     <strong>{statusText}</strong>
                 </div>
-                <div className="workflow-toolbar-actions">                    <button type="button" onClick={() => void fitView({ padding: 0.2, duration: 180 })}>
+                <div className="workflow-toolbar-actions">
+                    <button type="button" onClick={() => void fitView({ padding: 0.2, duration: 180 })}>
                         Fit View
                     </button>
                     <button type="button" onClick={() => setIsGridVisible((visible) => !visible)}>
@@ -1535,7 +1768,7 @@ function WorkflowEditor() {
                                                                 <span className="workflow-tree-node-branch" aria-hidden="true" />
                                                                 <span className="workflow-tree-node-content">
                                                                     <strong>{manifest.name}</strong>
-                                                                    <small>{manifest.inputs.length} in / {manifest.outputs.length} out</small>
+                                                                    <small>{manifest.inputs.length} in / {manifest.outputs.length} out / {(getControllers(manifest)).length} ctrl</small>
                                                                 </span>
                                                             </button>
                                                         )
