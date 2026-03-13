@@ -1,4 +1,0 @@
-interface:
-  display_name: "React Flow"
-  short_description: "Build and debug node UIs with @xyflow/react"
-  default_prompt: "Use $react-flow to implement or troubleshoot a React Flow feature with best-practice patterns and targeted docs."

@@ -34,9 +34,7 @@ import {
     browseNodeDirectory,
     browseNodeFiles,
     compileWorkflow,
-    exportWorkflowJsonWithDialog,
     fetchProviderModels,
-    importWorkflowJsonWithDialog,
     importNodeManifest,
     pollExecution,
     startExecution,
@@ -130,6 +128,11 @@ type CopiedNodeSnapshot = {
     pinged: boolean
     skipped: boolean
 }
+
+type SelectedWorkflowJson = {
+    fileName: string
+    jsonPayload: string
+}
 const NODE_MIN_WIDTH = 240
 const NODE_MAX_WIDTH = 680
 const NODE_MIN_HEIGHT = 140
@@ -146,6 +149,82 @@ type HandleKind = 'input' | 'output' | 'controller'
 type ParsedHandle = { kind: HandleKind; name: string }
 
 type ControllerScope = 'source' | 'target' | 'both'
+
+function sanitizeWorkflowJsonFileName(value: string): string {
+    const cleaned = value.trim().replace(/[<>:"/\\|?*\x00-\x1F]/g, '_')
+    const base = cleaned || 'paragraph-workflow.json'
+    return base.toLowerCase().endsWith('.json') ? base : `${base}.json`
+}
+
+function downloadWorkflowJson(payload: string, suggestedFileName: string): string {
+    const fileName = sanitizeWorkflowJsonFileName(suggestedFileName)
+    const blob = new Blob([payload], { type: 'application/json;charset=utf-8' })
+    const objectUrl = URL.createObjectURL(blob)
+    const anchor = document.createElement('a')
+    anchor.href = objectUrl
+    anchor.download = fileName
+    anchor.rel = 'noopener'
+    anchor.style.display = 'none'
+    document.body.appendChild(anchor)
+    anchor.click()
+    anchor.remove()
+    URL.revokeObjectURL(objectUrl)
+    return fileName
+}
+
+function pickWorkflowJsonFromBrowser(): Promise<SelectedWorkflowJson | null> {
+    return new Promise((resolve, reject) => {
+        const input = document.createElement('input')
+        input.type = 'file'
+        input.accept = '.json,application/json'
+
+        let settled = false
+        const settle = (value: SelectedWorkflowJson | null): void => {
+            if (settled) {
+                return
+            }
+            settled = true
+            window.removeEventListener('focus', handleWindowFocus)
+            resolve(value)
+        }
+
+        const fail = (error: unknown): void => {
+            if (settled) {
+                return
+            }
+            settled = true
+            window.removeEventListener('focus', handleWindowFocus)
+            reject(error)
+        }
+
+        const handleWindowFocus = (): void => {
+            window.setTimeout(() => {
+                if (!settled && !input.files?.length) {
+                    settle(null)
+                }
+            }, 0)
+        }
+
+        input.addEventListener('change', () => {
+            const file = input.files?.item(0)
+            if (!file) {
+                settle(null)
+                return
+            }
+            void file
+                .text()
+                .then((jsonPayload) => {
+                    settle({ fileName: file.name, jsonPayload })
+                })
+                .catch((error) => {
+                    fail(error instanceof Error ? error : new Error('Unable to read selected workflow JSON'))
+                })
+        })
+
+        window.addEventListener('focus', handleWindowFocus, { once: true })
+        input.click()
+    })
+}
 
 function getControllers(manifest: NodeManifest): NonNullable<NodeManifest['controllers']> {
     return manifest.controllers ?? []
@@ -1781,16 +1860,9 @@ function WorkflowEditor() {
             const bundle = buildWorkflowBundle()
             const payload = JSON.stringify(bundle, null, 2)
             const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
-            const response = await exportWorkflowJsonWithDialog({
-                json_payload: payload,
-                suggested_filename: `paragraph-workflow-${stamp}.json`,
-            })
-            if (!response.path) {
-                setStatusText('Workflow export cancelled')
-                return
-            }
+            const fileName = downloadWorkflowJson(payload, `paragraph-workflow-${stamp}.json`)
             setStatusText(
-                `Exported workflow JSON to ${response.path} (${bundle.workflow.definition.nodes.length} nodes)`,
+                `Exported workflow JSON as ${fileName} (${bundle.workflow.definition.nodes.length} nodes)`,
             )
         } catch (error) {
             setStatusText(error instanceof Error ? error.message : 'Unable to export workflow JSON')
@@ -1799,13 +1871,13 @@ function WorkflowEditor() {
 
     async function importWorkflowBundle(): Promise<void> {
         try {
-            const selection = await importWorkflowJsonWithDialog()
-            if (!selection.json_payload) {
+            const selection = await pickWorkflowJsonFromBrowser()
+            if (!selection) {
                 setStatusText('Workflow import cancelled')
                 return
             }
 
-            const parsed: unknown = JSON.parse(selection.json_payload)
+            const parsed: unknown = JSON.parse(selection.jsonPayload)
             const payload = readImportedWorkflowPayload(parsed)
 
             const existingManifestMap = new Map(catalog.map((manifest) => [manifestKey(manifest), manifest]))
@@ -1837,7 +1909,7 @@ function WorkflowEditor() {
                 importedManifests.length > 0
                     ? ` and installed ${importedManifests.length} custom node${importedManifests.length === 1 ? '' : 's'}`
                     : ''
-            const pathLabel = selection.path ? ` from ${selection.path}` : ''
+            const pathLabel = selection.fileName ? ` from ${selection.fileName}` : ''
             setStatusText(`Imported workflow "${payload.name}"${importedLabel}${pathLabel}`)
         } catch (error) {
             setStatusText(error instanceof Error ? error.message : 'Unable to import workflow JSON')
