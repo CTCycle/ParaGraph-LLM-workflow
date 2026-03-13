@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field, model_validator
 
 from ParaGraph.server.services.workflow.node_handlers.base import NodeHandler
 from ParaGraph.server.services.workflow.node_handlers.common import coerce_bool, strip_html
+from ParaGraph.server.services.workflow.node_handlers.ingestion import _load_file_text, _resolve_local_path
 
 
 _SENTENCE_BOUNDARY_PATTERN = re.compile(r"(?<=[.!?])\s+")
@@ -40,12 +41,43 @@ def _clean_text(text: str, *, strip_html_content: bool, collapse_whitespace: boo
     return result
 
 
+def _hydrate_document_text(document: dict[str, Any]) -> tuple[str, dict[str, Any]]:
+    metadata = dict(document.get("metadata", {})) if isinstance(document.get("metadata"), dict) else {}
+    text = str(document.get("text", ""))
+    if text.strip():
+        return text, metadata
+
+    source_uri = str(document.get("source_uri", "")).strip()
+    path_candidate = str(metadata.get("file_path") or source_uri).strip()
+    if not path_candidate:
+        return text, metadata
+
+    try:
+        path = _resolve_local_path(path_candidate)
+    except Exception:  # noqa: BLE001
+        return text, metadata
+    if not path.exists() or not path.is_file():
+        return text, metadata
+
+    try:
+        loaded_text, _mime_type = _load_file_text(path)
+    except Exception as exc:  # noqa: BLE001
+        metadata["deferred_load_error"] = str(exc)
+        return text, metadata
+
+    metadata["deferred_load"] = False
+    metadata["loaded_from_path"] = str(path)
+    metadata["loaded_extension"] = path.suffix.lower()
+    return loaded_text, metadata
+
+
 def _text_cleaner_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
     documents = inputs.get("documents") or []
     cleaned: list[dict[str, Any]] = []
     for document in documents:
-        metadata = dict(document.get("metadata", {})) if isinstance(document, dict) else {}
-        original_text = str(document.get("text", "")) if isinstance(document, dict) else ""
+        if not isinstance(document, dict):
+            continue
+        original_text, metadata = _hydrate_document_text(document)
         text = _clean_text(
             original_text,
             strip_html_content=coerce_bool(parameters.get("strip_html_content", True)),
@@ -82,7 +114,6 @@ def _chunk_text(text: str, chunk_size: int, chunk_overlap: int, respect_sentence
     sentences = [part.strip() for part in _SENTENCE_BOUNDARY_PATTERN.split(text) if part.strip()]
     chunks: list[str] = []
     current_tokens: list[str] = []
-
 
     for sentence in sentences:
         sentence_tokens = sentence.split()
@@ -130,9 +161,14 @@ def _chunker_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dic
             continue
         document_id = str(document.get("id", ""))
         source_uri = str(document.get("source_uri", ""))
-        text = str(document.get("text", ""))
+        text, metadata = _hydrate_document_text(document)
         for chunk_index, chunk_text in enumerate(
-            _chunk_text(text, chunk_size=chunk_size, chunk_overlap=chunk_overlap, respect_sentence_boundaries=respect_sentence_boundaries)
+            _chunk_text(
+                text,
+                chunk_size=chunk_size,
+                chunk_overlap=chunk_overlap,
+                respect_sentence_boundaries=respect_sentence_boundaries,
+            )
         ):
             chunks.append(
                 {
@@ -143,7 +179,7 @@ def _chunker_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dic
                     "chunk_index": chunk_index,
                     "token_count": len(chunk_text.split()),
                     "metadata": {
-                        **(document.get("metadata", {}) if isinstance(document.get("metadata"), dict) else {}),
+                        **metadata,
                         "mime_type": document.get("mime_type", "text/plain"),
                     },
                 }

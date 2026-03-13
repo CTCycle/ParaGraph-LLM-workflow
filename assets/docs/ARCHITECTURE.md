@@ -38,6 +38,7 @@ The current implementation uses a React Flow editor, JSON node manifests, and a 
 - `POST /nodes/import` validates and persists a single manifest JSON object (including optional plugin runtime descriptors).
 - `GET /nodes/dialog/files` opens a native file picker on the local machine and returns selected paths for path-backed node widgets.
 - `GET /nodes/dialog/directory` opens a native folder picker on the local machine and returns the selected directory path.
+- `POST /nodes/check-database-connection` validates SQL node connection parameters (`SQL_DATABASE` / `SQL_FILE_DATABASE`) and returns a success/failure payload for node-level health checks.
 - The active model authoring flow uses a `MODEL_PROVIDER` node that emits a typed `MODEL_HANDLE`, consumed by unified `LLM_CHAT` and `LLM_STRUCTURED` nodes.
 - Each manifest declares:
   - metadata (`id`, `version`, `name`, `category`, `description`)
@@ -137,7 +138,7 @@ The current implementation uses a React Flow editor, JSON node manifests, and a 
 ---
 
 ## 5. Phase 1 RAG Runtime
-- New ingestion nodes emit normalized DOCUMENT_LIST payloads from local files, HTTP sources, and read-only database queries.
+- New ingestion nodes emit normalized DOCUMENT_LIST payloads from local files, folder references (`LOAD_DOCUMENTS` deferred file-path collection), HTTP sources, and read-only database queries.
 - `SQL_DATABASE` and `SQL_FILE_DATABASE` emit typed read-only connection controller payloads consumed by query-style SQL nodes (for example `DATABASE_QUERY`).
 - `TEXT_CLEANER` and `CHUNKER` convert documents into `CHUNK_LIST` payloads suitable for retrieval.
 - `BATCH_EMBEDDER` turns chunks into `VECTOR_POINT_LIST` payloads using provider-backed embeddings.
@@ -151,4 +152,3 @@ The current implementation uses a React Flow editor, JSON node manifests, and a 
 - The legacy `/workflow/*` compatibility API is no longer part of the active application surface.
 - Existing persisted workflow documents are migrated on read into schema `2` shapes.
 - The executable manifest set now includes a Phase 1 typed RAG slice for ingestion, chunking, embedding, vector storage, retrieval, and context injection.
-

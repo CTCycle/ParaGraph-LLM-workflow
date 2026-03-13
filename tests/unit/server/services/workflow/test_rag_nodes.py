@@ -6,6 +6,7 @@ from uuid import uuid4
 
 from ParaGraph.server.services.workflow import node_registry
 from ParaGraph.server.services.workflow import nodes as node_module
+from ParaGraph.server.services.workflow.node_handlers import processing as processing_module
 
 
 def fake_embed(provider: str, model: str, text: str, dimensions: int | None = None, session_name: str = 'default') -> list[float]:
@@ -22,6 +23,27 @@ def fake_embed(provider: str, model: str, text: str, dimensions: int | None = No
         vector = (vector + [0.0] * dimensions)[:dimensions]
     return vector
 
+
+
+def test_chunker_loads_deferred_documents_from_file_paths(tmp_path: Path) -> None:
+    source_dir = tmp_path / 'docs'
+    source_dir.mkdir(parents=True, exist_ok=True)
+    source = source_dir / 'deferred.txt'
+    source.write_text('Deferred loading keeps this text on disk until processing.', encoding='utf-8')
+
+    documents = node_registry.execute('LOAD_DOCUMENTS', 1, {'folder_path': str(source_dir), 'recursive': False}, {})
+    chunks = processing_module._chunker_executor(
+        {
+            'strategy': 'token',
+            'chunk_size_tokens': 100,
+            'chunk_overlap_tokens': 20,
+            'respect_sentence_boundaries': True,
+        },
+        {'documents': documents['documents']},
+    )
+
+    assert len(chunks['chunks']) >= 1
+    assert 'Deferred loading keeps this text on disk' in chunks['chunks'][0]['text']
 
 def test_rag_nodes_roundtrip_from_document_to_context(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setattr(node_module.provider_service, 'embed_text', fake_embed)

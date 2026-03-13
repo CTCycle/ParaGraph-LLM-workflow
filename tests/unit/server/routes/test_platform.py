@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import sqlite3
 
 from fastapi.testclient import TestClient
 
@@ -41,6 +42,7 @@ def test_nodes_catalog_exposes_registry(client: TestClient) -> None:
         'SQL_FILE_DATABASE',
         'TEXT_OUTPUT',
         'JSON_OUTPUT',
+        'LOAD_DOCUMENTS',
     }
     assert 'USER_PROMPT' not in ids
     assert 'SYSTEM_PROMPT' not in ids
@@ -94,6 +96,59 @@ def test_nodes_dialog_directory_returns_selected_path(client: TestClient, monkey
     assert response.status_code == 200
     assert response.json() == {'path': 'C:/tmp/data'}
 
+
+
+def test_nodes_database_connection_check_returns_success_for_sqlite(client: TestClient, tmp_path: Path) -> None:
+    database_path = tmp_path / 'health.sqlite'
+    with sqlite3.connect(database_path) as connection:
+        connection.execute('CREATE TABLE test_table (id INTEGER PRIMARY KEY, value TEXT)')
+        connection.commit()
+
+    response = client.post(
+        '/nodes/check-database-connection',
+        json={
+            'node_type': 'SQL_FILE_DATABASE',
+            'node_version': 1,
+            'parameters': {
+                'db_engine': 'sqlite',
+                'db_path': str(database_path),
+                'db_name': 'health',
+                'db_user': 'postgres',
+                'db_password': 'change_me',
+                'db_ssl': False,
+                'db_ssl_ca': '',
+                'db_connect_timeout': 5,
+            },
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {'ok': True, 'message': 'Database connection successful.'}
+
+
+def test_nodes_database_connection_check_returns_failure_payload(client: TestClient) -> None:
+    response = client.post(
+        '/nodes/check-database-connection',
+        json={
+            'node_type': 'SQL_FILE_DATABASE',
+            'node_version': 1,
+            'parameters': {
+                'db_engine': 'sqlite',
+                'db_path': 'C:/does/not/exist/missing.sqlite',
+                'db_name': 'missing',
+                'db_user': 'postgres',
+                'db_password': 'change_me',
+                'db_ssl': False,
+                'db_ssl_ca': '',
+                'db_connect_timeout': 5,
+            },
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload['ok'] is False
+    assert 'not found' in payload['message'].lower()
 
 def test_provider_models_endpoint_returns_catalog(client: TestClient, monkeypatch) -> None:
     monkeypatch.setattr(
@@ -188,4 +243,3 @@ def test_workflow_crud_and_versions(client: TestClient) -> None:
 
     assert update_response.status_code == 200
     assert update_response.json()['latest_version'] == 2
-

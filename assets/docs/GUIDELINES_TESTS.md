@@ -86,6 +86,7 @@ When adding tests:
 - `/`
 - `/nodes/catalog`
 - `/nodes/import`
+- `/nodes/check-database-connection`
 - `/executions/compile`
 - `/executions`
 - `/executions/{run_id}`

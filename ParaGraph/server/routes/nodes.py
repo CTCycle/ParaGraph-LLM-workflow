@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any, Literal
+
 from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel, Field
 
@@ -14,6 +16,17 @@ class PickedPathsResponse(BaseModel):
 
 class PickedDirectoryResponse(BaseModel):
     path: str | None = None
+
+
+class DatabaseConnectionCheckRequest(BaseModel):
+    node_type: Literal["SQL_DATABASE", "SQL_FILE_DATABASE"]
+    node_version: int = Field(default=1, ge=1)
+    parameters: dict[str, Any] = Field(default_factory=dict)
+
+
+class DatabaseConnectionCheckResponse(BaseModel):
+    ok: bool
+    message: str
 
 
 router = APIRouter(prefix="/nodes", tags=["nodes"])
@@ -46,3 +59,17 @@ def browse_directory() -> PickedDirectoryResponse:
         return PickedDirectoryResponse(path=pick_directory())
     except RuntimeError as exc:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
+
+
+@router.post("/check-database-connection", response_model=DatabaseConnectionCheckResponse)
+def check_database_connection(request: DatabaseConnectionCheckRequest) -> DatabaseConnectionCheckResponse:
+    try:
+        node_registry.execute(
+            request.node_type,
+            request.node_version,
+            request.parameters,
+            {},
+        )
+        return DatabaseConnectionCheckResponse(ok=True, message="Database connection successful.")
+    except Exception as exc:  # noqa: BLE001
+        return DatabaseConnectionCheckResponse(ok=False, message=str(exc) or "Database connection check failed.")
