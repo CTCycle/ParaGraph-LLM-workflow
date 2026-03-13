@@ -4,8 +4,13 @@ import json
 from pathlib import Path
 from typing import Any
 
-import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer
+try:
+    import torch
+    from transformers import AutoModelForCausalLM, AutoTokenizer
+except ImportError:  # Optional dependency for Hugging Face provider.
+    torch = None
+    AutoModelForCausalLM = None
+    AutoTokenizer = None
 from pydantic import BaseModel, Field, ValidationError, field_validator
 
 from ParaGraph.server.common.constants import RESOURCES_PATH
@@ -156,20 +161,14 @@ def _build_generation_options(parameters: dict[str, Any], *, include_context_win
 
 
 def _resolve_model_selection(parameters: dict[str, Any], inputs: dict[str, Any]) -> ProviderModelDefinition:
+    _ = parameters
     model_input = inputs.get("model")
-    if model_input is not None:
-        try:
-            return ProviderModelDefinition.model_validate(model_input)
-        except ValidationError as exc:
-            raise ValueError("model input must be a valid model handle") from exc
-
-    provider = normalize_provider_name(parameters.get("provider"), default="ollama")
-    model_name = coerce_text(parameters.get("model_name")).strip()
-    if not model_name and provider == "ollama":
-        model_name = coerce_text(configuration_service.load_configuration().ollama.chat_model).strip()
-    if not model_name:
-        raise ValueError("LLM nodes require a connected model provider node")
-    return provider_service.build_model_definition(provider, model_name)
+    if model_input is None:
+        raise ValueError("LLM nodes require a connected model provider controller")
+    try:
+        return ProviderModelDefinition.model_validate(model_input)
+    except ValidationError as exc:
+        raise ValueError("model controller must be a valid model handle") from exc
 
 
 def _run_huggingface_chat(
@@ -181,6 +180,8 @@ def _run_huggingface_chat(
     access_token: str,
 ) -> str:
 
+    if torch is None or AutoTokenizer is None or AutoModelForCausalLM is None:
+        raise ValueError("Hugging Face support requires installing torch and transformers")
     if model_name not in _HF_MODEL_CACHE:
         tokenizer = AutoTokenizer.from_pretrained(model_name, token=access_token)
         model = AutoModelForCausalLM.from_pretrained(
@@ -379,4 +380,6 @@ CORE_HANDLERS = {
     "if": NodeHandler(executor=_if_executor),
     "router": NodeHandler(executor=_router_executor, parameter_model=RouterParameters),
 }
+
+
 

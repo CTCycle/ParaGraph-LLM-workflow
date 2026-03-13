@@ -472,7 +472,7 @@
     background: #141414;
     color: #eef6ff;
     box-shadow: 0 14px 28px rgba(0, 0, 0, 0.28);
-    overflow: hidden;
+    overflow: visible;
 }
 
 .workflow-node[data-active='true'] {
@@ -588,6 +588,27 @@
     font-size: 1rem;
 }
 
+
+.workflow-node-handle-controller {
+    width: 11px !important;
+    height: 11px !important;
+    border: 1px solid rgba(255, 214, 150, 0.86) !important;
+    border-radius: 0 !important;
+    background: #ff9d3c !important;
+}
+
+.workflow-node-handle-controller-target {
+    transform: translate(-50%, -50%) rotate(45deg) !important;
+}
+
+.workflow-node-handle-controller-source {
+    transform: translate(50%, -50%) rotate(45deg) !important;
+}
+
+.workflow-node-port-controller-target,
+.workflow-node-port-controller-source {
+    color: #ffd6a6;
+}
 .workflow-node-ports {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -631,7 +652,6 @@
     border: none;
     background: var(--node-accent);
 }
-
 .workflow-node-parameters,
 .workflow-node-runtime {
     padding: 8px 10px 10px;
@@ -767,6 +787,21 @@
 
 .workflow-node select {
     appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-color: rgba(10, 18, 34, 0.92);
+    color: #eaf3ff;
+    color-scheme: dark;
+}
+
+.workflow-node select option {
+    background-color: #10243f;
+    color: #eaf3ff;
+}
+
+.workflow-node select option:checked {
+    background-color: #2f6ea8;
+    color: #f7fbff;
 }
 
 .workflow-node textarea {
@@ -787,10 +822,16 @@
 
 .workflow-node-runtime-output {
     min-height: 84px;
+    margin: 0;
     padding: 8px 10px;
     border-radius: 12px;
     border: 1px solid rgba(188, 209, 236, 0.12);
     background: rgba(10, 15, 27, 0.78);
+    color: #f0f7ff;
+    font-family: 'Cascadia Mono', 'Consolas', 'Courier New', monospace;
+    font-size: 0.78rem;
+    white-space: pre-wrap;
+    word-break: break-word;
 }
 
 .workflow-node-toggle-input {
@@ -875,3 +916,4 @@
     filter: brightness(1.15) saturate(1.2) hue-rotate(172deg);
     opacity: 0.92;
 }
+

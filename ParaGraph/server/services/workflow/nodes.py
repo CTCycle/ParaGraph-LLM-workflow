@@ -11,6 +11,7 @@ from ParaGraph.server.services.configuration import configuration_service
 from ParaGraph.server.services.workflow.node_handlers import NODE_HANDLERS
 from ParaGraph.server.services.workflow.node_handlers.base import NodeHandler
 from ParaGraph.server.services.workflow.payloads import validate_data_type
+from ParaGraph.server.services.workflow.provider import provider_service
 
 
 NODE_ROOT = Path(RESOURCES_PATH) / "nodes"
@@ -203,8 +204,15 @@ class NodeRegistry:
                 raise ValueError(f"Parameter '{parameter.name}' must be one of: {', '.join(str(item) for item in options)}")
 
     def _validate_ports(self, manifest: NodeManifest, values: dict[str, Any], *, label: str) -> dict[str, Any]:
-        ports = manifest.inputs if label == "input" else manifest.outputs
-        validated = dict(values)
+        if label == "input":
+            ports = manifest.inputs
+        elif label == "output":
+            ports = manifest.outputs
+        elif label == "controller":
+            ports = manifest.controllers
+        else:
+            raise ValueError(f"Unsupported port label '{label}'")
+        validated: dict[str, Any] = {}
         for port in ports:
             if port.name not in values:
                 if port.required and label == "output":
@@ -219,22 +227,40 @@ class NodeRegistry:
                 validated[port.name] = validate_data_type(port.data_type, value)
         return validated
 
-    def execute(self, node_type: str, node_version: int, parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
+    def execute(
+        self,
+        node_type: str,
+        node_version: int,
+        parameters: dict[str, Any],
+        inputs: dict[str, Any],
+        controllers: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         manifest = self.get(node_type, node_version)
         if manifest is None:
             raise ValueError(f"Unknown node type/version '{node_type}' v{node_version}")
         handler = self._handler_for_manifest(manifest)
         validated_parameters = self.validate_parameters(node_type, node_version, parameters)
         validated_inputs = self._validate_ports(manifest, inputs, label="input")
+        validated_controllers = self._validate_ports(manifest, controllers or {}, label="controller")
+
+        overlapping_keys = set(validated_inputs).intersection(validated_controllers)
+        if overlapping_keys:
+            merged = ", ".join(sorted(overlapping_keys))
+            raise ValueError(f"Node '{manifest.id}' has overlapping input/controller names: {merged}")
+
+        execution_inputs = {**validated_inputs, **validated_controllers}
         for port_name, validator in handler.input_validators.items():
-            if port_name in validated_inputs:
-                validated_inputs[port_name] = validator(validated_inputs[port_name])
-        outputs = handler.executor(validated_parameters, validated_inputs)
+            if port_name in execution_inputs:
+                execution_inputs[port_name] = validator(execution_inputs[port_name])
+        outputs = handler.executor(validated_parameters, execution_inputs)
         validated_outputs = self._validate_ports(manifest, outputs, label="output")
+        validated_controller_outputs = self._validate_ports(manifest, outputs, label="controller")
         for port_name, validator in handler.output_validators.items():
             if port_name in validated_outputs:
                 validated_outputs[port_name] = validator(validated_outputs[port_name])
-        return validated_outputs
+        return {**validated_outputs, **validated_controller_outputs}
 
 
 node_registry = NodeRegistry()
+
+

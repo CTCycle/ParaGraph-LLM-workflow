@@ -37,6 +37,18 @@ class NodePortDefinition(BaseModel):
     description: str | None = None
 
 
+NodeControllerScope = Literal["source", "target", "both"]
+
+
+class NodeControllerDefinition(BaseModel):
+    name: str
+    data_type: NodeDataType
+    required: bool = True
+    accepts_multiple: bool = False
+    scope: NodeControllerScope = "target"
+    description: str | None = None
+
+
 class NodeParameterDefinition(BaseModel):
     name: str
     data_type: NodeDataType
@@ -74,6 +86,7 @@ class NodeManifest(BaseModel):
     description: str
     inputs: list[NodePortDefinition] = Field(default_factory=list)
     outputs: list[NodePortDefinition] = Field(default_factory=list)
+    controllers: list[NodeControllerDefinition] = Field(default_factory=list)
     parameters: list[NodeParameterDefinition] = Field(default_factory=list)
     ui: NodeUiDefinition = Field(default_factory=NodeUiDefinition)
     runtime: NodeRuntimeDefinition

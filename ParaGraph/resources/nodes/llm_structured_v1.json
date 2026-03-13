@@ -6,11 +6,6 @@
   "description": "Run a structured generation with a typed model handle selected by a provider node and return validated JSON.",
   "inputs": [
     {
-      "name": "model",
-      "data_type": "MODEL_HANDLE",
-      "required": false
-    },
-    {
       "name": "user_prompt",
       "data_type": "TEXT",
       "required": false
@@ -31,6 +26,16 @@
       "name": "result",
       "data_type": "JSON",
       "required": true
+    }
+  ],
+  "controllers": [
+    {
+      "name": "model",
+      "data_type": "MODEL_HANDLE",
+      "required": true,
+      "accepts_multiple": false,
+      "description": "Required model controller provided by a MODEL_PROVIDER node.",
+      "scope": "target"
     }
   ],
   "parameters": [

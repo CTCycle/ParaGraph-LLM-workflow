@@ -62,16 +62,22 @@ class ExecutionService:
             )
 
             try:
-                resolved_inputs = self._resolve_inputs(step, outputs_by_step)
-                cache_key = self._build_cache_key(step, resolved_inputs)
+                resolved_inputs, resolved_controllers = self._resolve_inputs(step, outputs_by_step)
+                cache_key = self._build_cache_key(step, resolved_inputs, resolved_controllers)
                 if step.cacheable and cache_key in cache:
                     port_outputs = cache[cache_key]
                 else:
-                    port_outputs = node_registry.execute(step.node_type, step.node_version, step.parameters, resolved_inputs)
+                    port_outputs = node_registry.execute(
+                        step.node_type,
+                        step.node_version,
+                        step.parameters,
+                        resolved_inputs,
+                        resolved_controllers,
+                    )
                     if step.cacheable:
                         cache[cache_key] = port_outputs
 
-                output_state = {"inputs": resolved_inputs, "ports": port_outputs}
+                output_state = {"inputs": resolved_inputs, "controllers": resolved_controllers, "ports": port_outputs}
                 outputs_by_step[step_id] = output_state
 
                 result = self._extract_terminal_output(step.node_type, resolved_inputs, port_outputs)
@@ -118,40 +124,53 @@ class ExecutionService:
         execution_event_service.publish(run_id=job_id, event_type="execution.completed", payload={"outputs": output_payload})
         return {"outputs": output_payload}
 
-    def _resolve_inputs(self, step, outputs_by_step: dict[str, dict[str, Any]]) -> dict[str, Any]:
+    def _resolve_inputs(self, step, outputs_by_step: dict[str, dict[str, Any]]) -> tuple[dict[str, Any], dict[str, Any]]:
         manifest = node_registry.get(step.node_type, step.node_version)
         manifests_by_input = {port.name: port for port in (manifest.inputs if manifest else [])}
-        resolved: dict[str, Any] = {}
+        manifests_by_controller = {port.name: port for port in (manifest.controllers if manifest else [])}
+        resolved_inputs: dict[str, Any] = {}
+        resolved_controllers: dict[str, Any] = {}
 
         for binding in step.bindings:
             source_payload = outputs_by_step.get(binding.source_node_id, {})
             source_ports = source_payload.get("ports", {})
             value = source_ports.get(binding.source_output)
-            if binding.input_name not in resolved:
-                if manifests_by_input.get(binding.input_name) and manifests_by_input[binding.input_name].accepts_multiple:
-                    resolved[binding.input_name] = [value]
+            binding_is_controller = binding.binding_type == "controller"
+            target_manifest_map = manifests_by_controller if binding_is_controller else manifests_by_input
+            target_values = resolved_controllers if binding_is_controller else resolved_inputs
+
+            if binding.input_name not in target_values:
+                target_port = target_manifest_map.get(binding.input_name)
+                if target_port and target_port.accepts_multiple:
+                    target_values[binding.input_name] = [value]
                 else:
-                    resolved[binding.input_name] = value
+                    target_values[binding.input_name] = value
                 continue
 
-            current = resolved[binding.input_name]
+            current = target_values[binding.input_name]
             if isinstance(current, list):
                 current.append(value)
             else:
-                resolved[binding.input_name] = value
+                target_values[binding.input_name] = value
 
-        return resolved
+        return resolved_inputs, resolved_controllers
 
     def _json_safe(self, value: Any) -> Any:
         return json.loads(json.dumps(value, default=str))
 
-    def _build_cache_key(self, step, resolved_inputs: dict[str, Any]) -> str:
+    def _build_cache_key(
+        self,
+        step,
+        resolved_inputs: dict[str, Any],
+        resolved_controllers: dict[str, Any],
+    ) -> str:
         payload = json.dumps(
             {
                 "node_type": step.node_type,
                 "node_version": step.node_version,
                 "parameters": self._json_safe(step.parameters),
                 "inputs": self._json_safe(resolved_inputs),
+                "controllers": self._json_safe(resolved_controllers),
             },
             sort_keys=True,
             default=str,
@@ -187,10 +206,3 @@ class ExecutionService:
 
 
 execution_service = ExecutionService()
-
-
-
-
-
-
-

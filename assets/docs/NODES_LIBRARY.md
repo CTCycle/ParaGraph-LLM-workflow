@@ -13,6 +13,20 @@ Custom nodes can be declared through a manifest plus a Python script:
 
 For cross-machine sharing, keep plugin scripts alongside the manifest (for example `plugins/my_node.py`) and avoid absolute paths.
 
+## Connection Types
+
+Node manifests support three connection collections:
+
+- `inputs`: data dependencies consumed by node execution.
+- `outputs`: data payloads produced by node execution.
+- `controllers`: behavior/configuration control links (not part of regular data flow), with directional placement metadata (`scope`).
+
+For all LLM nodes, the `model` link is a required `controller` with `scope: target` (single inbound model selection).
+
+Controller placement contract:
+- `scope: source` -> connector appears on the right edge (same lane as outputs).
+- `scope: target` -> snap-point appears on the left edge (same lane as inputs).
+- `scope: both` -> both source and target handles are rendered.
 ## Node Index
 
 | Node ID | Version | Name | Category | Manifest |
@@ -57,11 +71,13 @@ For cross-machine sharing, keep plugin scripts alongside the manifest (for examp
 
 Inputs: None.
 
-Outputs:
+Outputs: None.
 
-| Name | Data Type | Required |
-|---|---|---:|
-| `model` | `MODEL_HANDLE` | Yes |
+Controllers:
+
+| Name | Data Type | Required | Scope |
+|---|---|---:|---|
+| `model` | `MODEL_HANDLE` | No | `source` |
 
 Parameters:
 
@@ -80,7 +96,6 @@ Inputs:
 
 | Name | Data Type | Required |
 |---|---|---:|
-| `model` | `MODEL_HANDLE` | No |
 | `user_prompt` | `TEXT` | No |
 | `system_prompt` | `TEXT` | No |
 | `image` | `IMAGE` | No |
@@ -90,6 +105,12 @@ Outputs:
 | Name | Data Type | Required |
 |---|---|---:|
 | `response` | `TEXT` | Yes |
+
+Controllers:
+
+| Name | Data Type | Required | Scope |
+|---|---|---:|---|
+| `model` | `MODEL_HANDLE` | Yes | `target` (left) |
 
 Parameters:
 
@@ -109,7 +130,6 @@ Inputs:
 
 | Name | Data Type | Required |
 |---|---|---:|
-| `model` | `MODEL_HANDLE` | No |
 | `user_prompt` | `TEXT` | No |
 | `system_prompt` | `TEXT` | No |
 | `image` | `IMAGE` | No |
@@ -119,6 +139,12 @@ Outputs:
 | Name | Data Type | Required |
 |---|---|---:|
 | `result` | `JSON` | Yes |
+
+Controllers:
+
+| Name | Data Type | Required | Scope |
+|---|---|---:|---|
+| `model` | `MODEL_HANDLE` | Yes | `target` (left) |
 
 Parameters:
 
@@ -531,4 +557,5 @@ Parameters: `max_context_items`, `include_citations`, `separator`.
 
 Inputs: `value: JSON`.
 Outputs: None.
+
 

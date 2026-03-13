@@ -20,6 +20,12 @@ def _resolve_provider(parameters: dict[str, object], default: str = "ollama") ->
     return provider or default
 
 
+def _binding_sort_key(connection: WorkflowConnection) -> tuple[str, str, str]:
+    target_name = connection.to_input or connection.to_controller or ""
+    source_name = connection.from_output or connection.from_controller or ""
+    return (target_name, connection.from_node, source_name)
+
+
 class CompilerService:
     def compile(self, definition: WorkflowDefinition) -> CompileWorkflowResponse:
         diagnostics, validated_parameters = self._collect_diagnostics(definition)
@@ -37,17 +43,28 @@ class CompilerService:
             manifest = node_registry.get(node.node_type, node.node_version)
             if manifest is None:
                 continue
-            bindings = [
-                ExecutionBinding(
-                    input_name=connection.to_input,
-                    source_node_id=connection.from_node,
-                    source_output=connection.from_output,
+            sorted_connections = sorted(incoming.get(node.node_id, []), key=_binding_sort_key)
+            bindings: list[ExecutionBinding] = []
+            for connection in sorted_connections:
+                if connection.connection_type == "controller":
+                    bindings.append(
+                        ExecutionBinding(
+                            binding_type="controller",
+                            input_name=connection.to_controller or "",
+                            source_node_id=connection.from_node,
+                            source_output=connection.from_controller or "",
+                        )
+                    )
+                    continue
+
+                bindings.append(
+                    ExecutionBinding(
+                        binding_type="input",
+                        input_name=connection.to_input or "",
+                        source_node_id=connection.from_node,
+                        source_output=connection.from_output or "",
+                    )
                 )
-                for connection in sorted(
-                    incoming.get(node.node_id, []),
-                    key=lambda item: (item.to_input, item.from_node, item.from_output),
-                )
-            ]
             steps.append(
                 ExecutionStepPlan(
                     step_id=node.node_id,
@@ -78,7 +95,7 @@ class CompilerService:
         validated_parameters_by_node: dict[str, dict[str, object]] = {}
         node_ids_seen: set[str] = set()
         node_by_id = {node.node_id: node for node in definition.nodes}
-        connection_keys: set[tuple[str, str, str, str]] = set()
+        connection_keys: set[tuple[str, str, str, str, str]] = set()
         inbound_counts: dict[tuple[str, str], int] = defaultdict(int)
         inbound_by_node_input: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
         model_binding_by_node: dict[str, WorkflowConnection] = {}
@@ -131,7 +148,9 @@ class CompilerService:
                 )
 
         for connection in definition.connections:
-            connection_key = (connection.from_node, connection.from_output, connection.to_node, connection.to_input)
+            source_name = connection.from_output if connection.connection_type == "data" else connection.from_controller
+            target_name = connection.to_input if connection.connection_type == "data" else connection.to_controller
+            connection_key = (connection.connection_type, connection.from_node, source_name or "", connection.to_node, target_name or "")
             if connection_key in connection_keys:
                 diagnostics.append(
                     CompilerDiagnostic(code="duplicate_connection", message="Duplicate connection detected", connection=connection)
@@ -173,13 +192,32 @@ class CompilerService:
             if source_manifest is None or target_manifest is None:
                 continue
 
-            source_port = next((port for port in source_manifest.outputs if port.name == connection.from_output), None)
-            target_port = next((port for port in target_manifest.inputs if port.name == connection.to_input), None)
+            if connection.connection_type == "controller":
+                source_port = next(
+                    (port for port in source_manifest.controllers if port.name == (connection.from_controller or "")),
+                    None,
+                )
+                target_port = next(
+                    (port for port in target_manifest.controllers if port.name == (connection.to_controller or "")),
+                    None,
+                )
+                source_label = "controller"
+                target_label = "controller"
+                source_name = connection.from_controller or ""
+                target_name = connection.to_controller or ""
+            else:
+                source_port = next((port for port in source_manifest.outputs if port.name == (connection.from_output or "")), None)
+                target_port = next((port for port in target_manifest.inputs if port.name == (connection.to_input or "")), None)
+                source_label = "output"
+                target_label = "input"
+                source_name = connection.from_output or ""
+                target_name = connection.to_input or ""
+
             if source_port is None:
                 diagnostics.append(
                     CompilerDiagnostic(
                         code="missing_source_port",
-                        message=f"Unknown source output '{connection.from_output}' on '{connection.from_node}'",
+                        message=f"Unknown source {source_label} '{source_name}' on '{connection.from_node}'",
                         connection=connection,
                     )
                 )
@@ -188,7 +226,7 @@ class CompilerService:
                 diagnostics.append(
                     CompilerDiagnostic(
                         code="missing_target_port",
-                        message=f"Unknown target input '{connection.to_input}' on '{connection.to_node}'",
+                        message=f"Unknown target {target_label} '{target_name}' on '{connection.to_node}'",
                         connection=connection,
                     )
                 )
@@ -204,23 +242,24 @@ class CompilerService:
                     CompilerDiagnostic(
                         code="port_type_mismatch",
                         message=(
-                            f"Type mismatch on {connection.from_node}.{connection.from_output} -> "
-                            f"{connection.to_node}.{connection.to_input}: "
+                            f"Type mismatch on {connection.from_node}.{source_name} -> "
+                            f"{connection.to_node}.{target_name}: "
                             f"{source_port.data_type} -> {target_port.data_type}"
                         ),
                         connection=connection,
                     )
                 )
 
-            inbound_counts[(connection.to_node, connection.to_input)] += 1
-            inbound_by_node_input[connection.to_node][connection.to_input] += 1
-            if connection.to_input == "model":
+            inbound_counts[(connection.to_node, target_name)] += 1
+            if connection.connection_type == "data":
+                inbound_by_node_input[connection.to_node][target_name] += 1
+            if connection.connection_type == "controller" and target_name == "model":
                 model_binding_by_node.setdefault(connection.to_node, connection)
-            if inbound_counts[(connection.to_node, connection.to_input)] > 1 and not target_port.accepts_multiple:
+            if inbound_counts[(connection.to_node, target_name)] > 1 and not target_port.accepts_multiple:
                 diagnostics.append(
                     CompilerDiagnostic(
                         code="input_multiplicity",
-                        message=f"Input '{connection.to_input}' on '{connection.to_node}' does not accept multiple connections",
+                        message=f"{target_label.capitalize()} '{target_name}' on '{connection.to_node}' does not accept multiple connections",
                         connection=connection,
                     )
                 )
@@ -236,6 +275,15 @@ class CompilerService:
                         CompilerDiagnostic(
                             code="missing_required_input",
                             message=f"Node '{node.node_id}' is missing required input '{port.name}'",
+                            node_id=node.node_id,
+                        )
+                    )
+            for controller in manifest.controllers:
+                if controller.required and inbound_counts[(node.node_id, controller.name)] == 0:
+                    diagnostics.append(
+                        CompilerDiagnostic(
+                            code="missing_required_controller",
+                            message=f"Node '{node.node_id}' is missing required controller '{controller.name}'",
                             node_id=node.node_id,
                         )
                     )
@@ -281,9 +329,6 @@ class CompilerService:
                         source_parameters = validated_parameters_by_node.get(source_node.node_id, source_node.parameters)
                         provider = _resolve_provider(source_parameters)
                         model_name = str(source_parameters.get("model_name") or "").strip()
-                else:
-                    provider = _resolve_provider(parameters)
-                    model_name = str(parameters.get("model_name") or "").strip()
 
                 if not model_name:
                     diagnostics.append(
@@ -352,4 +397,3 @@ class CompilerService:
 
 
 compiler_service = CompilerService()
-
