@@ -54,7 +54,7 @@
     {
       "name": "db_name",
       "data_type": "TEXT",
-      "default": "FAIRS",
+      "default": "paragraph",
       "ui_control": "text",
       "description": "Logical dataset name."
     },

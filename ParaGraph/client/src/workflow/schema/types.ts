@@ -1,4 +1,11 @@
-export type NodeCategory = 'input' | 'model' | 'processing' | 'output' | 'serialization' | 'control'
+export type NodeCategory =
+    | 'input'
+    | 'model'
+    | 'processing'
+    | 'fragmentation'
+    | 'output'
+    | 'serialization'
+    | 'control'
 export type NodeDataType =
     | 'TEXT'
     | 'IMAGE'

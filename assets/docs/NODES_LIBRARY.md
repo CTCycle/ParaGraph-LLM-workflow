@@ -26,6 +26,7 @@ The node category set remains:
 - `input`
 - `model`
 - `processing`
+- `fragmentation`
 - `output`
 - `serialization`
 - `control`
@@ -40,6 +41,7 @@ The node category set remains:
 | `PROMPT` | 1 | Prompt | input | `prompt_v1.json` |
 | `WEB_SCRAPER` | 1 | Web Scraper | input | `web_scraper_v1.json` |
 | `LOAD_DOCUMENTS` | 1 | Load Documents | serialization | `load_documents_v1.json` |
+| `FIXED_SIZE_CHUNKS` | 1 | Fixed Size Chunks | fragmentation | `fixed_size_chunks_v1.json` |
 | `SQL_DATABASE` | 1 | SQL Database | control | `sql_database_v1.json` |
 | `SQL_FILE_DATABASE` | 1 | SQL File Database | control | `sql_file_database_v1.json` |
 | `TEXT_OUTPUT` | 1 | Text Output | output | `text_output_v1.json` |
@@ -206,6 +208,38 @@ Behavior notes:
 - Supported extensions include `.txt`, `.pdf`, `.doc`, `.docx`, `.md`, plus common text formats (`.html`, `.json`, `.csv`, `.xml`, `.yaml`, `.log`, etc.).
 - The node does **not** load file contents into memory.
 - It emits documents with deferred metadata (`metadata.deferred_load = true`) so downstream processing nodes can load content only when needed.
+
+## `FIXED_SIZE_CHUNKS` (v1)
+
+- Name: Fixed Size Chunks
+- Category: `fragmentation`
+- Description: Split incoming documents or upstream chunks into fixed-size chunks for chained fragmentation pipelines.
+
+Inputs:
+
+| Name | Data Type | Required |
+|---|---|---:|
+| `documents` | `DOCUMENT_LIST` | No |
+| `chunks` | `CHUNK_LIST` | No |
+
+Outputs:
+
+| Name | Data Type | Required |
+|---|---|---:|
+| `chunks` | `CHUNK_LIST` | Yes |
+
+Parameters:
+
+| Name | Data Type | Default | UI Control | Required | Description |
+|---|---|---|---|---:|---|
+| `chunk_size` | `JSON` | `800` | `number` | Yes | Maximum chunk length measured in the selected unit. |
+| `chunk_overlap` | `JSON` | `80` | `number` | Yes | Overlap between consecutive chunks in the selected unit. |
+| `unit` | `TEXT` | `words` | `select` | Yes | Chunking unit. Supported values: `words`, `characters`. |
+
+Behavior notes:
+- Supports chained fragmentation by accepting `CHUNK_LIST` from upstream fragmentation nodes.
+- Deferred document records are hydrated one-by-one during fragmentation.
+- At least one non-empty input (`documents` or `chunks`) is required at runtime.
 ## `SQL_DATABASE` (v1)
 
 - Name: SQL Database
