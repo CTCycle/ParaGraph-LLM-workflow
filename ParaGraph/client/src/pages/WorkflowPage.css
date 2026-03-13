@@ -439,22 +439,45 @@
 .workflow-node-context-menu {
     position: absolute;
     z-index: 12;
-    min-width: 140px;
+    min-width: 136px;
     border: 1px solid rgba(72, 96, 126, 0.9);
-    background: rgba(4, 10, 20, 0.96);
-    padding: 4px;
+    border-radius: 8px;
+    background: rgba(4, 10, 20, 0.97);
+    padding: 2px;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
 }
 
-.workflow-node-context-menu button {
+.workflow-node-context-menu-item {
     width: 100%;
     text-align: left;
-    padding: 8px 10px;
+    padding: 5px 8px;
+    min-height: 22px;
     border: 0;
+    border-radius: 6px;
     background: transparent;
     color: #e9f4ff;
     cursor: pointer;
+    font-size: 0.74rem;
+    line-height: 1.15;
 }
 
+.workflow-node-context-menu-item:hover {
+    background: rgba(78, 153, 246, 0.22);
+}
+
+.workflow-node-context-menu-item-danger {
+    color: #ffd8d8;
+}
+
+.workflow-node-context-menu-item-danger:hover {
+    background: rgba(177, 61, 61, 0.24);
+}
+
+.workflow-node-context-menu-separator {
+    height: 1px;
+    margin: 2px 4px;
+    background: rgba(102, 123, 153, 0.46);
+}
 .workflow-loading {
     position: absolute;
     inset: 18px;
@@ -493,6 +516,15 @@
         0 18px 34px rgba(0, 0, 0, 0.32);
 }
 
+.workflow-node[data-pinged='true'] {
+    border-color: color-mix(in srgb, var(--node-accent) 66%, #f7c948);
+    box-shadow: 0 0 0 1px rgba(247, 201, 72, 0.42), 0 0 20px rgba(247, 201, 72, 0.24), 0 14px 28px rgba(0, 0, 0, 0.28);
+}
+
+.workflow-node[data-skipped='true'] {
+    border-style: dashed;
+    opacity: 0.82;
+}
 @keyframes workflow-node-active-pulse {
     0%,
     100% {
@@ -578,16 +610,36 @@
     color: #bfe6ff;
 }
 
+.workflow-node-badge-skipped {
+    background: rgba(255, 191, 117, 0.2);
+    color: #ffdcae;
+}
+
+.workflow-node-ping,
 .workflow-node-toggle {
     width: 26px;
     height: 26px;
     border: 0;
+    border-radius: 8px;
     background: transparent;
     cursor: pointer;
     color: #d6e8ff;
-    font-size: 1rem;
+    font-size: 0.94rem;
+    line-height: 1;
 }
 
+.workflow-node-ping:hover,
+.workflow-node-toggle:hover {
+    background: rgba(95, 174, 255, 0.18);
+}
+
+.workflow-node-ping {
+    color: #ffd77f;
+}
+
+.workflow-node[data-pinged='true'] .workflow-node-ping {
+    color: #ffe7b4;
+}
 
 .workflow-node-handle-controller {
     width: 11px !important;

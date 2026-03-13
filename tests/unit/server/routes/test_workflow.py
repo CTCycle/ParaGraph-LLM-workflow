@@ -26,8 +26,8 @@ def build_provider_chat_definition() -> dict[str, object]:
     return {
         'schema_version': 2,
         'nodes': [
-            {'node_id': 'system_1', 'node_type': 'SYSTEM_PROMPT', 'node_version': 1, 'parameters': {'prompt_text': 'Follow the rules'}},
-            {'node_id': 'user_1', 'node_type': 'USER_PROMPT', 'node_version': 1, 'parameters': {'prompt_text': 'Say hello'}},
+            {'node_id': 'system_1', 'node_type': 'PROMPT', 'node_version': 1, 'parameters': {'prompt_text': 'Follow the rules'}},
+            {'node_id': 'user_1', 'node_type': 'PROMPT', 'node_version': 1, 'parameters': {'prompt_text': 'Say hello'}},
             {
                 'node_id': 'provider_1',
                 'node_type': 'MODEL_PROVIDER',
@@ -56,7 +56,7 @@ def build_provider_structured_definition(schema: object) -> dict[str, object]:
     return {
         'schema_version': 2,
         'nodes': [
-            {'node_id': 'user_1', 'node_type': 'USER_PROMPT', 'node_version': 1, 'parameters': {'prompt_text': 'Return a person record'}},
+            {'node_id': 'user_1', 'node_type': 'PROMPT', 'node_version': 1, 'parameters': {'prompt_text': 'Return a person record'}},
             {
                 'node_id': 'provider_1',
                 'node_type': 'MODEL_PROVIDER',
@@ -87,6 +87,7 @@ def build_legacy_chat_definition() -> dict[str, object]:
     return {
         'schema_version': 2,
         'nodes': [
+            {'node_id': 'system_1', 'node_type': 'SYSTEM_PROMPT', 'node_version': 1, 'parameters': {'prompt_text': 'Legacy system'}},
             {'node_id': 'user_1', 'node_type': 'USER_PROMPT', 'node_version': 1, 'parameters': {'prompt_text': 'Say hello'}},
             {
                 'node_id': 'provider_1',
@@ -104,6 +105,7 @@ def build_legacy_chat_definition() -> dict[str, object]:
         'connections': [
             {'from_node': 'provider_1', 'from_output': 'model', 'to_node': 'chat_1', 'to_input': 'model'},
             {'from_node': 'user_1', 'from_output': 'text', 'to_node': 'chat_1', 'to_input': 'user_prompt'},
+            {'from_node': 'system_1', 'from_output': 'text', 'to_node': 'chat_1', 'to_input': 'system_prompt'},
         ],
         'metadata': {},
     }
@@ -114,7 +116,7 @@ def test_compile_returns_plan_for_legacy_prompt_graph(client: TestClient) -> Non
     payload = response.json()
     assert payload['valid'] is True
     assert payload['plan']['step_order'] == ['prompt_1', 'output_1']
-    assert payload['plan']['steps'][0]['node_type'] == 'USER_PROMPT'
+    assert payload['plan']['steps'][0]['node_type'] == 'PROMPT'
 
 
 def test_compile_rejects_cycles(client: TestClient) -> None:
@@ -161,7 +163,11 @@ def test_compile_migrates_legacy_llm_nodes(client: TestClient) -> None:
     payload = response.json()
     assert payload['valid'] is True
     chat_step = next(step for step in payload['plan']['steps'] if step['node_id'] == 'chat_1')
+    system_step = next(step for step in payload['plan']['steps'] if step['node_id'] == 'system_1')
+    prompt_step = next(step for step in payload['plan']['steps'] if step['node_id'] == 'user_1')
     assert chat_step['node_type'] == 'LLM_CHAT'
+    assert system_step['node_type'] == 'PROMPT'
+    assert prompt_step['node_type'] == 'PROMPT'
     assert chat_step['parameters']['provider'] == 'ollama'
 
 
@@ -172,7 +178,7 @@ def test_compile_rejects_llm_without_model_controller(client: TestClient) -> Non
             'definition': {
                 'schema_version': 2,
                 'nodes': [
-                    {'node_id': 'user_1', 'node_type': 'USER_PROMPT', 'node_version': 1, 'parameters': {'prompt_text': 'Say hello'}},
+                    {'node_id': 'user_1', 'node_type': 'PROMPT', 'node_version': 1, 'parameters': {'prompt_text': 'Say hello'}},
                     {'node_id': 'chat_1', 'node_type': 'LLM_CHAT', 'node_version': 1, 'parameters': {'context_window': 0, 'max_tokens': 64, 'use_reasoning': False}},
                 ],
                 'connections': [
@@ -188,6 +194,60 @@ def test_compile_rejects_llm_without_model_controller(client: TestClient) -> Non
     assert payload['valid'] is False
     codes = {item['code'] for item in payload['diagnostics']}
     assert 'missing_required_controller' in codes or 'missing_model_selection' in codes
+
+
+def test_compile_excludes_skipped_nodes_from_plan(client: TestClient) -> None:
+    response = client.post(
+        '/executions/compile',
+        json={
+            'definition': {
+                'schema_version': 2,
+                'nodes': [
+                    {'node_id': 'prompt_1', 'node_type': 'PROMPT', 'node_version': 1, 'parameters': {'prompt_text': 'Use me'}},
+                    {'node_id': 'prompt_2', 'node_type': 'PROMPT', 'node_version': 1, 'parameters': {'prompt_text': 'Skip me'}, 'skipped': True},
+                    {'node_id': 'output_1', 'node_type': 'TEXT_OUTPUT', 'node_version': 1, 'parameters': {}},
+                ],
+                'connections': [
+                    {'from_node': 'prompt_1', 'from_output': 'text', 'to_node': 'output_1', 'to_input': 'text'},
+                ],
+                'metadata': {},
+            }
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload['valid'] is True
+    assert payload['plan']['step_order'] == ['prompt_1', 'output_1']
+    assert 'prompt_2' not in payload['plan']['step_order']
+    assert payload['plan']['metadata']['skipped_node_ids'] == ['prompt_2']
+
+
+def test_compile_skipped_connection_is_excluded_from_required_input_resolution(client: TestClient) -> None:
+    response = client.post(
+        '/executions/compile',
+        json={
+            'definition': {
+                'schema_version': 2,
+                'nodes': [
+                    {'node_id': 'prompt_1', 'node_type': 'PROMPT', 'node_version': 1, 'parameters': {'prompt_text': 'Skip source'}, 'skipped': True},
+                    {'node_id': 'output_1', 'node_type': 'TEXT_OUTPUT', 'node_version': 1, 'parameters': {}},
+                ],
+                'connections': [
+                    {'from_node': 'prompt_1', 'from_output': 'text', 'to_node': 'output_1', 'to_input': 'text'},
+                ],
+                'metadata': {},
+            }
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload['valid'] is False
+    codes = {item['code'] for item in payload['diagnostics']}
+    assert 'missing_required_input' in codes
+    assert 'missing_source_node' not in codes
+
 def build_stub_model_definition(provider: str, model: str) -> ProviderModelDefinition:
     return ProviderModelDefinition(
         provider=provider,
