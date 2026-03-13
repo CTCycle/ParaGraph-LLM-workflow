@@ -13,7 +13,7 @@ import {
     DatabaseConnectionCheckResponse,
     WorkflowDefinition,
 } from '../../workflow/schema/types'
-import { requestJson } from './api'
+import { getApiBase, requestJson } from './api'
 
 export function fetchNodeCatalog(): Promise<NodeCatalogResponse> {
     return requestJson<NodeCatalogResponse>('/nodes/catalog')
@@ -41,6 +41,49 @@ export function browseNodeFiles(multiple = false): Promise<PickedPathsResponse> 
 
 export function browseNodeDirectory(): Promise<PickedDirectoryResponse> {
     return requestJson<PickedDirectoryResponse>('/nodes/dialog/directory')
+}
+
+export interface UploadedDirectoryResponse {
+    path: string
+    file_count: number
+}
+
+async function extractApiErrorDetail(response: Response): Promise<string> {
+    let detail = `${response.status} ${response.statusText}`
+    try {
+        const payload = (await response.json()) as { detail?: string | string[] }
+        if (Array.isArray(payload.detail)) {
+            detail = payload.detail.join('; ')
+        } else if (payload.detail) {
+            detail = payload.detail
+        }
+    } catch {
+        // Use default HTTP status detail.
+    }
+    return detail
+}
+
+export async function uploadNodeDirectory(files: File[]): Promise<UploadedDirectoryResponse> {
+    if (files.length === 0) {
+        throw new Error('No files selected')
+    }
+
+    const formData = new FormData()
+    for (const file of files) {
+        const relativePath = file.webkitRelativePath || file.name
+        formData.append('files', file, relativePath)
+    }
+
+    const response = await fetch(`${getApiBase()}/nodes/uploads/directory`, {
+        method: 'POST',
+        body: formData,
+    })
+
+    if (!response.ok) {
+        throw new Error(await extractApiErrorDetail(response))
+    }
+
+    return (await response.json()) as UploadedDirectoryResponse
 }
 
 export function checkDatabaseConnection(

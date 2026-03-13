@@ -2,11 +2,12 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, File, HTTPException, Query, UploadFile, status
 from pydantic import BaseModel, Field
 
 from ParaGraph.server.entities.nodecatalog import NodeCatalogResponse, NodeManifest
 from ParaGraph.server.services.workflow import node_registry
+from ParaGraph.server.services.workflow.browser_uploads import save_uploaded_directory
 from ParaGraph.server.services.workflow.path_picker import pick_directory, pick_files
 
 
@@ -16,6 +17,11 @@ class PickedPathsResponse(BaseModel):
 
 class PickedDirectoryResponse(BaseModel):
     path: str | None = None
+
+
+class UploadedDirectoryResponse(BaseModel):
+    path: str
+    file_count: int
 
 
 class DatabaseConnectionCheckRequest(BaseModel):
@@ -59,6 +65,15 @@ def browse_directory() -> PickedDirectoryResponse:
         return PickedDirectoryResponse(path=pick_directory())
     except RuntimeError as exc:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
+
+
+@router.post("/uploads/directory", response_model=UploadedDirectoryResponse)
+async def upload_directory(files: list[UploadFile] = File(...)) -> UploadedDirectoryResponse:
+    try:
+        path, file_count = await save_uploaded_directory(files)
+        return UploadedDirectoryResponse(path=path, file_count=file_count)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
 
 
 @router.post("/check-database-connection", response_model=DatabaseConnectionCheckResponse)
