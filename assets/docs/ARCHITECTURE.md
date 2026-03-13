@@ -123,7 +123,7 @@ The current implementation uses a React Flow editor, JSON node manifests, and a 
 - All node categories are collapsed on first visit, then category expansion state is persisted.
 - Workflow canvas state (nodes, edges, layout metadata) persists in browser storage across page navigation.
 - Workflow JSON bundles are exported/imported through native file dialogs (default folder: `ParaGraph/resources/workflows`), including required node manifests for shareable execution across ParaGraph installations.
-- Runtime execution highlights the currently running node in-canvas for step-by-step guidance; pinged nodes keep a persistent visual accent independent of runtime activity.
+- Runtime execution highlights the currently running node in-canvas for step-by-step guidance; pinged nodes keep a persistent visual accent independent of runtime activity and are frozen in place until unpinged.
 - Client-side connection checks mirror backend rules for type compatibility and multiplicity.
 - Workflow canvas keyboard commands include copy/paste for selected nodes (`Ctrl+C`, `Ctrl+V`), node/link deletion (`Delete`/`Backspace`), and `Ctrl+Click` multi-selection.
 - Right-clicking a node opens a compact context menu for ping/unping, add same node (defaults), clone, reset config, skip/unskip, and remove actions.
@@ -138,7 +138,7 @@ The current implementation uses a React Flow editor, JSON node manifests, and a 
 
 ## 5. Phase 1 RAG Runtime
 - New ingestion nodes emit normalized DOCUMENT_LIST payloads from local files, HTTP sources, and read-only database queries.
-- DATABASE_CONNECTION emits a typed read-only connection manifest consumed by DATABASE_QUERY.
+- `SQL_DATABASE` and `SQL_FILE_DATABASE` emit typed read-only connection controller payloads consumed by query-style SQL nodes (for example `DATABASE_QUERY`).
 - `TEXT_CLEANER` and `CHUNKER` convert documents into `CHUNK_LIST` payloads suitable for retrieval.
 - `BATCH_EMBEDDER` turns chunks into `VECTOR_POINT_LIST` payloads using provider-backed embeddings.
 - `VECTOR_DB_WRITER` persists local FAISS indexes under `<storage_directory>/<index_name>/` (defaulting to `ParaGraph/resources/artifacts/vectorstores`) with metadata sidecars.

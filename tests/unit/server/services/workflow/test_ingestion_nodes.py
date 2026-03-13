@@ -119,3 +119,58 @@ def test_database_query_rejects_non_read_only_statements(tmp_path: Path) -> None
         assert 'read-only' in str(exc)
     else:
         raise AssertionError('Expected read-only validation failure for DELETE statement')
+
+
+def test_sql_file_database_node_roundtrip(tmp_path: Path) -> None:
+    database_path = tmp_path / 'file_dataset.sqlite'
+    with sqlite3.connect(database_path) as connection:
+        connection.execute('CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT)')
+        connection.execute('INSERT INTO items (name) VALUES (?)', ('alpha',))
+        connection.commit()
+
+    connection_payload = node_registry.execute(
+        'SQL_FILE_DATABASE',
+        1,
+        {
+            'db_engine': 'sqlite',
+            'db_path': str(database_path),
+            'db_name': 'FAIRS',
+            'db_user': 'postgres',
+            'db_password': 'change_me',
+            'db_ssl': False,
+            'db_ssl_ca': '',
+            'db_connect_timeout': 30,
+        },
+        {},
+    )
+
+    assert connection_payload['connection']['engine'] == 'sqlite'
+    assert connection_payload['connection']['file_path'] == str(database_path.resolve())
+    assert connection_payload['connection']['read_only'] is True
+    assert connection_payload['connection']['database_name'] == 'FAIRS'
+
+
+def test_sql_database_requires_required_fields_before_connect_attempt() -> None:
+    try:
+        node_registry.execute(
+            'SQL_DATABASE',
+            1,
+            {
+                'db_engine': 'postgres',
+                'db_host': '',
+                'db_port': 5432,
+                'db_name': '',
+                'db_user': 'postgres',
+                'db_password': 'change_me',
+                'db_ssl': False,
+                'db_ssl_ca': '',
+                'db_connect_timeout': 30,
+            },
+            {},
+        )
+    except ValueError as exc:
+        message = str(exc)
+        assert 'db_host' in message or 'db_name' in message
+    else:
+        raise AssertionError('Expected SQL_DATABASE validation failure for missing required fields')
+

@@ -38,9 +38,11 @@ The node category set remains:
 | `LLM_STRUCTURED` | 1 | LLM Structured | model | `llm_structured_v1.json` |
 | `MODEL_PROVIDER` | 1 | Model Provider | model | `model_provider_v1.json` |
 | `PROMPT` | 1 | Prompt | input | `prompt_v1.json` |
+| `WEB_SCRAPER` | 1 | Web Scraper | input | `web_scraper_v1.json` |
+| `SQL_DATABASE` | 1 | SQL Database | control | `sql_database_v1.json` |
+| `SQL_FILE_DATABASE` | 1 | SQL File Database | control | `sql_file_database_v1.json` |
 | `TEXT_OUTPUT` | 1 | Text Output | output | `text_output_v1.json` |
 | `JSON_OUTPUT` | 1 | JSON Output | output | `json_output_v1.json` |
-| `WEB_SCRAPER` | 1 | Web Scraper | input | `web_scraper_v1.json` |
 
 ---
 
@@ -134,7 +136,7 @@ Parameters:
 | `context_window` | `JSON` | `0` | `number` | No | Context window size. Use `0` for provider-managed context. |
 | `max_tokens` | `JSON` | `512` | `number` | No | Maximum output token count. |
 | `use_reasoning` | `BOOLEAN` | `false` | `toggle` | No | Enable reasoning-oriented execution when the selected model supports it. |
-| `response_schema` | `JSON` | `{"type":"object","properties":{},"required":[]}` | `json` | Yes | JSON Schema used to validate the structured response. |
+| `response_schema` | `JSON` | `{"type":"object","properties":{},"required":[]}` | `json` | Yes | JSON Schema used to validate the structured response. Example: `{"type":"object","properties":{"name":{"type":"string"}},"required":["name"]}`. |
 
 ## `PROMPT` (v1)
 
@@ -178,6 +180,66 @@ Parameters:
 | `timeout_s` | `JSON` | `15` | `number` | No | Request timeout in seconds. |
 | `strip_html_content` | `BOOLEAN` | `true` | `toggle` | No | Convert fetched content to plain text before emitting it. |
 
+## `SQL_DATABASE` (v1)
+
+- Name: SQL Database
+- Category: `control`
+- Description: Configure a server SQL database connection and expose a reusable typed controller handle.
+
+Inputs: None.
+
+Outputs: None.
+
+Controllers:
+
+| Name | Data Type | Required | Scope |
+|---|---|---:|---|
+| `connection` | `DATABASE_CONNECTION` | No | `source` |
+
+Parameters:
+
+| Name | Data Type | Default | UI Control | Required | Description |
+|---|---|---|---|---:|---|
+| `db_engine` | `TEXT` | `postgres` | `select` | Yes | Engine for server-based SQL connections. Supported values: `postgres`, `mysql`. |
+| `db_host` | `TEXT` | `127.0.0.1` | `text` | Yes | Database host or IP address. |
+| `db_port` | `JSON` | `5432` | `number` | Yes | Database port. |
+| `db_name` | `TEXT` | `""` | `text` | Yes | Database name. |
+| `db_user` | `TEXT` | `postgres` | `text` | Yes | Database username. |
+| `db_password` | `TEXT` | `change_me` | `password` | No | Database password. |
+| `db_ssl` | `BOOLEAN` | `false` | `toggle` | No | Enable SSL/TLS for server-based SQL connections. |
+| `db_ssl_ca` | `TEXT` | `""` | `file` | No | Optional CA certificate path when SSL is enabled. |
+| `db_connect_timeout` | `JSON` | `30` | `number` | No | Connection timeout in seconds. |
+
+## `SQL_FILE_DATABASE` (v1)
+
+- Name: SQL File Database
+- Category: `control`
+- Description: Configure a file-based SQL dataset (SQLite for v1) and expose a reusable typed controller handle.
+
+Inputs: None.
+
+Outputs: None.
+
+Controllers:
+
+| Name | Data Type | Required | Scope |
+|---|---|---:|---|
+| `connection` | `DATABASE_CONNECTION` | No | `source` |
+
+Parameters:
+
+| Name | Data Type | Default | UI Control | Required | Description |
+|---|---|---|---|---:|---|
+| `db_engine` | `TEXT` | `sqlite` | `select` | Yes | File database engine. Currently only `sqlite`. |
+| `db_path` | `TEXT` | `""` | `file` | Yes | Path to the database file selected from the local file picker. |
+| `db_port` | `JSON` | `5432` | `number` | No | Reserved for future engine compatibility. |
+| `db_name` | `TEXT` | `FAIRS` | `text` | No | Logical dataset name. |
+| `db_user` | `TEXT` | `postgres` | `text` | No | Reserved for future engine compatibility. |
+| `db_password` | `TEXT` | `change_me` | `password` | No | Reserved for future engine compatibility. |
+| `db_ssl` | `BOOLEAN` | `false` | `toggle` | No | Reserved for future engine compatibility. |
+| `db_ssl_ca` | `TEXT` | `""` | `file` | No | Reserved for future engine compatibility. |
+| `db_connect_timeout` | `JSON` | `30` | `number` | No | Connection timeout in seconds. |
+
 ## `TEXT_OUTPUT` (v1)
 
 - Name: Text Output
@@ -209,3 +271,4 @@ Inputs:
 Outputs: None.
 
 Parameters: None.
+

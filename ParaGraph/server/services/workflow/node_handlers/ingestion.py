@@ -27,8 +27,22 @@ from ParaGraph.server.services.workflow.node_handlers.common import (
 
 
 SUPPORTED_DOCUMENT_EXTENSIONS = {".txt", ".md", ".markdown", ".html", ".htm", ".json", ".pdf", ".docx"}
-SUPPORTED_DATABASE_ENGINES = {"sqlite", "postgresql"}
+SUPPORTED_DATABASE_ENGINES = {"sqlite", "postgres", "postgresql", "mysql"}
 READ_ONLY_QUERY_PREFIXES = ("select", "with", "pragma", "show", "describe", "explain")
+
+
+POSTGRES_ENGINES = {"postgres", "postgresql"}
+
+
+def _normalize_database_engine(value: Any, *, label: str = "engine") -> str:
+    normalized = str(value or "").strip().lower()
+    if normalized in POSTGRES_ENGINES:
+        return "postgresql"
+    if normalized == "mysql":
+        return "mysql"
+    if normalized == "sqlite":
+        return "sqlite"
+    raise ValueError(f"{label} must be one of: {', '.join(sorted(SUPPORTED_DATABASE_ENGINES))}")
 
 
 def _parse_string_list(value: Any, label: str) -> list[str]:
@@ -155,10 +169,7 @@ class DatabaseConnectionParameters(BaseModel):
     @field_validator("engine")
     @classmethod
     def validate_engine(cls, value: str) -> str:
-        normalized = value.strip().lower()
-        if normalized not in SUPPORTED_DATABASE_ENGINES:
-            raise ValueError(f"engine must be one of: {', '.join(sorted(SUPPORTED_DATABASE_ENGINES))}")
-        return normalized
+        return _normalize_database_engine(value, label="engine")
 
     @field_validator("options", mode="before")
     @classmethod
@@ -178,13 +189,13 @@ class DatabaseConnectionParameters(BaseModel):
             return self
 
         if not self.host.strip():
-            raise ValueError("postgresql connections require host")
+            raise ValueError(f"{self.engine} connections require host")
         if not self.database_name.strip():
-            raise ValueError("postgresql connections require database_name")
+            raise ValueError(f"{self.engine} connections require database_name")
         if not self.username.strip():
-            raise ValueError("postgresql connections require username")
+            raise ValueError(f"{self.engine} connections require username")
         if self.port is None:
-            raise ValueError("postgresql connections require port")
+            raise ValueError(f"{self.engine} connections require port")
         return self
 
 
@@ -198,6 +209,62 @@ class DatabaseQueryParameters(BaseModel):
         normalized = value.strip()
         if not normalized:
             raise ValueError("query_text must not be empty")
+        return normalized
+
+
+class SQLDatabaseParameters(BaseModel):
+    db_engine: str = "postgres"
+    db_host: str = "127.0.0.1"
+    db_port: int = Field(default=5432, ge=1, le=65535)
+    db_name: str = ""
+    db_user: str = "postgres"
+    db_password: str = "change_me"
+    db_ssl: bool = False
+    db_ssl_ca: str = ""
+    db_connect_timeout: float = Field(default=30.0, ge=1.0, le=120.0)
+
+    @field_validator("db_engine")
+    @classmethod
+    def validate_db_engine(cls, value: str) -> str:
+        normalized = str(value or "").strip().lower()
+        if normalized not in {"postgres", "mysql"}:
+            raise ValueError("db_engine must be one of: postgres, mysql")
+        return normalized
+
+    @field_validator("db_host", "db_name", "db_user")
+    @classmethod
+    def validate_required_text_fields(cls, value: str, info):
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError(f"{info.field_name} must not be empty")
+        return normalized
+
+
+class SQLFileDatabaseParameters(BaseModel):
+    db_engine: str = "sqlite"
+    db_path: str = ""
+    db_port: int = Field(default=5432, ge=1, le=65535)
+    db_name: str = "FAIRS"
+    db_user: str = "postgres"
+    db_password: str = "change_me"
+    db_ssl: bool = False
+    db_ssl_ca: str = ""
+    db_connect_timeout: float = Field(default=30.0, ge=1.0, le=120.0)
+
+    @field_validator("db_engine")
+    @classmethod
+    def validate_db_engine(cls, value: str) -> str:
+        normalized = str(value or "").strip().lower()
+        if normalized != "sqlite":
+            raise ValueError("db_engine must be sqlite")
+        return normalized
+
+    @field_validator("db_path")
+    @classmethod
+    def validate_db_path(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("db_path must not be empty")
         return normalized
 
 
@@ -346,7 +413,7 @@ async def _concurrent_fetch_api_documents(parameters: ApiFetcherParameters, targ
 
 
 def _build_database_url(payload: dict[str, Any]) -> tuple[str, dict[str, Any]]:
-    engine = str(payload.get("engine") or "").strip().lower()
+    engine = _normalize_database_engine(payload.get("engine"), label="engine")
     options = payload.get("options") if isinstance(payload.get("options"), dict) else {}
     if engine == "sqlite":
         file_path = str(payload.get("file_path") or "").strip()
@@ -363,12 +430,13 @@ def _build_database_url(payload: dict[str, Any]) -> tuple[str, dict[str, Any]]:
     password = str(payload.get("password") or "")
     port = payload.get("port")
     if not database_name or not host or not username or port is None:
-        raise ValueError("postgresql connections require host, database_name, username, and port")
+        raise ValueError(f"{engine} connections require host, database_name, username, and port")
 
     query = {str(key): str(value) for key, value in options.items()}
+    driver = "postgresql+psycopg" if engine == "postgresql" else "mysql+pymysql"
     return (
         URL.create(
-            "postgresql+psycopg",
+            driver,
             username=username,
             password=password or None,
             host=host,
@@ -486,6 +554,49 @@ def _api_fetcher_executor(parameters: dict[str, Any], inputs: dict[str, Any]) ->
     return {"documents": documents}
 
 
+def _build_sql_connection_options(*, db_ssl: bool, db_ssl_ca: str) -> dict[str, Any]:
+    options: dict[str, Any] = {}
+    if db_ssl:
+        options["ssl"] = "true"
+        if db_ssl_ca.strip():
+            options["ssl_ca"] = db_ssl_ca.strip()
+    return options
+
+
+def _sql_database_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
+    _ = inputs
+    parsed = SQLDatabaseParameters.model_validate(parameters)
+    mapped = {
+        "engine": parsed.db_engine,
+        "database_name": parsed.db_name,
+        "host": parsed.db_host,
+        "port": parsed.db_port,
+        "username": parsed.db_user,
+        "password": parsed.db_password,
+        "file_path": "",
+        "options": _build_sql_connection_options(db_ssl=parsed.db_ssl, db_ssl_ca=parsed.db_ssl_ca),
+        "connect_timeout_s": parsed.db_connect_timeout,
+    }
+    return _database_connection_executor(mapped, {})
+
+
+def _sql_file_database_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
+    _ = inputs
+    parsed = SQLFileDatabaseParameters.model_validate(parameters)
+    mapped = {
+        "engine": parsed.db_engine,
+        "database_name": parsed.db_name,
+        "host": "",
+        "port": parsed.db_port,
+        "username": parsed.db_user,
+        "password": parsed.db_password,
+        "file_path": parsed.db_path,
+        "options": _build_sql_connection_options(db_ssl=parsed.db_ssl, db_ssl_ca=parsed.db_ssl_ca),
+        "connect_timeout_s": parsed.db_connect_timeout,
+    }
+    return _database_connection_executor(mapped, {})
+
+
 def _database_connection_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
     _ = inputs
     parsed = DatabaseConnectionParameters.model_validate(parameters)
@@ -559,6 +670,9 @@ INGESTION_HANDLERS = {
     "directory_loader": NodeHandler(executor=_directory_loader_executor, parameter_model=DirectoryLoaderParameters),
     "web_scraper": NodeHandler(executor=_web_scraper_executor, parameter_model=WebScraperParameters),
     "api_fetcher": NodeHandler(executor=_api_fetcher_executor, parameter_model=ApiFetcherParameters),
+    "sql_database": NodeHandler(executor=_sql_database_executor, parameter_model=SQLDatabaseParameters),
+    "sql_file_database": NodeHandler(executor=_sql_file_database_executor, parameter_model=SQLFileDatabaseParameters),
     "database_connection": NodeHandler(executor=_database_connection_executor, parameter_model=DatabaseConnectionParameters),
     "database_query": NodeHandler(executor=_database_query_executor, parameter_model=DatabaseQueryParameters),
 }
+
