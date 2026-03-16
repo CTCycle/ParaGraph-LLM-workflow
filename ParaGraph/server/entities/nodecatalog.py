@@ -27,6 +27,9 @@ NodeDataType = Literal[
     "BOOLEAN",
     "ANY",
 ]
+ModelVisibility = Literal["public", "private", "gated", "unknown"]
+ModelVisibilityFilter = Literal["all", "public", "private", "gated"]
+HuggingFaceSortBy = Literal["relevance", "downloads", "likes", "updated"]
 
 
 class NodePortDefinition(BaseModel):
@@ -120,3 +123,53 @@ class ProviderModelDefinition(BaseModel):
 
 class ProviderModelCatalogResponse(BaseModel):
     models: list[ProviderModelDefinition] = Field(default_factory=list)
+
+
+class OllamaLibraryModelDefinition(BaseModel):
+    model: str
+    description: str | None = None
+    homepage: str
+    pulled: bool = False
+
+
+class OllamaLibraryCatalogResponse(BaseModel):
+    models: list[OllamaLibraryModelDefinition] = Field(default_factory=list)
+    total_count: int = 0
+    pulled_count: int = 0
+    refreshed_at: str
+    source: str = "https://ollama.com/library"
+
+
+class OllamaModelPullRequest(BaseModel):
+    model: str = Field(min_length=1, max_length=255)
+
+
+class OllamaModelPullResponse(BaseModel):
+    ok: bool
+    model: str
+    message: str
+
+
+class HuggingFaceModelDefinition(BaseModel):
+    repo_id: str
+    author: str | None = None
+    task: str | None = None
+    library: str | None = None
+    likes: int | None = None
+    downloads: int | None = None
+    visibility: ModelVisibility = "unknown"
+    private: bool | None = None
+    gated: bool | None = None
+    last_modified: str | None = None
+    url: str
+
+
+class HuggingFaceModelCatalogResponse(BaseModel):
+    models: list[HuggingFaceModelDefinition] = Field(default_factory=list)
+    page: int
+    page_size: int
+    has_more: bool
+    using_token: bool = False
+    warning: str | None = None
+    available_tasks: list[str] = Field(default_factory=list)
+    available_libraries: list[str] = Field(default_factory=list)

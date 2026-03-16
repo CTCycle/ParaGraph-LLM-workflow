@@ -277,6 +277,55 @@ export interface ProviderModelCatalogResponse {
     models: ProviderModelDefinition[]
 }
 
+export interface OllamaLibraryModelDefinition {
+    model: string
+    description: string | null
+    homepage: string
+    pulled: boolean
+}
+
+export interface OllamaLibraryCatalogResponse {
+    models: OllamaLibraryModelDefinition[]
+    total_count: number
+    pulled_count: number
+    refreshed_at: string
+    source: string
+}
+
+export interface OllamaModelPullResponse {
+    ok: boolean
+    model: string
+    message: string
+}
+
+export type ModelVisibilityFilter = 'all' | 'public' | 'private' | 'gated'
+export type HuggingFaceSortBy = 'relevance' | 'downloads' | 'likes' | 'updated'
+
+export interface HuggingFaceModelDefinition {
+    repo_id: string
+    author: string | null
+    task: string | null
+    library: string | null
+    likes: number | null
+    downloads: number | null
+    visibility: 'public' | 'private' | 'gated' | 'unknown'
+    private: boolean | null
+    gated: boolean | null
+    last_modified: string | null
+    url: string
+}
+
+export interface HuggingFaceModelCatalogResponse {
+    models: HuggingFaceModelDefinition[]
+    page: number
+    page_size: number
+    has_more: boolean
+    using_token: boolean
+    warning: string | null
+    available_tasks: string[]
+    available_libraries: string[]
+}
+
 export interface DocumentRecord {
     id: string
     text: string
@@ -371,4 +420,3 @@ export interface DatabaseConnectionCheckResponse {
     ok: boolean
     message: string
 }
-

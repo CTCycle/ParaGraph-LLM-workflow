@@ -131,9 +131,9 @@ function buildNodeExplanation(node: NodeManifest): string {
 
 export default function NodesPage() {
     usePageMetadata({
-        title: 'Nodes Catalog',
+        title: 'Workflow Nodes Library',
         description:
-            'Browse available ParaGraph nodes, filter by category, and import custom node manifests from JSON.',
+            'Browse ParaGraph workflow nodes by category and import custom JSON manifests for execution-ready flows.',
     })
 
     const { catalog, loading, error, reload } = useNodeCatalog()
@@ -218,9 +218,9 @@ export default function NodesPage() {
         <>
             <section className="nodes-page">
                 <header className="nodes-header">
-                    <h1>Nodes Catalog and Import</h1>
+                    <h1>Workflow Nodes Library</h1>
                     <p className="nodes-lede">
-                        Filter the node catalog by category, review node behavior, and import custom manifests from JSON.
+                        Explore built-in node types, then import custom JSON manifests for reusable workflow execution.
                     </p>
                 </header>
 

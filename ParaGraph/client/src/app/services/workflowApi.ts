@@ -3,14 +3,19 @@ import {
     ConfigurationProfileListResponse,
     CompileWorkflowResponse,
     CompiledExecutionPlan,
+    DatabaseConnectionCheckResponse,
     ExecutionEventEnvelope,
     ExecutionRunState,
+    HuggingFaceModelCatalogResponse,
+    HuggingFaceSortBy,
+    ModelVisibilityFilter,
     NodeCatalogResponse,
     NodeManifest,
+    OllamaLibraryCatalogResponse,
+    OllamaModelPullResponse,
+    OllamaStatusResponse,
     ProviderModelCatalogResponse,
     StartExecutionResponse,
-    OllamaStatusResponse,
-    DatabaseConnectionCheckResponse,
     WorkflowDefinition,
 } from '../../workflow/schema/types'
 import { getApiBase, requestJson } from './api'
@@ -106,6 +111,79 @@ export function fetchProviderModels(sessionName = 'default'): Promise<ProviderMo
     return requestJson<ProviderModelCatalogResponse>(`/providers/models?${params.toString()}`)
 }
 
+export interface OllamaLibraryQueryOptions {
+    sessionName?: string
+    search?: string
+    refresh?: boolean
+}
+
+export function fetchOllamaLibraryModels(options: OllamaLibraryQueryOptions = {}): Promise<OllamaLibraryCatalogResponse> {
+    const params = new URLSearchParams()
+    params.set('session_name', options.sessionName || 'default')
+    if (options.search && options.search.trim()) {
+        params.set('search', options.search.trim())
+    }
+    if (options.refresh) {
+        params.set('refresh', 'true')
+    }
+    return requestJson<OllamaLibraryCatalogResponse>(`/providers/ollama/library?${params.toString()}`)
+}
+
+export function pullOllamaModel(model: string, sessionName = 'default'): Promise<OllamaModelPullResponse> {
+    const params = new URLSearchParams({ session_name: sessionName })
+    return requestJson<OllamaModelPullResponse>(`/providers/ollama/pull?${params.toString()}`, {
+        method: 'POST',
+        body: JSON.stringify({ model }),
+    })
+}
+
+export interface HuggingFaceModelQueryOptions {
+    sessionName?: string
+    search?: string
+    task?: string
+    library?: string
+    author?: string
+    visibility?: ModelVisibilityFilter
+    sort?: HuggingFaceSortBy
+    page?: number
+    pageSize?: number
+    refresh?: boolean
+}
+
+export function fetchHuggingFaceModels(
+    options: HuggingFaceModelQueryOptions,
+    init?: RequestInit,
+): Promise<HuggingFaceModelCatalogResponse> {
+    const params = new URLSearchParams()
+    params.set('session_name', options.sessionName || 'default')
+
+    const search = options.search?.trim()
+    const task = options.task?.trim()
+    const library = options.library?.trim()
+    const author = options.author?.trim()
+    if (search) {
+        params.set('search', search)
+    }
+    if (task) {
+        params.set('task', task)
+    }
+    if (library) {
+        params.set('library', library)
+    }
+    if (author) {
+        params.set('author', author)
+    }
+
+    params.set('visibility', options.visibility || 'all')
+    params.set('sort', options.sort || 'relevance')
+    params.set('page', String(options.page || 1))
+    params.set('page_size', String(options.pageSize || 25))
+    if (options.refresh) {
+        params.set('refresh', 'true')
+    }
+
+    return requestJson<HuggingFaceModelCatalogResponse>(`/providers/huggingface/models?${params.toString()}`, init)
+}
 export function fetchConfigurations(sessionName = 'default'): Promise<AppConfigurationPayload> {
     const params = new URLSearchParams({ session_name: sessionName })
     return requestJson<AppConfigurationPayload>(`/configurations?${params.toString()}`)

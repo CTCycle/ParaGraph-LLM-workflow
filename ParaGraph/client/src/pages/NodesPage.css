@@ -274,12 +274,14 @@
 
 .nodes-modal {
     width: min(900px, 100%);
-    max-height: min(92vh, 900px);
-    overflow: auto;
+    max-height: calc(100vh - 40px);
+    overflow: hidden;
     border: 1px solid rgba(73, 95, 128, 0.72);
     border-radius: 14px;
     background: rgba(10, 17, 31, 0.95);
     padding: 16px;
+    display: flex;
+    flex-direction: column;
 }
 
 .nodes-modal-header {
@@ -293,7 +295,9 @@
 .nodes-import-form {
     display: grid;
     gap: 12px;
-    grid-template-rows: auto minmax(280px, 1fr) auto;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    min-height: 0;
+    flex: 1;
 }
 
 .nodes-import-toolbar {
@@ -307,8 +311,10 @@
 }
 
 .nodes-import-form textarea {
-    resize: vertical;
-    min-height: 280px;
+    resize: none;
+    min-height: 0;
+    height: 100%;
+    overflow: auto;
     width: 100%;
     padding: 12px;
     line-height: 1.45;
