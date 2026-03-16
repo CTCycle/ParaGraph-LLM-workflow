@@ -6,7 +6,15 @@ import sqlite3
 
 from fastapi.testclient import TestClient
 
-from ParaGraph.server.entities.nodecatalog import ProviderModelCatalogResponse, ProviderModelDefinition
+from ParaGraph.server.entities.nodecatalog import (
+    HuggingFaceModelCatalogResponse,
+    HuggingFaceModelDefinition,
+    OllamaLibraryCatalogResponse,
+    OllamaLibraryModelDefinition,
+    OllamaModelPullResponse,
+    ProviderModelCatalogResponse,
+    ProviderModelDefinition,
+)
 from ParaGraph.server.routes import nodes as node_routes
 from ParaGraph.server.services.workflow import nodes as node_module
 from ParaGraph.server.services.workflow import provider_service
@@ -206,6 +214,88 @@ def test_provider_models_endpoint_returns_catalog(client: TestClient, monkeypatc
     assert response.status_code == 200
     assert response.json()['models'][0]['model'] == 'llama3.2'
 
+
+def test_ollama_library_endpoint_returns_rows(client: TestClient, monkeypatch) -> None:
+    monkeypatch.setattr(
+        provider_service,
+        'list_ollama_library_models',
+        lambda **kwargs: OllamaLibraryCatalogResponse(
+            models=[
+                OllamaLibraryModelDefinition(
+                    model='llama3.2',
+                    description='Llama model',
+                    homepage='https://ollama.com/library/llama3.2',
+                    pulled=True,
+                )
+            ],
+            total_count=1,
+            pulled_count=1,
+            refreshed_at='2026-03-16T00:00:00+00:00',
+            source='https://ollama.com/library',
+        ),
+    )
+
+    response = client.get('/providers/ollama/library?refresh=true')
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload['models'][0]['model'] == 'llama3.2'
+    assert payload['models'][0]['pulled'] is True
+
+
+def test_ollama_pull_endpoint_returns_success(client: TestClient, monkeypatch) -> None:
+    monkeypatch.setattr(
+        provider_service,
+        'pull_ollama_model',
+        lambda *, model, session_name='default': OllamaModelPullResponse(
+            ok=True,
+            model=model,
+            message=f"Model '{model}' is available in Ollama.",
+        ),
+    )
+
+    response = client.post('/providers/ollama/pull', json={'model': 'llama3.2'})
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload['ok'] is True
+    assert payload['model'] == 'llama3.2'
+
+
+def test_huggingface_models_endpoint_returns_rows(client: TestClient, monkeypatch) -> None:
+    monkeypatch.setattr(
+        provider_service,
+        'list_huggingface_models',
+        lambda **kwargs: HuggingFaceModelCatalogResponse(
+            models=[
+                HuggingFaceModelDefinition(
+                    repo_id='meta-llama/Llama-3.2-3B-Instruct',
+                    author='meta-llama',
+                    task='text-generation',
+                    library='transformers',
+                    likes=10,
+                    downloads=100,
+                    visibility='public',
+                    private=False,
+                    gated=False,
+                    last_modified='2026-03-16T00:00:00+00:00',
+                    url='https://huggingface.co/meta-llama/Llama-3.2-3B-Instruct',
+                )
+            ],
+            page=1,
+            page_size=25,
+            has_more=True,
+            using_token=False,
+            warning=None,
+        ),
+    )
+
+    response = client.get('/providers/huggingface/models?search=llama&sort=downloads&page=1&page_size=25')
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload['models'][0]['repo_id'] == 'meta-llama/Llama-3.2-3B-Instruct'
+    assert payload['has_more'] is True
 
 def test_compile_endpoint_returns_diagnostics_for_type_mismatch(client: TestClient) -> None:
     response = client.post(

@@ -20,7 +20,7 @@ The current implementation uses a React Flow editor, JSON node manifests, and a 
 - `ParaGraph/client`: React + TypeScript frontend.
   - `src/pages/WorkflowPage.tsx`: React Flow workflow editor shell.
   - `src/pages/NodesPage.tsx`: compact node catalog and JSON import UI.
-  - `src/pages/ModelsPage.tsx`: placeholder models page (currently empty by design).
+  - `src/pages/ModelsPage.tsx`: two-column model explorer (Ollama + Hugging Face) with refresh, search, filters, and incremental loading.
   - `src/pages/ConfigurationsPage.tsx`: provider/Ollama configuration console with named save/load modals.
   - `src/app/services/api.ts`: shared request helper.
   - `src/app/services/workflowApi.ts`: node catalog, compile, execute, events, configurations, and profile/Ollama status client surface.
@@ -72,7 +72,11 @@ The current implementation uses a React Flow editor, JSON node manifests, and a 
 - `POST /configurations/ollama/ping`: checks whether the configured Ollama base URL is reachable and returns model count/status.
 - `POST /nodes/import` also persists imported JSON manifests to the relational `nodes` table for session tracking.
 
-### 2.5 Relational persistence model
+### 2.5 Provider Discovery APIs
+- GET /providers/ollama/library: returns model rows discovered from https://ollama.com/library, enriched with local pulled status from the configured Ollama runtime.
+- POST /providers/ollama/pull: pulls a selected Ollama model and returns typed pull status.
+- GET /providers/huggingface/models: returns paginated Hub model rows (repo id, author, task, library, likes, downloads, visibility, url) with API-backed filtering and sorting.
+### 2.6 Relational persistence model
 - `user_sessions`: session identity plus Ollama defaults (`base_url`, chat model, embedding model).
 - `nodes`: imported node manifest snapshots keyed by session + node id/version.
 - `access_keys`: provider-scoped key material (LLM providers + Hugging Face) linked to a session.
@@ -139,6 +143,11 @@ The current implementation uses a React Flow editor, JSON node manifests, and a 
 
 ---
 
+### 4.4 Models page
+- Two-column explorer layout: Ollama catalog on the left, Hugging Face Hub on the right.
+- Each column includes a compact toolbar with search and filters, plus an explicit Update action.
+- Ollama rows expose pulled/unpulled state and in-row pull actions for unpulled models.
+- Hugging Face rows support API-backed search/filter/sort, incremental loading, refresh preserving active query controls, and compact warning/error states.
 ## 5. Phase 1 RAG Runtime
 - New ingestion nodes emit normalized DOCUMENT_LIST payloads from local files, folder references (`LOAD_DOCUMENTS` deferred file-path collection), HTTP sources, and read-only database queries.
 - `SQL_DATABASE` and `SQL_FILE_DATABASE` emit typed read-only connection controller payloads consumed by query-style SQL nodes (for example `DATABASE_QUERY`).
@@ -154,4 +163,3 @@ The current implementation uses a React Flow editor, JSON node manifests, and a 
 - The legacy `/workflow/*` compatibility API is no longer part of the active application surface.
 - Existing persisted workflow documents are migrated on read into schema `2` shapes.
 - The executable manifest set now includes a Phase 1 typed RAG slice for ingestion, chunking, embedding, vector storage, retrieval, and context injection.
-

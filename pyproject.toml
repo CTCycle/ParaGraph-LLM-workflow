@@ -17,6 +17,7 @@ dependencies = [
     "python-dotenv==1.2.1",
     "python-multipart>=0.0.21",
     "httpx==0.28.1",
+    "huggingface_hub>=0.35.0",
     "numpy>=2.2.0",
     "beautifulsoup4>=4.12.3",
     "pypdf>=5.4.0",
@@ -35,4 +36,3 @@ huggingface = [
 
 [tool.hatch.build.targets.wheel]
 packages = ["ParaGraph"]
-
