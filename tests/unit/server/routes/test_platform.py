@@ -42,17 +42,30 @@ def test_nodes_catalog_exposes_registry(client: TestClient) -> None:
 
     ids = {node['id'] for node in payload['nodes']}
     assert ids == {
-        'PROMPT',
-        'WEB_SCRAPER',
-        'MODEL_PROVIDER',
+        'API_FETCHER',
+        'BATCH_EMBEDDER',
+        'CHUNKER',
+        'CONTEXT_INJECTOR',
+        'DATABASE_CONNECTION',
+        'DATABASE_QUERY',
+        'DOCUMENT_LOADER',
+        'FIXED_SIZE_CHUNKS',
+        'JSON_OUTPUT',
         'LLM_CHAT',
         'LLM_STRUCTURED',
+        'LOAD_DOCUMENTS',
+        'LOAD_TEXT',
+        'MODEL_PROVIDER',
+        'PROMPT',
+        'SAVE_TEXT',
+        'SIMILARITY_SEARCH',
         'SQL_DATABASE',
         'SQL_FILE_DATABASE',
-        'FIXED_SIZE_CHUNKS',
+        'TEMPLATE_FORMAT',
+        'TEXT_CLEANER',
         'TEXT_OUTPUT',
-        'JSON_OUTPUT',
-        'LOAD_DOCUMENTS',
+        'VECTOR_DB_WRITER',
+        'WEB_SCRAPER',
     }
     assert 'USER_PROMPT' not in ids
     assert 'SYSTEM_PROMPT' not in ids
@@ -366,3 +379,4 @@ def test_workflow_crud_and_versions(client: TestClient) -> None:
 
     assert update_response.status_code == 200
     assert update_response.json()['latest_version'] == 2
+

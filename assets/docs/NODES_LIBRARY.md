@@ -46,6 +46,19 @@ The node category set remains:
 | `SQL_FILE_DATABASE` | 1 | SQL File Database | control | `sql_file_database_v1.json` |
 | `TEXT_OUTPUT` | 1 | Text Output | output | `text_output_v1.json` |
 | `JSON_OUTPUT` | 1 | JSON Output | output | `json_output_v1.json` |
+| `API_FETCHER` | 1 | API Fetcher | input | `api_fetcher_v1.json` |
+| `BATCH_EMBEDDER` | 1 | Batch Embedder | model | `batch_embedder_v1.json` |
+| `CHUNKER` | 1 | Chunker | fragmentation | `chunker_v1.json` |
+| `CONTEXT_INJECTOR` | 1 | Context Injector | processing | `context_injector_v1.json` |
+| `DATABASE_CONNECTION` | 1 | Database Connection | control | `database_connection_v1.json` |
+| `DATABASE_QUERY` | 1 | Database Query | processing | `database_query_v1.json` |
+| `DOCUMENT_LOADER` | 1 | Document Loader | input | `document_loader_v1.json` |
+| `LOAD_TEXT` | 1 | Load Text | serialization | `load_text_v1.json` |
+| `SAVE_TEXT` | 1 | Save Text | serialization | `save_text_v1.json` |
+| `SIMILARITY_SEARCH` | 1 | Similarity Search | processing | `similarity_search_v1.json` |
+| `TEMPLATE_FORMAT` | 1 | Template Format | processing | `template_format_v1.json` |
+| `TEXT_CLEANER` | 1 | Text Cleaner | processing | `text_cleaner_v1.json` |
+| `VECTOR_DB_WRITER` | 1 | Vector DB Writer | serialization | `vector_db_writer_v1.json` |
 
 ---
 
@@ -335,3 +348,4 @@ Inputs:
 Outputs: None.
 
 Parameters: None.
+

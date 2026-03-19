@@ -1,0 +1,114 @@
+{
+  "id": "VECTOR_DB_WRITER",
+  "version": 1,
+  "name": "Vector DB Writer",
+  "category": "serialization",
+  "description": "Persist vector points into a FAISS-backed vector store.",
+  "inputs": [
+    {
+      "name": "points",
+      "data_type": "VECTOR_POINT_LIST",
+      "required": true
+    }
+  ],
+  "outputs": [
+    {
+      "name": "store",
+      "data_type": "VECTOR_STORE_HANDLE",
+      "required": true
+    }
+  ],
+  "parameters": [
+    {
+      "name": "backend",
+      "data_type": "TEXT",
+      "default": "faiss",
+      "constraints": {
+        "required": true,
+        "options": ["faiss"]
+      },
+      "ui_control": "select",
+      "description": "Vector database backend."
+    },
+    {
+      "name": "index_name",
+      "data_type": "TEXT",
+      "default": "",
+      "constraints": {
+        "required": true
+      },
+      "ui_control": "text",
+      "description": "Index name under the selected storage directory."
+    },
+    {
+      "name": "storage_directory",
+      "data_type": "TEXT",
+      "default": "",
+      "ui_control": "directory",
+      "description": "Optional base directory for vector store artifacts."
+    },
+    {
+      "name": "metric",
+      "data_type": "TEXT",
+      "default": "cosine",
+      "constraints": {
+        "options": ["cosine", "l2", "ip"]
+      },
+      "ui_control": "select",
+      "description": "Similarity metric."
+    },
+    {
+      "name": "index_type",
+      "data_type": "TEXT",
+      "default": "flat",
+      "constraints": {
+        "options": ["flat", "hnsw_flat", "ivf_flat"]
+      },
+      "ui_control": "select",
+      "description": "FAISS index type."
+    },
+    {
+      "name": "write_mode",
+      "data_type": "TEXT",
+      "default": "overwrite",
+      "constraints": {
+        "options": ["overwrite", "append"]
+      },
+      "ui_control": "select",
+      "description": "Store write strategy."
+    },
+    {
+      "name": "nlist",
+      "data_type": "JSON",
+      "default": 64,
+      "constraints": {
+        "min": 1,
+        "max": 4096
+      },
+      "ui_control": "number",
+      "description": "IVF cluster count for applicable index types."
+    },
+    {
+      "name": "hnsw_m",
+      "data_type": "JSON",
+      "default": 32,
+      "constraints": {
+        "min": 4,
+        "max": 128
+      },
+      "ui_control": "number",
+      "description": "HNSW connectivity factor."
+    }
+  ],
+  "ui": {
+    "default_width": 360,
+    "accent_color": "#2f9b7a",
+    "collapsed_by_default": false
+  },
+  "runtime": {
+    "executor_key": "vector_db_writer",
+    "cacheable": false,
+    "deterministic": false,
+    "side_effecting": true
+  }
+}

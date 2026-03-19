@@ -1,0 +1,88 @@
+{
+  "id": "API_FETCHER",
+  "version": 1,
+  "name": "API Fetcher",
+  "category": "input",
+  "description": "Fetch JSON or text payloads from one or more HTTP endpoints.",
+  "inputs": [],
+  "outputs": [
+    {
+      "name": "documents",
+      "data_type": "DOCUMENT_LIST",
+      "required": true
+    }
+  ],
+  "parameters": [
+    {
+      "name": "url",
+      "data_type": "TEXT",
+      "default": "",
+      "constraints": {
+        "required": true
+      },
+      "ui_control": "text",
+      "description": "Primary API URL."
+    },
+    {
+      "name": "request_urls",
+      "data_type": "JSON",
+      "default": [],
+      "ui_control": "json",
+      "description": "Optional request URL list."
+    },
+    {
+      "name": "timeout_s",
+      "data_type": "JSON",
+      "default": 15,
+      "constraints": {
+        "min": 1,
+        "max": 120
+      },
+      "ui_control": "number",
+      "description": "Request timeout in seconds."
+    },
+    {
+      "name": "response_selector",
+      "data_type": "TEXT",
+      "default": "",
+      "ui_control": "text",
+      "description": "Optional dot-notation selector for JSON responses."
+    },
+    {
+      "name": "headers",
+      "data_type": "JSON",
+      "default": {},
+      "ui_control": "json",
+      "description": "Optional HTTP headers map."
+    },
+    {
+      "name": "max_calls",
+      "data_type": "JSON",
+      "default": 1,
+      "constraints": {
+        "min": 1,
+        "max": 100
+      },
+      "ui_control": "number",
+      "description": "Maximum number of calls from request_urls."
+    },
+    {
+      "name": "allow_concurrency",
+      "data_type": "BOOLEAN",
+      "default": false,
+      "ui_control": "toggle",
+      "description": "Run multi-target requests concurrently."
+    }
+  ],
+  "ui": {
+    "default_width": 360,
+    "accent_color": "#5ab38f",
+    "collapsed_by_default": false
+  },
+  "runtime": {
+    "executor_key": "api_fetcher",
+    "cacheable": false,
+    "deterministic": false,
+    "side_effecting": false
+  }
+}

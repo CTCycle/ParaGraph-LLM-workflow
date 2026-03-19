@@ -1,0 +1,103 @@
+{
+  "id": "DATABASE_CONNECTION",
+  "version": 1,
+  "name": "Database Connection",
+  "category": "control",
+  "description": "Create a typed read-only SQL connection handle.",
+  "inputs": [],
+  "outputs": [],
+  "controllers": [
+    {
+      "name": "connection",
+      "data_type": "DATABASE_CONNECTION",
+      "required": false,
+      "accepts_multiple": true,
+      "scope": "source",
+      "description": "Controller output for downstream query nodes."
+    }
+  ],
+  "parameters": [
+    {
+      "name": "engine",
+      "data_type": "TEXT",
+      "default": "sqlite",
+      "constraints": {
+        "required": true,
+        "options": ["sqlite", "postgres", "postgresql", "mysql"]
+      },
+      "ui_control": "select",
+      "description": "Database engine."
+    },
+    {
+      "name": "database_name",
+      "data_type": "TEXT",
+      "default": "",
+      "ui_control": "text",
+      "description": "Database name for server-based engines."
+    },
+    {
+      "name": "host",
+      "data_type": "TEXT",
+      "default": "",
+      "ui_control": "text",
+      "description": "Host for server-based engines."
+    },
+    {
+      "name": "port",
+      "data_type": "JSON",
+      "default": 5432,
+      "ui_control": "number",
+      "description": "Port for server-based engines."
+    },
+    {
+      "name": "username",
+      "data_type": "TEXT",
+      "default": "",
+      "ui_control": "text",
+      "description": "Username for server-based engines."
+    },
+    {
+      "name": "password",
+      "data_type": "TEXT",
+      "default": "",
+      "ui_control": "password",
+      "description": "Password for server-based engines."
+    },
+    {
+      "name": "file_path",
+      "data_type": "TEXT",
+      "default": "",
+      "ui_control": "file",
+      "description": "SQLite database file path."
+    },
+    {
+      "name": "options",
+      "data_type": "JSON",
+      "default": {},
+      "ui_control": "json",
+      "description": "Optional engine-specific connection options."
+    },
+    {
+      "name": "connect_timeout_s",
+      "data_type": "JSON",
+      "default": 5,
+      "constraints": {
+        "min": 1,
+        "max": 60
+      },
+      "ui_control": "number",
+      "description": "Connection timeout in seconds."
+    }
+  ],
+  "ui": {
+    "default_width": 360,
+    "accent_color": "#2f9b7a",
+    "collapsed_by_default": false
+  },
+  "runtime": {
+    "executor_key": "database_connection",
+    "cacheable": false,
+    "deterministic": false,
+    "side_effecting": false
+  }
+}

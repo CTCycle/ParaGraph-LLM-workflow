@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+from functools import partial
 from pathlib import Path
 from typing import Any
 
@@ -35,6 +36,18 @@ def _format_parameter_validation_error(error: ValidationError) -> str:
     if len(issues) > 3:
         messages.append(f"(+{len(issues) - 3} more)")
     return "; ".join(messages)
+
+def _execute_plugin_manifest(
+    registry: NodeRegistry,
+    manifest: NodeManifest,
+    parameters: dict[str, Any],
+    inputs: dict[str, Any],
+) -> dict[str, Any]:
+    callable_executor = registry._load_plugin_callable(manifest)
+    result = callable_executor(dict(parameters), dict(inputs))
+    if not isinstance(result, dict):
+        raise ValueError(f"Node '{manifest.id}' plugin entrypoint must return an object")
+    return result
 
 
 class NodeRegistry:
@@ -139,14 +152,7 @@ class NodeRegistry:
         if cached is not None:
             return cached
 
-        def plugin_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
-            callable_executor = self._load_plugin_callable(manifest)
-            result = callable_executor(dict(parameters), dict(inputs))
-            if not isinstance(result, dict):
-                raise ValueError(f"Node '{manifest.id}' plugin entrypoint must return an object")
-            return result
-
-        handler = NodeHandler(executor=plugin_executor)
+        handler = NodeHandler(executor=partial(_execute_plugin_manifest, self, manifest))
         self._plugin_handlers[key] = handler
         return handler
 
