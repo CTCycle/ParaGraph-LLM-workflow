@@ -1,0 +1,74 @@
+{
+  "id": "CHUNKER",
+  "version": 1,
+  "name": "Chunker",
+  "category": "fragmentation",
+  "description": "Split cleaned documents into token-aware chunks for embedding.",
+  "inputs": [
+    {
+      "name": "documents",
+      "data_type": "DOCUMENT_LIST",
+      "required": true
+    }
+  ],
+  "outputs": [
+    {
+      "name": "chunks",
+      "data_type": "CHUNK_LIST",
+      "required": true
+    }
+  ],
+  "parameters": [
+    {
+      "name": "strategy",
+      "data_type": "TEXT",
+      "default": "token",
+      "constraints": {
+        "required": true,
+        "options": ["token"]
+      },
+      "ui_control": "select",
+      "description": "Chunking strategy."
+    },
+    {
+      "name": "chunk_size_tokens",
+      "data_type": "JSON",
+      "default": 800,
+      "constraints": {
+        "min": 100,
+        "max": 4096
+      },
+      "ui_control": "number",
+      "description": "Maximum token count per chunk."
+    },
+    {
+      "name": "chunk_overlap_tokens",
+      "data_type": "JSON",
+      "default": 400,
+      "constraints": {
+        "min": 0,
+        "max": 2048
+      },
+      "ui_control": "number",
+      "description": "Token overlap between adjacent chunks."
+    },
+    {
+      "name": "respect_sentence_boundaries",
+      "data_type": "BOOLEAN",
+      "default": true,
+      "ui_control": "toggle",
+      "description": "Prefer sentence boundaries when creating chunks."
+    }
+  ],
+  "ui": {
+    "default_width": 340,
+    "accent_color": "#d99128",
+    "collapsed_by_default": false
+  },
+  "runtime": {
+    "executor_key": "chunker",
+    "cacheable": false,
+    "deterministic": true,
+    "side_effecting": false
+  }
+}

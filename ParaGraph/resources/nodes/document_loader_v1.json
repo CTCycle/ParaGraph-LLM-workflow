@@ -1,0 +1,38 @@
+{
+  "id": "DOCUMENT_LOADER",
+  "version": 1,
+  "name": "Document Loader",
+  "category": "input",
+  "description": "Load one or more local documents into a normalized document list.",
+  "inputs": [],
+  "outputs": [
+    {
+      "name": "documents",
+      "data_type": "DOCUMENT_LIST",
+      "required": true
+    }
+  ],
+  "parameters": [
+    {
+      "name": "file_paths",
+      "data_type": "JSON",
+      "default": [],
+      "constraints": {
+        "required": true
+      },
+      "ui_control": "json",
+      "description": "List of local file paths to ingest."
+    }
+  ],
+  "ui": {
+    "default_width": 340,
+    "accent_color": "#59c6ff",
+    "collapsed_by_default": false
+  },
+  "runtime": {
+    "executor_key": "document_loader",
+    "cacheable": false,
+    "deterministic": true,
+    "side_effecting": false
+  }
+}

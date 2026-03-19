@@ -12,6 +12,7 @@ import {
     type LucideIcon,
 } from 'lucide-react'
 
+import { useDebouncedValue } from '../app/hooks/useDebouncedValue'
 import { usePageMetadata } from '../app/hooks/usePageMetadata'
 import {
     fetchHuggingFaceModels,
@@ -26,6 +27,7 @@ import {
     ModelVisibilityFilter,
     OllamaLibraryModelDefinition,
 } from '../workflow/schema/types'
+import CatalogColumnHeader from '../components/CatalogColumnHeader'
 import './ModelsPage.css'
 
 const HUGGINGFACE_PAGE_SIZE = 25
@@ -33,30 +35,45 @@ const SEARCH_DEBOUNCE_MS = 350
 
 type OllamaModelFilter = 'all' | 'pulled' | 'unpulled'
 
+const OLLAMA_MODEL_FILTERS: readonly OllamaModelFilter[] = ['all', 'pulled', 'unpulled']
+const HUGGINGFACE_VISIBILITY_FILTERS: readonly ModelVisibilityFilter[] = ['all', 'public', 'private', 'gated']
+const HUGGINGFACE_SORT_OPTIONS: readonly HuggingFaceSortBy[] = ['relevance', 'downloads', 'likes', 'updated']
+
+function isOllamaModelFilter(value: string): value is OllamaModelFilter {
+    return OLLAMA_MODEL_FILTERS.some((candidate) => candidate === value)
+}
+
+function parseOllamaModelFilter(value: string): OllamaModelFilter {
+    return isOllamaModelFilter(value) ? value : 'all'
+}
+
+function isVisibilityFilter(value: string): value is ModelVisibilityFilter {
+    return HUGGINGFACE_VISIBILITY_FILTERS.some((candidate) => candidate === value)
+}
+
+function parseVisibilityFilter(value: string): ModelVisibilityFilter {
+    return isVisibilityFilter(value) ? value : 'all'
+}
+
+function isHuggingFaceSortBy(value: string): value is HuggingFaceSortBy {
+    return HUGGINGFACE_SORT_OPTIONS.some((candidate) => candidate === value)
+}
+
+function parseHuggingFaceSortBy(value: string): HuggingFaceSortBy {
+    return isHuggingFaceSortBy(value) ? value : 'relevance'
+}
+
 type VisibilityIconConfig = {
     icon: LucideIcon
     label: string
     className: string
 }
 
-const VISIBILITY_ICON_MAP: Record<string, VisibilityIconConfig> = {
+const VISIBILITY_ICON_MAP: Record<HuggingFaceModelDefinition['visibility'], VisibilityIconConfig> = {
     public: { icon: Globe, label: 'Public', className: 'models-visibility-public' },
     private: { icon: Lock, label: 'Private', className: 'models-visibility-private' },
     gated: { icon: ShieldAlert, label: 'Gated', className: 'models-visibility-gated' },
     unknown: { icon: HelpCircle, label: 'Unknown', className: 'models-visibility-unknown' },
-}
-
-function useDebouncedValue<T>(value: T, delayMs: number): T {
-    const [debouncedValue, setDebouncedValue] = useState(value)
-
-    useEffect(() => {
-        const timeoutId = window.setTimeout(() => {
-            setDebouncedValue(value)
-        }, delayMs)
-        return () => window.clearTimeout(timeoutId)
-    }, [delayMs, value])
-
-    return debouncedValue
 }
 
 function formatMetric(value: number | null): string {
@@ -329,16 +346,18 @@ export default function ModelsPage() {
 
             <div className="models-grid">
                 <section className="models-column" aria-label="Ollama models">
-                    <div className="models-column-header">
-                        <div>
-                            <h2>Ollama Models</h2>
-                            <p>Available from `ollama.com/library`, with local pull status from your Ollama runtime.</p>
-                        </div>
-                        <button type="button" onClick={() => void loadOllamaModels(true)} disabled={ollamaLoading}>
-                            <RefreshCw size={15} strokeWidth={2} />
-                            {ollamaLoading ? 'Updating...' : 'Update'}
-                        </button>
-                    </div>
+                    <CatalogColumnHeader
+                        title="Ollama Models"
+                        description="Available from `ollama.com/library`, with local pull status from your Ollama runtime."
+                        actionLabel="Update"
+                        busyLabel="Updating..."
+                        disabled={ollamaLoading}
+                        isBusy={ollamaLoading}
+                        actionIcon={<RefreshCw size={15} strokeWidth={2} />}
+                        onAction={() => {
+                            void loadOllamaModels(true)
+                        }}
+                    />
 
                     <div className="models-toolbar">
                         <label className="models-search">
@@ -350,7 +369,7 @@ export default function ModelsPage() {
                                 placeholder="Search by model name"
                             />
                         </label>
-                        <select value={ollamaFilter} onChange={(event) => setOllamaFilter(event.target.value as OllamaModelFilter)}>
+                        <select value={ollamaFilter} onChange={(event) => setOllamaFilter(parseOllamaModelFilter(event.target.value))}>
                             <option value="all">All states</option>
                             <option value="pulled">Pulled only</option>
                             <option value="unpulled">Unpulled only</option>
@@ -412,16 +431,18 @@ export default function ModelsPage() {
                 </section>
 
                 <section className="models-column" aria-label="Hugging Face models">
-                    <div className="models-column-header">
-                        <div>
-                            <h2>Hugging Face Models</h2>
-                            <p>Live Hub API results with server-backed filters, pagination, and refresh.</p>
-                        </div>
-                        <button type="button" onClick={() => void refreshHuggingFace()} disabled={hfLoading || hfLoadingMore}>
-                            <RefreshCw size={15} strokeWidth={2} />
-                            {hfLoading ? 'Updating...' : 'Update'}
-                        </button>
-                    </div>
+                    <CatalogColumnHeader
+                        title="Hugging Face Models"
+                        description="Live Hub API results with server-backed filters, pagination, and refresh."
+                        actionLabel="Update"
+                        busyLabel="Updating..."
+                        disabled={hfLoading || hfLoadingMore}
+                        isBusy={hfLoading}
+                        actionIcon={<RefreshCw size={15} strokeWidth={2} />}
+                        onAction={() => {
+                            void refreshHuggingFace()
+                        }}
+                    />
 
                     <div className="models-toolbar models-toolbar-hf">
                         <label className="models-search">
@@ -457,14 +478,14 @@ export default function ModelsPage() {
                         />
                         <select
                             value={hfVisibility}
-                            onChange={(event) => setHfVisibility(event.target.value as ModelVisibilityFilter)}
+                            onChange={(event) => setHfVisibility(parseVisibilityFilter(event.target.value))}
                         >
                             <option value="all">All visibility</option>
                             <option value="public">Public</option>
                             <option value="gated">Gated</option>
                             <option value="private">Private</option>
                         </select>
-                        <select value={hfSort} onChange={(event) => setHfSort(event.target.value as HuggingFaceSortBy)}>
+                        <select value={hfSort} onChange={(event) => setHfSort(parseHuggingFaceSortBy(event.target.value))}>
                             <option value="relevance">Relevance</option>
                             <option value="downloads">Downloads</option>
                             <option value="likes">Likes</option>
@@ -534,3 +555,4 @@ export default function ModelsPage() {
         </section>
     )
 }
+

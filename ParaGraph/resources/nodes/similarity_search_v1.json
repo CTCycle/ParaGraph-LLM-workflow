@@ -1,0 +1,75 @@
+{
+  "id": "SIMILARITY_SEARCH",
+  "version": 1,
+  "name": "Similarity Search",
+  "category": "processing",
+  "description": "Search a vector store for the most relevant chunks to a query.",
+  "inputs": [
+    {
+      "name": "query",
+      "data_type": "TEXT",
+      "required": true
+    },
+    {
+      "name": "store",
+      "data_type": "VECTOR_STORE_HANDLE",
+      "required": true
+    }
+  ],
+  "outputs": [
+    {
+      "name": "results",
+      "data_type": "RETRIEVAL_RESULTS",
+      "required": true
+    }
+  ],
+  "parameters": [
+    {
+      "name": "top_k",
+      "data_type": "JSON",
+      "default": 5,
+      "constraints": {
+        "min": 1,
+        "max": 100
+      },
+      "ui_control": "number",
+      "description": "Maximum number of retrieval hits."
+    },
+    {
+      "name": "score_threshold",
+      "data_type": "JSON",
+      "default": 0,
+      "constraints": {
+        "min": 0,
+        "max": 1
+      },
+      "ui_control": "number",
+      "description": "Minimum similarity score threshold."
+    },
+    {
+      "name": "filter",
+      "data_type": "JSON",
+      "default": {},
+      "ui_control": "json",
+      "description": "Optional metadata filter payload."
+    },
+    {
+      "name": "include_metadata",
+      "data_type": "BOOLEAN",
+      "default": true,
+      "ui_control": "toggle",
+      "description": "Include chunk metadata in retrieval hits."
+    }
+  ],
+  "ui": {
+    "default_width": 360,
+    "accent_color": "#2877c7",
+    "collapsed_by_default": false
+  },
+  "runtime": {
+    "executor_key": "similarity_search",
+    "cacheable": false,
+    "deterministic": false,
+    "side_effecting": false
+  }
+}

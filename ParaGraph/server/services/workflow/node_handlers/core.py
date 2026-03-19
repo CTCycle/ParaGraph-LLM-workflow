@@ -1,16 +1,10 @@
 from __future__ import annotations
 
+import importlib
 import json
 from pathlib import Path
 from typing import Any
 
-try:
-    import torch
-    from transformers import AutoModelForCausalLM, AutoTokenizer
-except ImportError:  # Optional dependency for Hugging Face provider.
-    torch = None
-    AutoModelForCausalLM = None
-    AutoTokenizer = None
 from pydantic import BaseModel, Field, ValidationError, field_validator
 
 from ParaGraph.server.common.constants import RESOURCES_PATH
@@ -31,6 +25,21 @@ from ParaGraph.server.services.workflow.provider import provider_service
 
 ARTIFACT_ROOT = Path(RESOURCES_PATH) / "artifacts"
 _HF_MODEL_CACHE: dict[str, tuple[Any, Any]] = {}
+
+
+def _load_huggingface_modules() -> tuple[Any, Any, Any]:
+    try:
+        torch_module = importlib.import_module("torch")
+        transformers_module = importlib.import_module("transformers")
+    except ModuleNotFoundError as exc:
+        raise ValueError("Hugging Face support requires installing torch and transformers") from exc
+
+    auto_model_for_causal_lm = getattr(transformers_module, "AutoModelForCausalLM", None)
+    auto_tokenizer = getattr(transformers_module, "AutoTokenizer", None)
+    if auto_model_for_causal_lm is None or auto_tokenizer is None:
+        raise ValueError("Hugging Face support requires transformers AutoModelForCausalLM and AutoTokenizer")
+
+    return torch_module, auto_model_for_causal_lm, auto_tokenizer
 
 
 class PromptParameters(BaseModel):
@@ -180,15 +189,14 @@ def _run_huggingface_chat(
     access_token: str,
 ) -> str:
 
-    if torch is None or AutoTokenizer is None or AutoModelForCausalLM is None:
-        raise ValueError("Hugging Face support requires installing torch and transformers")
+    torch_module, auto_model_for_causal_lm, auto_tokenizer = _load_huggingface_modules()
     if model_name not in _HF_MODEL_CACHE:
-        tokenizer = AutoTokenizer.from_pretrained(model_name, token=access_token)
-        model = AutoModelForCausalLM.from_pretrained(
+        tokenizer = auto_tokenizer.from_pretrained(model_name, token=access_token)
+        model = auto_model_for_causal_lm.from_pretrained(
             model_name,
             token=access_token,
-            torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
-            device_map="auto" if torch.cuda.is_available() else None,
+            torch_dtype=torch_module.float16 if torch_module.cuda.is_available() else torch_module.float32,
+            device_map="auto" if torch_module.cuda.is_available() else None,
         )
         _HF_MODEL_CACHE[model_name] = (tokenizer, model)
 
@@ -381,5 +389,4 @@ CORE_HANDLERS = {
     "if": NodeHandler(executor=_if_executor),
     "router": NodeHandler(executor=_router_executor, parameter_model=RouterParameters),
 }
-
 

@@ -1,0 +1,60 @@
+{
+  "id": "DATABASE_QUERY",
+  "version": 1,
+  "name": "Database Query",
+  "category": "processing",
+  "description": "Execute a single read-only SQL query and emit records/documents.",
+  "inputs": [
+    {
+      "name": "connection",
+      "data_type": "DATABASE_CONNECTION",
+      "required": true
+    }
+  ],
+  "outputs": [
+    {
+      "name": "documents",
+      "data_type": "DOCUMENT_LIST",
+      "required": true
+    },
+    {
+      "name": "records",
+      "data_type": "JSON",
+      "required": true
+    }
+  ],
+  "parameters": [
+    {
+      "name": "query_text",
+      "data_type": "TEXT",
+      "default": "",
+      "constraints": {
+        "required": true
+      },
+      "ui_control": "textarea",
+      "description": "Read-only SQL query text."
+    },
+    {
+      "name": "row_limit",
+      "data_type": "JSON",
+      "default": 250,
+      "constraints": {
+        "min": 1,
+        "max": 5000
+      },
+      "ui_control": "number",
+      "description": "Maximum number of rows to return."
+    }
+  ],
+  "ui": {
+    "default_width": 360,
+    "accent_color": "#2877c7",
+    "collapsed_by_default": false
+  },
+  "runtime": {
+    "executor_key": "database_query",
+    "cacheable": false,
+    "deterministic": false,
+    "side_effecting": false
+  }
+}

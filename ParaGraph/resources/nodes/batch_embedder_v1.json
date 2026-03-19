@@ -1,0 +1,91 @@
+{
+  "id": "BATCH_EMBEDDER",
+  "version": 1,
+  "name": "Batch Embedder",
+  "category": "model",
+  "description": "Generate vector embeddings for chunk collections.",
+  "inputs": [
+    {
+      "name": "chunks",
+      "data_type": "CHUNK_LIST",
+      "required": true
+    }
+  ],
+  "outputs": [
+    {
+      "name": "points",
+      "data_type": "VECTOR_POINT_LIST",
+      "required": true
+    }
+  ],
+  "parameters": [
+    {
+      "name": "provider",
+      "data_type": "TEXT",
+      "default": "ollama",
+      "constraints": {
+        "required": true,
+        "options": ["ollama", "openai", "gemini", "claude", "huggingface"]
+      },
+      "ui_control": "select",
+      "description": "Embedding provider."
+    },
+    {
+      "name": "model_name",
+      "data_type": "TEXT",
+      "default": "nomic-embed-text",
+      "constraints": {
+        "required": true
+      },
+      "ui_control": "text",
+      "description": "Embedding model identifier."
+    },
+    {
+      "name": "batch_size",
+      "data_type": "JSON",
+      "default": 16,
+      "constraints": {
+        "min": 1,
+        "max": 128
+      },
+      "ui_control": "number",
+      "description": "Chunk batch size for embedding calls."
+    },
+    {
+      "name": "dimensions",
+      "data_type": "JSON",
+      "default": null,
+      "ui_control": "number",
+      "description": "Optional embedding dimensionality override."
+    },
+    {
+      "name": "normalize",
+      "data_type": "BOOLEAN",
+      "default": true,
+      "ui_control": "toggle",
+      "description": "Normalize vectors before storage."
+    },
+    {
+      "name": "max_retries",
+      "data_type": "JSON",
+      "default": 1,
+      "constraints": {
+        "min": 0,
+        "max": 5
+      },
+      "ui_control": "number",
+      "description": "Maximum retry attempts per chunk embedding call."
+    }
+  ],
+  "ui": {
+    "default_width": 360,
+    "accent_color": "#5f9bff",
+    "collapsed_by_default": false
+  },
+  "runtime": {
+    "executor_key": "batch_embedder",
+    "cacheable": false,
+    "deterministic": false,
+    "side_effecting": false
+  }
+}
