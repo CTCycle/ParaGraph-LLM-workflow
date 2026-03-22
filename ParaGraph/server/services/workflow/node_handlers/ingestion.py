@@ -13,8 +13,9 @@ from bs4 import BeautifulSoup
 from docx import Document
 from pydantic import BaseModel, Field, field_validator, model_validator
 from pypdf import PdfReader
-from sqlalchemy import URL, create_engine, text
+from sqlalchemy import URL, create_engine, select, text
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import Session
 
 from ParaGraph.server.services.workflow.node_handlers.base import NodeHandler
 from ParaGraph.server.services.workflow.node_handlers.common import (
@@ -695,8 +696,8 @@ def _database_connection_executor(parameters: dict[str, Any], inputs: dict[str, 
     database_url, connect_args = _build_database_url(parsed.model_dump(mode="json"))
     engine = create_engine(database_url, future=True, pool_pre_ping=True, connect_args=connect_args)
     try:
-        with engine.connect() as connection:
-            connection.execute(text("SELECT 1"))
+        with Session(engine) as db_session:
+            db_session.execute(select(1)).scalar_one()
     except SQLAlchemyError as exc:
         raise ValueError(f"Failed to connect to database: {exc}") from exc
     finally:
@@ -729,9 +730,12 @@ def _database_query_executor(parameters: dict[str, Any], inputs: dict[str, Any])
     engine = create_engine(database_url, future=True, pool_pre_ping=True, connect_args=connect_args)
 
     try:
-        with engine.connect() as connection:
-            result = connection.execute(text(query_text))
-            rows = [dict(row._mapping) for row in result.fetchmany(row_limit)]
+        with Session(engine) as db_session:
+            # This node intentionally accepts an arbitrary user-provided read-only SQL statement.
+            # Representing that free-form query space with ORM expression builders would reduce support
+            # for valid SQL constructs (joins, CTEs, vendor-specific clauses), so text() is retained.
+            result = db_session.execute(text(query_text))
+            rows = [dict(row) for row in result.mappings().fetchmany(row_limit)]
     except SQLAlchemyError as exc:
         raise ValueError(f"Database query failed: {exc}") from exc
     finally:

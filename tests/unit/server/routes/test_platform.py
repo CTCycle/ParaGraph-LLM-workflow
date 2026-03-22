@@ -2,13 +2,15 @@ from __future__ import annotations
 
 from pathlib import Path
 import shutil
-import sqlite3
 
 from fastapi.testclient import TestClient
+from sqlalchemy import Integer, String, create_engine
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 from ParaGraph.server.entities.nodecatalog import (
     HuggingFaceModelCatalogResponse,
     HuggingFaceModelDefinition,
+    HuggingFaceModelDownloadResponse,
     OllamaLibraryCatalogResponse,
     OllamaLibraryModelDefinition,
     OllamaModelPullResponse,
@@ -153,10 +155,18 @@ def test_nodes_upload_directory_rejects_parent_directory_segments(client: TestCl
 
 
 def test_nodes_database_connection_check_returns_success_for_sqlite(client: TestClient, tmp_path: Path) -> None:
+    class TestHealthBase(DeclarativeBase):
+        pass
+
+    class TestTable(TestHealthBase):
+        __tablename__ = 'test_table'
+        id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+        value: Mapped[str | None] = mapped_column(String, nullable=True)
+
     database_path = tmp_path / 'health.sqlite'
-    with sqlite3.connect(database_path) as connection:
-        connection.execute('CREATE TABLE test_table (id INTEGER PRIMARY KEY, value TEXT)')
-        connection.commit()
+    engine = create_engine(f"sqlite:///{database_path}")
+    TestHealthBase.metadata.create_all(engine)
+    engine.dispose()
 
     response = client.post(
         '/nodes/check-database-connection',
@@ -309,6 +319,26 @@ def test_huggingface_models_endpoint_returns_rows(client: TestClient, monkeypatc
     payload = response.json()
     assert payload['models'][0]['repo_id'] == 'meta-llama/Llama-3.2-3B-Instruct'
     assert payload['has_more'] is True
+
+def test_huggingface_download_endpoint_returns_success(client: TestClient, monkeypatch) -> None:
+    monkeypatch.setattr(
+        provider_service,
+        'download_huggingface_model',
+        lambda *, repo_id, session_name='default': HuggingFaceModelDownloadResponse(
+            ok=True,
+            repo_id=repo_id,
+            message=f"Downloaded Hugging Face model '{repo_id}' to local storage.",
+            destination_path=f"ParaGraph/resources/models/huggingface/{repo_id.replace('/', '--')}",
+            already_downloaded=False,
+        ),
+    )
+
+    response = client.post('/providers/huggingface/download', json={'repo_id': 'meta-llama/Llama-3.2-3B-Instruct'})
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload['ok'] is True
+    assert payload['repo_id'] == 'meta-llama/Llama-3.2-3B-Instruct'
 
 def test_compile_endpoint_returns_diagnostics_for_type_mismatch(client: TestClient) -> None:
     response = client.post(

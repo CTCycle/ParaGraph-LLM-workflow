@@ -5,6 +5,8 @@ from fastapi import APIRouter, HTTPException, Query
 from ParaGraph.server.entities.configuration import DEFAULT_SESSION_NAME
 from ParaGraph.server.entities.nodecatalog import (
     HuggingFaceModelCatalogResponse,
+    HuggingFaceModelDownloadRequest,
+    HuggingFaceModelDownloadResponse,
     HuggingFaceSortBy,
     ModelVisibilityFilter,
     OllamaLibraryCatalogResponse,
@@ -85,5 +87,16 @@ def get_huggingface_models(
             page_size=page_size,
             refresh=refresh,
         )
+    except ProviderApiError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
+
+
+@router.post("/huggingface/download", response_model=HuggingFaceModelDownloadResponse)
+def download_huggingface_model(
+    payload: HuggingFaceModelDownloadRequest,
+    session_name: str = Query(default=DEFAULT_SESSION_NAME, min_length=1, max_length=120),
+) -> HuggingFaceModelDownloadResponse:
+    try:
+        return provider_service.download_huggingface_model(repo_id=payload.repo_id, session_name=session_name)
     except ProviderApiError as exc:
         raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc

@@ -15,6 +15,7 @@ import {
 import { useDebouncedValue } from '../app/hooks/useDebouncedValue'
 import { usePageMetadata } from '../app/hooks/usePageMetadata'
 import {
+    downloadHuggingFaceModel,
     fetchHuggingFaceModels,
     fetchOllamaLibraryModels,
     pullOllamaModel,
@@ -168,6 +169,8 @@ export default function ModelsPage() {
     const [hfLoading, setHfLoading] = useState(true)
     const [hfLoadingMore, setHfLoadingMore] = useState(false)
     const [hfError, setHfError] = useState<string | null>(null)
+    const [hfMessage, setHfMessage] = useState<string | null>(null)
+    const [downloadingHfModels, setDownloadingHfModels] = useState<Record<string, boolean>>({})
 
     const hfAbortRef = useRef<AbortController | null>(null)
     const hfCacheRef = useRef<Map<string, Map<number, HuggingFaceModelCatalogResponse>>>(new Map())
@@ -318,6 +321,26 @@ export default function ModelsPage() {
         }
     }, [])
 
+    async function handleDownloadHuggingFaceModel(repoId: string): Promise<void> {
+        setDownloadingHfModels((current) => ({ ...current, [repoId]: true }))
+        setHfError(null)
+        setHfMessage(null)
+
+        try {
+            const payload = await downloadHuggingFaceModel(repoId)
+            setHfMessage(payload.message)
+            await refreshHuggingFace()
+        } catch (error) {
+            setHfError(error instanceof Error ? error.message : 'Failed to download Hugging Face model')
+        } finally {
+            setDownloadingHfModels((current) => {
+                const next = { ...current }
+                delete next[repoId]
+                return next
+            })
+        }
+    }
+
     async function handlePullModel(modelName: string): Promise<void> {
         setPullingModels((current) => ({ ...current, [modelName]: true }))
         setOllamaError(null)
@@ -454,6 +477,12 @@ export default function ModelsPage() {
                                 placeholder="Search by model name or repo id"
                             />
                         </label>
+                        <input
+                            type="text"
+                            value={hfAuthor}
+                            onChange={(event) => setHfAuthor(event.target.value)}
+                            placeholder="Author or org"
+                        />
                         <select value={hfTask} onChange={(event) => setHfTask(event.target.value)}>
                             <option value="">All tasks</option>
                             {hfTaskOptions.map((task) => (
@@ -470,12 +499,6 @@ export default function ModelsPage() {
                                 </option>
                             ))}
                         </select>
-                        <input
-                            type="text"
-                            value={hfAuthor}
-                            onChange={(event) => setHfAuthor(event.target.value)}
-                            placeholder="Author or org"
-                        />
                         <select
                             value={hfVisibility}
                             onChange={(event) => setHfVisibility(parseVisibilityFilter(event.target.value))}
@@ -495,6 +518,7 @@ export default function ModelsPage() {
 
                     <p className="models-note">{hfUsingToken ? 'Authenticated query mode.' : 'Public query mode (no token detected).'}</p>
                     {hfWarning && <p className="models-warning">{hfWarning}</p>}
+                    {hfMessage && <p className="models-note">{hfMessage}</p>}
 
                     {hfError && (
                         <div className="models-error">
@@ -512,6 +536,7 @@ export default function ModelsPage() {
                             hfModels.map((model) => {
                                 const visibilityConfig = VISIBILITY_ICON_MAP[model.visibility] ?? VISIBILITY_ICON_MAP.unknown
                                 const VisibilityIcon = visibilityConfig.icon
+                                const isDownloading = Boolean(downloadingHfModels[model.repo_id])
                                 return (
                                     <article key={model.repo_id} role="listitem" className="models-row models-row-hf">
                                         <div className="models-row-main">
@@ -531,6 +556,22 @@ export default function ModelsPage() {
                                                 <VisibilityIcon size={13} strokeWidth={2.2} />
                                                 {visibilityConfig.label}
                                             </span>
+                                            {model.downloaded ? (
+                                                <span className="models-pill models-pill-ok">
+                                                    <Check size={13} strokeWidth={2.2} />
+                                                    Downloaded
+                                                </span>
+                                            ) : (
+                                                <button
+                                                    type="button"
+                                                    className="models-icon-button"
+                                                    onClick={() => void handleDownloadHuggingFaceModel(model.repo_id)}
+                                                    disabled={isDownloading}
+                                                >
+                                                    <Download size={13} strokeWidth={2.2} />
+                                                    {isDownloading ? 'Downloading...' : 'Download'}
+                                                </button>
+                                            )}
                                             <a href={model.url} target="_blank" rel="noreferrer" className="models-icon-button">
                                                 <ExternalLink size={13} strokeWidth={2.2} />
                                                 Open

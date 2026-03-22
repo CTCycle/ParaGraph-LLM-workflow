@@ -1,7 +1,9 @@
 from __future__ import annotations
 
-import sqlite3
 from pathlib import Path
+
+from sqlalchemy import Integer, String, create_engine
+from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
 
 from ParaGraph.server.services.workflow import node_registry
 from ParaGraph.server.services.workflow.node_handlers import ingestion as ingestion_module
@@ -112,12 +114,27 @@ def test_api_fetcher_caps_request_list_and_extracts_selected_json(monkeypatch) -
 
 
 def test_database_connection_and_query_roundtrip(tmp_path: Path) -> None:
+    class NotesBase(DeclarativeBase):
+        pass
+
+    class Note(NotesBase):
+        __tablename__ = 'notes'
+        id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+        title: Mapped[str] = mapped_column(String, nullable=False)
+        body: Mapped[str] = mapped_column(String, nullable=False)
+
     database_path = tmp_path / 'records.sqlite'
-    with sqlite3.connect(database_path) as connection:
-        connection.execute('CREATE TABLE notes (id INTEGER PRIMARY KEY, title TEXT, body TEXT)')
-        connection.execute('INSERT INTO notes (title, body) VALUES (?, ?)', ('Alpha', 'First row'))
-        connection.execute('INSERT INTO notes (title, body) VALUES (?, ?)', ('Beta', 'Second row'))
-        connection.commit()
+    engine = create_engine(f"sqlite:///{database_path}")
+    NotesBase.metadata.create_all(engine)
+    with Session(engine) as db_session:
+        db_session.add_all(
+            [
+                Note(title='Alpha', body='First row'),
+                Note(title='Beta', body='Second row'),
+            ]
+        )
+        db_session.commit()
+    engine.dispose()
 
     connection_payload = node_registry.execute(
         'DATABASE_CONNECTION',
@@ -139,10 +156,18 @@ def test_database_connection_and_query_roundtrip(tmp_path: Path) -> None:
 
 
 def test_database_query_rejects_non_read_only_statements(tmp_path: Path) -> None:
+    class UnsafeNotesBase(DeclarativeBase):
+        pass
+
+    class UnsafeNote(UnsafeNotesBase):
+        __tablename__ = 'notes'
+        id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+        title: Mapped[str] = mapped_column(String, nullable=False)
+
     database_path = tmp_path / 'unsafe.sqlite'
-    with sqlite3.connect(database_path) as connection:
-        connection.execute('CREATE TABLE notes (id INTEGER PRIMARY KEY, title TEXT)')
-        connection.commit()
+    engine = create_engine(f"sqlite:///{database_path}")
+    UnsafeNotesBase.metadata.create_all(engine)
+    engine.dispose()
 
     connection_payload = node_registry.execute(
         'DATABASE_CONNECTION',
@@ -165,11 +190,21 @@ def test_database_query_rejects_non_read_only_statements(tmp_path: Path) -> None
 
 
 def test_sql_file_database_node_roundtrip(tmp_path: Path) -> None:
+    class ItemsBase(DeclarativeBase):
+        pass
+
+    class Item(ItemsBase):
+        __tablename__ = 'items'
+        id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+        name: Mapped[str] = mapped_column(String, nullable=False)
+
     database_path = tmp_path / 'file_dataset.sqlite'
-    with sqlite3.connect(database_path) as connection:
-        connection.execute('CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT)')
-        connection.execute('INSERT INTO items (name) VALUES (?)', ('alpha',))
-        connection.commit()
+    engine = create_engine(f"sqlite:///{database_path}")
+    ItemsBase.metadata.create_all(engine)
+    with Session(engine) as db_session:
+        db_session.add(Item(name='alpha'))
+        db_session.commit()
+    engine.dispose()
 
     connection_payload = node_registry.execute(
         'SQL_FILE_DATABASE',

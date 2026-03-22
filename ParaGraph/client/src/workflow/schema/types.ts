@@ -313,6 +313,7 @@ export interface HuggingFaceModelDefinition {
     gated: boolean | null
     last_modified: string | null
     url: string
+    downloaded: boolean
 }
 
 export interface HuggingFaceModelCatalogResponse {
@@ -324,6 +325,14 @@ export interface HuggingFaceModelCatalogResponse {
     warning: string | null
     available_tasks: string[]
     available_libraries: string[]
+}
+
+export interface HuggingFaceModelDownloadResponse {
+    ok: boolean
+    repo_id: string
+    message: string
+    destination_path: string
+    already_downloaded: boolean
 }
 
 export interface DocumentRecord {

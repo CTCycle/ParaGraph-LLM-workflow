@@ -3,6 +3,7 @@ from __future__ import annotations
 import urllib.parse
 
 import sqlalchemy
+from sqlalchemy import MetaData, Table, select
 from sqlalchemy.exc import SQLAlchemyError
 
 from ParaGraph.server.common.utils.logger import logger
@@ -64,13 +65,14 @@ def ensure_postgres_database(settings: DatabaseSettings) -> str:
     )
 
     with admin_engine.connect() as conn:
+        catalog = Table("pg_database", MetaData(), schema="pg_catalog", autoload_with=admin_engine)
         exists = conn.execute(
-            sqlalchemy.text("SELECT 1 FROM pg_database WHERE datname=:name"),
-            {"name": target_database},
-        ).scalar()
+            select(catalog.c.datname).where(catalog.c.datname == target_database).limit(1)
+        ).scalar_one_or_none()
         if not exists:
             safe_database = target_database.replace('"', '""')
-            conn.execute(sqlalchemy.text(f'CREATE DATABASE "{safe_database}" WITH ENCODING \'UTF8\' TEMPLATE template0'))
+            # CREATE DATABASE is a PostgreSQL DDL command that is not representable through SQLAlchemy ORM constructs.
+            conn.exec_driver_sql(f'CREATE DATABASE "{safe_database}" WITH ENCODING \'UTF8\' TEMPLATE template0')
             logger.info("Created PostgreSQL database %s", target_database)
 
     repository = PostgresRepository(settings)
