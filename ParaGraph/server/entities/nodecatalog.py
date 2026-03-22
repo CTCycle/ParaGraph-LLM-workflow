@@ -162,6 +162,7 @@ class HuggingFaceModelDefinition(BaseModel):
     gated: bool | None = None
     last_modified: str | None = None
     url: str
+    downloaded: bool = False
 
 
 class HuggingFaceModelCatalogResponse(BaseModel):
@@ -173,3 +174,15 @@ class HuggingFaceModelCatalogResponse(BaseModel):
     warning: str | None = None
     available_tasks: list[str] = Field(default_factory=list)
     available_libraries: list[str] = Field(default_factory=list)
+
+
+class HuggingFaceModelDownloadRequest(BaseModel):
+    repo_id: str = Field(min_length=3, max_length=240)
+
+
+class HuggingFaceModelDownloadResponse(BaseModel):
+    ok: bool
+    repo_id: str
+    message: str
+    destination_path: str
+    already_downloaded: bool = False

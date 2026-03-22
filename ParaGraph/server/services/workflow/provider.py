@@ -2,8 +2,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
+import json
 import hashlib
 import inspect
+from pathlib import Path
+import re
 from threading import Lock
 import time
 from typing import Any
@@ -12,9 +15,11 @@ from urllib.parse import unquote
 from bs4 import BeautifulSoup
 import httpx
 
+from ParaGraph.server.common.constants import MODELS_PATH
 from ParaGraph.server.entities.configuration import DEFAULT_SESSION_NAME
 from ParaGraph.server.entities.nodecatalog import (
     HuggingFaceModelCatalogResponse,
+    HuggingFaceModelDownloadResponse,
     HuggingFaceModelDefinition,
     HuggingFaceSortBy,
     ModelVisibilityFilter,
@@ -36,6 +41,9 @@ HUGGINGFACE_CACHE_TTL_SECONDS = 45.0
 HUGGINGFACE_FILTER_TAGS_CACHE_TTL_SECONDS = 3600.0
 HUGGINGFACE_MAX_FETCH_LIMIT = 500
 HUGGINGFACE_MAX_PAGE_SIZE = 50
+HUGGINGFACE_LOCAL_MODELS_ROOT = Path(MODELS_PATH) / "huggingface"
+HUGGINGFACE_LOCAL_MODEL_METADATA_FILE = ".paragraph-model.json"
+HUGGINGFACE_REPO_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*/[A-Za-z0-9][A-Za-z0-9._-]*$")
 
 HUGGINGFACE_SORT_FIELD_MAP: dict[HuggingFaceSortBy, str | None] = {
     "relevance": None,
@@ -141,6 +149,29 @@ def _normalize_ollama_library_slug(href: str) -> str | None:
 
 def _model_basename(model: str) -> str:
     return model.split(":", 1)[0].strip().lower()
+
+
+def _normalize_huggingface_repo_id(repo_id: str) -> str:
+    normalized = repo_id.strip().strip("/")
+    if not normalized or not HUGGINGFACE_REPO_ID_PATTERN.fullmatch(normalized):
+        raise ProviderApiError(
+            "Invalid Hugging Face repository id. Use the format 'namespace/model'.",
+            status_code=400,
+        )
+    return normalized
+
+
+def _huggingface_model_dir_name(repo_id: str) -> str:
+    return repo_id.replace("/", "--")
+
+
+def _huggingface_repo_id_from_dir_name(value: str) -> str | None:
+    if "--" not in value:
+        return None
+    candidate = value.replace("--", "/")
+    if not HUGGINGFACE_REPO_ID_PATTERN.fullmatch(candidate):
+        return None
+    return candidate
 
 
 def _resolve_visibility(private: bool | None, gated: bool | None) -> str:
@@ -296,6 +327,20 @@ def _infer_ollama_metadata(model_name: str) -> ModelMetadata:
     )
 
 
+def _infer_huggingface_metadata(repo_id: str) -> ModelMetadata:
+    normalized = repo_id.lower()
+    supports_image = any(token in normalized for token in ("vision", "vl", "llava", "pixtral", "moondream"))
+    supports_reasoning = any(token in normalized for token in ("reason", "r1", "r2", "qwq", "o1", "o3"))
+    return ModelMetadata(
+        provider="huggingface",
+        model=repo_id,
+        label=repo_id,
+        supports_image=supports_image,
+        supports_reasoning=supports_reasoning,
+        supports_structured_output=True,
+    )
+
+
 class ProviderService:
     def __init__(self) -> None:
         self._cache_lock = Lock()
@@ -351,13 +396,24 @@ class ProviderService:
             raise ValueError(f"Provider '{provider}' does not support embeddings")
 
     def list_models(self, session_name: str = DEFAULT_SESSION_NAME) -> ProviderModelCatalogResponse:
-        models: list[ProviderModelDefinition] = []
-        for model in self._ollama_models(session_name):
-            models.append(self._to_model_definition(model))
-        for provider in ("openai", "gemini", "claude", "huggingface"):
-            for model in CURATED_MODELS.get(provider, ()):  # pragma: no branch
-                models.append(self._to_model_definition(model))
-        return ProviderModelCatalogResponse(models=models)
+        metadata_rows: list[ModelMetadata] = []
+        metadata_rows.extend(self._ollama_models(session_name))
+
+        for provider in ("openai", "gemini", "claude"):
+            metadata_rows.extend(CURATED_MODELS.get(provider, ()))
+
+        metadata_rows.extend(CURATED_MODELS.get("huggingface", ()))
+        metadata_rows.extend(self._downloaded_huggingface_models())
+
+        deduped: dict[tuple[str, str], ModelMetadata] = {}
+        for row in metadata_rows:
+            key = (row.provider, row.model)
+            if key not in deduped:
+                deduped[key] = row
+
+        return ProviderModelCatalogResponse(
+            models=[self._to_model_definition(model) for model in deduped.values()]
+        )
 
     def list_ollama_library_models(
         self,
@@ -422,6 +478,70 @@ class ProviderService:
             ok=True,
             model=normalized_model,
             message=f"Model '{normalized_model}' is available in Ollama.",
+        )
+
+    def download_huggingface_model(
+        self,
+        *,
+        repo_id: str,
+        session_name: str = DEFAULT_SESSION_NAME,
+    ) -> HuggingFaceModelDownloadResponse:
+        normalized_repo_id = _normalize_huggingface_repo_id(repo_id)
+        destination = self._huggingface_local_model_path(normalized_repo_id)
+
+        try:
+            already_downloaded = destination.exists() and any(destination.iterdir())
+        except OSError:
+            already_downloaded = False
+
+        token = self._get_huggingface_token(session_name)
+        try:
+            from huggingface_hub import snapshot_download
+            from huggingface_hub.errors import (
+                HfHubHTTPError,
+                LocalEntryNotFoundError,
+                RepositoryNotFoundError,
+                RevisionNotFoundError,
+            )
+        except ImportError as exc:
+            raise ProviderApiError(
+                "Hugging Face integration requires the 'huggingface_hub' dependency.",
+                status_code=503,
+            ) from exc
+
+        destination.parent.mkdir(parents=True, exist_ok=True)
+
+        try:
+            snapshot_download(
+                repo_id=normalized_repo_id,
+                local_dir=str(destination),
+                token=token,
+            )
+        except (
+            HfHubHTTPError,
+            LocalEntryNotFoundError,
+            RepositoryNotFoundError,
+            RevisionNotFoundError,
+            httpx.HTTPError,
+        ) as exc:
+            raise self._translate_huggingface_error(exc) from exc
+        except OSError as exc:
+            raise ProviderApiError(
+                f"Unable to save Hugging Face model '{normalized_repo_id}': {exc}",
+                status_code=500,
+            ) from exc
+
+        self._write_huggingface_model_metadata(normalized_repo_id, destination)
+
+        with self._cache_lock:
+            self._huggingface_cache.clear()
+
+        return HuggingFaceModelDownloadResponse(
+            ok=True,
+            repo_id=normalized_repo_id,
+            message=f"Downloaded Hugging Face model '{normalized_repo_id}' to local storage.",
+            destination_path=str(destination),
+            already_downloaded=already_downloaded,
         )
 
     def list_huggingface_models(
@@ -520,9 +640,18 @@ class ProviderService:
                     return item
             return _infer_ollama_metadata(model)
 
+        if normalized_provider == "huggingface":
+            for item in self._downloaded_huggingface_models():
+                if item.model == model:
+                    return item
+
         for item in CURATED_MODELS.get(normalized_provider, ()):  # pragma: no branch
             if item.model == model:
                 return item
+
+        if normalized_provider == "huggingface":
+            return _infer_huggingface_metadata(model)
+
         raise ValueError(f"Unknown model '{model}' for provider '{normalized_provider}'")
 
     def validate_model_request(
@@ -745,6 +874,53 @@ class ProviderService:
             normalized.add(_model_basename(name))
         return normalized
 
+    def _huggingface_local_model_path(self, repo_id: str) -> Path:
+        return HUGGINGFACE_LOCAL_MODELS_ROOT / _huggingface_model_dir_name(repo_id)
+
+    def _write_huggingface_model_metadata(self, repo_id: str, destination: Path) -> None:
+        payload = {
+            "repo_id": repo_id,
+            "downloaded_at": datetime.now(timezone.utc).isoformat(),
+        }
+        destination.mkdir(parents=True, exist_ok=True)
+        metadata_path = destination / HUGGINGFACE_LOCAL_MODEL_METADATA_FILE
+        metadata_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+    def _read_huggingface_repo_id_from_metadata(self, model_directory: Path) -> str | None:
+        metadata_path = model_directory / HUGGINGFACE_LOCAL_MODEL_METADATA_FILE
+        if metadata_path.exists():
+            try:
+                payload = json.loads(metadata_path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                payload = None
+            if isinstance(payload, dict):
+                candidate = _coerce_optional_text(payload.get("repo_id"))
+                if candidate and HUGGINGFACE_REPO_ID_PATTERN.fullmatch(candidate):
+                    return candidate
+
+        fallback = _huggingface_repo_id_from_dir_name(model_directory.name)
+        return fallback
+
+    def _downloaded_huggingface_models(self) -> tuple[ModelMetadata, ...]:
+        if not HUGGINGFACE_LOCAL_MODELS_ROOT.exists():
+            return ()
+
+        models: list[ModelMetadata] = []
+        seen: set[str] = set()
+        for item in sorted(HUGGINGFACE_LOCAL_MODELS_ROOT.iterdir(), key=lambda path: path.name.lower()):
+            if not item.is_dir():
+                continue
+            repo_id = self._read_huggingface_repo_id_from_metadata(item)
+            if not repo_id or repo_id in seen:
+                continue
+            seen.add(repo_id)
+            models.append(_infer_huggingface_metadata(repo_id))
+
+        return tuple(models)
+
+    def _downloaded_huggingface_repo_ids(self) -> set[str]:
+        return {item.model for item in self._downloaded_huggingface_models()}
+
     def _build_huggingface_cache_key(
         self,
         *,
@@ -838,12 +1014,14 @@ class ProviderService:
             raise self._translate_huggingface_error(exc) from exc
 
         rows: list[HuggingFaceModelDefinition] = []
+        downloaded_repo_ids = self._downloaded_huggingface_repo_ids()
         visible_index = 0
         has_more = False
         for item in iterator:
             parsed = self._parse_huggingface_model(item)
             if parsed is None:
                 continue
+            parsed.downloaded = parsed.repo_id in downloaded_repo_ids
             if not self._visibility_matches(parsed.visibility, visibility):
                 continue
 
@@ -1126,6 +1304,11 @@ class ProviderService:
             return ProviderApiError(
                 "Hugging Face API rate limit reached. Retry shortly.",
                 status_code=429,
+            )
+        if status_code == 404:
+            return ProviderApiError(
+                "Hugging Face repository was not found.",
+                status_code=404,
             )
 
         if isinstance(error, httpx.TimeoutException):

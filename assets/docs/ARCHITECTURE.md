@@ -27,7 +27,9 @@ The current implementation uses a React Flow editor, JSON node manifests, and a 
   - `src/workflow/schema/types.ts`: shared frontend contracts for manifests, workflows, execution responses, and configuration/profile payloads.
 - `ParaGraph/resources/nodes`: JSON node manifests loaded dynamically at server startup and on import. The `custom_nodes/` subfolder is used for custom node pack assets (scripts/examples/manifests).
 - `ParaGraph/resources/workflows`: persisted workflow documents and version history.
-- `ParaGraph/resources/artifacts`: file-backed save/load targets for serialization nodes.
+- `ParaGraph/resources/models`: local model storage, including downloaded Hugging Face repositories under `huggingface/<namespace--model>/`.
+- `ParaGraph/resources/database.db`: default embedded SQLite database file (legacy `ParaGraph/resources/database/database.db` is auto-migrated on startup).
+- `ParaGraph/resources/artifacts`: file-backed save/load targets for serialization nodes, browser uploads, and vector store artifacts.
 
 ---
 
@@ -75,12 +77,14 @@ The current implementation uses a React Flow editor, JSON node manifests, and a 
 ### 2.5 Provider Discovery APIs
 - GET /providers/ollama/library: returns model rows discovered from https://ollama.com/library, enriched with local pulled status from the configured Ollama runtime.
 - POST /providers/ollama/pull: pulls a selected Ollama model and returns typed pull status.
-- GET /providers/huggingface/models: returns paginated Hub model rows (repo id, author, task, library, likes, downloads, visibility, url) with API-backed filtering and sorting.
+- GET /providers/huggingface/models: returns paginated Hub model rows (repo id, author, task, library, likes, downloads, visibility, url, downloaded) with API-backed filtering and sorting.
+- POST /providers/huggingface/download: downloads a selected Hugging Face repository into `ParaGraph/resources/models/huggingface/<namespace--model>/` and makes it available in model-provider dropdowns.
 ### 2.6 Relational persistence model
 - `user_sessions`: session identity plus Ollama defaults (`base_url`, chat model, embedding model).
 - `nodes`: imported node manifest snapshots keyed by session + node id/version.
 - `access_keys`: provider-scoped key material (LLM providers + Hugging Face) linked to a session.
 - `configuration_profiles`: named full configuration snapshots (access keys + Ollama defaults) linked to a session.
+- Database backend adapters (`repositories/database/sqlite.py`, `repositories/database/postgres.py`) now run through SQLAlchemy Session/query constructs (mapped models when available, reflected tables otherwise) instead of raw SQL strings.
 
 ---
 
@@ -147,10 +151,11 @@ The current implementation uses a React Flow editor, JSON node manifests, and a 
 - Two-column explorer layout: Ollama catalog on the left, Hugging Face Hub on the right.
 - Each column includes a compact toolbar with search and filters, plus an explicit Update action.
 - Ollama rows expose pulled/unpulled state and in-row pull actions for unpulled models.
-- Hugging Face rows support API-backed search/filter/sort, incremental loading, refresh preserving active query controls, and compact warning/error states.
+- Hugging Face rows support API-backed search/filter/sort, incremental loading, refresh preserving active query controls, compact warning/error states, and direct in-row download to local model storage.
 ## 5. Phase 1 RAG Runtime
 - New ingestion nodes emit normalized DOCUMENT_LIST payloads from local files, folder references (`LOAD_DOCUMENTS` deferred file-path collection), HTTP sources, and read-only database queries.
 - `SQL_DATABASE` and `SQL_FILE_DATABASE` emit typed read-only connection controller payloads consumed by query-style SQL nodes (for example `DATABASE_QUERY`).
+- `DATABASE_QUERY` intentionally retains a narrow raw-SQL execution path for user-authored ad-hoc read-only queries after strict statement-prefix and multi-statement guards.
 - `TEXT_CLEANER` and `CHUNKER` convert documents into `CHUNK_LIST` payloads suitable for retrieval.
 - `BATCH_EMBEDDER` turns chunks into `VECTOR_POINT_LIST` payloads using provider-backed embeddings.
 - `VECTOR_DB_WRITER` persists local FAISS indexes under `<storage_directory>/<index_name>/` (defaulting to `ParaGraph/resources/artifacts/vectorstores`) with metadata sidecars.

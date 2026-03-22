@@ -7,6 +7,7 @@ import {
     ExecutionEventEnvelope,
     ExecutionRunState,
     HuggingFaceModelCatalogResponse,
+    HuggingFaceModelDownloadResponse,
     HuggingFaceSortBy,
     ModelVisibilityFilter,
     NodeCatalogResponse,
@@ -183,6 +184,19 @@ export function fetchHuggingFaceModels(
     }
 
     return requestJson<HuggingFaceModelCatalogResponse>(`/providers/huggingface/models?${params.toString()}`, init)
+}
+
+export function downloadHuggingFaceModel(repoId: string, sessionName = 'default'): Promise<HuggingFaceModelDownloadResponse> {
+    const normalizedRepoId = repoId.trim()
+    if (!normalizedRepoId) {
+        throw new Error('Repository id is required')
+    }
+
+    const params = new URLSearchParams({ session_name: sessionName })
+    return requestJson<HuggingFaceModelDownloadResponse>(`/providers/huggingface/download?${params.toString()}`, {
+        method: 'POST',
+        body: JSON.stringify({ repo_id: normalizedRepoId }),
+    })
 }
 export function fetchConfigurations(sessionName = 'default'): Promise<AppConfigurationPayload> {
     const params = new URLSearchParams({ session_name: sessionName })
