@@ -1,13 +1,16 @@
 from __future__ import annotations
 
+from typing import Any
 from datetime import datetime, timezone
 
-from sqlalchemy import Column, DateTime, ForeignKey, Index, Integer, String, UniqueConstraint
-from sqlalchemy.orm import declarative_base, relationship
+from sqlalchemy import DateTime, ForeignKey, Index, UniqueConstraint
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 from ParaGraph.server.repositories.schemas.types import JSONSequence
 
-Base = declarative_base()
+
+class Base(DeclarativeBase):
+    pass
 
 
 ###############################################################################
@@ -19,27 +22,27 @@ def utcnow() -> datetime:
 class UserSession(Base):
     __tablename__ = "user_sessions"
 
-    session_id = Column(Integer, primary_key=True, autoincrement=True)
-    session_name = Column(String(120), nullable=False, unique=True)
-    ollama_base_url = Column(String(512), nullable=False, default="http://127.0.0.1:11434")
-    ollama_chat_model = Column(String(255), nullable=False, default="llama3.2")
-    ollama_embedding_model = Column(String(255), nullable=False, default="nomic-embed-text")
-    created_at = Column(DateTime(timezone=True), nullable=False, default=utcnow)
-    updated_at = Column(DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow)
+    session_id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    session_name: Mapped[str] = mapped_column(nullable=False, unique=True)
+    ollama_base_url: Mapped[str] = mapped_column(nullable=False, default="http://127.0.0.1:11434")
+    ollama_chat_model: Mapped[str] = mapped_column(nullable=False, default="llama3.2")
+    ollama_embedding_model: Mapped[str] = mapped_column(nullable=False, default="nomic-embed-text")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow)
 
-    nodes = relationship(
+    nodes: Mapped[list[NodeConfiguration]] = relationship(
         "NodeConfiguration",
         back_populates="session",
         cascade="all, delete-orphan",
         passive_deletes=True,
     )
-    access_keys = relationship(
+    access_keys: Mapped[list[AccessKey]] = relationship(
         "AccessKey",
         back_populates="session",
         cascade="all, delete-orphan",
         passive_deletes=True,
     )
-    configuration_profiles = relationship(
+    configuration_profiles: Mapped[list[ConfigurationProfile]] = relationship(
         "ConfigurationProfile",
         back_populates="session",
         cascade="all, delete-orphan",
@@ -51,16 +54,16 @@ class UserSession(Base):
 class NodeConfiguration(Base):
     __tablename__ = "nodes"
 
-    node_configuration_id = Column(Integer, primary_key=True, autoincrement=True)
-    session_id = Column(Integer, ForeignKey("user_sessions.session_id", ondelete="CASCADE"), nullable=False, index=True)
-    node_key = Column(String(255), nullable=False)
-    node_type = Column(String(120), nullable=False)
-    node_version = Column(Integer, nullable=False)
-    configuration_json = Column(JSONSequence, nullable=False)
-    created_at = Column(DateTime(timezone=True), nullable=False, default=utcnow)
-    updated_at = Column(DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow)
+    node_configuration_id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    session_id: Mapped[int] = mapped_column(ForeignKey("user_sessions.session_id", ondelete="CASCADE"), nullable=False, index=True)
+    node_key: Mapped[str] = mapped_column(nullable=False)
+    node_type: Mapped[str] = mapped_column(nullable=False)
+    node_version: Mapped[int] = mapped_column(nullable=False)
+    configuration_json: Mapped[Any] = mapped_column(JSONSequence, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow)
 
-    session = relationship("UserSession", back_populates="nodes")
+    session: Mapped[UserSession] = relationship("UserSession", back_populates="nodes")
 
     __table_args__ = (
         UniqueConstraint("session_id", "node_key", name="uq_nodes_session_node_key"),
@@ -73,14 +76,14 @@ class NodeConfiguration(Base):
 class ConfigurationProfile(Base):
     __tablename__ = "configuration_profiles"
 
-    configuration_profile_id = Column(Integer, primary_key=True, autoincrement=True)
-    session_id = Column(Integer, ForeignKey("user_sessions.session_id", ondelete="CASCADE"), nullable=False, index=True)
-    profile_name = Column(String(120), nullable=False)
-    configuration_json = Column(JSONSequence, nullable=False)
-    created_at = Column(DateTime(timezone=True), nullable=False, default=utcnow)
-    updated_at = Column(DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow)
+    configuration_profile_id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    session_id: Mapped[int] = mapped_column(ForeignKey("user_sessions.session_id", ondelete="CASCADE"), nullable=False, index=True)
+    profile_name: Mapped[str] = mapped_column(nullable=False)
+    configuration_json: Mapped[Any] = mapped_column(JSONSequence, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow)
 
-    session = relationship("UserSession", back_populates="configuration_profiles")
+    session: Mapped[UserSession] = relationship("UserSession", back_populates="configuration_profiles")
 
     __table_args__ = (
         UniqueConstraint("session_id", "profile_name", name="uq_configuration_profiles_session_name"),
@@ -91,16 +94,16 @@ class ConfigurationProfile(Base):
 class AccessKey(Base):
     __tablename__ = "access_keys"
 
-    access_key_id = Column(Integer, primary_key=True, autoincrement=True)
-    session_id = Column(Integer, ForeignKey("user_sessions.session_id", ondelete="CASCADE"), nullable=False, index=True)
-    provider = Column(String(64), nullable=False)
-    api_key = Column(String(1024), nullable=True)
-    base_url = Column(String(512), nullable=True)
-    metadata_json = Column(JSONSequence, nullable=False, default=dict)
-    created_at = Column(DateTime(timezone=True), nullable=False, default=utcnow)
-    updated_at = Column(DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow)
+    access_key_id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    session_id: Mapped[int] = mapped_column(ForeignKey("user_sessions.session_id", ondelete="CASCADE"), nullable=False, index=True)
+    provider: Mapped[str] = mapped_column(nullable=False)
+    api_key: Mapped[str | None] = mapped_column(nullable=True)
+    base_url: Mapped[str | None] = mapped_column(nullable=True)
+    metadata_json: Mapped[Any] = mapped_column(JSONSequence, nullable=False, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow)
 
-    session = relationship("UserSession", back_populates="access_keys")
+    session: Mapped[UserSession] = relationship("UserSession", back_populates="access_keys")
 
     __table_args__ = (
         UniqueConstraint("session_id", "provider", name="uq_access_keys_session_provider"),
