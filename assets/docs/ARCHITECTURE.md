@@ -1,171 +1,119 @@
 # ParaGraph Architecture
 
-ParaGraph is a FastAPI + React application for authoring and running manifest-driven workflow graphs.
-The current implementation uses a React Flow editor, JSON node manifests, and a typed execution compiler/runtime.
+ParaGraph is a FastAPI + React application for authoring and executing manifest-driven workflow graphs.
 
----
+## 1. Repository Structure
 
-## 1. Repository Layout
+- `ParaGraph/server`
+  - `app.py`: FastAPI app wiring and router registration.
+  - `api/`: HTTP and websocket route modules (`workflows`, `executions`, `nodes`, `providers`, `configurations`, `ws`).
+  - `domain/`: Pydantic contracts (workflow, execution, provider, configuration payloads).
+  - `services/workflow/`: compiler, execution orchestration, provider integration, node runtime logic, workflow CRUD.
+  - `services/runtime/events.py`: in-memory execution event history + pub/sub used by REST and websocket replay.
+  - `repositories/workflow/`: file-backed workflow persistence and run-state repository.
+  - `services/jobs.py`: in-process background job manager.
 
-- `ParaGraph/server`: FastAPI backend.
-  - `app.py`: app creation and router registration.
-  - `routes/`: API routers (`workflows`, `executions`, `nodes`, `providers`, `configurations`, `ws`).
-  - `entities/`: Pydantic contracts for manifests, workflows, and execution state.
-  - `services/workflow/`: manifest registry, compiler, provider abstraction, execution orchestration, workflow CRUD.
-  - `services/runtime/events.py`: typed execution event pub/sub for polling and websocket replay.
-  - `services/configuration.py`: session-level configuration orchestration for active settings, named profiles, and Ollama health checks.
-  - `repositories/workflow/`: file-backed workflow documents and in-memory run-state repository.
-  - `repositories/schemas/models.py`: relational tables (`user_sessions`, `nodes`, `access_keys`, `configuration_profiles`) used by SQLite/PostgreSQL backends.
-  - `services/jobs.py`: in-process background job manager used by execution workers.
-- `ParaGraph/client`: React + TypeScript frontend.
-  - `src/pages/WorkflowPage.tsx`: React Flow workflow editor shell.
-  - `src/pages/NodesPage.tsx`: compact node catalog and JSON import UI.
-  - `src/pages/ModelsPage.tsx`: two-column model explorer (Ollama + Hugging Face) with refresh, search, filters, and incremental loading.
-  - `src/pages/ConfigurationsPage.tsx`: provider/Ollama configuration console with named save/load modals.
-  - `src/app/services/api.ts`: shared request helper.
-  - `src/app/services/workflowApi.ts`: node catalog, compile, execute, events, configurations, and profile/Ollama status client surface.
-  - `src/workflow/schema/types.ts`: shared frontend contracts for manifests, workflows, execution responses, and configuration/profile payloads.
-- `ParaGraph/resources/nodes`: JSON node manifests loaded dynamically at server startup and on import. The `custom_nodes/` subfolder is used for custom node pack assets (scripts/examples/manifests).
-- `ParaGraph/resources/workflows`: persisted workflow documents and version history.
-- `ParaGraph/resources/models`: local model storage, including downloaded Hugging Face repositories under `huggingface/<namespace--model>/`.
-- `ParaGraph/resources/database.db`: default embedded SQLite database file (legacy `ParaGraph/resources/database/database.db` is auto-migrated on startup).
-- `ParaGraph/resources/artifacts`: file-backed save/load targets for serialization nodes, browser uploads, and vector store artifacts.
+- `ParaGraph/client`
+  - `src/pages/WorkflowPage.tsx`: workflow canvas, import/export, compile/run interactions.
+  - `src/pages/NodesPage.tsx`: node catalog and JSON manifest import modal.
+  - `src/pages/ModelsPage.tsx`: Ollama/Hugging Face catalog and download flows.
+  - `src/pages/ConfigurationsPage.tsx`: active configuration and profile load/save flows.
+  - `src/app/services/api.ts`: shared fetch wrapper.
+  - `src/app/services/workflowApi.ts`: typed frontend API surface.
+  - `src/workflow/schema/types.ts`: shared frontend contract types.
 
----
+- `ParaGraph/resources`
+  - `nodes/`: node manifests.
+  - `workflows/`: persisted workflows/version history.
+  - `models/`: local model artifacts.
+  - `artifacts/`: staged browser uploads and local runtime outputs.
 
-## 2. Backend Contracts
+## 2. Active API Surface
 
-### 2.1 Node manifests
-- `GET /nodes/catalog` returns live `NodeManifest[]`.
-- `POST /nodes/import` validates and persists a single manifest JSON object (including optional plugin runtime descriptors).
-- `POST /nodes/uploads/directory` accepts browser-selected file/folder uploads (multipart) and stages them under `ParaGraph/resources/artifacts/browser_uploads`, returning the staged root path plus staged file paths for runtime execution.
-- `POST /nodes/check-database-connection` validates SQL node connection parameters (`SQL_DATABASE` / `SQL_FILE_DATABASE`) and returns a success/failure payload for node-level health checks.
-- The active model authoring flow uses a `MODEL_PROVIDER` node that emits a typed `MODEL_HANDLE`, consumed by unified `LLM_CHAT` and `LLM_STRUCTURED` nodes.
-- Each manifest declares:
-  - metadata (`id`, `version`, `name`, `category`, `description`)
-  - typed `inputs[]` and `outputs[]`
-  - `parameters[]` with UI hints and defaults
-  - `ui` display metadata
-  - `runtime.executor_key` resolved to built-in Python executor code, or `runtime.plugin` for script-backed custom node execution
+### Workflows
+- `/workflows`
+- `/workflows/{workflow_id}`
+- `/workflows/{workflow_id}/versions`
 
-### 2.2 Workflow model
-- Workflow documents use schema version `2`.
-- `definition.nodes[]`: `{ node_id, node_type, node_version, parameters, skipped? }` (skipped nodes stay in canvas state but are excluded from compiled execution plans).
-- `definition.connections[]`: `{ from_node, from_output, to_node, to_input }`
-- visual state stays separate in `visual_graph.nodes[]` with position, size, collapse metadata, plus UI flags such as ping and skipped highlighting.
+### Executions
+- `/executions/compile`
+- `/executions`
+- `/executions/{run_id}`
+- `/executions/{run_id}/events`
+- websocket `/executions/ws/runs/{run_id}`
 
-### 2.3 Execution APIs
-- `POST /executions/compile`: validates the graph and returns diagnostics plus a compiled plan when valid.
-- `POST /executions`: starts a run from a compiled plan.
-- `GET /executions/{run_id}`: current run state and terminal outputs.
-- `GET /executions/{run_id}/events`: recorded lifecycle events.
-- `WS /executions/ws/runs/{run_id}`: event replay + live event stream.
+### Nodes
+- `/nodes/catalog`
+- `/nodes/import`
+- `/nodes/uploads/directory`
+- `/nodes/check-database-connection`
 
-### 2.4 Configuration APIs
-- `GET /configurations`: loads the currently active session-scoped access keys and Ollama defaults.
-- `PUT /configurations`: saves the currently active session-scoped access keys and Ollama defaults.
-- `GET /configurations/profiles`: lists named saved configuration profiles for a session.
-- `GET /configurations/profiles/{profile_name}`: loads a named profile and applies it as active session configuration.
-- `PUT /configurations/profiles/{profile_name}`: saves the current payload to a named profile and updates active session configuration.
-- `POST /configurations/ollama/ping`: checks whether the configured Ollama base URL is reachable and returns model count/status.
-- `POST /nodes/import` also persists imported JSON manifests to the relational `nodes` table for session tracking.
+### Providers
+- `/providers/models`
+- `/providers/ollama/library`
+- `/providers/ollama/pull`
+- `/providers/huggingface/models`
+- `/providers/huggingface/download`
+- `/providers/huggingface/download/{job_id}`
 
-### 2.5 Provider Discovery APIs
-- GET /providers/ollama/library: returns model rows discovered from https://ollama.com/library, enriched with local pulled status from the configured Ollama runtime.
-- POST /providers/ollama/pull: pulls a selected Ollama model and returns typed pull status.
-- GET /providers/huggingface/models: returns paginated Hub model rows (repo id, author, task, library, likes, downloads, visibility, url, size_bytes, downloaded) with API-backed filtering and sorting. Downloaded state is derived from validated local metadata, not folder existence alone.
-- POST /providers/huggingface/download: starts a background download job for the selected Hugging Face repository and returns a job id plus initial byte totals/progress.
-- GET /providers/huggingface/download/{job_id}: polls the running Hugging Face download job (status, byte-based progress, bytes, message, error) with live in-file updates during large file transfers.
-- DELETE /providers/huggingface/download/{job_id}: requests cooperative cancellation for a running Hugging Face download job.
+### Configurations
+- `/configurations`
+- `/configurations/profiles`
+- `/configurations/profiles/{profile_name}`
+- `/configurations/ollama/ping`
 
-### 2.6 Relational persistence model
-- `user_sessions`: session identity plus Ollama defaults (`base_url`, chat model, embedding model).
-- `nodes`: imported node manifest snapshots keyed by session + node id/version.
-- `access_keys`: provider-scoped key material (LLM providers + Hugging Face) linked to a session.
-- `configuration_profiles`: named full configuration snapshots (access keys + Ollama defaults) linked to a session.
-- Database backend adapters (`repositories/database/sqlite.py`, `repositories/database/postgres.py`) now run through SQLAlchemy Session/query constructs (mapped models when available, reflected tables otherwise) instead of raw SQL strings.
+## 3. Runtime Flow
 
----
+1. Frontend builds a workflow definition and submits `/executions/compile`.
+2. Compiler validates graph topology, port/controller compatibility, multiplicity, and manifest/runtime constraints.
+3. Frontend starts execution via `/executions` using a compiled plan.
+4. Runtime emits step/run events to `execution_event_service`.
+5. Frontend consumes:
+   - polling (`/executions/{run_id}`)
+   - event history (`/executions/{run_id}/events`)
+   - websocket replay/live stream (`/executions/ws/runs/{run_id}`)
 
-## 3. Runtime Architecture
+## 4. Frontend Behavior Surfaces
 
-### 3.1 Manifest registry
-- Manifests are loaded from `ParaGraph/resources/nodes/*.json`.
-- Duplicate `id + version` pairs are rejected.
-- Script-backed plugin nodes load their `runtime.plugin.script_path` relative to the manifest file for cross-machine portability.
-- `executor_key` must map to a registered Python executor.
+- Workflow page:
+  - import/export workflow JSON bundles
+  - compile + run actions
+  - status updates from polling + websocket events
+  - node runtime output rendering
 
-### 3.2 Compiler
-- Validates:
-  - known node type/version
-  - known input/output names
-  - required parameters and required inputs
-  - strict type compatibility with `ANY` as the only wildcard
-  - per-input multiplicity rules
-  - acyclic graph structure
-  - provider capability checks for model nodes
-- Produces deterministic topological order and step bindings by named ports.
+- Nodes page:
+  - category-filtered node catalog
+  - modal-driven JSON validate/import flow
 
-### 3.3 Executor
-- Executes compiled steps in DAG order inside the job manager.
-- Resolves bound inputs by port name.
-- Applies per-run output caching for cacheable nodes.
-- Publishes lifecycle events and stores terminal output payloads for output nodes.
+- Configurations page:
+  - active session configuration load
+  - named profile list/load/save modals
+  - Ollama ping action
 
----
+- Models page:
+  - Ollama pull status and refresh
+  - Hugging Face query/filter/download/cancel/status polling
 
-## 4. Frontend Architecture
+## 5. Test Architecture
 
-### 4.1 Nodes page
-- Single catalog surface with category filter rail and searchable node preview list (icon, description, and I/O summaries per row).
-- Node preview header now includes a `+` action that opens a modal JSON import workspace backed by `POST /nodes/import`.
-- The import modal includes template autofill, validation, and import actions without leaving the preview context.
-- The page avoids heavy card nesting and keeps catalog/filter interactions in a lighter rail + list structure.
+### Backend tests (`pytest`)
+- `tests/unit/server/...` for route/service/repository behavior.
+- `tests/e2e/server/...` for compile->start->poll->outputs->events->websocket lifecycle.
+- `tests/conftest.py` isolates job manager, workflow persistence roots, execution/event state, and provider caches.
 
-### 4.2 Workflow page
-- React Flow canvas with custom Comfy-style node cards.
-- Node cards support compact inline widgets, italic subtitle text, ping + collapse controls, and drag-resize handles.
-- Path-backed parameters use browser file/folder pickers, then upload and stage selected content under ParaGraph/resources/artifacts/browser_uploads before writing staged paths into node parameters.
-- `LOAD_DOCUMENTS` and other path-backed parameters use frontend browser pickers plus upload staging; picker cancel-detection guards prevent focus/change race conditions from clearing selections.
-- Parameter rows use a denser Comfy-inspired control treatment for higher information density without changing the overall card shell.
-- Node parameters, collapse state, and delete action live inside the node card; execution outputs are consumed through dedicated output nodes.
-- The node library is now a left tree viewer with expandable categories, in-tree search, a selected-node preview, and drag-only node insertion onto the canvas.
-- All node categories are collapsed on first visit, then category expansion state is persisted.
-- Workflow canvas state (nodes, edges, layout metadata) persists in browser storage across page navigation.
-- Workflow JSON bundles are exported/imported through browser download/upload flows, including required node manifests for shareable execution across ParaGraph installations.
-- Runtime execution highlights the currently running node in-canvas for step-by-step guidance; pinged nodes keep a persistent visual accent independent of runtime activity and are frozen in place until unpinged.
-- Client-side connection checks mirror backend rules for type compatibility and multiplicity.
-- Workflow canvas keyboard commands include copy/paste for selected nodes (`Ctrl+C`, `Ctrl+V`), node/link deletion (`Delete`/`Backspace`), and `Ctrl+Click` multi-selection.
-- Right-clicking a node opens a compact context menu for ping/unping, add same node (defaults), clone, reset config, skip/unskip, and remove actions.
+### Frontend unit tests (`Vitest + RTL`)
+- service-layer tests for `api.ts` and `workflowApi.ts`
+- hook tests for node catalog loading/reload behavior
+- page interaction tests for nodes/configurations/models deterministic flows
 
-### 4.3 Configurations page
-- Two-column layout with dedicated panels: Ollama settings on the left and Access Keys on the right.
-- Left panel manages Ollama base URL and exposes a runtime status check action.
-- Right panel manages provider/Hugging Face keys and opens modal dialogs for named Load/Save profile flows.
-- Active payloads are still loaded/saved through `/configurations`, while named profiles are persisted via `/configurations/profiles/*`.
+### Frontend browser E2E (`Playwright`)
+- `ParaGraph/client/tests/e2e`
+- local mock-backend route stubs for API endpoints
+- deterministic websocket stub for execution event stream
+- no external service dependency
 
----
+## 6. Compatibility Notes
 
-### 4.4 Models page
-- Two-column explorer layout: Ollama catalog on the left, Hugging Face Hub on the right.
-- Each column includes a compact toolbar with search and filters, plus an explicit Update action.
-- Ollama rows expose pulled/unpulled state and in-row pull actions for unpulled models.
-- Hugging Face rows support API-backed search/filter/sort, incremental loading, refresh preserving active query controls, compact warning/error states, per-model size display, and in-row cancellable download jobs with progress bars.
-
-## 5. Phase 1 RAG Runtime
-- New ingestion nodes emit normalized DOCUMENT_LIST payloads from local files, folder references (`LOAD_DOCUMENTS` deferred file-path collection), HTTP sources, and read-only database queries.
-- `SQL_DATABASE` and `SQL_FILE_DATABASE` emit typed read-only connection controller payloads consumed by query-style SQL nodes (for example `DATABASE_QUERY`).
-- `DATABASE_QUERY` intentionally retains a narrow raw-SQL execution path for user-authored ad-hoc read-only queries after strict statement-prefix and multi-statement guards.
-- `TEXT_CLEANER` and `CHUNKER` convert documents into `CHUNK_LIST` payloads suitable for retrieval.
-- `BATCH_EMBEDDER` turns chunks into `VECTOR_POINT_LIST` payloads using provider-backed embeddings.
-- `VECTOR_DB_WRITER` persists local FAISS indexes under `<storage_directory>/<index_name>/` (defaulting to `ParaGraph/resources/artifacts/vectorstores`) with metadata sidecars.
-- `SIMILARITY_SEARCH` embeds the query using the store handle metadata and returns typed `RETRIEVAL_RESULTS`.
-- `CONTEXT_INJECTOR` converts retrieval hits into prompt-ready `TEXT` for the existing `LLM_CHAT` / `LLM_STRUCTURED` nodes.
-
----
-
-## 6. Notes
-- The legacy `/workflow/*` compatibility API is no longer part of the active application surface.
-- Existing persisted workflow documents are migrated on read into schema `2` shapes.
-- The executable manifest set now includes a Phase 1 typed RAG slice for ingestion, chunking, embedding, vector storage, retrieval, and context injection.
-
+- Current architecture and tests target `/workflows` + `/executions` + `/nodes` + `/providers` + `/configurations` route families.
+- Websocket execution streaming uses `/executions/ws/runs/{run_id}`.
+- Legacy `/workflow/*` compatibility endpoints are not the primary active surface for this repository.

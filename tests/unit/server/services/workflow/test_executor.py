@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from ParaGraph.server.entities.workflow import WorkflowEdge, WorkflowGraph, WorkflowNode, WorkflowPosition
+from ParaGraph.server.domain.workflow import WorkflowEdge, WorkflowGraph, WorkflowNode, WorkflowPosition
 from ParaGraph.server.services.jobs import job_manager
 from ParaGraph.server.services.workflow import executor
 

@@ -1,0 +1,206 @@
+from __future__ import annotations
+
+from fastapi.testclient import TestClient
+
+
+def _basic_prompt_output_definition() -> dict[str, object]:
+    return {
+        "schema_version": 2,
+        "nodes": [
+            {
+                "node_id": "prompt_1",
+                "node_type": "PROMPT",
+                "node_version": 1,
+                "parameters": {"prompt_text": "hello"},
+            },
+            {
+                "node_id": "output_1",
+                "node_type": "TEXT_OUTPUT",
+                "node_version": 1,
+                "parameters": {},
+            },
+        ],
+        "connections": [
+            {
+                "from_node": "prompt_1",
+                "from_output": "text",
+                "to_node": "output_1",
+                "to_input": "text",
+            }
+        ],
+        "metadata": {},
+    }
+
+
+def test_compile_flags_duplicate_connections(client: TestClient) -> None:
+    definition = _basic_prompt_output_definition()
+    definition["connections"] = [
+        {
+            "from_node": "prompt_1",
+            "from_output": "text",
+            "to_node": "output_1",
+            "to_input": "text",
+        },
+        {
+            "from_node": "prompt_1",
+            "from_output": "text",
+            "to_node": "output_1",
+            "to_input": "text",
+        },
+    ]
+
+    response = client.post("/executions/compile", json={"definition": definition})
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["valid"] is False
+    codes = {item["code"] for item in payload["diagnostics"]}
+    assert "duplicate_connection" in codes
+
+
+def test_compile_flags_input_multiplicity_violation(client: TestClient) -> None:
+    definition = {
+        "schema_version": 2,
+        "nodes": [
+            {
+                "node_id": "prompt_1",
+                "node_type": "PROMPT",
+                "node_version": 1,
+                "parameters": {"prompt_text": "hello"},
+            },
+            {
+                "node_id": "prompt_2",
+                "node_type": "PROMPT",
+                "node_version": 1,
+                "parameters": {"prompt_text": "world"},
+            },
+            {
+                "node_id": "output_1",
+                "node_type": "TEXT_OUTPUT",
+                "node_version": 1,
+                "parameters": {},
+            },
+        ],
+        "connections": [
+            {
+                "from_node": "prompt_1",
+                "from_output": "text",
+                "to_node": "output_1",
+                "to_input": "text",
+            },
+            {
+                "from_node": "prompt_2",
+                "from_output": "text",
+                "to_node": "output_1",
+                "to_input": "text",
+            },
+        ],
+        "metadata": {},
+    }
+
+    response = client.post("/executions/compile", json={"definition": definition})
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["valid"] is False
+    codes = {item["code"] for item in payload["diagnostics"]}
+    assert "input_multiplicity" in codes
+
+
+def test_compile_flags_missing_ports_and_controllers(client: TestClient) -> None:
+    missing_source_port = {
+        "schema_version": 2,
+        "nodes": [
+            {
+                "node_id": "prompt_1",
+                "node_type": "PROMPT",
+                "node_version": 1,
+                "parameters": {"prompt_text": "hello"},
+            },
+            {
+                "node_id": "output_1",
+                "node_type": "TEXT_OUTPUT",
+                "node_version": 1,
+                "parameters": {},
+            },
+        ],
+        "connections": [
+            {
+                "from_node": "prompt_1",
+                "from_output": "missing",
+                "to_node": "output_1",
+                "to_input": "text",
+            }
+        ],
+        "metadata": {},
+    }
+    response_source = client.post("/executions/compile", json={"definition": missing_source_port})
+    source_codes = {item["code"] for item in response_source.json()["diagnostics"]}
+    assert "missing_source_port" in source_codes
+
+    missing_target_port = {
+        "schema_version": 2,
+        "nodes": [
+            {
+                "node_id": "prompt_1",
+                "node_type": "PROMPT",
+                "node_version": 1,
+                "parameters": {"prompt_text": "hello"},
+            },
+            {
+                "node_id": "output_1",
+                "node_type": "TEXT_OUTPUT",
+                "node_version": 1,
+                "parameters": {},
+            },
+        ],
+        "connections": [
+            {
+                "from_node": "prompt_1",
+                "from_output": "text",
+                "to_node": "output_1",
+                "to_input": "missing",
+            }
+        ],
+        "metadata": {},
+    }
+    response_target = client.post("/executions/compile", json={"definition": missing_target_port})
+    target_codes = {item["code"] for item in response_target.json()["diagnostics"]}
+    assert "missing_target_port" in target_codes
+
+    missing_controller = {
+        "schema_version": 2,
+        "nodes": [
+            {
+                "node_id": "user_1",
+                "node_type": "PROMPT",
+                "node_version": 1,
+                "parameters": {"prompt_text": "say hello"},
+            },
+            {
+                "node_id": "chat_1",
+                "node_type": "LLM_CHAT",
+                "node_version": 1,
+                "parameters": {"context_window": 0, "max_tokens": 16, "use_reasoning": False},
+            },
+        ],
+        "connections": [
+            {
+                "from_node": "user_1",
+                "from_output": "text",
+                "to_node": "chat_1",
+                "to_input": "user_prompt",
+            }
+        ],
+        "metadata": {},
+    }
+    response_controller = client.post("/executions/compile", json={"definition": missing_controller})
+    controller_codes = {item["code"] for item in response_controller.json()["diagnostics"]}
+    assert "missing_required_controller" in controller_codes or "missing_model_selection" in controller_codes
+
+
+def test_get_execution_returns_404_for_unknown_run(client: TestClient) -> None:
+    response = client.get("/executions/run-missing")
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Run not found: run-missing"
