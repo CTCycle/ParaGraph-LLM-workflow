@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 import mimetypes
+import re
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
@@ -48,6 +49,31 @@ LOAD_DOCUMENTS_SUPPORTED_EXTENSIONS = {
 }
 SUPPORTED_DATABASE_ENGINES = {"sqlite", "postgres", "postgresql", "mysql"}
 READ_ONLY_QUERY_PREFIXES = ("select", "with", "pragma", "show", "describe", "explain")
+READ_ONLY_PRAGMA_NAMES = {
+    "table_info",
+    "table_xinfo",
+    "index_list",
+    "index_info",
+    "index_xinfo",
+    "database_list",
+    "collation_list",
+    "compile_options",
+    "function_list",
+    "module_list",
+    "pragma_list",
+    "page_count",
+    "table_list",
+    "user_version",
+}
+SQL_MUTATION_KEYWORD_PATTERN = re.compile(
+    r"\b("
+    r"insert|update|delete|drop|alter|create|truncate|replace|merge|grant|revoke|"
+    r"attach|detach|vacuum|reindex|analyze|begin|commit|rollback|savepoint|set"
+    r")\b",
+    flags=re.IGNORECASE,
+)
+SQL_COMMENT_PATTERN = re.compile(r"(--[^\n]*|/\*.*?\*/)", flags=re.DOTALL)
+SQL_LITERAL_PATTERN = re.compile(r"'(?:''|[^'])*'|\"(?:\"\"|[^\"])*\"")
 
 
 POSTGRES_ENGINES = {"postgres", "postgresql"}
@@ -152,6 +178,9 @@ class WebScraperParameters(BaseModel):
         normalized = value.strip()
         if not normalized:
             raise ValueError("url must not be empty")
+        parsed = urlparse(normalized)
+        if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+            raise ValueError("url must be an absolute http(s) URL")
         return normalized
 
 
@@ -170,6 +199,9 @@ class ApiFetcherParameters(BaseModel):
         normalized = value.strip()
         if not normalized:
             raise ValueError("url must not be empty")
+        parsed = urlparse(normalized)
+        if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+            raise ValueError("url must be an absolute http(s) URL")
         return normalized
 
     @field_validator("request_urls", mode="before")
@@ -177,7 +209,12 @@ class ApiFetcherParameters(BaseModel):
     def validate_request_urls(cls, value: Any) -> list[str]:
         if value in (None, "", []):
             return []
-        return _parse_string_list(value, "request_urls")
+        urls = _parse_string_list(value, "request_urls")
+        for item in urls:
+            parsed = urlparse(item)
+            if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+                raise ValueError("request_urls must contain only absolute http(s) URLs")
+        return urls
 
     @field_validator("headers", mode="before")
     @classmethod
@@ -471,7 +508,7 @@ async def _concurrent_fetch_api_documents(parameters: ApiFetcherParameters, targ
         return await asyncio.gather(*tasks)
 
 
-def _build_database_url(payload: dict[str, Any]) -> tuple[str, dict[str, Any]]:
+def _build_database_url(payload: dict[str, Any]) -> tuple[str | URL, dict[str, Any]]:
     engine = _normalize_database_engine(payload.get("engine"), label="engine")
     options = payload.get("options") if isinstance(payload.get("options"), dict) else {}
     if engine == "sqlite":
@@ -502,7 +539,7 @@ def _build_database_url(payload: dict[str, Any]) -> tuple[str, dict[str, Any]]:
             port=int(port),
             database=database_name,
             query=query,
-        ).render_as_string(hide_password=False),
+        ),
         {"connect_timeout": coerce_int(payload.get("connect_timeout_s"), 5)},
     )
 
@@ -513,9 +550,34 @@ def _sanitize_query_text(query_text: str) -> str:
         raise ValueError("query_text must not be empty")
     if ";" in normalized:
         raise ValueError("database queries must contain exactly one read-only statement")
-    prefix = normalized.split(None, 1)[0].lower() if normalized.split(None, 1) else ""
+    stripped = SQL_LITERAL_PATTERN.sub(" ", normalized)
+    stripped = SQL_COMMENT_PATTERN.sub(" ", stripped)
+    simplified = " ".join(stripped.split())
+    if not simplified:
+        raise ValueError("query_text must not be empty")
+
+    prefix = simplified.split(None, 1)[0].lower() if simplified.split(None, 1) else ""
     if prefix not in READ_ONLY_QUERY_PREFIXES:
         raise ValueError("database queries are restricted to read-only statements")
+
+    if SQL_MUTATION_KEYWORD_PATTERN.search(simplified):
+        raise ValueError("database queries must not contain mutating SQL keywords")
+
+    if prefix == "explain":
+        explain_body = simplified[len("explain"):].strip().lower()
+        if explain_body.startswith("query plan "):
+            explain_body = explain_body[len("query plan "):].strip()
+        if not (explain_body.startswith("select ") or explain_body.startswith("with ")):
+            raise ValueError("EXPLAIN statements are restricted to SELECT/WITH queries")
+
+    if prefix == "pragma":
+        pragma_body = simplified[len("pragma"):].strip().lower()
+        pragma_name = pragma_body.split(None, 1)[0].strip("();")
+        if "=" in pragma_body:
+            raise ValueError("PRAGMA statements with assignments are not allowed")
+        if pragma_name not in READ_ONLY_PRAGMA_NAMES:
+            raise ValueError(f"PRAGMA '{pragma_name}' is not allowed in read-only mode")
+
     return normalized
 
 
@@ -725,7 +787,7 @@ def _database_query_executor(parameters: dict[str, Any], inputs: dict[str, Any])
         raise ValueError("DATABASE_QUERY requires a database connection input")
 
     query_text = _sanitize_query_text(coerce_text(parameters.get("query_text")))
-    row_limit = max(1, coerce_int(parameters.get("row_limit"), 250))
+    row_limit = min(5000, max(1, coerce_int(parameters.get("row_limit"), 250)))
     database_url, connect_args = _build_database_url(connection_input)
     engine = create_engine(database_url, future=True, pool_pre_ping=True, connect_args=connect_args)
 

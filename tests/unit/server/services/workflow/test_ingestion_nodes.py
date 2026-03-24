@@ -189,6 +189,75 @@ def test_database_query_rejects_non_read_only_statements(tmp_path: Path) -> None
         raise AssertionError('Expected read-only validation failure for DELETE statement')
 
 
+def test_database_query_rejects_mutating_cte_statement(tmp_path: Path) -> None:
+    class CteNotesBase(DeclarativeBase):
+        pass
+
+    class CteNote(CteNotesBase):
+        __tablename__ = 'notes'
+        id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+        title: Mapped[str] = mapped_column(String, nullable=False)
+
+    database_path = tmp_path / 'cte.sqlite'
+    engine = create_engine(f"sqlite:///{database_path}")
+    CteNotesBase.metadata.create_all(engine)
+    engine.dispose()
+
+    connection_payload = node_registry.execute(
+        'DATABASE_CONNECTION',
+        1,
+        {'engine': 'sqlite', 'file_path': str(database_path), 'connect_timeout_s': 5},
+        {},
+    )
+
+    with_statement = 'WITH moved AS (DELETE FROM notes RETURNING id) SELECT * FROM moved'
+    try:
+        node_registry.execute(
+            'DATABASE_QUERY',
+            1,
+            {'query_text': with_statement, 'row_limit': 10},
+            {'connection': connection_payload['connection']},
+        )
+    except ValueError as exc:
+        assert 'mutating' in str(exc).lower()
+    else:
+        raise AssertionError('Expected read-only validation failure for mutating CTE statement')
+
+
+def test_database_query_rejects_pragma_assignment(tmp_path: Path) -> None:
+    class PragmaBase(DeclarativeBase):
+        pass
+
+    class PragmaNote(PragmaBase):
+        __tablename__ = 'notes'
+        id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+        title: Mapped[str] = mapped_column(String, nullable=False)
+
+    database_path = tmp_path / 'pragma.sqlite'
+    engine = create_engine(f"sqlite:///{database_path}")
+    PragmaBase.metadata.create_all(engine)
+    engine.dispose()
+
+    connection_payload = node_registry.execute(
+        'DATABASE_CONNECTION',
+        1,
+        {'engine': 'sqlite', 'file_path': str(database_path), 'connect_timeout_s': 5},
+        {},
+    )
+
+    try:
+        node_registry.execute(
+            'DATABASE_QUERY',
+            1,
+            {'query_text': 'PRAGMA journal_mode = WAL', 'row_limit': 10},
+            {'connection': connection_payload['connection']},
+        )
+    except ValueError as exc:
+        assert 'assignment' in str(exc).lower() or 'not allowed' in str(exc).lower()
+    else:
+        raise AssertionError('Expected read-only validation failure for PRAGMA assignment')
+
+
 def test_sql_file_database_node_roundtrip(tmp_path: Path) -> None:
     class ItemsBase(DeclarativeBase):
         pass

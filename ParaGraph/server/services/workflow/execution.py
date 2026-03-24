@@ -5,6 +5,7 @@ import json
 from datetime import datetime, timezone
 from typing import Any
 
+from ParaGraph.server.common.security import redact_sensitive_payload
 from ParaGraph.server.entities.execution import CompiledExecutionPlan, ExecutionRunState, ExecutionStepState
 from ParaGraph.server.repositories.workflow import execution_run_repository
 from ParaGraph.server.services.jobs import job_manager
@@ -79,6 +80,7 @@ class ExecutionService:
 
                 output_state = {"inputs": resolved_inputs, "controllers": resolved_controllers, "ports": port_outputs}
                 outputs_by_step[step_id] = output_state
+                output_state_public = self._redact_output_state(output_state)
 
                 result = self._extract_terminal_output(step.node_type, resolved_inputs, port_outputs)
                 if result is not None:
@@ -91,7 +93,7 @@ class ExecutionService:
                     step_id,
                     status="completed",
                     completed_at=datetime.now(timezone.utc),
-                    output=output_state,
+                    output=output_state_public,
                 )
                 execution_run_repository.update_run(job_id, progress=progress)
                 job_manager.update_progress(job_id, progress)
@@ -99,7 +101,7 @@ class ExecutionService:
                     run_id=job_id,
                     event_type="execution.step.completed",
                     step_id=step_id,
-                    payload={"output": output_state, "progress": progress},
+                    payload={"output": output_state_public, "progress": progress},
                 )
             except Exception as exc:  # noqa: BLE001
                 message = str(exc)
@@ -214,6 +216,12 @@ class ExecutionService:
             payload.update(updates)
             updated_steps.append(ExecutionStepState.model_validate(payload))
         execution_run_repository.set_steps(run_id, updated_steps)
+
+    def _redact_output_state(self, output_state: dict[str, Any]) -> dict[str, Any]:
+        redacted = redact_sensitive_payload(output_state)
+        if isinstance(redacted, dict):
+            return redacted
+        return {"output": redacted}
 
 
 execution_service = ExecutionService()

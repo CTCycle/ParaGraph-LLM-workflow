@@ -31,6 +31,28 @@ def test_load_text_rejects_empty_storage_path() -> None:
         node_registry.execute('LOAD_TEXT', 1, {'storage_path': ''}, {})
 
 
+def test_save_text_rejects_relative_path_traversal() -> None:
+    with pytest.raises(ValueError, match='must resolve inside'):
+        node_registry.execute(
+            'SAVE_TEXT',
+            1,
+            {'storage_path': '../../outside.txt'},
+            {'text': 'payload'},
+        )
+
+
+def test_save_text_rejects_absolute_paths_in_cloud_mode(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv('PARAGRAPH_DEPLOYMENT_MODE', 'cloud')
+    destination = tmp_path / 'exports' / 'saved.txt'
+    with pytest.raises(ValueError, match='must resolve inside'):
+        node_registry.execute(
+            'SAVE_TEXT',
+            1,
+            {'storage_path': str(destination)},
+            {'text': 'cloud payload'},
+        )
+
+
 def test_vector_db_writer_uses_selected_storage_directory(monkeypatch, tmp_path: Path) -> None:
     index_name = 'custom-store'
     storage_directory = tmp_path / 'vector-root'

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from datetime import datetime, timezone
 from typing import Any
 
@@ -13,6 +14,8 @@ from ParaGraph.server.repositories.schemas import AccessKey, ConfigurationProfil
 
 ###############################################################################
 class ConfigurationRepository:
+    _profile_name_pattern = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._ -]{0,119}$")
+
     def _normalize_session_name(self, session_name: str | None) -> str:
         normalized = (session_name or '').strip()
         return normalized or DEFAULT_SESSION_NAME
@@ -21,6 +24,8 @@ class ConfigurationRepository:
         normalized = profile_name.strip()
         if not normalized:
             raise ValueError('Profile name is required')
+        if not self._profile_name_pattern.fullmatch(normalized):
+            raise ValueError('Profile name may include only letters, numbers, spaces, dot, underscore, and dash')
         return normalized
 
     def _format_timestamp(self, value: datetime | None) -> str:

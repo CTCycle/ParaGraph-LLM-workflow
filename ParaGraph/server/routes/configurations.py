@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Path, Query
 
 from ParaGraph.server.entities.configuration import (
     AppConfigurationPayload,
@@ -13,11 +13,13 @@ from ParaGraph.server.services.configuration import configuration_service
 
 
 router = APIRouter(prefix='/configurations', tags=['configurations'])
+SESSION_NAME_PATTERN = r"^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$"
+PROFILE_NAME_PATTERN = r"^[A-Za-z0-9][A-Za-z0-9._ -]{0,119}$"
 
 
 @router.get('', response_model=AppConfigurationPayload)
 def load_configurations(
-    session_name: str = Query(default=DEFAULT_SESSION_NAME, min_length=1, max_length=120),
+    session_name: str = Query(default=DEFAULT_SESSION_NAME, min_length=1, max_length=120, pattern=SESSION_NAME_PATTERN),
 ) -> AppConfigurationPayload:
     return configuration_service.load_configuration(session_name=session_name)
 
@@ -29,15 +31,15 @@ def save_configurations(payload: AppConfigurationPayload) -> AppConfigurationPay
 
 @router.get('/profiles', response_model=ConfigurationProfileListResponse)
 def list_configuration_profiles(
-    session_name: str = Query(default=DEFAULT_SESSION_NAME, min_length=1, max_length=120),
+    session_name: str = Query(default=DEFAULT_SESSION_NAME, min_length=1, max_length=120, pattern=SESSION_NAME_PATTERN),
 ) -> ConfigurationProfileListResponse:
     return configuration_service.list_configuration_profiles(session_name=session_name)
 
 
 @router.get('/profiles/{profile_name}', response_model=AppConfigurationPayload)
 def load_configuration_profile(
-    profile_name: str,
-    session_name: str = Query(default=DEFAULT_SESSION_NAME, min_length=1, max_length=120),
+    profile_name: str = Path(..., min_length=1, max_length=120, pattern=PROFILE_NAME_PATTERN),
+    session_name: str = Query(default=DEFAULT_SESSION_NAME, min_length=1, max_length=120, pattern=SESSION_NAME_PATTERN),
 ) -> AppConfigurationPayload:
     try:
         return configuration_service.load_configuration_profile(session_name=session_name, profile_name=profile_name)
@@ -47,7 +49,10 @@ def load_configuration_profile(
 
 
 @router.put('/profiles/{profile_name}', response_model=AppConfigurationPayload)
-def save_configuration_profile(profile_name: str, payload: AppConfigurationPayload) -> AppConfigurationPayload:
+def save_configuration_profile(
+    payload: AppConfigurationPayload,
+    profile_name: str = Path(..., min_length=1, max_length=120, pattern=PROFILE_NAME_PATTERN),
+) -> AppConfigurationPayload:
     try:
         return configuration_service.save_configuration_profile(profile_name=profile_name, payload=payload)
     except ValueError as exc:
@@ -57,6 +62,6 @@ def save_configuration_profile(profile_name: str, payload: AppConfigurationPaylo
 @router.post('/ollama/ping', response_model=OllamaStatusResponse)
 def ping_ollama(
     payload: OllamaPingRequest,
-    session_name: str = Query(default=DEFAULT_SESSION_NAME, min_length=1, max_length=120),
+    session_name: str = Query(default=DEFAULT_SESSION_NAME, min_length=1, max_length=120, pattern=SESSION_NAME_PATTERN),
 ) -> OllamaStatusResponse:
     return configuration_service.ping_ollama(base_url=payload.base_url, session_name=session_name)

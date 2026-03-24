@@ -139,6 +139,16 @@ def test_nodes_upload_directory_rejects_parent_directory_segments(client: TestCl
     assert 'relative paths' in response.json()['detail'].lower()
 
 
+def test_nodes_upload_directory_rejects_absolute_paths(client: TestClient) -> None:
+    response = client.post(
+        '/nodes/uploads/directory',
+        files=[('files', ('/etc/passwd', b'invalid', 'text/plain'))],
+    )
+
+    assert response.status_code == 422
+    assert 'absolute paths' in response.json()['detail'].lower()
+
+
 
 def test_nodes_database_connection_check_returns_success_for_sqlite(client: TestClient, tmp_path: Path) -> None:
     class TestHealthBase(DeclarativeBase):

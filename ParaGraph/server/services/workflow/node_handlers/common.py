@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import json
-import re
 from typing import Any
+
+from bs4 import BeautifulSoup
 
 
 def coerce_text(value: Any) -> str:
@@ -61,10 +62,10 @@ def normalize_provider_name(provider: Any, default: str = "ollama") -> str:
 
 
 def strip_html(text: str) -> str:
-    without_scripts = re.sub(r"<script\b[^<]*(?:(?!</script>)<[^<]*)*</script>", " ", text, flags=re.IGNORECASE)
-    without_styles = re.sub(r"<style\b[^<]*(?:(?!</style>)<[^<]*)*</style>", " ", without_scripts, flags=re.IGNORECASE)
-    without_tags = re.sub(r"<[^>]+>", " ", without_styles)
-    return re.sub(r"\s+", " ", without_tags).strip()
+    soup = BeautifulSoup(text, "html.parser")
+    for tag in soup(["script", "style"]):
+        tag.decompose()
+    return " ".join(soup.get_text(" ").split())
 
 
 def validate_schema_definition(schema: Any, path: str = "$") -> None:

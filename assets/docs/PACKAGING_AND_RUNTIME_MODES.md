@@ -22,6 +22,7 @@ ParaGraph uses one active runtime file: `ParaGraph/settings/.env`.
 | `FASTAPI_HOST`, `FASTAPI_PORT` | Backend bind host/port. |
 | `UI_HOST`, `UI_PORT` | Frontend host/port for local preview. |
 | `VITE_API_BASE_URL` | Frontend API base path (default `/api`). |
+| `PARAGRAPH_DEPLOYMENT_MODE` | Deployment mode switch (`local` or `cloud`). Cloud mode disables public docs/openapi routes and enforces tighter filesystem guards for workflow artifacts. |
 | `RELOAD` | Enables Uvicorn reload in launcher flow when `true`. |
 | `OPTIONAL_DEPENDENCIES` | Controls optional dependency sync behavior in launcher/test flows. |
 | `DB_EMBEDDED` | `true` for SQLite, `false` for PostgreSQL settings. |
@@ -42,6 +43,12 @@ ParaGraph uses one active runtime file: `ParaGraph/settings/.env`.
    - `tests\run_tests.bat`
 
 This mode is fully local.
+
+### Cloud deployment note
+
+- Set `PARAGRAPH_DEPLOYMENT_MODE=cloud` for gateway-backed deployments.
+- In this mode, frontend API access is expected through the configured relative gateway path (`VITE_API_BASE_URL`, typically `/api`).
+- Backend docs/OpenAPI UI routes are disabled by default in cloud mode.
 
 ### Launcher behavior summary
 

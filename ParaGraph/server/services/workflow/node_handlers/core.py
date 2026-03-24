@@ -8,6 +8,7 @@ from typing import Any
 from pydantic import BaseModel, Field, ValidationError, field_validator
 
 from ParaGraph.server.common.constants import RESOURCES_PATH
+from ParaGraph.server.common.security import ensure_path_within_root, is_cloud_deployment
 from ParaGraph.server.entities.nodecatalog import ProviderModelDefinition
 from ParaGraph.server.services.configuration import configuration_service
 from ParaGraph.server.services.workflow.node_handlers.base import NodeHandler
@@ -100,10 +101,16 @@ def _resolve_storage_file_path(raw_path: Any) -> Path:
     if not storage_path:
         raise ValueError("storage_path is required. Select a local file path.")
     candidate = Path(storage_path).expanduser()
+    artifact_root = ARTIFACT_ROOT.resolve()
     if candidate.is_absolute():
-        return candidate.resolve()
+        resolved = candidate.resolve()
+        if is_cloud_deployment():
+            return ensure_path_within_root(resolved, artifact_root, label="storage_path")
+        return resolved
+
     # Keep legacy relative paths rooted in artifacts for existing workflows.
-    return (ARTIFACT_ROOT / candidate).resolve()
+    resolved = (ARTIFACT_ROOT / candidate).resolve()
+    return ensure_path_within_root(resolved, artifact_root, label="storage_path")
 
 
 def _prompt_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:

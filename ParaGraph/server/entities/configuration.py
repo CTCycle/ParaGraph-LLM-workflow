@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 
 DEFAULT_SESSION_NAME = "default"
+SESSION_NAME_PATTERN = r"^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$"
 
 
 ###############################################################################
@@ -51,7 +53,10 @@ class AppConfigurationPayload(BaseModel):
     @classmethod
     def normalize_session_name(cls, value: Any) -> str:
         text = str(value or "").strip()
-        return text or DEFAULT_SESSION_NAME
+        normalized = text or DEFAULT_SESSION_NAME
+        if not re.fullmatch(SESSION_NAME_PATTERN, normalized):
+            raise ValueError("session_name may include only letters, numbers, dot, underscore, and dash")
+        return normalized
 
 
 ###############################################################################
