@@ -30,6 +30,7 @@ NodeDataType = Literal[
 ModelVisibility = Literal["public", "private", "gated", "unknown"]
 ModelVisibilityFilter = Literal["all", "public", "private", "gated"]
 HuggingFaceSortBy = Literal["relevance", "downloads", "likes", "updated"]
+HuggingFaceDownloadJobStatus = Literal["pending", "running", "completed", "failed", "cancelled"]
 
 
 class NodePortDefinition(BaseModel):
@@ -163,6 +164,7 @@ class HuggingFaceModelDefinition(BaseModel):
     last_modified: str | None = None
     url: str
     downloaded: bool = False
+    size_bytes: int | None = None
 
 
 class HuggingFaceModelCatalogResponse(BaseModel):
@@ -186,3 +188,28 @@ class HuggingFaceModelDownloadResponse(BaseModel):
     message: str
     destination_path: str
     already_downloaded: bool = False
+    job_id: str | None = None
+    status: HuggingFaceDownloadJobStatus = "completed"
+    progress: float = 100.0
+    downloaded_bytes: int = 0
+    total_bytes: int | None = None
+    poll_interval: float = 1.0
+
+
+class HuggingFaceModelDownloadStatusResponse(BaseModel):
+    job_id: str
+    repo_id: str
+    destination_path: str
+    status: HuggingFaceDownloadJobStatus
+    progress: float
+    message: str | None = None
+    downloaded_bytes: int = 0
+    total_bytes: int | None = None
+    error: str | None = None
+
+
+class HuggingFaceModelDownloadCancelResponse(BaseModel):
+    ok: bool
+    job_id: str
+    repo_id: str
+    message: str

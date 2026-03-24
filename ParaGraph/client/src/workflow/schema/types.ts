@@ -314,6 +314,7 @@ export interface HuggingFaceModelDefinition {
     last_modified: string | null
     url: string
     downloaded: boolean
+    size_bytes: number | null
 }
 
 export interface HuggingFaceModelCatalogResponse {
@@ -327,14 +328,40 @@ export interface HuggingFaceModelCatalogResponse {
     available_libraries: string[]
 }
 
+export type HuggingFaceDownloadJobStatus = 'pending' | 'running' | 'completed' | 'failed' | 'cancelled'
+
 export interface HuggingFaceModelDownloadResponse {
     ok: boolean
     repo_id: string
     message: string
     destination_path: string
     already_downloaded: boolean
+    job_id: string | null
+    status: HuggingFaceDownloadJobStatus
+    progress: number
+    downloaded_bytes: number
+    total_bytes: number | null
+    poll_interval: number
 }
 
+export interface HuggingFaceModelDownloadStatusResponse {
+    job_id: string
+    repo_id: string
+    destination_path: string
+    status: HuggingFaceDownloadJobStatus
+    progress: number
+    message: string | null
+    downloaded_bytes: number
+    total_bytes: number | null
+    error: string | null
+}
+
+export interface HuggingFaceModelDownloadCancelResponse {
+    ok: boolean
+    job_id: string
+    repo_id: string
+    message: string
+}
 export interface DocumentRecord {
     id: string
     text: string
@@ -429,3 +456,5 @@ export interface DatabaseConnectionCheckResponse {
     ok: boolean
     message: string
 }
+
+

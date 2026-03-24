@@ -5,8 +5,10 @@ from fastapi import APIRouter, HTTPException, Query
 from ParaGraph.server.entities.configuration import DEFAULT_SESSION_NAME
 from ParaGraph.server.entities.nodecatalog import (
     HuggingFaceModelCatalogResponse,
+    HuggingFaceModelDownloadCancelResponse,
     HuggingFaceModelDownloadRequest,
     HuggingFaceModelDownloadResponse,
+    HuggingFaceModelDownloadStatusResponse,
     HuggingFaceSortBy,
     ModelVisibilityFilter,
     OllamaLibraryCatalogResponse,
@@ -98,5 +100,21 @@ def download_huggingface_model(
 ) -> HuggingFaceModelDownloadResponse:
     try:
         return provider_service.download_huggingface_model(repo_id=payload.repo_id, session_name=session_name)
+    except ProviderApiError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
+
+
+@router.get("/huggingface/download/{job_id}", response_model=HuggingFaceModelDownloadStatusResponse)
+def get_huggingface_download_status(job_id: str) -> HuggingFaceModelDownloadStatusResponse:
+    try:
+        return provider_service.get_huggingface_download_status(job_id=job_id)
+    except ProviderApiError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
+
+
+@router.delete("/huggingface/download/{job_id}", response_model=HuggingFaceModelDownloadCancelResponse)
+def cancel_huggingface_download(job_id: str) -> HuggingFaceModelDownloadCancelResponse:
+    try:
+        return provider_service.cancel_huggingface_download(job_id=job_id)
     except ProviderApiError as exc:
         raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc

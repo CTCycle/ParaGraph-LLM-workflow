@@ -77,8 +77,11 @@ The current implementation uses a React Flow editor, JSON node manifests, and a 
 ### 2.5 Provider Discovery APIs
 - GET /providers/ollama/library: returns model rows discovered from https://ollama.com/library, enriched with local pulled status from the configured Ollama runtime.
 - POST /providers/ollama/pull: pulls a selected Ollama model and returns typed pull status.
-- GET /providers/huggingface/models: returns paginated Hub model rows (repo id, author, task, library, likes, downloads, visibility, url, downloaded) with API-backed filtering and sorting.
-- POST /providers/huggingface/download: downloads a selected Hugging Face repository into `ParaGraph/resources/models/huggingface/<namespace--model>/` and makes it available in model-provider dropdowns.
+- GET /providers/huggingface/models: returns paginated Hub model rows (repo id, author, task, library, likes, downloads, visibility, url, size_bytes, downloaded) with API-backed filtering and sorting. Downloaded state is derived from validated local metadata, not folder existence alone.
+- POST /providers/huggingface/download: starts a background download job for the selected Hugging Face repository and returns a job id plus initial byte totals/progress.
+- GET /providers/huggingface/download/{job_id}: polls the running Hugging Face download job (status, byte-based progress, bytes, message, error) with live in-file updates during large file transfers.
+- DELETE /providers/huggingface/download/{job_id}: requests cooperative cancellation for a running Hugging Face download job.
+
 ### 2.6 Relational persistence model
 - `user_sessions`: session identity plus Ollama defaults (`base_url`, chat model, embedding model).
 - `nodes`: imported node manifest snapshots keyed by session + node id/version.
@@ -151,7 +154,8 @@ The current implementation uses a React Flow editor, JSON node manifests, and a 
 - Two-column explorer layout: Ollama catalog on the left, Hugging Face Hub on the right.
 - Each column includes a compact toolbar with search and filters, plus an explicit Update action.
 - Ollama rows expose pulled/unpulled state and in-row pull actions for unpulled models.
-- Hugging Face rows support API-backed search/filter/sort, incremental loading, refresh preserving active query controls, compact warning/error states, and direct in-row download to local model storage.
+- Hugging Face rows support API-backed search/filter/sort, incremental loading, refresh preserving active query controls, compact warning/error states, per-model size display, and in-row cancellable download jobs with progress bars.
+
 ## 5. Phase 1 RAG Runtime
 - New ingestion nodes emit normalized DOCUMENT_LIST payloads from local files, folder references (`LOAD_DOCUMENTS` deferred file-path collection), HTTP sources, and read-only database queries.
 - `SQL_DATABASE` and `SQL_FILE_DATABASE` emit typed read-only connection controller payloads consumed by query-style SQL nodes (for example `DATABASE_QUERY`).
@@ -168,3 +172,6 @@ The current implementation uses a React Flow editor, JSON node manifests, and a 
 - The legacy `/workflow/*` compatibility API is no longer part of the active application surface.
 - Existing persisted workflow documents are migrated on read into schema `2` shapes.
 - The executable manifest set now includes a Phase 1 typed RAG slice for ingestion, chunking, embedding, vector storage, retrieval, and context injection.
+
+
+

@@ -233,6 +233,20 @@
 .models-row-actions-hf {
     flex-direction: column;
     align-items: flex-end;
+    gap: 6px;
+}
+
+.models-row-pills-hf {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 6px;
+}
+
+.models-row-button-line {
+    display: flex;
+    align-items: center;
+    gap: 6px;
 }
 
 .models-pill {
@@ -282,6 +296,56 @@
     white-space: nowrap;
 }
 
+.models-icon-button-compact {
+    gap: 5px;
+    padding: 5px 8px;
+    font-size: 0.8rem;
+}
+
+.models-icon-button-stop {
+    border-color: rgba(185, 90, 90, 0.84);
+    background: rgba(76, 20, 24, 0.9);
+    color: #ffd4d4;
+}
+
+.models-icon-button-stop:hover {
+    background: rgba(99, 28, 35, 0.95);
+}
+
+.models-download-progress {
+    margin-top: 4px;
+    display: grid;
+    gap: 4px;
+}
+
+.models-download-progress-track {
+    width: 100%;
+    height: 6px;
+    border-radius: 999px;
+    background: rgba(70, 88, 114, 0.66);
+    overflow: hidden;
+}
+
+.models-download-progress-fill {
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, rgba(71, 145, 233, 0.9), rgba(57, 197, 145, 0.9));
+    transition: width 180ms ease;
+}
+
+.models-download-progress-meta {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    color: #90adcf;
+    font-size: 0.72rem;
+    line-height: 1.2;
+}
+
+.models-download-progress-meta span:last-child {
+    white-space: nowrap;
+}
+
 .models-footer {
     margin-top: 10px;
     display: flex;
@@ -322,4 +386,19 @@
     .models-row-actions-hf {
         align-items: flex-start;
     }
+    .models-row-pills-hf {
+        justify-content: flex-start;
+    }
+
+    .models-row-button-line {
+        flex-wrap: wrap;
+    }
+
+    .models-download-progress-meta {
+        flex-direction: column;
+        align-items: flex-start;
+    }
 }
+
+
+
