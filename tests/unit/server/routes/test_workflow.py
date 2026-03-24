@@ -4,7 +4,7 @@ from collections.abc import Callable
 
 from fastapi.testclient import TestClient
 
-from ParaGraph.server.entities.nodecatalog import ProviderModelDefinition
+from ParaGraph.server.domain.nodecatalog import ProviderModelDefinition
 from ParaGraph.server.services.workflow import nodes as node_module
 
 

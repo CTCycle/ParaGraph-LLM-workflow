@@ -1,116 +1,119 @@
-# ParaGraph Easy Retrieval
+# ParaGraph LLM Workflow
 
-ParaGraph is a local-first workflow builder for LLM orchestration.
-It ships with a FastAPI backend and a React + TypeScript frontend with a Canvas2D graph editor, typed workflow contracts, compile/execute services, and websocket runtime events.
+ParaGraph is a local-first workflow builder for deterministic LLM orchestration.
+It includes:
+- FastAPI backend (`ParaGraph/server`)
+- React + TypeScript frontend (`ParaGraph/client`)
+- Manifest-driven workflow compilation/execution
+- Runtime polling and websocket event streaming
 
-## 1. Project Structure
+## Project Layout
 
 ```text
 ParaGraph/
-- client/                   # React + TypeScript + Vite frontend
-- server/                   # FastAPI backend (routes/entities/services/repositories)
-- scripts/                  # Utility scripts (database initialization)
-- settings/                 # .env profiles + configurations.json
-- resources/                # logs, checkpoints, database, runtime data
-- start_on_windows.bat      # Windows launcher and runtime bootstrap
+- client/                     # React + TypeScript + Vite
+- server/                     # FastAPI backend (api/domain/services/repositories)
+- resources/                  # local runtime state (nodes/workflows/models/artifacts/logs)
+- settings/                   # .env and runtime settings
+- start_on_windows.bat        # local launcher
 
 tests/
 - conftest.py
-- run_tests.bat
-- unit/server/...           # Backend unit/API tests
+- run_tests.bat               # orchestration runner
+- unit/server/...             # backend unit/API/service coverage
+- e2e/server/...              # backend API lifecycle E2E coverage
 ```
 
-## 2. Active API Surface
+## Active API Surface
 
-Compatibility workflow API:
-- `/workflow/catalog`
-- `/workflow/validate`
-- `/workflow/execute`
-- `/workflow/jobs/{job_id}`
-
-Platform APIs:
+### Workflows
 - `/workflows`
 - `/workflows/{workflow_id}`
 - `/workflows/{workflow_id}/versions`
+
+### Executions
 - `/executions/compile`
 - `/executions`
 - `/executions/{run_id}`
 - `/executions/{run_id}/events`
+- websocket `/executions/ws/runs/{run_id}`
+
+### Nodes and Providers
 - `/nodes/catalog`
-- `/providers/catalog`
-- websocket: `/workflow/ws/runs/{run_id}`
+- `/nodes/import`
+- `/nodes/uploads/directory`
+- `/nodes/check-database-connection`
+- `/providers/models`
+- `/providers/ollama/library`
+- `/providers/ollama/pull`
+- `/providers/huggingface/models`
+- `/providers/huggingface/download`
+- `/providers/huggingface/download/{job_id}`
 
-## 3. Architecture Highlights
+### Configurations
+- `/configurations`
+- `/configurations/profiles`
+- `/configurations/profiles/{profile_name}`
+- `/configurations/ollama/ping`
 
-- Backend contracts live in `ParaGraph/server/entities`.
-- Compiler/execution/provider/node-registry services are separated under `ParaGraph/server/services/workflow`.
-- Runtime events are typed and streamed via websocket through `services/runtime/events.py`.
-- Frontend graph rendering is Canvas2D-based (`client/src/graph/canvas/GraphCanvas.tsx`).
-- Frontend state is separated into workflow/runtime/ui/catalog stores (`client/src/app/stores`).
-- Workflow persistence is schema-versioned in localStorage (`paragraph.workflow.document.v1`) with legacy migration support.
+## Testing
 
-## 4. Installation
-
-### 4.1 Windows (recommended)
-
-1. Ensure `ParaGraph/settings/.env` exists.
-2. Launch the local web app:
+### Backend (pytest)
 
 ```cmd
-ParaGraph\start_on_windows.bat
+.\runtimes\.venv\Scripts\python.exe -m pytest tests/unit tests/e2e -v
 ```
 
-Supported local delivery modes:
-- local web app started by `ParaGraph\start_on_windows.bat`
-- packaged desktop app distributed separately as a Tauri build
+Coverage includes:
+- compiler and execution edge cases (duplicate links, multiplicity, missing ports/controllers)
+- run retrieval and route error mapping behavior
+- provider API error-to-HTTP mapping
+- configuration profile and ping flows
+- workflow version list + not-found behavior
+- execution event sequencing and redaction
+- end-to-end compile -> start -> poll -> outputs -> history -> websocket replay
 
-Runtime layout used by launcher/packaging:
-- `runtimes/python/python.exe`
-- `runtimes/uv/uv.exe`
-- `runtimes/nodejs/node.exe`
-- `runtimes/.venv`
-- `runtimes/uv.lock`
+### Frontend unit (Vitest + RTL)
 
-### 4.2 macOS / Linux (manual)
-
-Prerequisites:
-- Python 3.14+
-- Node.js 22+
-- `uv`
-
-```bash
-uv sync
-cd ParaGraph/client && npm install && npm run build
-cd ../..
-uv run python -m uvicorn ParaGraph.server.app:app --host 127.0.0.1 --port 5002
-cd ParaGraph/client && npm run preview -- --host 127.0.0.1 --port 8002
+```cmd
+cd ParaGraph\client
+npm run test:unit
 ```
 
-## 5. Testing
+Coverage includes:
+- `src/app/services/api.ts`
+- `src/app/services/workflowApi.ts`
+- `useNodeCatalog` hook
+- Nodes import modal validation/import interactions
+- Configurations load/save modal interactions
+- Models download state transitions (mock timers + mocked fetch/service calls)
 
-Run backend tests:
+### Frontend browser E2E (Playwright)
+
+```cmd
+cd ParaGraph\client
+npm run test:e2e
+```
+
+Characteristics:
+- local-only deterministic mock-backend mode (route stubs)
+- deterministic websocket stub for execution events
+- no cloud providers or live external network dependencies
+- covers Workflow import/run/output rendering, Nodes import modal flows, and Configurations/Models smoke flows
+
+### Full orchestration runner
 
 ```cmd
 tests\run_tests.bat
 ```
 
-Or:
+`tests/run_tests.bat` runs available suites in order:
+- backend pytest
+- frontend unit (`test:unit` if present)
+- frontend e2e (`test:e2e` if present)
 
-```cmd
-.\runtimes\.venv\Scripts\python.exe -m pytest tests/unit -v
-```
+## Runtime Notes
 
-## 6. Configuration
-
-Main runtime config: `ParaGraph/settings/.env`
-
-Important variables:
-- `FASTAPI_HOST`, `FASTAPI_PORT`
-- `UI_HOST`, `UI_PORT`
-- `VITE_API_BASE_URL`
-- `DB_EMBEDDED`, `DB_*`
-- `OLLAMA_BASE_URL`
-- `OPENAI_API_KEY`, `OPENAI_BASE_URL`
-- `GEMINI_API_KEY`, `GEMINI_BASE_URL`
-- `ANTHROPIC_API_KEY`
-- `LLM_TIMEOUT_S`
+- Keep `VITE_API_BASE_URL` relative (default: `/api`).
+- Backend and frontend are intended to run fully local in development.
+- Runtime artifacts are stored under `ParaGraph/resources`.

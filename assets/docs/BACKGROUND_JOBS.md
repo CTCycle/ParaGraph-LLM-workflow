@@ -5,7 +5,7 @@ ParaGraph uses a centralized in-process background job system for long-running w
 ## Core Component
 
 - Singleton: `ParaGraph.server.services.jobs.job_manager`
-- State model: `ParaGraph.server.entities.jobs.JobState`
+- State model: `ParaGraph.server.domain.jobs.JobState`
 - Current execution mode: daemon threads (no process-based runner in current codebase)
 
 ## Job Lifecycle

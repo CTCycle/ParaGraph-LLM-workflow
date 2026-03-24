@@ -5,7 +5,7 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from ParaGraph.server.entities.settings import DatabaseSettings
+from ParaGraph.server.domain.settings import DatabaseSettings
 from ParaGraph.server.repositories.database import sqlite as sqlite_module
 
 

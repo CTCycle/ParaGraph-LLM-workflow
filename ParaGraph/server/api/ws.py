@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import asyncio
+import queue
 import re
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from starlette.websockets import WebSocketState
 
 from ParaGraph.server.services.runtime.events import execution_event_service
 
@@ -18,7 +20,7 @@ async def execution_run_events(websocket: WebSocket, run_id: str, replay: bool =
         await websocket.close(code=1008, reason="Invalid run identifier")
         return
     await websocket.accept()
-    queue = execution_event_service.subscribe(run_id)
+    subscription_queue = execution_event_service.subscribe(run_id)
 
     try:
         if replay:
@@ -27,9 +29,17 @@ async def execution_run_events(websocket: WebSocket, run_id: str, replay: bool =
                 await websocket.send_json(event.model_dump(mode="json"))
 
         while True:
-            event = await asyncio.to_thread(queue.get)
+            if (
+                websocket.client_state == WebSocketState.DISCONNECTED
+                or websocket.application_state == WebSocketState.DISCONNECTED
+            ):
+                break
+            try:
+                event = await asyncio.to_thread(subscription_queue.get, True, 0.25)
+            except queue.Empty:
+                continue
             await websocket.send_json(event.model_dump(mode="json"))
     except WebSocketDisconnect:
         return
     finally:
-        execution_event_service.unsubscribe(run_id, queue)
+        execution_event_service.unsubscribe(run_id, subscription_queue)

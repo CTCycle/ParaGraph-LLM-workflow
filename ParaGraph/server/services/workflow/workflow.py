@@ -34,7 +34,11 @@ class WorkflowService:
             visual_graph=request.visual_graph,
         )
 
-    def list_versions(self, workflow_id: str) -> WorkflowVersionListResponse:
+    def list_versions(self, workflow_id: str) -> WorkflowVersionListResponse | None:
+        latest = workflow_repository.get_latest_workflow(workflow_id)
+        if latest is None:
+            return None
+
         versions = workflow_repository.list_versions(workflow_id)
         return WorkflowVersionListResponse(workflow_id=workflow_id, versions=versions)
 

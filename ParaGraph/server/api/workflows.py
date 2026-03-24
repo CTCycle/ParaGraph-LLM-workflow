@@ -43,4 +43,7 @@ def update_workflow(workflow_id: str, request: UpdateWorkflowRequest) -> Workflo
 
 @router.get("/{workflow_id}/versions", response_model=WorkflowVersionListResponse)
 def list_workflow_versions(workflow_id: str) -> WorkflowVersionListResponse:
-    return workflow_service.list_versions(workflow_id)
+    payload = workflow_service.list_versions(workflow_id)
+    if payload is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Workflow not found: {workflow_id}")
+    return payload

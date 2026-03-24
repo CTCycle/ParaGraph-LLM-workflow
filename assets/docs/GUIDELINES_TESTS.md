@@ -1,100 +1,126 @@
 # HOW TO TEST
 
-This document describes the current automated test strategy for the ParaGraph repository.
+This document describes the deterministic automated test architecture for ParaGraph.
 
-## Overview
+## Test Matrix
 
-ParaGraph tests are Python `pytest` tests focused on deterministic backend coverage.
-The active suite covers:
-- FastAPI app wiring.
-- Node manifest APIs.
-- Workflow compile and execution APIs.
-- Workflow persistence/versioning.
-- Background job manager lifecycle behavior.
+ParaGraph test coverage is split into four suites:
+- Backend unit/API/service tests (`pytest`)
+- Backend end-to-end API lifecycle tests (`pytest`)
+- Frontend unit/component/service tests (`Vitest + React Testing Library`)
+- Frontend browser E2E flows (`Playwright` with mocked backend + websocket stubs)
 
-The suite avoids live LLM, network, browser, and model-runtime dependencies. External calls should be faked or monkeypatched.
+All suites are designed for local deterministic execution:
+- no cloud providers
+- no model downloads/pulls during tests
+- no live external network dependencies
 
-## Current Test Suite Structure
+## Directory Layout
 
 ```text
 tests/
 |-- conftest.py
 |-- run_tests.bat
-`-- unit/
+|-- unit/
+|   `-- server/
+|       |-- repositories/
+|       |-- routes/
+|       `-- services/
+`-- e2e/
     `-- server/
-        |-- test_app.py
-        |-- routes/
-        |   |-- test_platform.py
-        |   `-- test_workflow.py
-        `-- services/
-            |-- test_jobs.py
-            `-- workflow/
-                `-- test_executor.py
+
+ParaGraph/client/
+|-- vitest.config.ts
+|-- playwright.config.ts
+|-- src/**/*.test.ts[x]
+`-- tests/e2e/*.spec.ts
 ```
 
-## Quick Start (Windows)
+## Commands
 
-Preferred runner:
+### Backend
+
+```cmd
+.\runtimes\.venv\Scripts\python.exe -m pytest tests/unit tests/e2e -v
+```
+
+### Frontend unit
+
+```cmd
+cd ParaGraph\client
+npm run test:unit
+```
+
+### Frontend browser E2E
+
+```cmd
+cd ParaGraph\client
+npm run test:e2e
+```
+
+### Combined runner
 
 ```cmd
 tests\run_tests.bat
 ```
 
-Direct invocation:
+The runner auto-detects frontend scripts:
+- `test:unit`
+- `test:e2e`
 
-```cmd
-.\runtimes\.venv\Scripts\python.exe -m pytest tests/unit -v
-```
+and executes all available phases cleanly.
 
-Run a smaller slice:
+## Shared Backend Fixtures
 
-```cmd
-tests\run_tests.bat tests/unit/server/routes/test_platform.py
-```
+`tests/conftest.py` provides deterministic isolation primitives:
+- `isolated_job_manager` (autouse): clears job/thread state per test.
+- `isolated_runtime_state` (autouse): isolates workflow repository paths, execution run state, event bus history/subscribers, and provider caches.
+- `client`: FastAPI `TestClient`.
+- `job_state_factory`: registers synthetic running job state.
+- `wait_for_job`: polling helper for background job completion.
 
-## Fixture Rules
+## Backend Coverage Expectations
 
-`tests/conftest.py` provides shared primitives:
-- `isolated_job_manager`: clears global job/thread state before and after every test.
-- `client`: FastAPI `TestClient` bound to `ParaGraph.server.app.app`.
-- `job_state_factory`: registers a synthetic running job for direct executor tests.
-- `wait_for_job`: polls background jobs until they reach a terminal state.
+Primary route/service areas under coverage:
+- `/executions/compile`, `/executions`, `/executions/{run_id}`, `/executions/{run_id}/events`
+- websocket `/executions/ws/runs/{run_id}` replay and live behavior
+- `/configurations`, `/configurations/profiles`, `/configurations/ollama/ping`
+- `/providers/*` error-to-HTTP mapping
+- `/workflows/{workflow_id}/versions` list + not-found behavior
+- compiler/executor edge cases and output redaction/event sequencing
 
-When adding tests:
-- Reuse these fixtures instead of duplicating polling/cleanup logic.
-- Keep job-manager interactions isolated to avoid flaky global state leaks.
-- Avoid writing persistent test artifacts into the real manifest/workflow directories unless the test also cleans them up or redirects the path.
+## Frontend Unit Coverage Expectations
 
-## Coverage Rules
+Key targets:
+- `src/app/services/api.ts`
+- `src/app/services/workflowApi.ts`
+- `src/workflow/hooks/useNodeCatalog.ts`
+- `src/pages/NodesPage.tsx`
+- `src/pages/ConfigurationsPage.tsx`
+- `src/pages/ModelsPage.tsx`
 
-### API tests
-- Use FastAPI `TestClient`.
-- Assert both HTTP status and response shape.
-- Prefer stable manifest/execution endpoints.
+Expected behavior assertions include:
+- request error extraction
+- polling loops
+- websocket payload validation
+- upload/download argument guards
+- deterministic modal/hook/component interaction flows
+- timer-driven model download transitions with mocked service responses
 
-### Service tests
-- Test workflow validation/execution directly in `tests/unit/server/services/...`.
-- Stub provider calls so tests never call real LLM endpoints.
-- Use compact workflow graphs that target one behavior at a time.
+## Frontend Browser E2E Expectations
 
-### Job tests
-- Poll using `wait_for_job(...)` instead of fixed sleeps in assertions.
-- Cover success, failure, and cancellation behavior for new job-backed workflows.
+Playwright suite runs against the local Vite app in mocked-backend mode:
+- API route stubs for `/workflows`, `/executions`, `/nodes`, `/providers`, `/configurations`
+- deterministic websocket event stub for `/executions/ws/runs/{run_id}`
+- no dependency on real backend/cloud services
 
-## Current Stable Endpoint Coverage Targets
-
-- `/`
-- `/nodes/catalog`
-- `/nodes/import`
-- `/nodes/check-database-connection`
-- `/executions/compile`
-- `/executions`
-- `/executions/{run_id}`
-- `/executions/{run_id}/events`
-- `/workflows`
+Covered flows:
+- Workflow page: import JSON bundle, run workflow, verify status/output rendering
+- Nodes page: import modal validate + success/error import paths
+- Configurations/Models pages: smoke interactions with deterministic state transitions
 
 ## Troubleshooting
 
-- `pytest` not found: install the `test` extra into `runtimes/.venv`.
-- Import errors: run tests from repo root so `ParaGraph` imports resolve.
-- Flaky job assertions: ensure test state is isolated and avoid shared global mutations outside fixtures.
+- If backend tests fail on environment setup, verify `.\runtimes\.venv` exists and includes `pytest`.
+- If frontend unit tests fail on missing dependencies, run `npm install` in `ParaGraph/client`.
+- If Playwright cannot launch browsers, run `npx playwright install chromium` in `ParaGraph/client`.
