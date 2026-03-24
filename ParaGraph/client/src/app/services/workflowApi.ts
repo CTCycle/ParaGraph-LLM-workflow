@@ -253,7 +253,7 @@ export function startExecution(plan: CompiledExecutionPlan, workflowId?: string)
 }
 
 export function getExecution(runId: string): Promise<ExecutionRunState> {
-    return requestJson<ExecutionRunState>(`/executions/${runId}`)
+    return requestJson<ExecutionRunState>(`/executions/${encodeURIComponent(runId)}`)
 }
 
 function sleep(ms: number): Promise<void> {
@@ -296,10 +296,7 @@ export async function pollExecution(
 }
 
 function resolveWsBase(): string {
-    const apiBase = import.meta.env.VITE_API_BASE_URL || '/api'
-    if (apiBase.startsWith('http://') || apiBase.startsWith('https://')) {
-        return apiBase.replace(/^http/, 'ws')
-    }
+    const apiBase = getApiBase()
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
     return `${protocol}//${window.location.host}${apiBase}`
 }
@@ -311,7 +308,7 @@ export function subscribeExecutionEvents(
         onError?: (error: string) => void
     },
 ): () => void {
-    const ws = new WebSocket(`${resolveWsBase()}/executions/ws/runs/${runId}`)
+    const ws = new WebSocket(`${resolveWsBase()}/executions/ws/runs/${encodeURIComponent(runId)}`)
 
     ws.onmessage = (message) => {
         try {

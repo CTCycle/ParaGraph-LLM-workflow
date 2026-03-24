@@ -62,6 +62,8 @@ def check_database_connection(request: DatabaseConnectionCheckRequest) -> Databa
             {},
         )
         return DatabaseConnectionCheckResponse(ok=True, message="Database connection successful.")
-    except Exception as exc:  # noqa: BLE001
+    except ValueError as exc:
         return DatabaseConnectionCheckResponse(ok=False, message=str(exc) or "Database connection check failed.")
+    except Exception:  # noqa: BLE001
+        return DatabaseConnectionCheckResponse(ok=False, message="Database connection check failed.")
 

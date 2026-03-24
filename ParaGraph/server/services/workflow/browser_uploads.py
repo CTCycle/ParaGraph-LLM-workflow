@@ -15,8 +15,11 @@ def _sanitize_relative_upload_path(file_name: str) -> Path:
         raise ValueError("Uploaded files must include a valid file name")
 
     candidate = PurePosixPath(normalized)
+    if candidate.is_absolute():
+        raise ValueError("Uploaded file names must not be absolute paths")
+
     parts = [part for part in candidate.parts if part not in ("", ".")]
-    if not parts or any(part == ".." for part in parts):
+    if not parts or any(part == ".." or ":" in part for part in parts):
         raise ValueError("Uploaded file names must be relative paths inside the selected folder")
 
     return Path(*parts)
@@ -34,7 +37,11 @@ async def save_uploaded_directory(files: list[UploadFile]) -> tuple[str, int, li
     try:
         for upload in files:
             relative_path = _sanitize_relative_upload_path(upload.filename or "")
-            destination = destination_root / relative_path
+            destination = (destination_root / relative_path).resolve()
+            try:
+                destination.relative_to(destination_root)
+            except ValueError as exc:
+                raise ValueError("Uploaded file names must remain inside the staged folder") from exc
             destination.parent.mkdir(parents=True, exist_ok=True)
 
             with destination.open("wb") as output_stream:
@@ -54,4 +61,3 @@ async def save_uploaded_directory(files: list[UploadFile]) -> tuple[str, int, li
         raise ValueError("No files were uploaded")
     staged_files.sort()
     return str(destination_root), saved_files, staged_files
-

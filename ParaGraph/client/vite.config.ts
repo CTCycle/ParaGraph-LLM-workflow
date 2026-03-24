@@ -6,6 +6,9 @@ const normalizeApiBase = (value: string) => {
     if (!value) {
         return '/api'
     }
+    if (/^[a-zA-Z][a-zA-Z\d+\-.]*:\/\//.test(value)) {
+        throw new Error('VITE_API_BASE_URL must be a relative path (for example /api).')
+    }
 
     const withLeadingSlash = value.startsWith('/') ? value : `/${value}`
     if (withLeadingSlash.length > 1 && withLeadingSlash.endsWith('/')) {

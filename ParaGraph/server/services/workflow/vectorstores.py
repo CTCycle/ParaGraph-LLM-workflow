@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import shutil
 from pathlib import Path
 from typing import Any
@@ -8,23 +9,39 @@ from typing import Any
 import numpy as np
 import faiss
 from ParaGraph.server.common.constants import RESOURCES_PATH
+from ParaGraph.server.common.security import ensure_path_within_root, is_cloud_deployment
 from ParaGraph.server.services.workflow.payloads import RetrievalHit, VectorPoint, VectorStoreHandle
 
 
 ARTIFACT_ROOT = Path(RESOURCES_PATH) / "artifacts"
 VECTORSTORE_ROOT = ARTIFACT_ROOT / "vectorstores"
-
+INDEX_NAME_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
 
 def _resolve_vectorstore_root(storage_directory: str | None) -> Path:
     selected = str(storage_directory or "").strip()
+    default_root = VECTORSTORE_ROOT.resolve()
     if not selected:
-        return VECTORSTORE_ROOT.resolve()
+        return default_root
+
     candidate = Path(selected).expanduser()
     if candidate.is_absolute():
-        return candidate.resolve()
-    # Keep legacy relative roots anchored under artifacts/vectorstores.
-    return (VECTORSTORE_ROOT / candidate).resolve()
+        resolved = candidate.resolve()
+        if is_cloud_deployment():
+            return ensure_path_within_root(resolved, default_root, label="storage_directory")
+        return resolved
 
+    # Keep legacy relative roots anchored under artifacts/vectorstores.
+    resolved = (VECTORSTORE_ROOT / candidate).resolve()
+    return ensure_path_within_root(resolved, default_root, label="storage_directory")
+
+
+
+
+def _normalize_index_name(index_name: str) -> str:
+    normalized = str(index_name or "").strip()
+    if not INDEX_NAME_PATTERN.fullmatch(normalized):
+        raise VectorStoreError("index_name must contain only letters, numbers, dot, underscore, or dash")
+    return normalized
 
 
 class VectorStoreError(ValueError):
@@ -110,15 +127,18 @@ def _build_index(
 
 def _resolve_store_path_from_handle(store: VectorStoreHandle | dict[str, Any]) -> Path:
     artifact_path = str(_store_attr(store, "artifact_path") or "").strip()
+    artifact_root = ARTIFACT_ROOT.resolve()
     if artifact_path:
         candidate = Path(artifact_path).expanduser()
         if candidate.is_absolute():
-            return candidate.resolve()
-        return (ARTIFACT_ROOT / candidate).resolve()
+            resolved = candidate.resolve()
+            if is_cloud_deployment():
+                return ensure_path_within_root(resolved, artifact_root, label="artifact_path")
+            return resolved
+        resolved = (ARTIFACT_ROOT / candidate).resolve()
+        return ensure_path_within_root(resolved, artifact_root, label="artifact_path")
 
-    index_name = str(_store_attr(store, "index_name") or "").strip()
-    if not index_name:
-        raise VectorStoreError("Vector store handle is missing index_name")
+    index_name = _normalize_index_name(str(_store_attr(store, "index_name") or ""))
     root = _resolve_vectorstore_root(_store_attr(store, "storage_directory"))
     return (root / index_name).resolve()
 
@@ -242,6 +262,7 @@ class VectorStoreAdapter:
         if not points:
             raise VectorStoreError("VECTOR_DB_WRITER requires at least one vector point")
 
+        normalized_index_name = _normalize_index_name(index_name)
         root_path = _resolve_vectorstore_root(storage_directory)
         root_path.mkdir(parents=True, exist_ok=True)
         dimension = len(_point_attr(points[0], "vector"))
@@ -257,7 +278,7 @@ class VectorStoreAdapter:
             vectors = _normalize_vectors(vectors)
 
         metadata_entries = [_sanitize_metadata_entry(point) for point in points]
-        store_path, manifest_path, metadata_path, vectors_path = _index_paths(root_path, index_name)
+        store_path, manifest_path, metadata_path, vectors_path = _index_paths(root_path, normalized_index_name)
         index_path = _index_file_path(store_path)
 
         if write_mode_normalized == "append" and store_path.exists():
@@ -282,7 +303,7 @@ class VectorStoreAdapter:
 
         manifest = {
             "backend": self.backend,
-            "index_name": index_name,
+            "index_name": normalized_index_name,
             "metric": metric.lower().strip(),
             "index_type": index_type.lower().strip(),
             "dimension": dimension,
@@ -297,7 +318,7 @@ class VectorStoreAdapter:
 
         return VectorStoreHandle(
             backend=self.backend,
-            index_name=index_name,
+            index_name=normalized_index_name,
             artifact_path=str(store_path),
             metric=manifest["metric"],
             dimension=dimension,
