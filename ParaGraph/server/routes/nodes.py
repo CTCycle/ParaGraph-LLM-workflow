@@ -2,26 +2,18 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from fastapi import APIRouter, File, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, File, HTTPException, UploadFile, status
 from pydantic import BaseModel, Field
 
 from ParaGraph.server.entities.nodecatalog import NodeCatalogResponse, NodeManifest
 from ParaGraph.server.services.workflow import node_registry
 from ParaGraph.server.services.workflow.browser_uploads import save_uploaded_directory
-from ParaGraph.server.services.workflow.path_picker import pick_directory, pick_files
-
-
-class PickedPathsResponse(BaseModel):
-    paths: list[str] = Field(default_factory=list)
-
-
-class PickedDirectoryResponse(BaseModel):
-    path: str | None = None
 
 
 class UploadedDirectoryResponse(BaseModel):
     path: str
     file_count: int
+    files: list[str] = Field(default_factory=list)
 
 
 class DatabaseConnectionCheckRequest(BaseModel):
@@ -51,27 +43,11 @@ def import_node_manifest(manifest: NodeManifest) -> NodeManifest:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
 
 
-@router.get("/dialog/files", response_model=PickedPathsResponse)
-def browse_files(multiple: bool = Query(default=False)) -> PickedPathsResponse:
-    try:
-        return PickedPathsResponse(paths=pick_files(multiple=multiple))
-    except RuntimeError as exc:
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
-
-
-@router.get("/dialog/directory", response_model=PickedDirectoryResponse)
-def browse_directory() -> PickedDirectoryResponse:
-    try:
-        return PickedDirectoryResponse(path=pick_directory())
-    except RuntimeError as exc:
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
-
-
 @router.post("/uploads/directory", response_model=UploadedDirectoryResponse)
 async def upload_directory(files: list[UploadFile] = File(...)) -> UploadedDirectoryResponse:
     try:
-        path, file_count = await save_uploaded_directory(files)
-        return UploadedDirectoryResponse(path=path, file_count=file_count)
+        path, file_count, staged_files = await save_uploaded_directory(files)
+        return UploadedDirectoryResponse(path=path, file_count=file_count, files=staged_files)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
 
@@ -88,3 +64,4 @@ def check_database_connection(request: DatabaseConnectionCheckRequest) -> Databa
         return DatabaseConnectionCheckResponse(ok=True, message="Database connection successful.")
     except Exception as exc:  # noqa: BLE001
         return DatabaseConnectionCheckResponse(ok=False, message=str(exc) or "Database connection check failed.")
+

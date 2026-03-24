@@ -38,9 +38,7 @@ The current implementation uses a React Flow editor, JSON node manifests, and a 
 ### 2.1 Node manifests
 - `GET /nodes/catalog` returns live `NodeManifest[]`.
 - `POST /nodes/import` validates and persists a single manifest JSON object (including optional plugin runtime descriptors).
-- `GET /nodes/dialog/files` opens a native file picker on the local machine and returns selected paths for path-backed node widgets.
-- `GET /nodes/dialog/directory` opens a native folder picker on the local machine and returns the selected directory path (used by legacy path fields).
-- `POST /nodes/uploads/directory` accepts browser-selected folder uploads (multipart) and stages them under `ParaGraph/resources/artifacts/browser_uploads`, returning the staged server path for runtime execution.
+- `POST /nodes/uploads/directory` accepts browser-selected file/folder uploads (multipart) and stages them under `ParaGraph/resources/artifacts/browser_uploads`, returning the staged root path plus staged file paths for runtime execution.
 - `POST /nodes/check-database-connection` validates SQL node connection parameters (`SQL_DATABASE` / `SQL_FILE_DATABASE`) and returns a success/failure payload for node-level health checks.
 - The active model authoring flow uses a `MODEL_PROVIDER` node that emits a typed `MODEL_HANDLE`, consumed by unified `LLM_CHAT` and `LLM_STRUCTURED` nodes.
 - Each manifest declares:
@@ -55,8 +53,6 @@ The current implementation uses a React Flow editor, JSON node manifests, and a 
 - `definition.nodes[]`: `{ node_id, node_type, node_version, parameters, skipped? }` (skipped nodes stay in canvas state but are excluded from compiled execution plans).
 - `definition.connections[]`: `{ from_node, from_output, to_node, to_input }`
 - visual state stays separate in `visual_graph.nodes[]` with position, size, collapse metadata, plus UI flags such as ping and skipped highlighting.
-- `GET /workflows/dialog/import-json` opens a native JSON file picker (default folder: `ParaGraph/resources/workflows`) and returns the selected file content.
-- `POST /workflows/dialog/export-json` opens a native save dialog (default folder: `ParaGraph/resources/workflows`) and writes the workflow JSON payload to the chosen path.
 
 ### 2.3 Execution APIs
 - `POST /executions/compile`: validates the graph and returns diagnostics plus a compiled plan when valid.
@@ -129,14 +125,14 @@ The current implementation uses a React Flow editor, JSON node manifests, and a 
 ### 4.2 Workflow page
 - React Flow canvas with custom Comfy-style node cards.
 - Node cards support compact inline widgets, italic subtitle text, ping + collapse controls, and drag-resize handles.
-- Path-backed parameters can open native file/folder pickers and persist selected source or destination paths directly in node parameters (including serialization file paths).
-- `LOAD_DOCUMENTS` uses a frontend browser folder picker and uploads selected files to a staged server folder path; the picker cancel-detection guard prevents focus/change race conditions from clearing the selected folder path.
+- Path-backed parameters use browser file/folder pickers, then upload and stage selected content under ParaGraph/resources/artifacts/browser_uploads before writing staged paths into node parameters.
+- `LOAD_DOCUMENTS` and other path-backed parameters use frontend browser pickers plus upload staging; picker cancel-detection guards prevent focus/change race conditions from clearing selections.
 - Parameter rows use a denser Comfy-inspired control treatment for higher information density without changing the overall card shell.
 - Node parameters, collapse state, and delete action live inside the node card; execution outputs are consumed through dedicated output nodes.
 - The node library is now a left tree viewer with expandable categories, in-tree search, a selected-node preview, and drag-only node insertion onto the canvas.
 - All node categories are collapsed on first visit, then category expansion state is persisted.
 - Workflow canvas state (nodes, edges, layout metadata) persists in browser storage across page navigation.
-- Workflow JSON bundles are exported/imported through native file dialogs (default folder: `ParaGraph/resources/workflows`), including required node manifests for shareable execution across ParaGraph installations.
+- Workflow JSON bundles are exported/imported through browser download/upload flows, including required node manifests for shareable execution across ParaGraph installations.
 - Runtime execution highlights the currently running node in-canvas for step-by-step guidance; pinged nodes keep a persistent visual accent independent of runtime activity and are frozen in place until unpinged.
 - Client-side connection checks mirror backend rules for type compatibility and multiplicity.
 - Workflow canvas keyboard commands include copy/paste for selected nodes (`Ctrl+C`, `Ctrl+V`), node/link deletion (`Delete`/`Backspace`), and `Ctrl+Click` multi-selection.
@@ -172,6 +168,4 @@ The current implementation uses a React Flow editor, JSON node manifests, and a 
 - The legacy `/workflow/*` compatibility API is no longer part of the active application surface.
 - Existing persisted workflow documents are migrated on read into schema `2` shapes.
 - The executable manifest set now includes a Phase 1 typed RAG slice for ingestion, chunking, embedding, vector storage, retrieval, and context injection.
-
-
 

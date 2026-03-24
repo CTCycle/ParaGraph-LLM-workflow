@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 
 import { useDebouncedValue } from '../app/hooks/useDebouncedValue'
+import { useKeyedFlags } from '../app/hooks/useKeyedFlags'
 import { usePageMetadata } from '../app/hooks/usePageMetadata'
 import {
     cancelHuggingFaceDownload,
@@ -33,6 +34,7 @@ import {
     OllamaLibraryModelDefinition,
 } from '../workflow/schema/types'
 import CatalogColumnHeader from '../components/CatalogColumnHeader'
+import RetryErrorNotice from '../components/RetryErrorNotice'
 import './ModelsPage.css'
 
 const HUGGINGFACE_PAGE_SIZE = 25
@@ -191,7 +193,7 @@ export default function ModelsPage() {
     const [ollamaMessage, setOllamaMessage] = useState<string | null>(null)
     const [ollamaSearch, setOllamaSearch] = useState('')
     const [ollamaFilter, setOllamaFilter] = useState<OllamaModelFilter>('all')
-    const [pullingModels, setPullingModels] = useState<Record<string, boolean>>({})
+    const { mark: markPullingModel, clear: clearPullingModel, has: hasPullingModel } = useKeyedFlags()
 
     const [hfSearchInput, setHfSearchInput] = useState('')
     const [hfTask, setHfTask] = useState('')
@@ -212,7 +214,7 @@ export default function ModelsPage() {
     const [hfError, setHfError] = useState<string | null>(null)
     const [hfMessage, setHfMessage] = useState<string | null>(null)
     const [hfDownloads, setHfDownloads] = useState<Record<string, HuggingFaceDownloadState>>({})
-    const [cancellingHfJobs, setCancellingHfJobs] = useState<Record<string, boolean>>({})
+    const { mark: markCancellingHfJob, clear: clearCancellingHfJob, has: hasCancellingHfJob } = useKeyedFlags()
 
     const hfAbortRef = useRef<AbortController | null>(null)
     const hfCacheRef = useRef<Map<string, Map<number, HuggingFaceModelCatalogResponse>>>(new Map())
@@ -383,18 +385,14 @@ export default function ModelsPage() {
             clearHuggingFaceDownloadTimer(repoId)
             delete hfDownloadPollGenerationRef.current[repoId]
 
-            setCancellingHfJobs((current) => {
-                const next = { ...current }
-                delete next[repoId]
-                return next
-            })
+            clearCancellingHfJob(repoId)
             setHfDownloads((current) => {
                 const next = { ...current }
                 delete next[repoId]
                 return next
             })
         },
-        [clearHuggingFaceDownloadTimer],
+        [clearCancellingHfJob, clearHuggingFaceDownloadTimer],
     )
 
     const scheduleHuggingFaceDownloadPoll = useCallback(
@@ -437,11 +435,7 @@ export default function ModelsPage() {
                         }
 
                         clearHuggingFaceDownloadTimer(repoId)
-                        setCancellingHfJobs((current) => {
-                            const next = { ...current }
-                            delete next[repoId]
-                            return next
-                        })
+                        clearCancellingHfJob(repoId)
 
                         if (payload.status === 'completed') {
                             setHfMessage(payload.message ?? `Downloaded Hugging Face model '${repoId}'.`)
@@ -471,7 +465,7 @@ export default function ModelsPage() {
         const isActiveDownload = currentDownload && (currentDownload.status === 'pending' || currentDownload.status === 'running')
 
         if (isActiveDownload) {
-            setCancellingHfJobs((current) => ({ ...current, [repoId]: true }))
+            markCancellingHfJob(repoId)
             try {
                 const payload = await cancelHuggingFaceDownload(currentDownload.jobId)
                 setHfMessage(payload.message)
@@ -485,11 +479,8 @@ export default function ModelsPage() {
                 clearHuggingFaceDownloadState(repoId)
             } catch (error) {
                 setHfError(error instanceof Error ? error.message : `Failed to cancel download for '${repoId}'.`)
-                setCancellingHfJobs((current) => {
-                    const next = { ...current }
-                    delete next[repoId]
-                    return next
-                })
+                clearCancellingHfJob(repoId)
+
             }
             return
         }
@@ -529,7 +520,7 @@ export default function ModelsPage() {
         }
     }
     async function handlePullModel(modelName: string): Promise<void> {
-        setPullingModels((current) => ({ ...current, [modelName]: true }))
+        markPullingModel(modelName)
         setOllamaError(null)
         setOllamaMessage(null)
         try {
@@ -539,11 +530,7 @@ export default function ModelsPage() {
         } catch (error) {
             setOllamaError(error instanceof Error ? error.message : 'Failed to pull Ollama model')
         } finally {
-            setPullingModels((current) => {
-                const next = { ...current }
-                delete next[modelName]
-                return next
-            })
+            clearPullingModel(modelName)
         }
     }
 
@@ -586,14 +573,7 @@ export default function ModelsPage() {
                         </select>
                     </div>
 
-                    {ollamaError && (
-                        <div className="models-error">
-                            <span>{ollamaError}</span>
-                            <button type="button" onClick={() => void loadOllamaModels(true)}>
-                                Retry
-                            </button>
-                        </div>
-                    )}
+                    {ollamaError && <RetryErrorNotice message={ollamaError} onRetry={() => void loadOllamaModels(true)} />}
                     {ollamaMessage && <p className="models-note">{ollamaMessage}</p>}
 
                     <div className="models-list" role="list" aria-label="Ollama model list">
@@ -603,7 +583,7 @@ export default function ModelsPage() {
                         )}
                         {!ollamaLoading &&
                             filteredOllamaModels.map((model) => {
-                                const isPulling = Boolean(pullingModels[model.model])
+                                const isPulling = hasPullingModel(model.model)
                                 return (
                                     <article
                                         key={model.model}
@@ -707,14 +687,7 @@ export default function ModelsPage() {
                     {hfWarning && <p className="models-warning">{hfWarning}</p>}
                     {hfMessage && <p className="models-note">{hfMessage}</p>}
 
-                    {hfError && (
-                        <div className="models-error">
-                            <span>{hfError}</span>
-                            <button type="button" onClick={() => void loadHuggingFacePage(1, true)}>
-                                Retry
-                            </button>
-                        </div>
-                    )}
+                    {hfError && <RetryErrorNotice message={hfError} onRetry={() => void loadHuggingFacePage(1, true)} />}
 
                     <div className="models-list" role="list" aria-label="Hugging Face model list">
                         {hfLoading && <div className="models-empty">Loading Hugging Face models...</div>}
@@ -726,7 +699,7 @@ export default function ModelsPage() {
                                 const downloadState = hfDownloads[model.repo_id] ?? null
                                 const isDownloading =
                                     downloadState !== null && (downloadState.status === 'pending' || downloadState.status === 'running')
-                                const isCancelling = Boolean(cancellingHfJobs[model.repo_id])
+                                const isCancelling = hasCancellingHfJob(model.repo_id)
                                 const progressValue = downloadState ? Math.min(100, Math.max(0, downloadState.progress)) : 0
                                 return (
                                     <article key={model.repo_id} role="listitem" className="models-row models-row-hf">

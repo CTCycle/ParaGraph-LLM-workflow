@@ -22,7 +22,7 @@ def _sanitize_relative_upload_path(file_name: str) -> Path:
     return Path(*parts)
 
 
-async def save_uploaded_directory(files: list[UploadFile]) -> tuple[str, int]:
+async def save_uploaded_directory(files: list[UploadFile]) -> tuple[str, int, list[str]]:
     if not files:
         raise ValueError("No files were provided for upload")
 
@@ -30,6 +30,7 @@ async def save_uploaded_directory(files: list[UploadFile]) -> tuple[str, int]:
     destination_root.mkdir(parents=True, exist_ok=True)
 
     saved_files = 0
+    staged_files: list[str] = []
     try:
         for upload in files:
             relative_path = _sanitize_relative_upload_path(upload.filename or "")
@@ -44,10 +45,13 @@ async def save_uploaded_directory(files: list[UploadFile]) -> tuple[str, int]:
                     output_stream.write(chunk)
 
             saved_files += 1
+            staged_files.append(str(destination.resolve()))
     finally:
         for upload in files:
             await upload.close()
 
     if saved_files == 0:
         raise ValueError("No files were uploaded")
-    return str(destination_root), saved_files
+    staged_files.sort()
+    return str(destination_root), saved_files, staged_files
+

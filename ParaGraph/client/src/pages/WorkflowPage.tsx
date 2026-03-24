@@ -31,8 +31,6 @@ import {
 } from '@xyflow/react'
 
 import {
-    browseNodeDirectory,
-    browseNodeFiles,
     uploadNodeDirectory,
     checkDatabaseConnection,
     compileWorkflow,
@@ -248,6 +246,10 @@ type BrowserDirectorySelection = {
     folderName: string
 }
 
+type BrowserFileSelection = {
+    files: File[]
+}
+
 function inferSelectedFolderName(files: File[]): string {
     const firstRelativePath = files[0]?.webkitRelativePath || files[0]?.name || ''
     const [root] = firstRelativePath.split('/').filter(Boolean)
@@ -299,6 +301,45 @@ function pickDirectoryFromBrowser(): Promise<BrowserDirectorySelection | null> {
     })
 }
 
+function pickFilesFromBrowser(options: { multiple: boolean }): Promise<BrowserFileSelection | null> {
+    return new Promise((resolve) => {
+        const input = document.createElement('input')
+        input.type = 'file'
+        input.multiple = options.multiple
+        let changeHandled = false
+
+        let settled = false
+        const settle = (value: BrowserFileSelection | null): void => {
+            if (settled) {
+                return
+            }
+            settled = true
+            window.removeEventListener('focus', handleWindowFocus)
+            resolve(value)
+        }
+
+        const handleWindowFocus = (): void => {
+            window.setTimeout(() => {
+                if (!settled && !changeHandled && !input.files?.length) {
+                    settle(null)
+                }
+            }, BROWSER_PICKER_CANCEL_GUARD_MS)
+        }
+
+        input.addEventListener('change', () => {
+            changeHandled = true
+            const selectedFiles = Array.from(input.files ?? [])
+            if (selectedFiles.length === 0) {
+                settle(null)
+                return
+            }
+            settle({ files: selectedFiles })
+        })
+
+        window.addEventListener('focus', handleWindowFocus, { once: true })
+        input.click()
+    })
+}
 function getControllers(manifest: NodeManifest): NonNullable<NodeManifest['controllers']> {
     return manifest.controllers ?? []
 }
@@ -941,50 +982,47 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
         setBrowseTarget(parameter.name)
         try {
             if (parameter.ui_control === 'directory') {
-                if (data.manifest.id === 'LOAD_DOCUMENTS' && parameter.name === 'folder_path') {
-                    const browserSelection = await pickDirectoryFromBrowser()
-                    if (!browserSelection) {
-                        data.onStatusChange('Directory selection cancelled')
-                        return
-                    }
-
-                    const uploaded = await uploadNodeDirectory(browserSelection.files)
-                    const stagedPath = String(uploaded.path ?? '').trim()
-                    if (!stagedPath) {
-                        throw new Error('Folder upload succeeded but returned an empty path')
-                    }
-                    data.onParameterChange(parameter.name, stagedPath)
-                    const uploadedCountLabel = uploaded.file_count === 1 ? 'file' : 'files'
-                    data.onStatusChange('Selected ' + browserSelection.folderName + ' (' + uploaded.file_count + ' ' + uploadedCountLabel + ')')
+                const browserSelection = await pickDirectoryFromBrowser()
+                if (!browserSelection) {
+                    data.onStatusChange('Directory selection cancelled')
                     return
                 }
 
-                const selection = await browseNodeDirectory()
-                if (selection.path) {
-                    data.onParameterChange(parameter.name, selection.path)
-                    data.onStatusChange('Selected ' + selection.path)
-                } else {
-                    data.onStatusChange('Directory selection cancelled')
+                const uploaded = await uploadNodeDirectory(browserSelection.files)
+                const stagedPath = String(uploaded.path ?? '').trim()
+                if (!stagedPath) {
+                    throw new Error('Folder upload succeeded but returned an empty path')
                 }
+                data.onParameterChange(parameter.name, stagedPath)
+                const uploadedCountLabel = uploaded.file_count === 1 ? 'file' : 'files'
+                data.onStatusChange('Selected ' + browserSelection.folderName + ' (' + uploaded.file_count + ' ' + uploadedCountLabel + ')')
                 return
             }
 
-            const selection = await browseNodeFiles(parameter.ui_control === 'file-list')
-            if (selection.paths.length === 0) {
-                data.onStatusChange('File selection cancelled')
-                return
-            }
+            if (parameter.ui_control === 'file' || parameter.ui_control === 'file-list') {
+                const browserSelection = await pickFilesFromBrowser({ multiple: parameter.ui_control === 'file-list' })
+                if (!browserSelection) {
+                    data.onStatusChange('File selection cancelled')
+                    return
+                }
 
-            if (parameter.ui_control === 'file-list') {
-                data.onParameterChange(parameter.name, selection.paths)
-                data.onStatusChange(`Selected ${selection.paths.length} file${selection.paths.length === 1 ? '' : 's'}`)
-                return
-            }
+                const uploaded = await uploadNodeDirectory(browserSelection.files)
+                if (parameter.ui_control === 'file-list') {
+                    if (uploaded.files.length === 0) {
+                        throw new Error('File upload succeeded but returned no files')
+                    }
+                    data.onParameterChange(parameter.name, uploaded.files)
+                    data.onStatusChange(`Selected ${uploaded.files.length} file${uploaded.files.length === 1 ? '' : 's'}`)
+                    return
+                }
 
-            const [firstPath] = selection.paths
-            data.onParameterChange(parameter.name, firstPath ?? '')
-            if (firstPath) {
+                const firstPath = uploaded.files[0]
+                if (!firstPath) {
+                    throw new Error('File upload succeeded but returned no file path')
+                }
+                data.onParameterChange(parameter.name, firstPath)
                 data.onStatusChange(`Selected ${firstPath}`)
+                return
             }
         } catch (error) {
             data.onStatusChange(error instanceof Error ? error.message : 'Unable to browse for a path')
@@ -992,7 +1030,6 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
             setBrowseTarget(null)
         }
     }
-
     const controllers = getControllers(data.manifest)
     const sourceControllers = controllers.filter((controller) => supportsControllerSource(data.manifest, controller))
     const targetControllers = controllers.filter((controller) => supportsControllerTarget(data.manifest, controller))
@@ -2651,5 +2688,4 @@ export default function WorkflowPage() {
         </ReactFlowProvider>
     )
 }
-
 
