@@ -3,14 +3,14 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException, status
 
 from ParaGraph.server.configurations.server import server_settings
-from ParaGraph.server.entities.jobs import JobCancelResponse, JobStatusResponse
-from ParaGraph.server.entities.workflow import (
+from ParaGraph.server.domain.jobs import JobCancelResponse, JobStatusResponse
+from ParaGraph.server.domain.workflow import (
     CatalogResponse,
     ExecuteWorkflowResponse,
     ValidateWorkflowResponse,
     WorkflowGraph,
 )
-from ParaGraph.server.entities.workflowmodel import (
+from ParaGraph.server.domain.workflowmodel import (
     LegacyWorkflowEdge,
     LegacyWorkflowGraph,
     LegacyWorkflowNode,

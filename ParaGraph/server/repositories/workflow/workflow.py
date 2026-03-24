@@ -7,7 +7,7 @@ from typing import Any
 from uuid import uuid4
 
 from ParaGraph.server.common.constants import RESOURCES_PATH
-from ParaGraph.server.entities.workflowmodel import (
+from ParaGraph.server.domain.workflowmodel import (
     VisualGraph,
     WorkflowDefinition,
     WorkflowDocument,

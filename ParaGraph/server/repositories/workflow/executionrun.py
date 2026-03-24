@@ -4,7 +4,7 @@ import threading
 from datetime import datetime, timezone
 from typing import Any
 
-from ParaGraph.server.entities.execution import ExecutionRunState, ExecutionStepState
+from ParaGraph.server.domain.execution import ExecutionRunState, ExecutionStepState
 
 
 class ExecutionRunRepository:

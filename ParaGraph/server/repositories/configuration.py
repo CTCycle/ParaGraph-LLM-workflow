@@ -7,7 +7,7 @@ from typing import Any
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
-from ParaGraph.server.entities.configuration import DEFAULT_SESSION_NAME
+from ParaGraph.server.domain.configuration import DEFAULT_SESSION_NAME
 from ParaGraph.server.repositories.database import database
 from ParaGraph.server.repositories.schemas import AccessKey, ConfigurationProfile, NodeConfiguration, UserSession
 

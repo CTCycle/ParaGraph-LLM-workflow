@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, status
 
-from ParaGraph.server.entities.workflowmodel import (
+from ParaGraph.server.domain.workflowmodel import (
     CreateWorkflowRequest,
     UpdateWorkflowRequest,
     WorkflowDocument,

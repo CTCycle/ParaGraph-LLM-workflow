@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field, ValidationError, field_validator
 
 from ParaGraph.server.common.constants import RESOURCES_PATH
 from ParaGraph.server.common.security import ensure_path_within_root, is_cloud_deployment
-from ParaGraph.server.entities.nodecatalog import ProviderModelDefinition
+from ParaGraph.server.domain.nodecatalog import ProviderModelDefinition
 from ParaGraph.server.services.configuration import configuration_service
 from ParaGraph.server.services.workflow.node_handlers.base import NodeHandler
 from ParaGraph.server.services.workflow.node_handlers.common import (

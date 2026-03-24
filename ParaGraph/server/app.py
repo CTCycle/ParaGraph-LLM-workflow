@@ -10,12 +10,12 @@ from fastapi.responses import JSONResponse, RedirectResponse
 from ParaGraph.server.common.constants import FASTAPI_DESCRIPTION, FASTAPI_TITLE, FASTAPI_VERSION
 from ParaGraph.server.common.security import is_cloud_deployment
 from ParaGraph.server.common.utils.variables import env_variables  # noqa: F401
-from ParaGraph.server.routes.configurations import router as configurations_router
-from ParaGraph.server.routes.executions import router as executions_router
-from ParaGraph.server.routes.nodes import router as nodes_router
-from ParaGraph.server.routes.providers import router as providers_router
-from ParaGraph.server.routes.workflows import router as workflows_router
-from ParaGraph.server.routes.ws import router as ws_router
+from ParaGraph.server.api.configurations import router as configurations_router
+from ParaGraph.server.api.executions import router as executions_router
+from ParaGraph.server.api.nodes import router as nodes_router
+from ParaGraph.server.api.providers import router as providers_router
+from ParaGraph.server.api.workflows import router as workflows_router
+from ParaGraph.server.api.ws import router as ws_router
 
 
 cloud_mode = is_cloud_deployment()

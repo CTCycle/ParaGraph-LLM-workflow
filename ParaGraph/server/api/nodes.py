@@ -5,7 +5,7 @@ from typing import Any, Literal
 from fastapi import APIRouter, File, HTTPException, UploadFile, status
 from pydantic import BaseModel, Field
 
-from ParaGraph.server.entities.nodecatalog import NodeCatalogResponse, NodeManifest
+from ParaGraph.server.domain.nodecatalog import NodeCatalogResponse, NodeManifest
 from ParaGraph.server.services.workflow import node_registry
 from ParaGraph.server.services.workflow.browser_uploads import save_uploaded_directory
 

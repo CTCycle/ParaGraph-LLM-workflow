@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from ParaGraph.server.entities.workflow import (
+from ParaGraph.server.domain.workflow import (
     CatalogResponse,
     ExecuteWorkflowResponse,
     NodeParameterSchema,
@@ -10,7 +10,7 @@ from ParaGraph.server.entities.workflow import (
     ValidateWorkflowResponse,
     WorkflowNodeDefinition,
 )
-from ParaGraph.server.entities.workflowmodel import (
+from ParaGraph.server.domain.workflowmodel import (
     LegacyWorkflowGraph,
     VisualGraph,
     VisualNodeState,

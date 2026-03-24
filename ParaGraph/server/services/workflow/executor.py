@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections import defaultdict, deque
 from typing import Any
 
-from ParaGraph.server.entities.workflow import (
+from ParaGraph.server.domain.workflow import (
     CatalogResponse,
     NodeParameterSchema,
     NodePort,

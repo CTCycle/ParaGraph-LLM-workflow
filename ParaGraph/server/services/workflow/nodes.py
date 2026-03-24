@@ -9,7 +9,7 @@ from typing import Any
 from pydantic import ValidationError
 
 from ParaGraph.server.common.constants import RESOURCES_PATH
-from ParaGraph.server.entities.nodecatalog import NodeCatalogResponse, NodeManifest
+from ParaGraph.server.domain.nodecatalog import NodeCatalogResponse, NodeManifest
 from ParaGraph.server.services.configuration import configuration_service
 from ParaGraph.server.services.workflow.node_handlers import NODE_HANDLERS
 from ParaGraph.server.services.workflow.node_handlers.base import NodeHandler

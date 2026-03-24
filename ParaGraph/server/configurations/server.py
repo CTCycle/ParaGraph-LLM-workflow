@@ -11,7 +11,7 @@ from ParaGraph.server.common.utils.types import (
     coerce_str_or_none,
 )
 from ParaGraph.server.configurations.base import ensure_mapping, load_configuration_data
-from ParaGraph.server.entities.settings import (
+from ParaGraph.server.domain.settings import (
     DatabaseSettings,
     GlobalSettings,
     JobsSettings,
