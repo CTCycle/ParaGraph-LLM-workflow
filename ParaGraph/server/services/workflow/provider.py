@@ -18,8 +18,8 @@ import httpx
 
 from ParaGraph.server.common.constants import MODELS_PATH
 from ParaGraph.server.configurations.server import server_settings
-from ParaGraph.server.entities.configuration import DEFAULT_SESSION_NAME
-from ParaGraph.server.entities.nodecatalog import (
+from ParaGraph.server.domain.configuration import DEFAULT_SESSION_NAME
+from ParaGraph.server.domain.nodecatalog import (
     HuggingFaceModelCatalogResponse,
     HuggingFaceModelDownloadCancelResponse,
     HuggingFaceModelDownloadResponse,

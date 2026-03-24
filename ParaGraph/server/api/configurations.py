@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Path, Query
 
-from ParaGraph.server.entities.configuration import (
+from ParaGraph.server.domain.configuration import (
     AppConfigurationPayload,
     ConfigurationProfileListResponse,
     DEFAULT_SESSION_NAME,

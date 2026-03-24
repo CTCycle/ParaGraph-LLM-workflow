@@ -8,7 +8,7 @@ from time import monotonic
 from typing import Any
 
 from ParaGraph.server.common.utils.logger import logger
-from ParaGraph.server.entities.jobs import JobState
+from ParaGraph.server.domain.jobs import JobState
 
 
 ###############################################################################

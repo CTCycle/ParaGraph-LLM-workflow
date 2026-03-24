@@ -5,7 +5,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field, model_validator
 
-from ParaGraph.server.entities.execution import CompiledExecutionPlan
+from ParaGraph.server.domain.execution import CompiledExecutionPlan
 
 
 LEGACY_NODE_TYPE_MAP = {

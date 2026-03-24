@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from ParaGraph.server.common.security import redact_sensitive_payload
-from ParaGraph.server.entities.execution import CompiledExecutionPlan, ExecutionRunState, ExecutionStepState
+from ParaGraph.server.domain.execution import CompiledExecutionPlan, ExecutionRunState, ExecutionStepState
 from ParaGraph.server.repositories.workflow import execution_run_repository
 from ParaGraph.server.services.jobs import job_manager
 from ParaGraph.server.services.runtime.events import execution_event_service

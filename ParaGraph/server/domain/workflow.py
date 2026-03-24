@@ -4,7 +4,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-from ParaGraph.server.entities.jobs import JobStartResponse
+from ParaGraph.server.domain.jobs import JobStartResponse
 
 
 NodeCategory = Literal["input", "process", "output"]

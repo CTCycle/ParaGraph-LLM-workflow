@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from ParaGraph.server.repositories.workflow import workflow_repository
-from ParaGraph.server.entities.workflowmodel import (
+from ParaGraph.server.domain.workflowmodel import (
     CreateWorkflowRequest,
     UpdateWorkflowRequest,
     WorkflowDocument,

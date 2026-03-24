@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from ParaGraph.server.entities.configuration import (
+from ParaGraph.server.domain.configuration import (
     AppConfigurationPayload,
     ConfigurationProfileListResponse,
     OllamaStatusResponse,
 )
-from ParaGraph.server.entities.nodecatalog import NodeManifest
+from ParaGraph.server.domain.nodecatalog import NodeManifest
 from ParaGraph.server.repositories.configuration import configuration_repository
 from ParaGraph.server.services.llm.providers import OllamaClient, OllamaError
 

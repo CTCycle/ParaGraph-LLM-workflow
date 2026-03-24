@@ -5,7 +5,7 @@ from collections import defaultdict
 from queue import Queue
 from typing import Any
 
-from ParaGraph.server.entities.execution import ExecutionEventEnvelope, EventHistoryResponse
+from ParaGraph.server.domain.execution import ExecutionEventEnvelope, EventHistoryResponse
 
 
 class EventService:
