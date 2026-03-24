@@ -7,6 +7,7 @@ import hashlib
 import inspect
 from pathlib import Path
 import re
+import shutil
 from threading import Lock
 import time
 from typing import Any
@@ -16,10 +17,13 @@ from bs4 import BeautifulSoup
 import httpx
 
 from ParaGraph.server.common.constants import MODELS_PATH
+from ParaGraph.server.configurations.server import server_settings
 from ParaGraph.server.entities.configuration import DEFAULT_SESSION_NAME
 from ParaGraph.server.entities.nodecatalog import (
     HuggingFaceModelCatalogResponse,
+    HuggingFaceModelDownloadCancelResponse,
     HuggingFaceModelDownloadResponse,
+    HuggingFaceModelDownloadStatusResponse,
     HuggingFaceModelDefinition,
     HuggingFaceSortBy,
     ModelVisibilityFilter,
@@ -30,7 +34,8 @@ from ParaGraph.server.entities.nodecatalog import (
     ProviderCatalogResponse,
     ProviderModelCatalogResponse,
     ProviderModelDefinition,
-)
+ )
+from ParaGraph.server.services.jobs import job_manager
 from ParaGraph.server.services.configuration import configuration_service
 from ParaGraph.server.services.llm.providers import LLMError, OllamaClient, OllamaError, select_llm_provider
 
@@ -44,6 +49,7 @@ HUGGINGFACE_MAX_PAGE_SIZE = 50
 HUGGINGFACE_LOCAL_MODELS_ROOT = Path(MODELS_PATH) / "huggingface"
 HUGGINGFACE_LOCAL_MODEL_METADATA_FILE = ".paragraph-model.json"
 HUGGINGFACE_REPO_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*/[A-Za-z0-9][A-Za-z0-9._-]*$")
+HUGGINGFACE_DOWNLOAD_JOB_TYPE = "huggingface_download"
 
 HUGGINGFACE_SORT_FIELD_MAP: dict[HuggingFaceSortBy, str | None] = {
     "relevance": None,
@@ -182,6 +188,43 @@ def _resolve_visibility(private: bool | None, gated: bool | None) -> str:
     if private is False:
         return "public"
     return "unknown"
+
+
+def _extract_huggingface_model_size(payload: Any) -> int | None:
+    if isinstance(payload, dict):
+        read = payload.get
+    else:
+        read = lambda key: getattr(payload, key, None)
+
+    for key in ("size", "model_size", "total_size", "usedStorage"):
+        candidate = _safe_int(read(key))
+        if candidate is not None and candidate >= 0:
+            return candidate
+
+    safetensors = read("safetensors")
+    if isinstance(safetensors, dict):
+        total = _safe_int(safetensors.get("total") or safetensors.get("total_size") or safetensors.get("size"))
+        if total is not None and total >= 0:
+            return total
+
+    siblings = read("siblings")
+    if isinstance(siblings, list) and siblings:
+        total_bytes = 0
+        found_size = False
+        for sibling in siblings:
+            if isinstance(sibling, dict):
+                size_value = _safe_int(sibling.get("size"))
+            else:
+                size_value = _safe_int(getattr(sibling, "size", None))
+            if size_value is None or size_value < 0:
+                continue
+            found_size = True
+            total_bytes += size_value
+        if found_size:
+            return total_bytes
+
+    return None
+
 
 def _extract_huggingface_tag_values(payload: Any) -> tuple[str, ...]:
     values: set[str] = set()
@@ -489,59 +532,145 @@ class ProviderService:
         normalized_repo_id = _normalize_huggingface_repo_id(repo_id)
         destination = self._huggingface_local_model_path(normalized_repo_id)
 
-        try:
-            already_downloaded = destination.exists() and any(destination.iterdir())
-        except OSError:
-            already_downloaded = False
-
-        token = self._get_huggingface_token(session_name)
-        try:
-            from huggingface_hub import snapshot_download
-            from huggingface_hub.errors import (
-                HfHubHTTPError,
-                LocalEntryNotFoundError,
-                RepositoryNotFoundError,
-                RevisionNotFoundError,
-            )
-        except ImportError as exc:
-            raise ProviderApiError(
-                "Hugging Face integration requires the 'huggingface_hub' dependency.",
-                status_code=503,
-            ) from exc
-
-        destination.parent.mkdir(parents=True, exist_ok=True)
-
-        try:
-            snapshot_download(
+        is_complete, _, downloaded_bytes, total_bytes = self._is_huggingface_download_complete(
+            destination,
+            expected_repo_id=normalized_repo_id,
+        )
+        if is_complete:
+            resolved_total = total_bytes if total_bytes is not None else downloaded_bytes
+            return HuggingFaceModelDownloadResponse(
+                ok=True,
                 repo_id=normalized_repo_id,
-                local_dir=str(destination),
-                token=token,
+                message=f"Hugging Face model '{normalized_repo_id}' is already downloaded.",
+                destination_path=str(destination),
+                already_downloaded=True,
+                job_id=None,
+                status="completed",
+                progress=100.0,
+                downloaded_bytes=downloaded_bytes,
+                total_bytes=resolved_total,
+                poll_interval=server_settings.jobs.polling_interval,
             )
-        except (
-            HfHubHTTPError,
-            LocalEntryNotFoundError,
-            RepositoryNotFoundError,
-            RevisionNotFoundError,
-            httpx.HTTPError,
-        ) as exc:
-            raise self._translate_huggingface_error(exc) from exc
-        except OSError as exc:
+
+        manifest = self._build_huggingface_download_manifest(repo_id=normalized_repo_id, session_name=session_name)
+        manifest_total_bytes = _safe_int(manifest.get("total_bytes"))
+        manifest_files = manifest.get("files")
+        if not isinstance(manifest_files, list) or not manifest_files:
             raise ProviderApiError(
-                f"Unable to save Hugging Face model '{normalized_repo_id}': {exc}",
-                status_code=500,
-            ) from exc
+                f"Hugging Face repository '{normalized_repo_id}' has no downloadable files.",
+                status_code=502,
+            )
 
-        self._write_huggingface_model_metadata(normalized_repo_id, destination)
+        self._reset_huggingface_download_directory(destination)
+        self._write_huggingface_model_metadata(
+            normalized_repo_id,
+            destination,
+            complete=False,
+            files=manifest_files,
+            total_bytes=manifest_total_bytes,
+            downloaded_bytes=0,
+            revision=_coerce_optional_text(manifest.get("revision")),
+        )
 
-        with self._cache_lock:
-            self._huggingface_cache.clear()
+        job_id = job_manager.start_job(
+            job_type=HUGGINGFACE_DOWNLOAD_JOB_TYPE,
+            runner=self._run_huggingface_download_job,
+            kwargs={
+                "repo_id": normalized_repo_id,
+                "token": _coerce_optional_text(manifest.get("token")),
+                "destination_path": str(destination),
+                "files": manifest_files,
+                "total_bytes": manifest_total_bytes,
+                "revision": _coerce_optional_text(manifest.get("revision")),
+            },
+        )
+
+        job_manager.update_result(
+            job_id,
+            {
+                "repo_id": normalized_repo_id,
+                "destination_path": str(destination),
+                "downloaded_bytes": 0,
+                "total_bytes": manifest_total_bytes,
+                "message": f"Starting download for '{normalized_repo_id}'.",
+            },
+        )
 
         return HuggingFaceModelDownloadResponse(
             ok=True,
             repo_id=normalized_repo_id,
-            message=f"Downloaded Hugging Face model '{normalized_repo_id}' to local storage.",
+            message=f"Started download for Hugging Face model '{normalized_repo_id}'.",
             destination_path=str(destination),
-            already_downloaded=already_downloaded,
+            already_downloaded=False,
+            job_id=job_id,
+            status="running",
+            progress=0.0,
+            downloaded_bytes=0,
+            total_bytes=manifest_total_bytes,
+            poll_interval=server_settings.jobs.polling_interval,
+        )
+
+    def get_huggingface_download_status(self, *, job_id: str) -> HuggingFaceModelDownloadStatusResponse:
+        payload = job_manager.get_job_status(job_id)
+        if payload is None:
+            raise ProviderApiError(f"Download job not found: {job_id}", status_code=404)
+
+        if payload.get("job_type") != HUGGINGFACE_DOWNLOAD_JOB_TYPE:
+            raise ProviderApiError(f"Download job not found: {job_id}", status_code=404)
+
+        status = str(payload.get("status") or "failed")
+        if status not in {"pending", "running", "completed", "failed", "cancelled"}:
+            status = "failed"
+
+        result_payload = payload.get("result")
+        result = result_payload if isinstance(result_payload, dict) else {}
+
+        repo_id = _coerce_optional_text(result.get("repo_id"))
+        if not repo_id:
+            raise ProviderApiError(f"Download metadata unavailable for job: {job_id}", status_code=404)
+
+        destination_path = _coerce_optional_text(result.get("destination_path"))
+        if destination_path is None:
+            destination_path = str(self._huggingface_local_model_path(repo_id))
+
+        downloaded_bytes = max(0, _safe_int(result.get("downloaded_bytes")) or 0)
+        total_bytes = _safe_int(result.get("total_bytes"))
+
+        raw_progress = payload.get("progress")
+        if isinstance(raw_progress, (int, float)):
+            progress = min(100.0, max(0.0, float(raw_progress)))
+        else:
+            progress = 0.0
+
+        message = _coerce_optional_text(result.get("message"))
+        error = _coerce_optional_text(payload.get("error"))
+
+        return HuggingFaceModelDownloadStatusResponse(
+            job_id=job_id,
+            repo_id=repo_id,
+            destination_path=destination_path,
+            status=status,
+            progress=progress,
+            message=message,
+            downloaded_bytes=downloaded_bytes,
+            total_bytes=total_bytes,
+            error=error,
+        )
+
+    def cancel_huggingface_download(self, *, job_id: str) -> HuggingFaceModelDownloadCancelResponse:
+        status = self.get_huggingface_download_status(job_id=job_id)
+        success = job_manager.cancel_job(job_id)
+        if not success:
+            raise ProviderApiError(
+                f"Download job '{job_id}' cannot be cancelled.",
+                status_code=409,
+            )
+
+        return HuggingFaceModelDownloadCancelResponse(
+            ok=True,
+            job_id=job_id,
+            repo_id=status.repo_id,
+            message=f"Cancellation requested for '{status.repo_id}'.",
         )
 
     def list_huggingface_models(
@@ -593,6 +722,332 @@ class ProviderService:
         )
         self._store_huggingface_cached_response(cache_key, response)
         return response
+
+    def _build_huggingface_download_manifest(self, *, repo_id: str, session_name: str) -> dict[str, Any]:
+        api, token = self._resolve_huggingface_api(session_name)
+        signature = inspect.signature(api.model_info)
+        model_info_kwargs: dict[str, Any] = {}
+        if "files_metadata" in signature.parameters:
+            model_info_kwargs["files_metadata"] = True
+        if token and "token" in signature.parameters:
+            model_info_kwargs["token"] = token
+
+        try:
+            info = api.model_info(repo_id, **model_info_kwargs)
+        except Exception as exc:  # noqa: BLE001
+            raise self._translate_huggingface_error(exc) from exc
+
+        siblings = getattr(info, "siblings", None)
+        manifest_files: list[dict[str, Any]] = []
+        total_known_bytes = 0
+        has_unknown_size = False
+
+        for sibling in siblings or []:
+            if isinstance(sibling, dict):
+                read = sibling.get
+            else:
+                read = lambda key: getattr(sibling, key, None)
+
+            relative_path = _coerce_optional_text(read("rfilename") or read("filename"))
+            if not relative_path:
+                continue
+
+            size_bytes = _safe_int(read("size"))
+            if size_bytes is None:
+                has_unknown_size = True
+            else:
+                total_known_bytes += max(0, size_bytes)
+
+            manifest_files.append({"path": relative_path, "size": size_bytes})
+
+        if not manifest_files:
+            raise ProviderApiError(
+                f"Hugging Face repository '{repo_id}' has no downloadable files.",
+                status_code=502,
+            )
+
+        revision = _coerce_optional_text(getattr(info, "sha", None))
+        total_bytes = total_known_bytes if not has_unknown_size else None
+        return {
+            "repo_id": repo_id,
+            "files": manifest_files,
+            "total_bytes": total_bytes,
+            "revision": revision,
+            "token": token,
+        }
+
+    def _run_huggingface_download_job(
+        self,
+        *,
+        repo_id: str,
+        token: str | None,
+        destination_path: str,
+        files: list[dict[str, Any]],
+        total_bytes: int | None,
+        revision: str | None,
+        job_id: str,
+    ) -> dict[str, Any]:
+        try:
+            from huggingface_hub import hf_hub_url
+        except ImportError as exc:
+            raise ProviderApiError(
+                "Hugging Face integration requires the 'huggingface_hub' dependency.",
+                status_code=503,
+            ) from exc
+
+        destination = Path(destination_path)
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.mkdir(parents=True, exist_ok=True)
+
+        downloaded_bytes = 0
+        safe_total_bytes = _safe_int(total_bytes)
+        total_files = len(files)
+
+        for index, file_info in enumerate(files):
+            if job_manager.should_stop(job_id):
+                self._cleanup_huggingface_download_directory(destination)
+                job_manager.update_result(
+                    job_id,
+                    {
+                        "repo_id": repo_id,
+                        "destination_path": destination_path,
+                        "downloaded_bytes": downloaded_bytes,
+                        "total_bytes": safe_total_bytes,
+                        "message": f"Download cancelled for '{repo_id}'.",
+                    },
+                )
+                return {}
+
+            relative_path = _coerce_optional_text(file_info.get("path"))
+            if not relative_path:
+                continue
+
+            expected_size = _safe_int(file_info.get("size"))
+            local_path = destination / relative_path
+            local_path.parent.mkdir(parents=True, exist_ok=True)
+
+            try:
+                download_url = hf_hub_url(
+                    repo_id=repo_id,
+                    filename=relative_path,
+                    repo_type="model",
+                    revision=revision,
+                )
+            except Exception as exc:  # noqa: BLE001
+                raise self._translate_huggingface_error(exc) from exc
+
+            request_headers: dict[str, str] = {}
+            if token:
+                request_headers["Authorization"] = f"Bearer {token}"
+
+            file_downloaded_bytes = 0
+            file_total_bytes = max(0, expected_size) if expected_size is not None and expected_size >= 0 else None
+            last_emit_at = 0.0
+
+            try:
+                with httpx.stream("GET", download_url, headers=request_headers, follow_redirects=True, timeout=None) as response:
+                    response.raise_for_status()
+                    if file_total_bytes is None:
+                        file_total_bytes = _safe_int(response.headers.get("Content-Length"))
+
+                    with local_path.open("wb") as file_handle:
+                        for chunk in response.iter_bytes(chunk_size=1024 * 1024):
+                            if job_manager.should_stop(job_id):
+                                self._cleanup_huggingface_download_directory(destination)
+                                job_manager.update_result(
+                                    job_id,
+                                    {
+                                        "repo_id": repo_id,
+                                        "destination_path": destination_path,
+                                        "downloaded_bytes": downloaded_bytes,
+                                        "total_bytes": safe_total_bytes,
+                                        "message": f"Download cancelled for '{repo_id}'.",
+                                    },
+                                )
+                                return {}
+
+                            if not chunk:
+                                continue
+
+                            file_handle.write(chunk)
+                            chunk_bytes = len(chunk)
+                            file_downloaded_bytes += chunk_bytes
+                            downloaded_bytes += chunk_bytes
+
+                            now = time.monotonic()
+                            if now - last_emit_at < 0.25:
+                                continue
+
+                            file_progress = (
+                                file_downloaded_bytes / file_total_bytes
+                                if file_total_bytes is not None and file_total_bytes > 0
+                                else 0.0
+                            )
+                            progress = self._calculate_huggingface_download_progress(
+                                downloaded_bytes=downloaded_bytes,
+                                total_bytes=safe_total_bytes,
+                                completed_files=index,
+                                total_files=total_files,
+                                active_file_progress=file_progress,
+                            )
+                            job_manager.update_result(
+                                job_id,
+                                {
+                                    "repo_id": repo_id,
+                                    "destination_path": destination_path,
+                                    "downloaded_bytes": downloaded_bytes,
+                                    "total_bytes": safe_total_bytes,
+                                    "message": f"Downloading '{repo_id}' ({index + 1}/{total_files} files).",
+                                },
+                            )
+                            job_manager.update_progress(job_id, progress)
+                            last_emit_at = now
+            except httpx.HTTPError as exc:
+                raise self._translate_huggingface_error(exc) from exc
+            except OSError as exc:
+                raise ProviderApiError(
+                    f"Unable to save Hugging Face model '{repo_id}': {exc}",
+                    status_code=500,
+                ) from exc
+
+            progress = self._calculate_huggingface_download_progress(
+                downloaded_bytes=downloaded_bytes,
+                total_bytes=safe_total_bytes,
+                completed_files=index + 1,
+                total_files=total_files,
+            )
+            job_manager.update_result(
+                job_id,
+                {
+                    "repo_id": repo_id,
+                    "destination_path": destination_path,
+                    "downloaded_bytes": downloaded_bytes,
+                    "total_bytes": safe_total_bytes,
+                    "message": f"Downloading '{repo_id}' ({index + 1}/{total_files} files).",
+                },
+            )
+            job_manager.update_progress(job_id, progress)
+
+        if job_manager.should_stop(job_id):
+            self._cleanup_huggingface_download_directory(destination)
+            job_manager.update_result(
+                job_id,
+                {
+                    "repo_id": repo_id,
+                    "destination_path": destination_path,
+                    "downloaded_bytes": downloaded_bytes,
+                    "total_bytes": safe_total_bytes,
+                    "message": f"Download cancelled for '{repo_id}'.",
+                },
+            )
+            return {}
+
+        complete, validated_bytes = self._validate_huggingface_download_files(
+            destination,
+            files=files,
+            expected_total_bytes=safe_total_bytes,
+        )
+        if not complete:
+            raise ProviderApiError(
+                f"Downloaded files for '{repo_id}' did not pass integrity validation.",
+                status_code=500,
+            )
+
+        resolved_total_bytes = safe_total_bytes if safe_total_bytes is not None else validated_bytes
+        self._write_huggingface_model_metadata(
+            repo_id,
+            destination,
+            complete=True,
+            files=files,
+            total_bytes=resolved_total_bytes,
+            downloaded_bytes=validated_bytes,
+            revision=revision,
+        )
+
+        with self._cache_lock:
+            self._huggingface_cache.clear()
+
+        message = f"Downloaded Hugging Face model '{repo_id}' to local storage."
+        job_manager.update_result(
+            job_id,
+            {
+                "repo_id": repo_id,
+                "destination_path": destination_path,
+                "downloaded_bytes": validated_bytes,
+                "total_bytes": resolved_total_bytes,
+                "message": message,
+            },
+        )
+
+        return {
+            "repo_id": repo_id,
+            "destination_path": destination_path,
+            "downloaded_bytes": validated_bytes,
+            "total_bytes": resolved_total_bytes,
+            "message": message,
+        }
+
+    def _calculate_huggingface_download_progress(
+        self,
+        *,
+        downloaded_bytes: int,
+        total_bytes: int | None,
+        completed_files: int,
+        total_files: int,
+        active_file_progress: float = 0.0,
+    ) -> float:
+        if total_bytes is not None and total_bytes > 0:
+            ratio = downloaded_bytes / total_bytes
+            return min(99.5, max(0.0, ratio * 100.0))
+
+        if total_files <= 0:
+            return 0.0
+
+        bounded_active_file_progress = min(1.0, max(0.0, active_file_progress))
+        ratio = (completed_files + bounded_active_file_progress) / total_files
+        return min(99.5, max(0.0, ratio * 100.0))
+
+    def _reset_huggingface_download_directory(self, destination: Path) -> None:
+        if destination.exists():
+            shutil.rmtree(destination, ignore_errors=True)
+        destination.mkdir(parents=True, exist_ok=True)
+
+    def _cleanup_huggingface_download_directory(self, destination: Path) -> None:
+        if destination.exists():
+            shutil.rmtree(destination, ignore_errors=True)
+
+    def _validate_huggingface_download_files(
+        self,
+        destination: Path,
+        *,
+        files: list[dict[str, Any]],
+        expected_total_bytes: int | None,
+    ) -> tuple[bool, int]:
+        total_bytes = 0
+        for file_info in files:
+            relative_path = _coerce_optional_text(file_info.get("path"))
+            if not relative_path:
+                continue
+
+            local_path = destination / relative_path
+            if not local_path.is_file():
+                return False, total_bytes
+
+            try:
+                size_on_disk = local_path.stat().st_size
+            except OSError:
+                return False, total_bytes
+
+            expected_size = _safe_int(file_info.get("size"))
+            if expected_size is not None and size_on_disk != max(0, expected_size):
+                return False, total_bytes
+
+            total_bytes += max(0, size_on_disk)
+
+        if expected_total_bytes is not None and total_bytes < expected_total_bytes:
+            return False, total_bytes
+
+        return True, total_bytes
 
     def _ollama_models(self, session_name: str = DEFAULT_SESSION_NAME) -> tuple[ModelMetadata, ...]:
         try:
@@ -877,29 +1332,108 @@ class ProviderService:
     def _huggingface_local_model_path(self, repo_id: str) -> Path:
         return HUGGINGFACE_LOCAL_MODELS_ROOT / _huggingface_model_dir_name(repo_id)
 
-    def _write_huggingface_model_metadata(self, repo_id: str, destination: Path) -> None:
-        payload = {
+    def _write_huggingface_model_metadata(
+        self,
+        repo_id: str,
+        destination: Path,
+        *,
+        complete: bool,
+        files: list[dict[str, Any]] | None = None,
+        total_bytes: int | None = None,
+        downloaded_bytes: int | None = None,
+        revision: str | None = None,
+    ) -> None:
+        payload: dict[str, Any] = {
             "repo_id": repo_id,
             "downloaded_at": datetime.now(timezone.utc).isoformat(),
+            "complete": complete,
         }
+        if revision:
+            payload["revision"] = revision
+        if files is not None:
+            normalized_files: list[dict[str, Any]] = []
+            for item in files:
+                path_value = _coerce_optional_text(item.get("path"))
+                if not path_value:
+                    continue
+                normalized_files.append(
+                    {
+                        "path": path_value,
+                        "size": _safe_int(item.get("size")),
+                    }
+                )
+            payload["files"] = normalized_files
+        if total_bytes is not None:
+            payload["total_bytes"] = max(0, total_bytes)
+        if downloaded_bytes is not None:
+            payload["downloaded_bytes"] = max(0, downloaded_bytes)
+
         destination.mkdir(parents=True, exist_ok=True)
         metadata_path = destination / HUGGINGFACE_LOCAL_MODEL_METADATA_FILE
         metadata_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
-    def _read_huggingface_repo_id_from_metadata(self, model_directory: Path) -> str | None:
+    def _read_huggingface_metadata(self, model_directory: Path) -> dict[str, Any] | None:
         metadata_path = model_directory / HUGGINGFACE_LOCAL_MODEL_METADATA_FILE
-        if metadata_path.exists():
-            try:
-                payload = json.loads(metadata_path.read_text(encoding="utf-8"))
-            except (OSError, json.JSONDecodeError):
-                payload = None
-            if isinstance(payload, dict):
-                candidate = _coerce_optional_text(payload.get("repo_id"))
-                if candidate and HUGGINGFACE_REPO_ID_PATTERN.fullmatch(candidate):
-                    return candidate
+        if not metadata_path.exists():
+            return None
+
+        try:
+            payload = json.loads(metadata_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return None
+
+        if isinstance(payload, dict):
+            return payload
+        return None
+
+    def _read_huggingface_repo_id_from_metadata(self, model_directory: Path) -> str | None:
+        payload = self._read_huggingface_metadata(model_directory)
+        if isinstance(payload, dict):
+            candidate = _coerce_optional_text(payload.get("repo_id"))
+            if candidate and HUGGINGFACE_REPO_ID_PATTERN.fullmatch(candidate):
+                return candidate
 
         fallback = _huggingface_repo_id_from_dir_name(model_directory.name)
         return fallback
+
+    def _is_huggingface_download_complete(
+        self,
+        model_directory: Path,
+        *,
+        expected_repo_id: str | None = None,
+    ) -> tuple[bool, str | None, int, int | None]:
+        payload = self._read_huggingface_metadata(model_directory)
+        repo_id = self._read_huggingface_repo_id_from_metadata(model_directory)
+
+        if expected_repo_id is not None and repo_id != expected_repo_id:
+            return False, repo_id, 0, None
+
+        if not isinstance(payload, dict):
+            return False, repo_id, 0, None
+
+        if payload.get("complete") is not True:
+            return False, repo_id, 0, None
+
+        files_payload = payload.get("files")
+        files = files_payload if isinstance(files_payload, list) else []
+        if not files:
+            return False, repo_id, 0, None
+
+        expected_total_bytes = _safe_int(payload.get("total_bytes"))
+        valid, validated_bytes = self._validate_huggingface_download_files(
+            model_directory,
+            files=files,
+            expected_total_bytes=expected_total_bytes,
+        )
+        if not valid:
+            return False, repo_id, 0, expected_total_bytes
+
+        metadata_downloaded_bytes = _safe_int(payload.get("downloaded_bytes"))
+        if metadata_downloaded_bytes is not None and metadata_downloaded_bytes != validated_bytes:
+            return False, repo_id, validated_bytes, expected_total_bytes
+
+        total_bytes = expected_total_bytes if expected_total_bytes is not None else validated_bytes
+        return True, repo_id, validated_bytes, total_bytes
 
     def _downloaded_huggingface_models(self) -> tuple[ModelMetadata, ...]:
         if not HUGGINGFACE_LOCAL_MODELS_ROOT.exists():
@@ -910,9 +1444,11 @@ class ProviderService:
         for item in sorted(HUGGINGFACE_LOCAL_MODELS_ROOT.iterdir(), key=lambda path: path.name.lower()):
             if not item.is_dir():
                 continue
-            repo_id = self._read_huggingface_repo_id_from_metadata(item)
-            if not repo_id or repo_id in seen:
+
+            is_complete, repo_id, _, _ = self._is_huggingface_download_complete(item)
+            if not is_complete or not repo_id or repo_id in seen:
                 continue
+
             seen.add(repo_id)
             models.append(_infer_huggingface_metadata(repo_id))
 
@@ -1224,6 +1760,7 @@ class ProviderService:
             gated=gated,
             last_modified=last_modified,
             url=f"https://huggingface.co/{repo_id}",
+            size_bytes=_extract_huggingface_model_size(payload),
         )
 
     def _visibility_matches(self, model_visibility: str, requested_visibility: ModelVisibilityFilter) -> bool:
@@ -1329,3 +1866,6 @@ class ProviderService:
 
 
 provider_service = ProviderService()
+
+
+

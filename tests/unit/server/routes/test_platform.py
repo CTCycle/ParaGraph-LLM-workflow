@@ -10,7 +10,9 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from ParaGraph.server.entities.nodecatalog import (
     HuggingFaceModelCatalogResponse,
     HuggingFaceModelDefinition,
+    HuggingFaceModelDownloadCancelResponse,
     HuggingFaceModelDownloadResponse,
+    HuggingFaceModelDownloadStatusResponse,
     OllamaLibraryCatalogResponse,
     OllamaLibraryModelDefinition,
     OllamaModelPullResponse,
@@ -327,9 +329,15 @@ def test_huggingface_download_endpoint_returns_success(client: TestClient, monke
         lambda *, repo_id, session_name='default': HuggingFaceModelDownloadResponse(
             ok=True,
             repo_id=repo_id,
-            message=f"Downloaded Hugging Face model '{repo_id}' to local storage.",
+            message=f"Started download for Hugging Face model '{repo_id}'.",
             destination_path=f"ParaGraph/resources/models/huggingface/{repo_id.replace('/', '--')}",
             already_downloaded=False,
+            job_id='job-1234',
+            status='running',
+            progress=0.0,
+            downloaded_bytes=0,
+            total_bytes=1024,
+            poll_interval=1.0,
         ),
     )
 
@@ -339,6 +347,54 @@ def test_huggingface_download_endpoint_returns_success(client: TestClient, monke
     payload = response.json()
     assert payload['ok'] is True
     assert payload['repo_id'] == 'meta-llama/Llama-3.2-3B-Instruct'
+    assert payload['job_id'] == 'job-1234'
+    assert payload['status'] == 'running'
+
+
+def test_huggingface_download_status_endpoint_returns_payload(client: TestClient, monkeypatch) -> None:
+    monkeypatch.setattr(
+        provider_service,
+        'get_huggingface_download_status',
+        lambda *, job_id: HuggingFaceModelDownloadStatusResponse(
+            job_id=job_id,
+            repo_id='meta-llama/Llama-3.2-3B-Instruct',
+            destination_path='ParaGraph/resources/models/huggingface/meta-llama--Llama-3.2-3B-Instruct',
+            status='running',
+            progress=42.0,
+            message='Downloading files...',
+            downloaded_bytes=420,
+            total_bytes=1000,
+            error=None,
+        ),
+    )
+
+    response = client.get('/providers/huggingface/download/job-1234')
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload['job_id'] == 'job-1234'
+    assert payload['status'] == 'running'
+    assert payload['progress'] == 42.0
+
+
+def test_huggingface_download_cancel_endpoint_returns_success(client: TestClient, monkeypatch) -> None:
+    monkeypatch.setattr(
+        provider_service,
+        'cancel_huggingface_download',
+        lambda *, job_id: HuggingFaceModelDownloadCancelResponse(
+            ok=True,
+            job_id=job_id,
+            repo_id='meta-llama/Llama-3.2-3B-Instruct',
+            message='Cancellation requested.',
+        ),
+    )
+
+    response = client.delete('/providers/huggingface/download/job-1234')
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload['ok'] is True
+    assert payload['job_id'] == 'job-1234'
 
 def test_compile_endpoint_returns_diagnostics_for_type_mismatch(client: TestClient) -> None:
     response = client.post(
@@ -409,4 +465,6 @@ def test_workflow_crud_and_versions(client: TestClient) -> None:
 
     assert update_response.status_code == 200
     assert update_response.json()['latest_version'] == 2
+
+
 

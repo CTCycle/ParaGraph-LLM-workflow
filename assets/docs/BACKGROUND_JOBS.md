@@ -62,6 +62,11 @@ The polling contract is consistent across job-backed routers.
   - start: `POST /inference/generate`
   - poll: `GET /inference/jobs/{job_id}`
   - cancel: `DELETE /inference/jobs/{job_id}`
+- Hugging Face model download:
+  - start: `POST /providers/huggingface/download`
+  - poll: `GET /providers/huggingface/download/{job_id}`
+  - cancel: `DELETE /providers/huggingface/download/{job_id}`
+  - runner behavior: downloads stream by chunk and emit byte-level progress updates; cancellation is checked during chunk iteration for faster stop responses on large files.
 
 ## Minimal Runner Template
 

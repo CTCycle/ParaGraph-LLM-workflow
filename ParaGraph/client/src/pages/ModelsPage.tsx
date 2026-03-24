@@ -15,15 +15,19 @@ import {
 import { useDebouncedValue } from '../app/hooks/useDebouncedValue'
 import { usePageMetadata } from '../app/hooks/usePageMetadata'
 import {
+    cancelHuggingFaceDownload,
     downloadHuggingFaceModel,
     fetchHuggingFaceModels,
     fetchOllamaLibraryModels,
+    getHuggingFaceDownloadStatus,
     pullOllamaModel,
     type HuggingFaceModelQueryOptions,
 } from '../app/services/workflowApi'
 import {
+    HuggingFaceDownloadJobStatus,
     HuggingFaceModelCatalogResponse,
     HuggingFaceModelDefinition,
+    HuggingFaceModelDownloadStatusResponse,
     HuggingFaceSortBy,
     ModelVisibilityFilter,
     OllamaLibraryModelDefinition,
@@ -39,6 +43,16 @@ type OllamaModelFilter = 'all' | 'pulled' | 'unpulled'
 const OLLAMA_MODEL_FILTERS: readonly OllamaModelFilter[] = ['all', 'pulled', 'unpulled']
 const HUGGINGFACE_VISIBILITY_FILTERS: readonly ModelVisibilityFilter[] = ['all', 'public', 'private', 'gated']
 const HUGGINGFACE_SORT_OPTIONS: readonly HuggingFaceSortBy[] = ['relevance', 'downloads', 'likes', 'updated']
+const HF_DOWNLOAD_POLL_MS = 1000
+
+type HuggingFaceDownloadState = {
+    jobId: string
+    status: HuggingFaceDownloadJobStatus
+    progress: number
+    downloadedBytes: number
+    totalBytes: number | null
+    message: string | null
+}
 
 function isOllamaModelFilter(value: string): value is OllamaModelFilter {
     return OLLAMA_MODEL_FILTERS.some((candidate) => candidate === value)
@@ -82,6 +96,33 @@ function formatMetric(value: number | null): string {
         return 'N/A'
     }
     return new Intl.NumberFormat().format(value)
+}
+
+function formatBytes(value: number | null): string {
+    if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
+        return 'Unknown'
+    }
+
+    if (value < 1024) {
+        return `${value} B`
+    }
+
+    const units = ['KB', 'MB', 'GB', 'TB']
+    let size = value / 1024
+    let unitIndex = 0
+    while (size >= 1024 && unitIndex < units.length - 1) {
+        size /= 1024
+        unitIndex += 1
+    }
+
+    return `${size.toFixed(size >= 100 ? 0 : size >= 10 ? 1 : 2)} ${units[unitIndex]}`
+}
+
+function formatModelSize(value: number | null): string {
+    if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
+        return 'Size: N/A'
+    }
+    return `Size: ${formatBytes(value)}`
 }
 
 function mergeFilterOptions(options: string[], selected: string): string[] {
@@ -170,10 +211,13 @@ export default function ModelsPage() {
     const [hfLoadingMore, setHfLoadingMore] = useState(false)
     const [hfError, setHfError] = useState<string | null>(null)
     const [hfMessage, setHfMessage] = useState<string | null>(null)
-    const [downloadingHfModels, setDownloadingHfModels] = useState<Record<string, boolean>>({})
+    const [hfDownloads, setHfDownloads] = useState<Record<string, HuggingFaceDownloadState>>({})
+    const [cancellingHfJobs, setCancellingHfJobs] = useState<Record<string, boolean>>({})
 
     const hfAbortRef = useRef<AbortController | null>(null)
     const hfCacheRef = useRef<Map<string, Map<number, HuggingFaceModelCatalogResponse>>>(new Map())
+    const hfDownloadTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
+    const hfDownloadPollGenerationRef = useRef<Record<string, number>>({})
 
     const debouncedHfSearch = useDebouncedValue(hfSearchInput.trim(), SEARCH_DEBOUNCE_MS)
 
@@ -318,29 +362,172 @@ export default function ModelsPage() {
     useEffect(() => {
         return () => {
             hfAbortRef.current?.abort()
+            for (const timer of Object.values(hfDownloadTimersRef.current)) {
+                clearTimeout(timer)
+            }
+            hfDownloadTimersRef.current = {}
+            hfDownloadPollGenerationRef.current = {}
         }
     }, [])
 
+    const clearHuggingFaceDownloadTimer = useCallback((repoId: string): void => {
+        const timer = hfDownloadTimersRef.current[repoId]
+        if (timer) {
+            clearTimeout(timer)
+            delete hfDownloadTimersRef.current[repoId]
+        }
+    }, [])
+
+    const clearHuggingFaceDownloadState = useCallback(
+        (repoId: string): void => {
+            clearHuggingFaceDownloadTimer(repoId)
+            delete hfDownloadPollGenerationRef.current[repoId]
+
+            setCancellingHfJobs((current) => {
+                const next = { ...current }
+                delete next[repoId]
+                return next
+            })
+            setHfDownloads((current) => {
+                const next = { ...current }
+                delete next[repoId]
+                return next
+            })
+        },
+        [clearHuggingFaceDownloadTimer],
+    )
+
+    const scheduleHuggingFaceDownloadPoll = useCallback(
+        (repoId: string, jobId: string, generation: number, delayMs: number): void => {
+            clearHuggingFaceDownloadTimer(repoId)
+            hfDownloadTimersRef.current[repoId] = setTimeout(() => {
+                void (async () => {
+                    if (hfDownloadPollGenerationRef.current[repoId] !== generation) {
+                        return
+                    }
+
+                    try {
+                        const payload: HuggingFaceModelDownloadStatusResponse = await getHuggingFaceDownloadStatus(jobId)
+                        if (hfDownloadPollGenerationRef.current[repoId] !== generation) {
+                            return
+                        }
+
+                        setHfDownloads((current) => {
+                            const currentState = current[repoId]
+                            if (!currentState || currentState.jobId !== jobId) {
+                                return current
+                            }
+
+                            return {
+                                ...current,
+                                [repoId]: {
+                                    ...currentState,
+                                    status: payload.status,
+                                    progress: payload.progress,
+                                    downloadedBytes: payload.downloaded_bytes,
+                                    totalBytes: payload.total_bytes,
+                                    message: payload.message,
+                                },
+                            }
+                        })
+
+                        if (payload.status === 'pending' || payload.status === 'running') {
+                            scheduleHuggingFaceDownloadPoll(repoId, jobId, generation, HF_DOWNLOAD_POLL_MS)
+                            return
+                        }
+
+                        clearHuggingFaceDownloadTimer(repoId)
+                        setCancellingHfJobs((current) => {
+                            const next = { ...current }
+                            delete next[repoId]
+                            return next
+                        })
+
+                        if (payload.status === 'completed') {
+                            setHfMessage(payload.message ?? `Downloaded Hugging Face model '${repoId}'.`)
+                            await refreshHuggingFace()
+                        } else if (payload.status === 'cancelled') {
+                            setHfMessage(payload.message ?? `Download cancelled for '${repoId}'.`)
+                        } else {
+                            setHfError(payload.error ?? payload.message ?? `Download failed for '${repoId}'.`)
+                        }
+
+                        clearHuggingFaceDownloadState(repoId)
+                    } catch (error) {
+                        if (hfDownloadPollGenerationRef.current[repoId] !== generation) {
+                            return
+                        }
+                        setHfError(error instanceof Error ? error.message : `Failed to poll download status for '${repoId}'.`)
+                        clearHuggingFaceDownloadState(repoId)
+                    }
+                })()
+            }, Math.max(250, delayMs))
+        },
+        [clearHuggingFaceDownloadState, clearHuggingFaceDownloadTimer, refreshHuggingFace],
+    )
+
     async function handleDownloadHuggingFaceModel(repoId: string): Promise<void> {
-        setDownloadingHfModels((current) => ({ ...current, [repoId]: true }))
+        const currentDownload = hfDownloads[repoId]
+        const isActiveDownload = currentDownload && (currentDownload.status === 'pending' || currentDownload.status === 'running')
+
+        if (isActiveDownload) {
+            setCancellingHfJobs((current) => ({ ...current, [repoId]: true }))
+            try {
+                const payload = await cancelHuggingFaceDownload(currentDownload.jobId)
+                setHfMessage(payload.message)
+
+                const generation = hfDownloadPollGenerationRef.current[repoId]
+                if (typeof generation === 'number') {
+                    scheduleHuggingFaceDownloadPoll(repoId, currentDownload.jobId, generation, 250)
+                    return
+                }
+
+                clearHuggingFaceDownloadState(repoId)
+            } catch (error) {
+                setHfError(error instanceof Error ? error.message : `Failed to cancel download for '${repoId}'.`)
+                setCancellingHfJobs((current) => {
+                    const next = { ...current }
+                    delete next[repoId]
+                    return next
+                })
+            }
+            return
+        }
+
         setHfError(null)
         setHfMessage(null)
 
         try {
             const payload = await downloadHuggingFaceModel(repoId)
-            setHfMessage(payload.message)
-            await refreshHuggingFace()
+            const jobId = payload.job_id
+            if (payload.already_downloaded || !jobId || payload.status === 'completed') {
+                clearHuggingFaceDownloadState(repoId)
+                setHfMessage(payload.message)
+                await refreshHuggingFace()
+                return
+            }
+
+            const generation = (hfDownloadPollGenerationRef.current[repoId] ?? 0) + 1
+            hfDownloadPollGenerationRef.current[repoId] = generation
+            setHfDownloads((current) => ({
+                ...current,
+                [repoId]: {
+                    jobId,
+                    status: payload.status,
+                    progress: payload.progress,
+                    downloadedBytes: payload.downloaded_bytes,
+                    totalBytes: payload.total_bytes,
+                    message: payload.message,
+                },
+            }))
+
+            const pollDelayMs = Math.max(250, Math.round(payload.poll_interval * 1000) || HF_DOWNLOAD_POLL_MS)
+            scheduleHuggingFaceDownloadPoll(repoId, jobId, generation, pollDelayMs)
         } catch (error) {
             setHfError(error instanceof Error ? error.message : 'Failed to download Hugging Face model')
-        } finally {
-            setDownloadingHfModels((current) => {
-                const next = { ...current }
-                delete next[repoId]
-                return next
-            })
+            clearHuggingFaceDownloadState(repoId)
         }
     }
-
     async function handlePullModel(modelName: string): Promise<void> {
         setPullingModels((current) => ({ ...current, [modelName]: true }))
         setOllamaError(null)
@@ -536,7 +723,11 @@ export default function ModelsPage() {
                             hfModels.map((model) => {
                                 const visibilityConfig = VISIBILITY_ICON_MAP[model.visibility] ?? VISIBILITY_ICON_MAP.unknown
                                 const VisibilityIcon = visibilityConfig.icon
-                                const isDownloading = Boolean(downloadingHfModels[model.repo_id])
+                                const downloadState = hfDownloads[model.repo_id] ?? null
+                                const isDownloading =
+                                    downloadState !== null && (downloadState.status === 'pending' || downloadState.status === 'running')
+                                const isCancelling = Boolean(cancellingHfJobs[model.repo_id])
+                                const progressValue = downloadState ? Math.min(100, Math.max(0, downloadState.progress)) : 0
                                 return (
                                     <article key={model.repo_id} role="listitem" className="models-row models-row-hf">
                                         <div className="models-row-main">
@@ -549,33 +740,67 @@ export default function ModelsPage() {
                                             <div className="models-meta-line">
                                                 <span>Likes: {formatMetric(model.likes)}</span>
                                                 <span>Downloads: {formatMetric(model.downloads)}</span>
+                                                <span>{formatModelSize(model.size_bytes)}</span>
                                             </div>
+                                            {downloadState && (
+                                                <div
+                                                    className="models-download-progress"
+                                                    role="progressbar"
+                                                    aria-valuemin={0}
+                                                    aria-valuemax={100}
+                                                    aria-valuenow={Math.round(progressValue)}
+                                                >
+                                                    <div className="models-download-progress-track">
+                                                        <div className="models-download-progress-fill" style={{ width: `${progressValue}%` }} />
+                                                    </div>
+                                                    <div className="models-download-progress-meta">
+                                                        <span>{downloadState.message ?? 'Downloading...'}</span>
+                                                        <span>
+                                                            {`${formatBytes(downloadState.downloadedBytes)} / ${
+                                                                downloadState.totalBytes !== null ? formatBytes(downloadState.totalBytes) : 'Unknown'
+                                                            }`}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
                                         <div className="models-row-actions models-row-actions-hf">
-                                            <span className={`models-pill ${visibilityConfig.className}`}>
-                                                <VisibilityIcon size={13} strokeWidth={2.2} />
-                                                {visibilityConfig.label}
-                                            </span>
-                                            {model.downloaded ? (
-                                                <span className="models-pill models-pill-ok">
-                                                    <Check size={13} strokeWidth={2.2} />
-                                                    Downloaded
+                                            <div className="models-row-pills-hf">
+                                                <span className={`models-pill ${visibilityConfig.className}`}>
+                                                    <VisibilityIcon size={13} strokeWidth={2.2} />
+                                                    {visibilityConfig.label}
                                                 </span>
-                                            ) : (
-                                                <button
-                                                    type="button"
-                                                    className="models-icon-button"
-                                                    onClick={() => void handleDownloadHuggingFaceModel(model.repo_id)}
-                                                    disabled={isDownloading}
+                                                {model.downloaded && !isDownloading && (
+                                                    <span className="models-pill models-pill-ok">
+                                                        <Check size={13} strokeWidth={2.2} />
+                                                        Downloaded
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <div className="models-row-button-line">
+                                                {!model.downloaded && (
+                                                    <button
+                                                        type="button"
+                                                        className={`models-icon-button models-icon-button-compact ${
+                                                            isDownloading ? 'models-icon-button-stop' : ''
+                                                        }`}
+                                                        onClick={() => void handleDownloadHuggingFaceModel(model.repo_id)}
+                                                        disabled={isCancelling}
+                                                    >
+                                                        <Download size={13} strokeWidth={2.2} />
+                                                        {isDownloading ? (isCancelling ? 'Stopping...' : 'Stop') : 'Download'}
+                                                    </button>
+                                                )}
+                                                <a
+                                                    href={model.url}
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                    className="models-icon-button models-icon-button-compact"
                                                 >
-                                                    <Download size={13} strokeWidth={2.2} />
-                                                    {isDownloading ? 'Downloading...' : 'Download'}
-                                                </button>
-                                            )}
-                                            <a href={model.url} target="_blank" rel="noreferrer" className="models-icon-button">
-                                                <ExternalLink size={13} strokeWidth={2.2} />
-                                                Open
-                                            </a>
+                                                    <ExternalLink size={13} strokeWidth={2.2} />
+                                                    Open
+                                                </a>
+                                            </div>
                                         </div>
                                     </article>
                                 )

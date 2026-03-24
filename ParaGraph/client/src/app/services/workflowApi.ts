@@ -7,7 +7,9 @@ import {
     ExecutionEventEnvelope,
     ExecutionRunState,
     HuggingFaceModelCatalogResponse,
+    HuggingFaceModelDownloadCancelResponse,
     HuggingFaceModelDownloadResponse,
+    HuggingFaceModelDownloadStatusResponse,
     HuggingFaceSortBy,
     ModelVisibilityFilter,
     NodeCatalogResponse,
@@ -198,6 +200,24 @@ export function downloadHuggingFaceModel(repoId: string, sessionName = 'default'
         body: JSON.stringify({ repo_id: normalizedRepoId }),
     })
 }
+
+export function getHuggingFaceDownloadStatus(jobId: string): Promise<HuggingFaceModelDownloadStatusResponse> {
+    const normalizedJobId = jobId.trim()
+    if (!normalizedJobId) {
+        throw new Error('Download job id is required')
+    }
+    return requestJson<HuggingFaceModelDownloadStatusResponse>(`/providers/huggingface/download/${encodeURIComponent(normalizedJobId)}`)
+}
+
+export function cancelHuggingFaceDownload(jobId: string): Promise<HuggingFaceModelDownloadCancelResponse> {
+    const normalizedJobId = jobId.trim()
+    if (!normalizedJobId) {
+        throw new Error('Download job id is required')
+    }
+    return requestJson<HuggingFaceModelDownloadCancelResponse>(`/providers/huggingface/download/${encodeURIComponent(normalizedJobId)}`, {
+        method: 'DELETE',
+    })
+}
 export function fetchConfigurations(sessionName = 'default'): Promise<AppConfigurationPayload> {
     const params = new URLSearchParams({ session_name: sessionName })
     return requestJson<AppConfigurationPayload>(`/configurations?${params.toString()}`)
@@ -324,3 +344,4 @@ export function subscribeExecutionEvents(
     ws.onerror = () => handlers.onError?.('Execution event stream disconnected')
     return () => ws.close()
 }
+
