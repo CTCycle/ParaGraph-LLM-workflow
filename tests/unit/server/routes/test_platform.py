@@ -19,7 +19,6 @@ from ParaGraph.server.entities.nodecatalog import (
     ProviderModelCatalogResponse,
     ProviderModelDefinition,
 )
-from ParaGraph.server.routes import nodes as node_routes
 from ParaGraph.server.services.workflow import nodes as node_module
 from ParaGraph.server.services.workflow import provider_service
 
@@ -106,24 +105,6 @@ def test_nodes_import_persists_manifest(client: TestClient, monkeypatch, tmp_pat
     assert (node_dir / 'custom_echo_v1.json').exists()
 
 
-def test_nodes_dialog_files_returns_selected_paths(client: TestClient, monkeypatch) -> None:
-    monkeypatch.setattr(node_routes, 'pick_files', lambda multiple: ['C:/tmp/a.txt', 'C:/tmp/b.txt'] if multiple else ['C:/tmp/a.txt'])
-
-    response = client.get('/nodes/dialog/files?multiple=true')
-
-    assert response.status_code == 200
-    assert response.json() == {'paths': ['C:/tmp/a.txt', 'C:/tmp/b.txt']}
-
-
-def test_nodes_dialog_directory_returns_selected_path(client: TestClient, monkeypatch) -> None:
-    monkeypatch.setattr(node_routes, 'pick_directory', lambda: 'C:/tmp/data')
-
-    response = client.get('/nodes/dialog/directory')
-
-    assert response.status_code == 200
-    assert response.json() == {'path': 'C:/tmp/data'}
-
-
 def test_nodes_upload_directory_stages_browser_selected_folder(client: TestClient) -> None:
     response = client.post(
         '/nodes/uploads/directory',
@@ -136,8 +117,11 @@ def test_nodes_upload_directory_stages_browser_selected_folder(client: TestClien
     assert response.status_code == 200
     payload = response.json()
     staged_root = Path(payload['path'])
+    staged_files = [Path(item) for item in payload['files']]
     try:
         assert payload['file_count'] == 2
+        assert len(staged_files) == 2
+        assert all(path.exists() for path in staged_files)
         assert (staged_root / 'dataset' / 'readme.txt').read_text(encoding='utf-8') == 'hello world'
         assert (staged_root / 'dataset' / 'nested' / 'notes.md').read_text(encoding='utf-8') == '# Notes'
     finally:
@@ -465,6 +449,4 @@ def test_workflow_crud_and_versions(client: TestClient) -> None:
 
     assert update_response.status_code == 200
     assert update_response.json()['latest_version'] == 2
-
-
 

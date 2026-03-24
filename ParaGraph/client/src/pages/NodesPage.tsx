@@ -82,6 +82,16 @@ const NODE_CATEGORY_ICONS: Record<NodeCategory, LucideIcon> = {
     control: GitBranch,
 }
 
+const EMPTY_CATEGORY_COUNTS: Record<NodeCategory, number> = {
+    input: 0,
+    model: 0,
+    processing: 0,
+    fragmentation: 0,
+    output: 0,
+    serialization: 0,
+    control: 0,
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === 'object' && value !== null
 }
@@ -148,7 +158,7 @@ export default function NodesPage() {
         return NODE_CATEGORY_ORDER.reduce<Record<NodeCategory, number>>((counts, category) => {
             counts[category] = catalog.filter((node) => node.category === category).length
             return counts
-        }, {} as Record<NodeCategory, number>)
+        }, { ...EMPTY_CATEGORY_COUNTS })
     }, [catalog])
 
     const filteredCatalog = useMemo(() => {
@@ -380,3 +390,4 @@ export default function NodesPage() {
         </>
     )
 }
+
