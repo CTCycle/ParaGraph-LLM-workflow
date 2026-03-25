@@ -113,12 +113,25 @@ class SaveTextParameters(BaseModel):
 class StorageParameters(BaseModel):
     storage_path: str = ""
 
+    @field_validator("storage_path")
+    @classmethod
+    def validate_storage_path(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("storage_path is required. Select a local path.")
+        return normalized
+
 
 class RouterParameters(BaseModel):
     expected_value: str = ""
 
 
-def _resolve_storage_path(raw_path: Any, *, label: str) -> Path:
+def _resolve_storage_path(
+    raw_path: Any,
+    *,
+    label: str,
+    relative_to_artifacts_root: bool = False,
+) -> Path:
     storage_path = coerce_text(raw_path).strip()
     if not storage_path:
         raise ValueError(f"{label} is required. Select a local path.")
@@ -130,9 +143,14 @@ def _resolve_storage_path(raw_path: Any, *, label: str) -> Path:
             return ensure_path_within_root(resolved, artifact_root, label=label)
         return resolved
 
-    # Keep legacy relative paths rooted in artifacts for existing workflows.
-    resolved = (ARTIFACT_ROOT / candidate).resolve()
-    return ensure_path_within_root(resolved, artifact_root, label=label)
+    if relative_to_artifacts_root:
+        resolved = (ARTIFACT_ROOT / candidate).resolve()
+        return ensure_path_within_root(resolved, artifact_root, label=label)
+
+    resolved = candidate.resolve()
+    if is_cloud_deployment():
+        return ensure_path_within_root(resolved, artifact_root, label=label)
+    return resolved
 
 
 def _to_artifact_path(path: Path) -> str:
@@ -441,7 +459,7 @@ def _save_text_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> d
     if not items:
         raise ValueError("SAVE_TEXT requires at least one non-empty text, documents, or chunks input")
 
-    target_root = _resolve_storage_path(parsed.output_path, label="output_path")
+    target_root = _resolve_storage_path(parsed.output_path, label="output_path", relative_to_artifacts_root=True)
 
     if parsed.separate_files:
         target_root.mkdir(parents=True, exist_ok=True)
@@ -520,3 +538,4 @@ CORE_HANDLERS = {
     "if": NodeHandler(executor=_if_executor),
     "router": NodeHandler(executor=_router_executor, parameter_model=RouterParameters),
 }
+

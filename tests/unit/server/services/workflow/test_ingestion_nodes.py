@@ -51,6 +51,26 @@ def test_load_documents_respects_recursive_toggle(tmp_path: Path) -> None:
     assert sorted(Path(document['source_uri']).name for document in recursive['documents']) == ['child.txt', 'root.txt']
 
 
+def test_load_documents_rejects_non_canonical_folder_path_keys(tmp_path: Path) -> None:
+    source_dir = tmp_path / 'legacy-folder'
+    source_dir.mkdir(parents=True, exist_ok=True)
+    (source_dir / 'legacy.txt').write_text('legacy', encoding='utf-8')
+
+    invalid_payloads = [
+        {'folderPath': str(source_dir), 'recursive': False},
+        {'folder path': str(source_dir), 'recursive': False},
+        {'directory_path': str(source_dir), 'recursive': False},
+        {'path': str(source_dir), 'recursive': False},
+    ]
+
+    for payload in invalid_payloads:
+        try:
+            node_registry.execute('LOAD_DOCUMENTS', 1, payload, {})
+        except ValueError as exc:
+            assert 'folder_path' in str(exc)
+        else:
+            raise AssertionError('Expected LOAD_DOCUMENTS to reject non-canonical folder path keys')
+
 def test_sql_file_database_node_roundtrip(tmp_path: Path) -> None:
     class ItemsBase(DeclarativeBase):
         pass
@@ -113,3 +133,4 @@ def test_sql_database_requires_required_fields_before_connect_attempt() -> None:
         assert 'db_host' in message or 'db_name' in message
     else:
         raise AssertionError('Expected SQL_DATABASE validation failure for missing required fields')
+

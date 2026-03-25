@@ -26,6 +26,31 @@ def test_save_and_load_text_supports_absolute_local_paths(tmp_path: Path) -> Non
     assert loaded['text'] == 'local file payload'
 
 
+def test_load_text_supports_workspace_relative_paths(tmp_path: Path, monkeypatch) -> None:
+    source_file = tmp_path / 'relative-source.txt'
+    source_file.write_text('relative payload', encoding='utf-8')
+
+    monkeypatch.chdir(tmp_path)
+    loaded = node_registry.execute('LOAD_TEXT', 1, {'storage_path': source_file.name}, {})
+
+    assert loaded['text'] == 'relative payload'
+
+
+def test_load_text_rejects_non_canonical_storage_path_keys(tmp_path: Path) -> None:
+    source_file = tmp_path / 'legacy-source.txt'
+    source_file.write_text('legacy payload', encoding='utf-8')
+
+    invalid_payloads = [
+        {'storagePath': str(source_file)},
+        {'storage path': str(source_file)},
+        {'file_path': str(source_file)},
+        {'path': str(source_file)},
+    ]
+
+    for payload in invalid_payloads:
+        with pytest.raises(ValueError, match='storage_path is required'):
+            node_registry.execute('LOAD_TEXT', 1, payload, {})
+
 def test_save_text_supports_chunks_input_single_file_concat(tmp_path: Path) -> None:
     destination = tmp_path / 'exports' / 'chunks-output.md'
 
@@ -123,3 +148,4 @@ def test_save_text_rejects_absolute_paths_in_cloud_mode(monkeypatch, tmp_path: P
             {'output_path': str(destination), 'separate_files': False, 'extension': '.txt'},
             {'text': 'cloud payload'},
         )
+
