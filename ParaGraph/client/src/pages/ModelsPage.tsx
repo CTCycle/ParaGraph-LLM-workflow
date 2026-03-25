@@ -643,6 +643,7 @@ export default function ModelsPage() {
                                 )
                             })}
                     </div>
+                    <div className="models-footer models-footer-placeholder" aria-hidden="true" />
                 </section>
 
                 <section className="models-column" aria-label="Hugging Face models">

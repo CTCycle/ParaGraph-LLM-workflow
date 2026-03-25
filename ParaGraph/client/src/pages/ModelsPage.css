@@ -354,8 +354,14 @@
 
 .models-footer {
     margin-top: 10px;
+    min-height: 34px;
     display: flex;
     justify-content: flex-end;
+}
+
+.models-footer-placeholder {
+    visibility: hidden;
+    pointer-events: none;
 }
 
 @media (max-width: 1240px) {

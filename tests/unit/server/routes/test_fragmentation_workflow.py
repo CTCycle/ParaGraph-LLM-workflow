@@ -6,10 +6,16 @@ from fastapi.testclient import TestClient
 
 
 def build_fragmentation_definition(source_path: str, output_path: str) -> dict[str, object]:
+    source_folder = str(Path(source_path).resolve().parent)
     return {
         'schema_version': 2,
         'nodes': [
-            {'node_id': 'doc_1', 'node_type': 'DOCUMENT_LOADER', 'node_version': 1, 'parameters': {'file_path': source_path}},
+            {
+                'node_id': 'doc_1',
+                'node_type': 'LOAD_DOCUMENTS',
+                'node_version': 1,
+                'parameters': {'folder_path': source_folder, 'recursive': False},
+            },
             {
                 'node_id': 'split_1',
                 'node_type': 'BY_DELIMITER_CHUNKS',

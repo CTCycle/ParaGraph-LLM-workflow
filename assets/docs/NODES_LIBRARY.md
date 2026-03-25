@@ -37,7 +37,6 @@ The node category set remains:
 |---|---:|---|---|---|
 | `BY_DELIMITER_CHUNKS` | 1 | By Delimiter Chunks | fragmentation | `by_delimiter_chunks_v1.json` |
 | `BY_STRUCTURE_CHUNKS` | 1 | By Structure Chunks | fragmentation | `by_structure_chunks_v1.json` |
-| `DOCUMENT_LOADER` | 1 | Document Loader | input | `document_loader_v1.json` |
 | `FIXED_SIZE_CHUNKS` | 1 | Fixed Size Chunks | fragmentation | `fixed_size_chunks_v1.json` |
 | `JSON_OUTPUT` | 1 | JSON Output | output | `json_output_v1.json` |
 | `LLM_CHAT` | 1 | LLM Chat | model | `llm_chat_v1.json` |
@@ -112,16 +111,6 @@ Parameters: `context_window`, `max_tokens`, `use_reasoning`, `response_schema`.
 Outputs: `text` (`TEXT`).
 
 Parameters: `prompt_text` (`TEXT`, required, textarea).
-
-## `DOCUMENT_LOADER` (v1)
-
-- Name: Document Loader
-- Category: `input`
-- Description: Load one or more local files and emit normalized `DOCUMENT_LIST` payloads.
-
-Outputs: `documents` (`DOCUMENT_LIST`).
-
-Parameters include `file_path` or `file_paths`, optional MIME hints, and extension filtering.
 
 ## `LOAD_DOCUMENTS` (v1)
 
