@@ -1,0 +1,94 @@
+{
+  "id": "SENTENCE_WINDOW_CHUNKS",
+  "version": 1,
+  "name": "Sentence Window Chunks",
+  "category": "fragmentation",
+  "description": "Split text into sentences and group them into overlapping sliding windows.",
+  "inputs": [
+    {
+      "name": "documents",
+      "data_type": "DOCUMENT_LIST",
+      "required": false,
+      "accepts_multiple": false,
+      "description": "Document collection to fragment."
+    },
+    {
+      "name": "chunks",
+      "data_type": "CHUNK_LIST",
+      "required": false,
+      "accepts_multiple": false,
+      "description": "Optional upstream chunks for chained fragmentation."
+    }
+  ],
+  "outputs": [
+    {
+      "name": "chunks",
+      "data_type": "CHUNK_LIST",
+      "required": true,
+      "accepts_multiple": false,
+      "description": "Sentence-window chunks."
+    }
+  ],
+  "parameters": [
+    {
+      "name": "sentences_per_chunk",
+      "data_type": "JSON",
+      "default": 4,
+      "constraints": {
+        "required": true,
+        "min": 1,
+        "max": 1000
+      },
+      "ui_control": "number",
+      "description": "Number of sentences included in each chunk."
+    },
+    {
+      "name": "sentence_overlap",
+      "data_type": "JSON",
+      "default": 1,
+      "constraints": {
+        "required": true,
+        "min": 0,
+        "max": 999
+      },
+      "ui_control": "number",
+      "description": "Sentence overlap between adjacent windows."
+    },
+    {
+      "name": "max_chunk_size",
+      "data_type": "JSON",
+      "default": 0,
+      "constraints": {
+        "min": 0,
+        "max": 100000
+      },
+      "ui_control": "number",
+      "description": "Optional safeguard (characters). Use 0 to disable."
+    },
+    {
+      "name": "overflow_strategy",
+      "data_type": "TEXT",
+      "default": "split_further",
+      "constraints": {
+        "required": true,
+        "options": [
+          "split_further",
+          "emit_as_is"
+        ]
+      },
+      "ui_control": "select",
+      "description": "Behavior for windows exceeding max_chunk_size."
+    }
+  ],
+  "ui": {
+    "default_width": 360,
+    "accent_color": "#d99128",
+    "collapsed_by_default": false
+  },
+  "runtime": {
+    "executor_key": "sentence_window_chunks",
+    "cacheable": false,
+    "deterministic": true,
+    "side_effecting": false
+  }
+}

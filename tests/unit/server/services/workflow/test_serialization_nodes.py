@@ -5,25 +5,97 @@ from pathlib import Path
 import pytest
 
 from ParaGraph.server.services.workflow import node_registry
-from ParaGraph.server.services.workflow import nodes as node_module
 
 
 def test_save_and_load_text_supports_absolute_local_paths(tmp_path: Path) -> None:
-    destination = tmp_path / 'exports' / 'saved.txt'
+    destination = tmp_path / 'exports' / 'saved'
 
     save_result = node_registry.execute(
         'SAVE_TEXT',
         1,
-        {'storage_path': str(destination)},
+        {'output_path': str(destination), 'separate_files': False, 'extension': '.txt'},
         {'text': 'local file payload'},
     )
 
-    assert destination.exists()
-    assert destination.read_text(encoding='utf-8') == 'local file payload'
-    assert save_result['artifact']['path'] == str(destination)
+    expected_file = destination.with_suffix('.txt')
+    assert expected_file.exists()
+    assert expected_file.read_text(encoding='utf-8') == 'local file payload'
+    assert save_result['artifact']['path'] == str(expected_file.resolve())
 
-    loaded = node_registry.execute('LOAD_TEXT', 1, {'storage_path': str(destination)}, {})
+    loaded = node_registry.execute('LOAD_TEXT', 1, {'storage_path': str(expected_file)}, {})
     assert loaded['text'] == 'local file payload'
+
+
+def test_save_text_supports_chunks_input_single_file_concat(tmp_path: Path) -> None:
+    destination = tmp_path / 'exports' / 'chunks-output.md'
+
+    save_result = node_registry.execute(
+        'SAVE_TEXT',
+        1,
+        {'output_path': str(destination), 'separate_files': False, 'extension': '.md'},
+        {
+            'chunks': [
+                {
+                    'id': 'chunk-1',
+                    'document_id': 'doc-1',
+                    'text': 'First chunk body',
+                    'source_uri': 'memory://doc-1',
+                    'chunk_index': 0,
+                    'token_count': 3,
+                    'metadata': {},
+                },
+                {
+                    'id': 'chunk-2',
+                    'document_id': 'doc-1',
+                    'text': 'Second chunk body',
+                    'source_uri': 'memory://doc-1',
+                    'chunk_index': 1,
+                    'token_count': 3,
+                    'metadata': {},
+                },
+            ]
+        },
+    )
+
+    assert destination.exists()
+    assert destination.read_text(encoding='utf-8') == 'First chunk body\n\nSecond chunk body'
+    assert save_result['artifact']['count'] == 1
+    assert save_result['artifact']['extension'] == '.md'
+
+
+def test_save_text_supports_documents_input_with_separate_files(tmp_path: Path) -> None:
+    destination_folder = tmp_path / 'exports' / 'documents'
+
+    save_result = node_registry.execute(
+        'SAVE_TEXT',
+        1,
+        {'output_path': str(destination_folder), 'separate_files': True, 'extension': '.txt'},
+        {
+            'documents': [
+                {
+                    'id': 'doc-1',
+                    'text': 'alpha',
+                    'source_uri': 'memory://alpha',
+                    'mime_type': 'text/plain',
+                    'metadata': {'file_name': 'alpha.txt'},
+                },
+                {
+                    'id': 'doc-2',
+                    'text': 'beta',
+                    'source_uri': 'memory://beta',
+                    'mime_type': 'text/plain',
+                    'metadata': {'file_name': 'beta.txt'},
+                },
+            ]
+        },
+    )
+
+    artifact = save_result['artifact']
+    assert artifact['separate_files'] is True
+    assert artifact['count'] == 2
+    saved_paths = [Path(path) for path in artifact['files']]
+    assert all(path.exists() for path in saved_paths)
+    assert sorted(path.read_text(encoding='utf-8') for path in saved_paths) == ['alpha', 'beta']
 
 
 def test_load_text_rejects_empty_storage_path() -> None:
@@ -36,7 +108,7 @@ def test_save_text_rejects_relative_path_traversal() -> None:
         node_registry.execute(
             'SAVE_TEXT',
             1,
-            {'storage_path': '../../outside.txt'},
+            {'output_path': '../../outside.txt', 'separate_files': False, 'extension': '.txt'},
             {'text': 'payload'},
         )
 
@@ -48,61 +120,6 @@ def test_save_text_rejects_absolute_paths_in_cloud_mode(monkeypatch, tmp_path: P
         node_registry.execute(
             'SAVE_TEXT',
             1,
-            {'storage_path': str(destination)},
+            {'output_path': str(destination), 'separate_files': False, 'extension': '.txt'},
             {'text': 'cloud payload'},
         )
-
-
-def test_vector_db_writer_uses_selected_storage_directory(monkeypatch, tmp_path: Path) -> None:
-    index_name = 'custom-store'
-    storage_directory = tmp_path / 'vector-root'
-    points = [
-        {
-            'id': 'p1',
-            'chunk_id': 'c1',
-            'document_id': 'd1',
-            'text': 'apples are crisp',
-            'source_uri': 'memory://doc',
-            'vector': [1.0, 0.0, 0.0],
-            'embedding_provider': 'ollama',
-            'embedding_model': 'nomic-embed-text',
-            'metadata': {},
-        }
-    ]
-
-    monkeypatch.setattr(
-        node_module.provider_service,
-        'embed_text',
-        lambda provider, model, text, dimensions=None, session_name='default': [1.0, 0.0, 0.0],
-    )
-
-    store_result = node_registry.execute(
-        'VECTOR_DB_WRITER',
-        1,
-        {
-            'backend': 'faiss',
-            'index_name': index_name,
-            'storage_directory': str(storage_directory),
-            'metric': 'cosine',
-            'index_type': 'flat',
-            'write_mode': 'overwrite',
-            'nlist': 8,
-            'hnsw_m': 16,
-        },
-        {'points': points},
-    )
-
-    expected_store_path = (storage_directory / index_name).resolve()
-    store_handle = store_result['store']
-    assert Path(store_handle['artifact_path']) == expected_store_path
-    assert store_handle['metadata']['storage_directory'] == str(storage_directory.resolve())
-
-    results = node_registry.execute(
-        'SIMILARITY_SEARCH',
-        1,
-        {'top_k': 1, 'score_threshold': 0, 'filter': {}, 'include_metadata': True},
-        {'query': 'apples', 'store': store_handle},
-    )
-
-    assert len(results['results']['hits']) == 1
-    assert results['results']['hits'][0]['id'] == 'p1'

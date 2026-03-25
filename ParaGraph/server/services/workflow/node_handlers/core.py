@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import importlib
 import json
+import re
 from pathlib import Path
 from typing import Any
 
-from pydantic import BaseModel, Field, ValidationError, field_validator
+from pydantic import BaseModel, Field, ValidationError, field_validator, model_validator
 
 from ParaGraph.server.common.constants import RESOURCES_PATH
 from ParaGraph.server.common.security import ensure_path_within_root, is_cloud_deployment
@@ -22,6 +23,7 @@ from ParaGraph.server.services.workflow.node_handlers.common import (
     validate_schema_definition,
 )
 from ParaGraph.server.services.workflow.provider import provider_service
+from ParaGraph.server.services.workflow.node_handlers.ingestion import _load_file_text, _resolve_local_path
 
 
 ARTIFACT_ROOT = Path(RESOURCES_PATH) / "artifacts"
@@ -84,8 +86,28 @@ class TextSplitParameters(BaseModel):
     delimiter: str = "\n"
 
 
-class TemplateParameters(BaseModel):
-    template: str = "{input}"
+class SaveTextParameters(BaseModel):
+    output_path: str = ""
+    separate_files: bool = False
+    extension: str = ".txt"
+
+    @model_validator(mode="before")
+    @classmethod
+    def migrate_legacy_storage_path(cls, value: Any) -> Any:
+        if not isinstance(value, dict):
+            return value
+        payload = dict(value)
+        if "output_path" not in payload and "storage_path" in payload:
+            payload["output_path"] = payload["storage_path"]
+        return payload
+
+    @field_validator("extension")
+    @classmethod
+    def validate_extension(cls, value: str) -> str:
+        normalized = str(value or "").strip().lower()
+        if normalized not in {".txt", ".md", ".doc", ".pdf"}:
+            raise ValueError("extension must be one of: .txt, .md, .doc, .pdf")
+        return normalized
 
 
 class StorageParameters(BaseModel):
@@ -96,21 +118,29 @@ class RouterParameters(BaseModel):
     expected_value: str = ""
 
 
-def _resolve_storage_file_path(raw_path: Any) -> Path:
+def _resolve_storage_path(raw_path: Any, *, label: str) -> Path:
     storage_path = coerce_text(raw_path).strip()
     if not storage_path:
-        raise ValueError("storage_path is required. Select a local file path.")
+        raise ValueError(f"{label} is required. Select a local path.")
     candidate = Path(storage_path).expanduser()
     artifact_root = ARTIFACT_ROOT.resolve()
     if candidate.is_absolute():
         resolved = candidate.resolve()
         if is_cloud_deployment():
-            return ensure_path_within_root(resolved, artifact_root, label="storage_path")
+            return ensure_path_within_root(resolved, artifact_root, label=label)
         return resolved
 
     # Keep legacy relative paths rooted in artifacts for existing workflows.
     resolved = (ARTIFACT_ROOT / candidate).resolve()
-    return ensure_path_within_root(resolved, artifact_root, label="storage_path")
+    return ensure_path_within_root(resolved, artifact_root, label=label)
+
+
+def _to_artifact_path(path: Path) -> str:
+    artifact_root = ARTIFACT_ROOT.resolve()
+    try:
+        return str(path.resolve().relative_to(artifact_root))
+    except ValueError:
+        return str(path.resolve())
 
 
 def _prompt_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
@@ -339,28 +369,123 @@ def _text_split_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> 
     return {"segments": [segment.strip() for segment in text.split(delimiter) if segment.strip()]}
 
 
-def _template_format_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
-    template = coerce_text(parameters.get("template") or "{input}")
-    value = coerce_text(inputs.get("input") or "")
-    return {"text": template.replace("{input}", value)}
+def _safe_file_stem(raw_name: str, fallback: str) -> str:
+    cleaned = re.sub(r"[^A-Za-z0-9._-]+", "_", raw_name).strip("._-")
+    return cleaned or fallback
+
+
+def _derive_item_name_from_source(source_uri: str, fallback: str) -> str:
+    source = source_uri.strip()
+    if not source:
+        return fallback
+    candidate = Path(source)
+    if candidate.name:
+        return candidate.stem or candidate.name
+    return fallback
+
+
+def _collect_save_text_items(inputs: dict[str, Any]) -> list[dict[str, str]]:
+    items: list[dict[str, str]] = []
+    text_payload = coerce_text(inputs.get("text") or "")
+    if text_payload.strip():
+        items.append({"name": "text_output", "text": text_payload})
+
+    documents = inputs.get("documents") if isinstance(inputs.get("documents"), list) else []
+    for index, document in enumerate(documents, start=1):
+        if not isinstance(document, dict):
+            continue
+        metadata = document.get("metadata") if isinstance(document.get("metadata"), dict) else {}
+        text_content = coerce_text(document.get("text") or "")
+        if not text_content.strip():
+            path_candidate = coerce_text(metadata.get("file_path") or document.get("source_uri") or "").strip()
+            if path_candidate:
+                path = _resolve_local_path(path_candidate)
+                if path.exists() and path.is_file():
+                    text_content, _mime_type = _load_file_text(path)
+        if not text_content.strip():
+            continue
+        file_name = coerce_text(metadata.get("file_name") or "")
+        source_uri = coerce_text(document.get("source_uri") or "")
+        derived = Path(file_name).stem if file_name else _derive_item_name_from_source(source_uri, f"document_{index}")
+        items.append({"name": derived or f"document_{index}", "text": text_content})
+
+    chunks = inputs.get("chunks") if isinstance(inputs.get("chunks"), list) else []
+    for index, chunk in enumerate(chunks, start=1):
+        if not isinstance(chunk, dict):
+            continue
+        text_content = coerce_text(chunk.get("text") or "")
+        if not text_content.strip():
+            continue
+        document_id = coerce_text(chunk.get("document_id") or "").strip()
+        chunk_index = chunk.get("chunk_index")
+        if isinstance(chunk_index, int) and chunk_index >= 0:
+            derived = f"{document_id or 'chunk'}_{chunk_index}"
+        else:
+            derived = document_id or f"chunk_{index}"
+        items.append({"name": derived, "text": text_content})
+
+    return items
+
+
+def _ensure_extension(path: Path, extension: str) -> Path:
+    if path.suffix.lower() == extension:
+        return path
+    if path.suffix:
+        return path.with_suffix(extension)
+    return Path(f"{path.as_posix()}{extension}")
 
 
 def _save_text_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
-    text = coerce_text(inputs.get("text") or "")
-    destination = _resolve_storage_file_path(parameters.get("storage_path"))
+    parsed = SaveTextParameters.model_validate(parameters)
+    items = _collect_save_text_items(inputs)
+    if not items:
+        raise ValueError("SAVE_TEXT requires at least one non-empty text, documents, or chunks input")
+
+    target_root = _resolve_storage_path(parsed.output_path, label="output_path")
+
+    if parsed.separate_files:
+        target_root.mkdir(parents=True, exist_ok=True)
+        used_names: set[str] = set()
+        written_files: list[str] = []
+        for index, item in enumerate(items, start=1):
+            stem = _safe_file_stem(item["name"], f"item_{index}")
+            candidate_name = f"{stem}{parsed.extension}"
+            suffix_index = 2
+            while candidate_name in used_names:
+                candidate_name = f"{stem}_{suffix_index}{parsed.extension}"
+                suffix_index += 1
+            used_names.add(candidate_name)
+            destination = target_root / candidate_name
+            destination.write_text(item["text"], encoding="utf-8")
+            written_files.append(_to_artifact_path(destination))
+        return {
+            "artifact": {
+                "path": _to_artifact_path(target_root),
+                "files": written_files,
+                "count": len(written_files),
+                "separate_files": True,
+                "extension": parsed.extension,
+            }
+        }
+
+    destination = _ensure_extension(target_root, parsed.extension)
     destination.parent.mkdir(parents=True, exist_ok=True)
-    destination.write_text(text, encoding="utf-8")
-    artifact_root = ARTIFACT_ROOT.resolve()
-    try:
-        output_path = str(destination.relative_to(artifact_root))
-    except ValueError:
-        output_path = str(destination)
-    return {"artifact": {"path": output_path}}
+    destination.write_text("\n\n".join(item["text"] for item in items), encoding="utf-8")
+    resolved_path = _to_artifact_path(destination)
+    return {
+        "artifact": {
+            "path": resolved_path,
+            "files": [resolved_path],
+            "count": 1,
+            "separate_files": False,
+            "extension": parsed.extension,
+        }
+    }
 
 
 def _load_text_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
     _ = inputs
-    source = _resolve_storage_file_path(parameters.get("storage_path"))
+    source = _resolve_storage_path(parameters.get("storage_path"), label="storage_path")
     if not source.exists():
         raise ValueError(f"Text file not found: {source}")
     return {"text": source.read_text(encoding="utf-8")}
@@ -390,10 +515,8 @@ CORE_HANDLERS = {
     "embedding_model": NodeHandler(executor=_embedding_executor, parameter_model=EmbeddingParameters),
     "tokenize": NodeHandler(executor=_tokenize_executor),
     "text_split": NodeHandler(executor=_text_split_executor, parameter_model=TextSplitParameters),
-    "template_format": NodeHandler(executor=_template_format_executor, parameter_model=TemplateParameters),
-    "save_text": NodeHandler(executor=_save_text_executor, parameter_model=StorageParameters),
+    "save_text": NodeHandler(executor=_save_text_executor, parameter_model=SaveTextParameters),
     "load_text": NodeHandler(executor=_load_text_executor, parameter_model=StorageParameters),
     "if": NodeHandler(executor=_if_executor),
     "router": NodeHandler(executor=_router_executor, parameter_model=RouterParameters),
 }
-

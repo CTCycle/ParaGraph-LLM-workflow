@@ -45,12 +45,8 @@ def test_nodes_catalog_exposes_registry(client: TestClient) -> None:
 
     ids = {node['id'] for node in payload['nodes']}
     assert ids == {
-        'API_FETCHER',
-        'BATCH_EMBEDDER',
-        'CHUNKER',
-        'CONTEXT_INJECTOR',
-        'DATABASE_CONNECTION',
-        'DATABASE_QUERY',
+        'BY_DELIMITER_CHUNKS',
+        'BY_STRUCTURE_CHUNKS',
         'DOCUMENT_LOADER',
         'FIXED_SIZE_CHUNKS',
         'JSON_OUTPUT',
@@ -58,17 +54,15 @@ def test_nodes_catalog_exposes_registry(client: TestClient) -> None:
         'LLM_STRUCTURED',
         'LOAD_DOCUMENTS',
         'LOAD_TEXT',
+        'MERGE_SMALL_CHUNKS',
         'MODEL_PROVIDER',
         'PROMPT',
+        'RECURSIVE_SPLIT_CHUNKS',
         'SAVE_TEXT',
-        'SIMILARITY_SEARCH',
+        'SENTENCE_WINDOW_CHUNKS',
         'SQL_DATABASE',
         'SQL_FILE_DATABASE',
-        'TEMPLATE_FORMAT',
-        'TEXT_CLEANER',
         'TEXT_OUTPUT',
-        'VECTOR_DB_WRITER',
-        'WEB_SCRAPER',
     }
     assert 'USER_PROMPT' not in ids
     assert 'SYSTEM_PROMPT' not in ids
@@ -96,7 +90,7 @@ def test_nodes_import_persists_manifest(client: TestClient, monkeypatch, tmp_pat
             'outputs': [{'name': 'text', 'data_type': 'TEXT', 'required': True, 'accepts_multiple': False}],
             'parameters': [],
             'ui': {'default_width': 280, 'accent_color': '#ffffff', 'collapsed_by_default': False},
-            'runtime': {'executor_key': 'template_format', 'cacheable': True, 'deterministic': True, 'side_effecting': False},
+            'runtime': {'executor_key': 'prompt', 'cacheable': True, 'deterministic': True, 'side_effecting': False},
         },
     )
 
@@ -397,11 +391,11 @@ def test_compile_endpoint_returns_diagnostics_for_type_mismatch(client: TestClie
             'definition': {
                 'schema_version': 2,
                 'nodes': [
-                    {'node_id': 'web_1', 'node_type': 'WEB_SCRAPER', 'node_version': 1, 'parameters': {'url': 'https://example.com'}},
+                    {'node_id': 'doc_1', 'node_type': 'DOCUMENT_LOADER', 'node_version': 1, 'parameters': {'file_path': 'C:/tmp/sample.txt'}},
                     {'node_id': 'output_1', 'node_type': 'TEXT_OUTPUT', 'node_version': 1, 'parameters': {}},
                 ],
                 'connections': [
-                    {'from_node': 'web_1', 'from_output': 'documents', 'to_node': 'output_1', 'to_input': 'text'},
+                    {'from_node': 'doc_1', 'from_output': 'documents', 'to_node': 'output_1', 'to_input': 'text'},
                 ],
                 'metadata': {},
             }

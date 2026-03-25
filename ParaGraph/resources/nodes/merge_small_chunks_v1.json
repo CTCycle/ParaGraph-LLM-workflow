@@ -1,0 +1,103 @@
+{
+  "id": "MERGE_SMALL_CHUNKS",
+  "version": 1,
+  "name": "Merge Small Chunks",
+  "category": "fragmentation",
+  "description": "Merge consecutive small fragments into larger chunks up to a target size.",
+  "inputs": [
+    {
+      "name": "documents",
+      "data_type": "DOCUMENT_LIST",
+      "required": false,
+      "accepts_multiple": false,
+      "description": "Optional document stream to normalize into chunks before merging."
+    },
+    {
+      "name": "chunks",
+      "data_type": "CHUNK_LIST",
+      "required": false,
+      "accepts_multiple": false,
+      "description": "Incoming fragment stream to merge."
+    }
+  ],
+  "outputs": [
+    {
+      "name": "chunks",
+      "data_type": "CHUNK_LIST",
+      "required": true,
+      "accepts_multiple": false,
+      "description": "Merged chunk stream."
+    }
+  ],
+  "parameters": [
+    {
+      "name": "target_chunk_size",
+      "data_type": "JSON",
+      "default": 800,
+      "constraints": {
+        "required": true,
+        "min": 1,
+        "max": 100000
+      },
+      "ui_control": "number",
+      "description": "Target merged chunk size in the selected unit."
+    },
+    {
+      "name": "unit",
+      "data_type": "TEXT",
+      "default": "words",
+      "constraints": {
+        "required": true,
+        "options": [
+          "words",
+          "characters"
+        ]
+      },
+      "ui_control": "select",
+      "description": "Sizing unit for target_chunk_size and max_chunk_size."
+    },
+    {
+      "name": "max_chunk_size",
+      "data_type": "JSON",
+      "default": 0,
+      "constraints": {
+        "min": 0,
+        "max": 100000
+      },
+      "ui_control": "number",
+      "description": "Optional hard limit. Use 0 to disable."
+    },
+    {
+      "name": "merge_strategy",
+      "data_type": "TEXT",
+      "default": "sequential",
+      "constraints": {
+        "required": true,
+        "options": [
+          "sequential",
+          "greedy"
+        ]
+      },
+      "ui_control": "select",
+      "description": "Sequential emits when target is met; greedy emits when adding another fragment would worsen fit."
+    },
+    {
+      "name": "preserve_boundaries",
+      "data_type": "BOOLEAN",
+      "default": true,
+      "ui_control": "toggle",
+      "description": "Preserve visible boundaries between merged fragments."
+    }
+  ],
+  "ui": {
+    "default_width": 360,
+    "accent_color": "#d99128",
+    "collapsed_by_default": false
+  },
+  "runtime": {
+    "executor_key": "merge_small_chunks",
+    "cacheable": false,
+    "deterministic": true,
+    "side_effecting": false
+  }
+}

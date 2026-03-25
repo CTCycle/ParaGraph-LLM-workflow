@@ -25,7 +25,7 @@ The node category set remains:
 
 - `input`
 - `model`
-- `processing`
+- `processing` (reserved; no built-in processing nodes in the current library)
 - `fragmentation`
 - `output`
 - `serialization`
@@ -35,30 +35,24 @@ The node category set remains:
 
 | Node ID | Version | Name | Category | Manifest |
 |---|---:|---|---|---|
+| `BY_DELIMITER_CHUNKS` | 1 | By Delimiter Chunks | fragmentation | `by_delimiter_chunks_v1.json` |
+| `BY_STRUCTURE_CHUNKS` | 1 | By Structure Chunks | fragmentation | `by_structure_chunks_v1.json` |
+| `DOCUMENT_LOADER` | 1 | Document Loader | input | `document_loader_v1.json` |
+| `FIXED_SIZE_CHUNKS` | 1 | Fixed Size Chunks | fragmentation | `fixed_size_chunks_v1.json` |
+| `JSON_OUTPUT` | 1 | JSON Output | output | `json_output_v1.json` |
 | `LLM_CHAT` | 1 | LLM Chat | model | `llm_chat_v1.json` |
 | `LLM_STRUCTURED` | 1 | LLM Structured | model | `llm_structured_v1.json` |
+| `LOAD_DOCUMENTS` | 1 | Load Documents | serialization | `load_documents_v1.json` |
+| `LOAD_TEXT` | 1 | Load Text | serialization | `load_text_v1.json` |
+| `MERGE_SMALL_CHUNKS` | 1 | Merge Small Chunks | fragmentation | `merge_small_chunks_v1.json` |
 | `MODEL_PROVIDER` | 1 | Model Provider | model | `model_provider_v1.json` |
 | `PROMPT` | 1 | Prompt | input | `prompt_v1.json` |
-| `WEB_SCRAPER` | 1 | Web Scraper | input | `web_scraper_v1.json` |
-| `LOAD_DOCUMENTS` | 1 | Load Documents | serialization | `load_documents_v1.json` |
-| `FIXED_SIZE_CHUNKS` | 1 | Fixed Size Chunks | fragmentation | `fixed_size_chunks_v1.json` |
-| `SQL_DATABASE` | 1 | SQL Database | control | `sql_database_v1.json` |
-| `SQL_FILE_DATABASE` | 1 | SQL File Database | control | `sql_file_database_v1.json` |
-| `TEXT_OUTPUT` | 1 | Text Output | output | `text_output_v1.json` |
-| `JSON_OUTPUT` | 1 | JSON Output | output | `json_output_v1.json` |
-| `API_FETCHER` | 1 | API Fetcher | input | `api_fetcher_v1.json` |
-| `BATCH_EMBEDDER` | 1 | Batch Embedder | model | `batch_embedder_v1.json` |
-| `CHUNKER` | 1 | Chunker | fragmentation | `chunker_v1.json` |
-| `CONTEXT_INJECTOR` | 1 | Context Injector | processing | `context_injector_v1.json` |
-| `DATABASE_CONNECTION` | 1 | Database Connection | control | `database_connection_v1.json` |
-| `DATABASE_QUERY` | 1 | Database Query | processing | `database_query_v1.json` |
-| `DOCUMENT_LOADER` | 1 | Document Loader | input | `document_loader_v1.json` |
-| `LOAD_TEXT` | 1 | Load Text | serialization | `load_text_v1.json` |
+| `RECURSIVE_SPLIT_CHUNKS` | 1 | Recursive Split Chunks | fragmentation | `recursive_split_chunks_v1.json` |
 | `SAVE_TEXT` | 1 | Save Text | serialization | `save_text_v1.json` |
-| `SIMILARITY_SEARCH` | 1 | Similarity Search | processing | `similarity_search_v1.json` |
-| `TEMPLATE_FORMAT` | 1 | Template Format | processing | `template_format_v1.json` |
-| `TEXT_CLEANER` | 1 | Text Cleaner | processing | `text_cleaner_v1.json` |
-| `VECTOR_DB_WRITER` | 1 | Vector DB Writer | serialization | `vector_db_writer_v1.json` |
+| `SENTENCE_WINDOW_CHUNKS` | 1 | Sentence Window Chunks | fragmentation | `sentence_window_chunks_v1.json` |
+| `SQL_DATABASE` | 1 | SQL Database | control | `sql_database_v1.json` |
+| `SQL_FILE_DATABASE` | 1 | Embedded SQL Database | control | `sql_file_database_v1.json` |
+| `TEXT_OUTPUT` | 1 | Text Output | output | `text_output_v1.json` |
 
 ---
 
@@ -68,10 +62,6 @@ The node category set remains:
 - Category: `model`
 - Description: Select a provider and model, then expose a reusable typed model handle to connected LLM nodes.
 
-Inputs: None.
-
-Outputs: None.
-
 Controllers:
 
 | Name | Data Type | Required | Scope |
@@ -80,79 +70,38 @@ Controllers:
 
 Parameters:
 
-| Name | Data Type | Default | UI Control | Required | Description |
-|---|---|---|---|---:|---|
-| `provider` | `TEXT` | `ollama` | `select` | Yes | Model provider. |
-| `model_name` | `TEXT` | `""` | `select` | Yes | Model identifier available for the selected provider. |
+| Name | Data Type | Default | UI Control | Required |
+|---|---|---|---|---:|
+| `provider` | `TEXT` | `ollama` | `select` | Yes |
+| `model_name` | `TEXT` | `""` | `select` | Yes |
 
 ## `LLM_CHAT` (v1)
 
 - Name: LLM Chat
 - Category: `model`
-- Description: Run a chat completion with a typed model handle selected by a provider node and return plain text.
+- Description: Run a chat completion with a typed model handle and return plain text.
 
-Inputs:
+Inputs: `user_prompt` (`TEXT`), `system_prompt` (`TEXT`), `image` (`IMAGE`) - all optional.
 
-| Name | Data Type | Required |
-|---|---|---:|
-| `user_prompt` | `TEXT` | No |
-| `system_prompt` | `TEXT` | No |
-| `image` | `IMAGE` | No |
+Outputs: `response` (`TEXT`).
 
-Outputs:
+Controllers: `model` (`MODEL_HANDLE`, required, `scope: target`).
 
-| Name | Data Type | Required |
-|---|---|---:|
-| `response` | `TEXT` | Yes |
-
-Controllers:
-
-| Name | Data Type | Required | Scope |
-|---|---|---:|---|
-| `model` | `MODEL_HANDLE` | Yes | `target` (left) |
-
-Parameters:
-
-| Name | Data Type | Default | UI Control | Required | Description |
-|---|---|---|---|---:|---|
-| `context_window` | `JSON` | `0` | `number` | No | Context window size. Use `0` for provider-managed context. |
-| `max_tokens` | `JSON` | `512` | `number` | No | Maximum output token count. |
-| `use_reasoning` | `BOOLEAN` | `false` | `toggle` | No | Enable reasoning-oriented execution when the selected model supports it. |
+Parameters: `context_window`, `max_tokens`, `use_reasoning`.
 
 ## `LLM_STRUCTURED` (v1)
 
 - Name: LLM Structured
 - Category: `model`
-- Description: Run a structured generation with a typed model handle selected by a provider node and return validated JSON.
+- Description: Run structured generation and return schema-validated JSON.
 
-Inputs:
+Inputs: `user_prompt` (`TEXT`), `system_prompt` (`TEXT`), `image` (`IMAGE`) - all optional.
 
-| Name | Data Type | Required |
-|---|---|---:|
-| `user_prompt` | `TEXT` | No |
-| `system_prompt` | `TEXT` | No |
-| `image` | `IMAGE` | No |
+Outputs: `result` (`JSON`).
 
-Outputs:
+Controllers: `model` (`MODEL_HANDLE`, required, `scope: target`).
 
-| Name | Data Type | Required |
-|---|---|---:|
-| `result` | `JSON` | Yes |
-
-Controllers:
-
-| Name | Data Type | Required | Scope |
-|---|---|---:|---|
-| `model` | `MODEL_HANDLE` | Yes | `target` (left) |
-
-Parameters:
-
-| Name | Data Type | Default | UI Control | Required | Description |
-|---|---|---|---|---:|---|
-| `context_window` | `JSON` | `0` | `number` | No | Context window size. Use `0` for provider-managed context. |
-| `max_tokens` | `JSON` | `512` | `number` | No | Maximum output token count. |
-| `use_reasoning` | `BOOLEAN` | `false` | `toggle` | No | Enable reasoning-oriented execution when the selected model supports it. |
-| `response_schema` | `JSON` | `{"type":"object","properties":{},"required":[]}` | `json` | Yes | JSON Schema used to validate the structured response. Example: `{"type":"object","properties":{"name":{"type":"string"}},"required":["name"]}`. |
+Parameters: `context_window`, `max_tokens`, `use_reasoning`, `response_schema`.
 
 ## `PROMPT` (v1)
 
@@ -160,110 +109,146 @@ Parameters:
 - Category: `input`
 - Description: Provide generic prompt text to the workflow graph.
 
-Inputs: None.
+Outputs: `text` (`TEXT`).
 
-Outputs:
+Parameters: `prompt_text` (`TEXT`, required, textarea).
 
-| Name | Data Type | Required |
-|---|---|---:|
-| `text` | `TEXT` | Yes |
+## `DOCUMENT_LOADER` (v1)
 
-Parameters:
-
-| Name | Data Type | Default | UI Control | Required | Description |
-|---|---|---|---|---:|---|
-| `prompt_text` | `TEXT` | `""` | `textarea` | Yes | Prompt text emitted to downstream nodes. |
-
-## `WEB_SCRAPER` (v1)
-
-- Name: Web Scraper
+- Name: Document Loader
 - Category: `input`
-- Description: Fetch an HTML page and convert it into normalized document text for downstream processing.
+- Description: Load one or more local files and emit normalized `DOCUMENT_LIST` payloads.
 
-Inputs: None.
+Outputs: `documents` (`DOCUMENT_LIST`).
 
-Outputs:
-
-| Name | Data Type | Required |
-|---|---|---:|
-| `documents` | `DOCUMENT_LIST` | Yes |
-
-Parameters:
-
-| Name | Data Type | Default | UI Control | Required | Description |
-|---|---|---|---|---:|---|
-| `url` | `TEXT` | `""` | `text` | Yes | HTTP or HTTPS URL to fetch. |
-| `timeout_s` | `JSON` | `15` | `number` | No | Request timeout in seconds. |
-| `strip_html_content` | `BOOLEAN` | `true` | `toggle` | No | Convert fetched content to plain text before emitting it. |
+Parameters include `file_path` or `file_paths`, optional MIME hints, and extension filtering.
 
 ## `LOAD_DOCUMENTS` (v1)
 
 - Name: Load Documents
 - Category: `serialization`
-- Description: Scan a selected folder and emit a deferred `DOCUMENT_LIST` payload containing document file-path references.
+- Description: Scan a folder and emit deferred `DOCUMENT_LIST` file references.
 
-Inputs: None.
-
-Outputs:
-
-| Name | Data Type | Required |
-|---|---|---:|
-| `documents` | `DOCUMENT_LIST` | Yes |
+Outputs: `documents` (`DOCUMENT_LIST`).
 
 Parameters:
 
-| Name | Data Type | Default | UI Control | Required | Description |
-|---|---|---|---|---:|---|
-| `folder_path` | `TEXT` | `""` | `directory` | Yes | Staged server folder path produced from the frontend folder picker upload flow. |
-| `recursive` | `BOOLEAN` | `true` | `toggle` | No | Include files from subdirectories when enabled. |
+| Name | Data Type | Default | UI Control | Required |
+|---|---|---|---|---:|
+| `folder_path` | `TEXT` | `""` | `directory` | Yes |
+| `recursive` | `BOOLEAN` | `true` | `toggle` | No |
 
 Behavior notes:
-- Supported extensions include `.txt`, `.pdf`, `.doc`, `.docx`, `.md`, plus common text formats (`.html`, `.json`, `.csv`, `.xml`, `.yaml`, `.log`, etc.).
-- The node does **not** load file contents into memory when scanning an existing server directory path.
-- It emits documents with deferred metadata (`metadata.deferred_load = true`) so downstream processing nodes can load content only when needed.
-- In the workflow UI, the Browse action uses a frontend folder picker and stages selected files into `ParaGraph/resources/artifacts/browser_uploads`; `folder_path` is set to that staged directory.
+- Emits deferred records (`metadata.deferred_load = true`) to avoid eager file loading.
+- Supports common text/document formats (`.txt`, `.md`, `.pdf`, `.doc`, `.docx`, `.json`, `.html`, `.csv`, `.xml`, `.yaml`, `.log`, etc.).
 
 ## `FIXED_SIZE_CHUNKS` (v1)
 
 - Name: Fixed Size Chunks
 - Category: `fragmentation`
-- Description: Split incoming documents or upstream chunks into fixed-size chunks for chained fragmentation pipelines.
+- Description: Split documents or upstream chunks into fixed-size windows.
 
-Inputs:
+Inputs: `documents` (`DOCUMENT_LIST`) or `chunks` (`CHUNK_LIST`).
 
-| Name | Data Type | Required |
-|---|---|---:|
-| `documents` | `DOCUMENT_LIST` | No |
-| `chunks` | `CHUNK_LIST` | No |
+Outputs: `chunks` (`CHUNK_LIST`).
 
-Outputs:
+Parameters: `chunk_size`, `chunk_overlap`, `unit` (`words | characters`).
 
-| Name | Data Type | Required |
-|---|---|---:|
-| `chunks` | `CHUNK_LIST` | Yes |
+## `BY_DELIMITER_CHUNKS` (v1)
+
+- Name: By Delimiter Chunks
+- Category: `fragmentation`
+- Description: Split by an explicit delimiter or preset and optionally keep delimiters.
+
+Inputs: `documents` or `chunks`.
+
+Outputs: `chunks`.
+
+Parameters: `delimiter`, `keep_delimiter`, `drop_empty`, `max_chunk_size`, `overflow_strategy` (`split_further | discard | emit_as_is`).
+
+## `BY_STRUCTURE_CHUNKS` (v1)
+
+- Name: By Structure Chunks
+- Category: `fragmentation`
+- Description: Split by structural boundaries (paragraph/section/heading-content).
+
+Inputs: `documents` or `chunks`.
+
+Outputs: `chunks`.
+
+Parameters: `strategy`, `max_chunk_size`, `chunk_overlap`, `unit`, `overflow_strategy`.
+
+## `RECURSIVE_SPLIT_CHUNKS` (v1)
+
+- Name: Recursive Split Chunks
+- Category: `fragmentation`
+- Description: Apply ordered separators from coarse to fine until chunk constraints are met.
+
+Inputs: `documents` or `chunks`.
+
+Outputs: `chunks`.
+
+Parameters: `separators` (ordered string list), `chunk_size`, `chunk_overlap`, `unit`, `fallback_strategy` (`continue | force_split`).
+
+## `SENTENCE_WINDOW_CHUNKS` (v1)
+
+- Name: Sentence Window Chunks
+- Category: `fragmentation`
+- Description: Segment text into sentences and emit overlapping sentence windows.
+
+Inputs: `documents` or `chunks`.
+
+Outputs: `chunks`.
+
+Parameters: `sentences_per_chunk`, `sentence_overlap`, `max_chunk_size`, `overflow_strategy`.
+
+## `MERGE_SMALL_CHUNKS` (v1)
+
+- Name: Merge Small Chunks
+- Category: `fragmentation`
+- Description: Merge consecutive fragments until target size thresholds are reached.
+
+Inputs: `documents` or `chunks`.
+
+Outputs: `chunks`.
+
+Parameters: `target_chunk_size`, `unit`, `max_chunk_size`, `merge_strategy` (`sequential | greedy`), `preserve_boundaries`.
+
+## `SAVE_TEXT` (v1)
+
+- Name: Save Text
+- Category: `serialization`
+- Description: Save incoming `text`, `documents`, or `chunks` into one file or multiple files.
+
+Inputs: `text` (`TEXT`), `documents` (`DOCUMENT_LIST`), `chunks` (`CHUNK_LIST`) - optional; at least one non-empty input required at runtime.
+
+Outputs: `artifact` (`JSON`).
 
 Parameters:
 
-| Name | Data Type | Default | UI Control | Required | Description |
-|---|---|---|---|---:|---|
-| `chunk_size` | `JSON` | `800` | `number` | Yes | Maximum chunk length measured in the selected unit. |
-| `chunk_overlap` | `JSON` | `80` | `number` | Yes | Overlap between consecutive chunks in the selected unit. |
-| `unit` | `TEXT` | `words` | `select` | Yes | Chunking unit. Supported values: `words`, `characters`. |
+| Name | Data Type | Default | UI Control | Required |
+|---|---|---|---|---:|
+| `output_path` | `TEXT` | `""` | `text` | Yes |
+| `separate_files` | `BOOLEAN` | `false` | `toggle` | No |
+| `extension` | `TEXT` | `.txt` | `select` | Yes |
 
-Behavior notes:
-- Supports chained fragmentation by accepting `CHUNK_LIST` from upstream fragmentation nodes.
-- Deferred document records are hydrated one-by-one during fragmentation.
-- At least one non-empty input (`documents` or `chunks`) is required at runtime.
+Supported extensions: `.txt`, `.md`, `.doc`, `.pdf`.
+
+## `LOAD_TEXT` (v1)
+
+- Name: Load Text
+- Category: `serialization`
+- Description: Load plain text content from a local file path.
+
+Outputs: `text` (`TEXT`).
+
+Parameters: `storage_path` (`TEXT`, required).
+
 ## `SQL_DATABASE` (v1)
 
 - Name: SQL Database
 - Category: `control`
-- Description: Configure a server SQL database connection and expose a reusable typed controller handle.
-- UI behavior: Includes a node-level **Check Connection** button that validates connectivity and reports success/failure.
-
-Inputs: None.
-
-Outputs: None.
+- Description: Configure a server SQL connection handle.
 
 Controllers:
 
@@ -271,30 +256,13 @@ Controllers:
 |---|---|---:|---|
 | `connection` | `DATABASE_CONNECTION` | No | `source` |
 
-Parameters:
-
-| Name | Data Type | Default | UI Control | Required | Description |
-|---|---|---|---|---:|---|
-| `db_engine` | `TEXT` | `postgres` | `select` | Yes | Engine for server-based SQL connections. Supported values: `postgres`, `mysql`. |
-| `db_host` | `TEXT` | `127.0.0.1` | `text` | Yes | Database host or IP address. |
-| `db_port` | `JSON` | `5432` | `number` | Yes | Database port. |
-| `db_name` | `TEXT` | `""` | `text` | Yes | Database name. |
-| `db_user` | `TEXT` | `postgres` | `text` | Yes | Database username. |
-| `db_password` | `TEXT` | `change_me` | `password` | No | Database password. |
-| `db_ssl` | `BOOLEAN` | `false` | `toggle` | No | Enable SSL/TLS for server-based SQL connections. |
-| `db_ssl_ca` | `TEXT` | `""` | `file` | No | Optional CA certificate path when SSL is enabled. |
-| `db_connect_timeout` | `JSON` | `30` | `number` | No | Connection timeout in seconds. |
+Parameters include server connection values (`db_engine`, `db_host`, `db_port`, `db_name`, `db_user`, `db_password`, `db_ssl`, `db_ssl_ca`, `db_connect_timeout`).
 
 ## `SQL_FILE_DATABASE` (v1)
 
-- Name: SQL File Database
+- Name: Embedded SQL Database
 - Category: `control`
-- Description: Configure a file-based SQL dataset (SQLite for v1) and expose a reusable typed controller handle.
-- UI behavior: Includes a node-level **Check Connection** button that validates connectivity and reports success/failure.
-
-Inputs: None.
-
-Outputs: None.
+- Description: Configure an embedded SQL file dataset (SQLite in v1) and expose a typed connection handle.
 
 Controllers:
 
@@ -302,19 +270,7 @@ Controllers:
 |---|---|---:|---|
 | `connection` | `DATABASE_CONNECTION` | No | `source` |
 
-Parameters:
-
-| Name | Data Type | Default | UI Control | Required | Description |
-|---|---|---|---|---:|---|
-| `db_engine` | `TEXT` | `sqlite` | `select` | Yes | File database engine. Currently only `sqlite`. |
-| `db_path` | `TEXT` | `""` | `file` | Yes | Path to the database file selected from the local file picker. |
-| `db_port` | `JSON` | `5432` | `number` | No | Reserved for future engine compatibility. |
-| `db_name` | `TEXT` | `FAIRS` | `text` | No | Logical dataset name. |
-| `db_user` | `TEXT` | `postgres` | `text` | No | Reserved for future engine compatibility. |
-| `db_password` | `TEXT` | `change_me` | `password` | No | Reserved for future engine compatibility. |
-| `db_ssl` | `BOOLEAN` | `false` | `toggle` | No | Reserved for future engine compatibility. |
-| `db_ssl_ca` | `TEXT` | `""` | `file` | No | Reserved for future engine compatibility. |
-| `db_connect_timeout` | `JSON` | `30` | `number` | No | Connection timeout in seconds. |
+Parameters include `db_engine` (`sqlite`) and `db_path`, plus reserved compatibility fields.
 
 ## `TEXT_OUTPUT` (v1)
 
@@ -322,30 +278,13 @@ Parameters:
 - Category: `output`
 - Description: Expose final text results.
 
-Inputs:
-
-| Name | Data Type | Required |
-|---|---|---:|
-| `text` | `TEXT` | Yes |
-
-Outputs: None.
-
-Parameters: None.
+Inputs: `text` (`TEXT`, required).
 
 ## `JSON_OUTPUT` (v1)
 
 - Name: JSON Output
 - Category: `output`
 - Description: Expose final JSON results.
-- UI behavior: JSON widget boxes include a **Validate** button that marks valid/invalid JSON with neon border feedback (and pretty-prints valid JSON).
 
-Inputs:
-
-| Name | Data Type | Required |
-|---|---|---:|
-| `value` | `JSON` | Yes |
-
-Outputs: None.
-
-Parameters: None.
+Inputs: `value` (`JSON`, required).
 
