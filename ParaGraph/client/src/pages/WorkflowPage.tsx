@@ -152,7 +152,7 @@ const WORKFLOW_EDGE_MARKER = { type: MarkerType.ArrowClosed as const, width: 18,
 const WORKFLOW_EDGE_STYLE = { stroke: '#5ba7ff', strokeWidth: 2.2 }
 const WORKFLOW_BUNDLE_VERSION = 1
 const WORKFLOW_BUNDLE_APP = 'ParaGraph'
-const BROWSER_PICKER_CANCEL_GUARD_MS = 280
+const BROWSER_PICKER_CANCEL_GUARD_MS = 1200
 
 type HandleKind = 'input' | 'output' | 'controller'
 type ParsedHandle = { kind: HandleKind; name: string }
@@ -250,6 +250,31 @@ type BrowserFileSelection = {
     files: File[]
 }
 
+function registerPickerCancelHandler(
+    input: HTMLInputElement,
+    wasChangeHandled: () => boolean,
+    settleAsCancelled: () => void,
+): () => void {
+    // Prefer the dedicated "cancel" event when available to avoid race conditions
+    // where a file picker focus event arrives before the change event.
+    const supportsInputCancelEvent = 'oncancel' in document.createElement('input')
+    if (supportsInputCancelEvent) {
+        const handleCancel = (): void => settleAsCancelled()
+        input.addEventListener('cancel', handleCancel)
+        return () => input.removeEventListener('cancel', handleCancel)
+    }
+
+    const handleWindowFocus = (): void => {
+        window.setTimeout(() => {
+            if (!wasChangeHandled() && !input.files?.length) {
+                settleAsCancelled()
+            }
+        }, BROWSER_PICKER_CANCEL_GUARD_MS)
+    }
+    window.addEventListener('focus', handleWindowFocus, { once: true })
+    return () => window.removeEventListener('focus', handleWindowFocus)
+}
+
 function inferSelectedFolderName(files: File[]): string {
     const firstRelativePath = files[0]?.webkitRelativePath || files[0]?.name || ''
     const [root] = firstRelativePath.split('/').filter(Boolean)
@@ -266,21 +291,14 @@ function pickDirectoryFromBrowser(): Promise<BrowserDirectorySelection | null> {
         let changeHandled = false
 
         let settled = false
+        let unregisterCancelHandler = (): void => {}
         const settle = (value: BrowserDirectorySelection | null): void => {
             if (settled) {
                 return
             }
             settled = true
-            window.removeEventListener('focus', handleWindowFocus)
+            unregisterCancelHandler()
             resolve(value)
-        }
-
-        const handleWindowFocus = (): void => {
-            window.setTimeout(() => {
-                if (!settled && !changeHandled && !input.files?.length) {
-                    settle(null)
-                }
-            }, BROWSER_PICKER_CANCEL_GUARD_MS)
         }
 
         input.addEventListener('change', () => {
@@ -296,7 +314,7 @@ function pickDirectoryFromBrowser(): Promise<BrowserDirectorySelection | null> {
             })
         })
 
-        window.addEventListener('focus', handleWindowFocus, { once: true })
+        unregisterCancelHandler = registerPickerCancelHandler(input, () => changeHandled, () => settle(null))
         input.click()
     })
 }
@@ -309,21 +327,14 @@ function pickFilesFromBrowser(options: { multiple: boolean }): Promise<BrowserFi
         let changeHandled = false
 
         let settled = false
+        let unregisterCancelHandler = (): void => {}
         const settle = (value: BrowserFileSelection | null): void => {
             if (settled) {
                 return
             }
             settled = true
-            window.removeEventListener('focus', handleWindowFocus)
+            unregisterCancelHandler()
             resolve(value)
-        }
-
-        const handleWindowFocus = (): void => {
-            window.setTimeout(() => {
-                if (!settled && !changeHandled && !input.files?.length) {
-                    settle(null)
-                }
-            }, BROWSER_PICKER_CANCEL_GUARD_MS)
         }
 
         input.addEventListener('change', () => {
@@ -336,7 +347,7 @@ function pickFilesFromBrowser(options: { multiple: boolean }): Promise<BrowserFi
             settle({ files: selectedFiles })
         })
 
-        window.addEventListener('focus', handleWindowFocus, { once: true })
+        unregisterCancelHandler = registerPickerCancelHandler(input, () => changeHandled, () => settle(null))
         input.click()
     })
 }
