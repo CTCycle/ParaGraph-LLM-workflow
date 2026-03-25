@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib
 import json
 import re
+import shutil
 from pathlib import Path
 from typing import Any
 
@@ -333,6 +334,22 @@ def _derive_item_name_from_source(source_uri: str, fallback: str) -> str:
     return fallback
 
 
+def _extract_text_from_payload(payload: dict[str, Any], candidate_keys: tuple[str, ...]) -> str:
+    for key in candidate_keys:
+        if key not in payload:
+            continue
+        raw_value = payload.get(key)
+        if isinstance(raw_value, dict):
+            nested = coerce_text(raw_value.get("text") or raw_value.get("content") or raw_value.get("chunk") or "")
+            if nested.strip():
+                return nested
+            continue
+        text_value = coerce_text(raw_value or "")
+        if text_value.strip():
+            return text_value
+    return ""
+
+
 def _collect_save_text_items(inputs: dict[str, Any]) -> list[dict[str, str]]:
     items: list[dict[str, str]] = []
     text_payload = coerce_text(inputs.get("text") or "")
@@ -344,7 +361,7 @@ def _collect_save_text_items(inputs: dict[str, Any]) -> list[dict[str, str]]:
         if not isinstance(document, dict):
             continue
         metadata = document.get("metadata") if isinstance(document.get("metadata"), dict) else {}
-        text_content = coerce_text(document.get("text") or "")
+        text_content = _extract_text_from_payload(document, ("text", "content", "chunk"))
         if not text_content.strip():
             path_candidate = coerce_text(metadata.get("file_path") or document.get("source_uri") or "").strip()
             if path_candidate:
@@ -362,7 +379,7 @@ def _collect_save_text_items(inputs: dict[str, Any]) -> list[dict[str, str]]:
     for index, chunk in enumerate(chunks, start=1):
         if not isinstance(chunk, dict):
             continue
-        text_content = coerce_text(chunk.get("text") or "")
+        text_content = _extract_text_from_payload(chunk, ("text", "content", "chunk"))
         if not text_content.strip():
             continue
         document_id = coerce_text(chunk.get("document_id") or "").strip()
@@ -384,19 +401,76 @@ def _ensure_extension(path: Path, extension: str) -> Path:
     return Path(f"{path.as_posix()}{extension}")
 
 
+def _prepare_directory(path: Path) -> None:
+    if path.exists() and path.is_file():
+        path.unlink()
+    path.mkdir(parents=True, exist_ok=True)
+
+
+def _prepare_file_destination(path: Path) -> None:
+    if path.exists() and path.is_dir():
+        shutil.rmtree(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+
+def _resolve_multiple_files_directory(target_root: Path) -> Path:
+    # In multi-file mode, the output path is treated as a folder name.
+    if target_root.suffix:
+        return target_root.with_suffix("")
+    return target_root
+
+
+def _build_client_side_save_text_artifact(parsed: SaveTextParameters, item_count: int) -> dict[str, Any]:
+    output_path = coerce_text(parsed.output_path).strip()
+    if not output_path:
+        raise ValueError("output_path is required. Select a local path.")
+
+    target_root = Path(output_path).expanduser()
+    if parsed.separate_files:
+        destination_dir = _resolve_multiple_files_directory(target_root)
+        base_stem = _safe_file_stem(destination_dir.name, "output")
+        files = [
+            str(destination_dir / f"{base_stem}_{index:05d}{parsed.extension}")
+            for index in range(1, item_count + 1)
+        ]
+        return {
+            "artifact": {
+                "path": str(destination_dir),
+                "files": files,
+                "count": len(files),
+                "separate_files": True,
+                "extension": parsed.extension,
+            }
+        }
+
+    destination = _ensure_extension(target_root, parsed.extension)
+    resolved_path = str(destination)
+    return {
+        "artifact": {
+            "path": resolved_path,
+            "files": [resolved_path],
+            "count": 1,
+            "separate_files": False,
+            "extension": parsed.extension,
+        }
+    }
+
+
 def _save_text_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
     parsed = SaveTextParameters.model_validate(parameters)
     items = _collect_save_text_items(inputs)
     if not items:
         raise ValueError("SAVE_TEXT requires at least one non-empty text, documents, or chunks input")
 
+    if parsed.client_side_write and not is_cloud_deployment():
+        return _build_client_side_save_text_artifact(parsed, len(items))
+
     target_root = _resolve_storage_path(parsed.output_path, label="output_path", relative_to_artifacts_root=True)
 
     if parsed.separate_files:
-        reference_path = _ensure_extension(target_root, parsed.extension)
-        destination_dir = reference_path.parent
-        destination_dir.mkdir(parents=True, exist_ok=True)
-        base_stem = _safe_file_stem(reference_path.stem, "output")
+        destination_dir = _resolve_multiple_files_directory(target_root)
+        _prepare_directory(destination_dir)
+        base_stem = _safe_file_stem(destination_dir.name, "output")
         written_files: list[str] = []
         for index, item in enumerate(items, start=1):
             candidate_name = f"{base_stem}_{index:05d}{parsed.extension}"
@@ -414,7 +488,7 @@ def _save_text_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> d
         }
 
     destination = _ensure_extension(target_root, parsed.extension)
-    destination.parent.mkdir(parents=True, exist_ok=True)
+    _prepare_file_destination(destination)
     destination.write_text("\n\n".join(item["text"] for item in items), encoding="utf-8")
     resolved_path = _to_artifact_path(destination)
     return {

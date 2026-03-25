@@ -131,6 +131,7 @@ class SaveTextParameters(BaseModel):
     output_path: str = ""
     separate_files: bool = False
     extension: str = ".txt"
+    client_side_write: bool = False
 
     @model_validator(mode="before")
     @classmethod

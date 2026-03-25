@@ -39,5 +39,9 @@ If changes materially affect behavior, architecture, or usage, update the releva
 - For npm commands, prefer: `& "C:\Program Files\PowerShell\7\pwsh.exe" -NoProfile -Command "cmd /c npm <command>"`.
 - Use `cmd /c` only when invoking `.bat` scripts or CMD-specific syntax.
 
+## FRONTEND FILE PICKER RULES
+- Do not implement backend-native file/folder dialogs for workflow nodes (no Tkinter or server-side OS dialogs).
+- In local/browser mode, path selection and final file writes must be handled in the frontend via browser file APIs.
+
 ## FILE CHANGE NOTICE
 - Any significant change requires updating `assets/docs` and informing the user.

@@ -88,6 +88,39 @@ def test_save_text_supports_chunks_input_single_file_concat(tmp_path: Path) -> N
     assert save_result['artifact']['extension'] == '.md'
 
 
+def test_save_text_overwrites_existing_single_file_output(tmp_path: Path) -> None:
+    destination = tmp_path / 'exports' / 'existing.txt'
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_text('stale payload', encoding='utf-8')
+
+    save_result = node_registry.execute(
+        'SAVE_TEXT',
+        1,
+        {'output_path': str(destination), 'separate_files': False, 'extension': '.txt'},
+        {'text': 'fresh payload'},
+    )
+
+    assert destination.read_text(encoding='utf-8') == 'fresh payload'
+    assert save_result['artifact']['path'] == str(destination.resolve())
+    assert save_result['artifact']['files'] == [str(destination.resolve())]
+
+
+def test_save_text_single_file_mode_uses_file_name_from_folder_file_name_path(tmp_path: Path) -> None:
+    destination = tmp_path / 'exports' / 'file_name'
+
+    save_result = node_registry.execute(
+        'SAVE_TEXT',
+        1,
+        {'output_path': str(destination), 'separate_files': False, 'extension': '.txt'},
+        {'text': 'payload'},
+    )
+
+    expected_file = destination.with_suffix('.txt')
+    assert expected_file.exists()
+    assert expected_file.read_text(encoding='utf-8') == 'payload'
+    assert save_result['artifact']['path'] == str(expected_file.resolve())
+
+
 def test_save_text_supports_documents_input_with_separate_files(tmp_path: Path) -> None:
     destination_file = tmp_path / 'exports' / 'documents.txt'
 
@@ -116,12 +149,159 @@ def test_save_text_supports_documents_input_with_separate_files(tmp_path: Path) 
     )
 
     artifact = save_result['artifact']
+    destination_folder = destination_file.with_suffix('')
     assert artifact['separate_files'] is True
     assert artifact['count'] == 2
     saved_paths = [Path(path) for path in artifact['files']]
+    assert artifact['path'] == str(destination_folder.resolve())
+    assert destination_folder.exists() and destination_folder.is_dir()
     assert all(path.exists() for path in saved_paths)
+    assert all(path.parent == destination_folder for path in saved_paths)
     assert [path.name for path in saved_paths] == ['documents_00001.txt', 'documents_00002.txt']
     assert [path.read_text(encoding='utf-8') for path in saved_paths] == ['alpha', 'beta']
+
+
+def test_save_text_multi_file_mode_uses_folder_name_from_folder_file_name_path(tmp_path: Path) -> None:
+    destination_folder = tmp_path / 'exports' / 'file_name'
+
+    save_result = node_registry.execute(
+        'SAVE_TEXT',
+        1,
+        {'output_path': str(destination_folder), 'separate_files': True, 'extension': '.txt'},
+        {
+            'chunks': [
+                {
+                    'id': 'chunk-1',
+                    'document_id': 'doc-1',
+                    'text': 'alpha',
+                    'source_uri': 'memory://doc-1',
+                    'chunk_index': 0,
+                    'token_count': 1,
+                    'metadata': {},
+                },
+                {
+                    'id': 'chunk-2',
+                    'document_id': 'doc-1',
+                    'text': 'beta',
+                    'source_uri': 'memory://doc-1',
+                    'chunk_index': 1,
+                    'token_count': 1,
+                    'metadata': {},
+                },
+            ]
+        },
+    )
+
+    saved_paths = [Path(path) for path in save_result['artifact']['files']]
+    assert destination_folder.exists() and destination_folder.is_dir()
+    assert all(path.parent == destination_folder for path in saved_paths)
+    assert [path.name for path in saved_paths] == ['file_name_00001.txt', 'file_name_00002.txt']
+    assert [path.read_text(encoding='utf-8') for path in saved_paths] == ['alpha', 'beta']
+
+
+def test_save_text_multi_file_mode_replaces_file_collision_with_folder(tmp_path: Path) -> None:
+    destination_file = tmp_path / 'exports' / 'batch.txt'
+    colliding_path = destination_file.with_suffix('')
+    colliding_path.parent.mkdir(parents=True, exist_ok=True)
+    colliding_path.write_text('legacy single file', encoding='utf-8')
+
+    save_result = node_registry.execute(
+        'SAVE_TEXT',
+        1,
+        {'output_path': str(destination_file), 'separate_files': True, 'extension': '.txt'},
+        {
+            'documents': [
+                {
+                    'id': 'doc-1',
+                    'text': 'alpha',
+                    'source_uri': 'memory://alpha',
+                    'mime_type': 'text/plain',
+                    'metadata': {},
+                },
+                {
+                    'id': 'doc-2',
+                    'text': 'beta',
+                    'source_uri': 'memory://beta',
+                    'mime_type': 'text/plain',
+                    'metadata': {},
+                },
+            ]
+        },
+    )
+
+    assert colliding_path.exists() and colliding_path.is_dir()
+    saved_paths = [Path(path) for path in save_result['artifact']['files']]
+    assert all(path.parent == colliding_path for path in saved_paths)
+    assert [path.read_text(encoding='utf-8') for path in saved_paths] == ['alpha', 'beta']
+
+
+
+def test_save_text_client_side_write_returns_metadata_without_backend_write_single_file(tmp_path: Path) -> None:
+    destination = tmp_path / 'desktop' / 'file_name'
+
+    save_result = node_registry.execute(
+        'SAVE_TEXT',
+        1,
+        {
+            'output_path': str(destination),
+            'separate_files': False,
+            'extension': '.txt',
+            'client_side_write': True,
+        },
+        {'text': 'payload'},
+    )
+
+    expected_file = destination.with_suffix('.txt')
+    assert not expected_file.exists()
+    assert save_result['artifact']['path'] == str(expected_file)
+    assert save_result['artifact']['files'] == [str(expected_file)]
+
+
+def test_save_text_client_side_write_returns_metadata_without_backend_write_multiple_files(tmp_path: Path) -> None:
+    destination = tmp_path / 'desktop' / 'batch.txt'
+
+    save_result = node_registry.execute(
+        'SAVE_TEXT',
+        1,
+        {
+            'output_path': str(destination),
+            'separate_files': True,
+            'extension': '.txt',
+            'client_side_write': True,
+        },
+        {
+            'chunks': [
+                {
+                    'id': 'chunk-1',
+                    'document_id': 'doc-1',
+                    'text': 'alpha',
+                    'source_uri': 'memory://doc-1',
+                    'chunk_index': 0,
+                    'token_count': 1,
+                    'metadata': {},
+                },
+                {
+                    'id': 'chunk-2',
+                    'document_id': 'doc-1',
+                    'text': 'beta',
+                    'source_uri': 'memory://doc-1',
+                    'chunk_index': 1,
+                    'token_count': 1,
+                    'metadata': {},
+                },
+            ]
+        },
+    )
+
+    expected_folder = destination.with_suffix('')
+    expected_files = [
+        expected_folder / 'batch_00001.txt',
+        expected_folder / 'batch_00002.txt',
+    ]
+
+    assert not expected_folder.exists()
+    assert save_result['artifact']['path'] == str(expected_folder)
+    assert save_result['artifact']['files'] == [str(path) for path in expected_files]
 
 
 def test_load_text_rejects_empty_storage_path() -> None:
