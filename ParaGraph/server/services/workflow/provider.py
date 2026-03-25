@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 from datetime import datetime, timezone
 import json
 import hashlib
@@ -14,6 +13,7 @@ from typing import Any
 from urllib.parse import unquote
 
 from bs4 import BeautifulSoup
+from huggingface_hub import HfApi, hf_hub_url
 import httpx
 
 from ParaGraph.server.common.constants import MODELS_PATH
@@ -35,6 +35,12 @@ from ParaGraph.server.domain.nodecatalog import (
     ProviderModelCatalogResponse,
     ProviderModelDefinition,
  )
+from ParaGraph.server.domain.provider import (
+    CachedValue,
+    ModelMetadata,
+    OllamaLibraryCachePayload,
+    ProviderMetadata,
+)
 from ParaGraph.server.services.jobs import job_manager
 from ParaGraph.server.services.configuration import configuration_service
 from ParaGraph.server.services.llm.providers import LLMError, OllamaClient, OllamaError, select_llm_provider
@@ -96,17 +102,6 @@ class ProviderApiError(RuntimeError):
         super().__init__(message)
         self.status_code = status_code
 
-
-@dataclass(frozen=True)
-class CachedValue:
-    value: Any
-    expires_at: float
-
-
-@dataclass(frozen=True)
-class OllamaLibraryCachePayload:
-    models: tuple[tuple[str, str | None], ...]
-    refreshed_at: str
 
 
 def _safe_int(value: Any) -> int | None:
@@ -269,25 +264,6 @@ def _extract_huggingface_tag_values(payload: Any) -> tuple[str, ...]:
 
     return tuple(sorted(values))
 
-
-@dataclass(frozen=True)
-class ProviderMetadata:
-    name: str
-    supports_chat: bool
-    supports_embeddings: bool
-    supports_structured_output: bool
-    supports_streaming: bool
-    supports_tool_calling: bool
-
-
-@dataclass(frozen=True)
-class ModelMetadata:
-    provider: str
-    model: str
-    label: str
-    supports_image: bool = False
-    supports_reasoning: bool = False
-    supports_structured_output: bool = True
 
 
 PROVIDER_CAPABILITIES = {
@@ -800,14 +776,6 @@ class ProviderService:
         revision: str | None,
         job_id: str,
     ) -> dict[str, Any]:
-        try:
-            from huggingface_hub import hf_hub_url
-        except ImportError as exc:
-            raise ProviderApiError(
-                "Hugging Face integration requires the 'huggingface_hub' dependency.",
-                status_code=503,
-            ) from exc
-
         destination = Path(destination_path)
         destination.parent.mkdir(parents=True, exist_ok=True)
         destination.mkdir(parents=True, exist_ok=True)
@@ -1792,13 +1760,6 @@ class ProviderService:
 
     def _resolve_huggingface_api(self, session_name: str) -> tuple[Any, str | None]:
         token = self._get_huggingface_token(session_name)
-        try:
-            from huggingface_hub import HfApi
-        except ImportError as exc:
-            raise ProviderApiError(
-                "Hugging Face integration requires the 'huggingface_hub' dependency.",
-                status_code=503,
-            ) from exc
         return HfApi(token=token), token
 
     def _detect_huggingface_permission_warning(

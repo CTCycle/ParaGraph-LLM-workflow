@@ -13,7 +13,7 @@ from ParaGraph.server.domain.nodecatalog import NodeCatalogResponse, NodeManifes
 from ParaGraph.server.services.configuration import configuration_service
 from ParaGraph.server.services.workflow.node_handlers import NODE_HANDLERS
 from ParaGraph.server.services.workflow.node_handlers.base import NodeHandler
-from ParaGraph.server.services.workflow.payloads import validate_data_type
+from ParaGraph.server.domain.workflow_payloads import validate_data_type
 from ParaGraph.server.services.workflow.provider import provider_service
 
 
@@ -288,4 +288,5 @@ class NodeRegistry:
 
 
 node_registry = NodeRegistry()
+
 

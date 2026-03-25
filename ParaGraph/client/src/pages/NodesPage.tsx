@@ -12,6 +12,7 @@ import {
     type LucideIcon,
 } from 'lucide-react'
 
+import { useErrorMessage } from '../app/hooks/useErrorMessage'
 import { usePageMetadata } from '../app/hooks/usePageMetadata'
 import StatusBanner from '../components/StatusBanner'
 import { importNodeManifest } from '../app/services/workflowApi'
@@ -153,6 +154,7 @@ export default function NodesPage() {
     const [importStatus, setImportStatus] = useState<string | null>(null)
     const [isImporting, setIsImporting] = useState(false)
     const [isImportModalOpen, setIsImportModalOpen] = useState(false)
+    const getErrorMessage = useErrorMessage()
 
     const categoryCounts = useMemo(() => {
         return NODE_CATEGORY_ORDER.reduce<Record<NodeCategory, number>>((counts, category) => {
@@ -193,7 +195,7 @@ export default function NodesPage() {
             const manifest = validateJson()
             setImportStatus(`Valid manifest: ${manifest.id} v${manifest.version}`)
         } catch (validationError) {
-            setImportStatus(validationError instanceof Error ? validationError.message : 'Invalid JSON payload')
+            setImportStatus(getErrorMessage(validationError, 'Invalid JSON payload'))
         }
     }
 
@@ -206,7 +208,7 @@ export default function NodesPage() {
             manifest = validateJson()
             setImportStatus(`Valid manifest: ${manifest.id} v${manifest.version}`)
         } catch (validationError) {
-            setImportStatus(validationError instanceof Error ? validationError.message : 'Invalid JSON payload')
+            setImportStatus(getErrorMessage(validationError, 'Invalid JSON payload'))
             return
         }
 
@@ -218,7 +220,7 @@ export default function NodesPage() {
             setJsonText('')
             setIsImportModalOpen(false)
         } catch (importError) {
-            setImportStatus(importError instanceof Error ? importError.message : 'Failed to import node manifest')
+            setImportStatus(getErrorMessage(importError, 'Failed to import node manifest'))
         } finally {
             setIsImporting(false)
         }

@@ -51,8 +51,10 @@ import {
     NodeParameterDefinition,
     ProviderModelDefinition,
     VisualGraph,
+    VisualNodeState,
     WorkflowConnection,
     WorkflowDefinition,
+    WorkflowNodeInstance,
     WorkflowShareBundle,
 } from '../workflow/schema/types'
 import './WorkflowPage.css'
@@ -639,6 +641,88 @@ function isNodeManifestPayload(value: unknown): value is NodeManifest {
     )
 }
 
+function isWorkflowNodeInstancePayload(value: unknown): value is WorkflowNodeInstance {
+    if (!isRecord(value)) {
+        return false
+    }
+
+    return (
+        typeof value.node_id === 'string' &&
+        typeof value.node_type === 'string' &&
+        isFiniteNumber(value.node_version) &&
+        isRecord(value.parameters) &&
+        (value.skipped === undefined || typeof value.skipped === 'boolean')
+    )
+}
+
+function isWorkflowConnectionPayload(value: unknown): value is WorkflowConnection {
+    if (!isRecord(value)) {
+        return false
+    }
+
+    const connectionType = value.connection_type
+    const isValidConnectionType =
+        connectionType === undefined || connectionType === 'data' || connectionType === 'controller'
+
+    return (
+        typeof value.from_node === 'string' &&
+        typeof value.to_node === 'string' &&
+        isValidConnectionType &&
+        (value.from_output === undefined || typeof value.from_output === 'string') &&
+        (value.to_input === undefined || typeof value.to_input === 'string') &&
+        (value.from_controller === undefined || typeof value.from_controller === 'string') &&
+        (value.to_controller === undefined || typeof value.to_controller === 'string')
+    )
+}
+
+function isVisualNodeStatePayload(value: unknown): value is VisualNodeState {
+    if (!isRecord(value)) {
+        return false
+    }
+
+    return (
+        typeof value.node_id === 'string' &&
+        isFiniteNumber(value.x) &&
+        isFiniteNumber(value.y) &&
+        isFiniteNumber(value.width) &&
+        isFiniteNumber(value.height) &&
+        typeof value.collapsed === 'boolean' &&
+        (value.pinged === undefined || typeof value.pinged === 'boolean') &&
+        (value.skipped === undefined || typeof value.skipped === 'boolean')
+    )
+}
+
+function isWorkflowDefinitionPayload(value: unknown): value is WorkflowDefinition {
+    if (!isRecord(value)) {
+        return false
+    }
+
+    return (
+        isFiniteNumber(value.schema_version) &&
+        Array.isArray(value.nodes) &&
+        value.nodes.every(isWorkflowNodeInstancePayload) &&
+        Array.isArray(value.connections) &&
+        value.connections.every(isWorkflowConnectionPayload) &&
+        isRecord(value.metadata)
+    )
+}
+
+function isVisualGraphPayload(value: unknown): value is VisualGraph {
+    if (!isRecord(value)) {
+        return false
+    }
+
+    return (
+        isFiniteNumber(value.schema_version) &&
+        Array.isArray(value.nodes) &&
+        value.nodes.every(isVisualNodeStatePayload) &&
+        Array.isArray(value.groups) &&
+        value.groups.every(isRecord) &&
+        Array.isArray(value.comments) &&
+        value.comments.every(isRecord)
+    )
+}
+
 function isWorkflowShareBundlePayload(value: unknown): value is WorkflowShareBundle {
     if (!isRecord(value) || !isRecord(value.workflow)) {
         return false
@@ -650,9 +734,10 @@ function isWorkflowShareBundlePayload(value: unknown): value is WorkflowShareBun
         typeof value.app === 'string' &&
         typeof value.created_at === 'string' &&
         Array.isArray(value.required_nodes) &&
+        value.required_nodes.every(isNodeManifestPayload) &&
         typeof workflow.name === 'string' &&
-        isRecord(workflow.definition) &&
-        isRecord(workflow.visual_graph)
+        isWorkflowDefinitionPayload(workflow.definition) &&
+        isVisualGraphPayload(workflow.visual_graph)
     )
 }
 
@@ -662,20 +747,20 @@ function readImportedWorkflowPayload(value: unknown): ImportedWorkflowPayload {
             name: value.workflow.name,
             definition: value.workflow.definition,
             visualGraph: value.workflow.visual_graph,
-            requiredNodes: value.required_nodes.filter(isNodeManifestPayload),
+            requiredNodes: value.required_nodes,
         }
     }
 
     if (
         isRecord(value) &&
         typeof value.name === 'string' &&
-        isRecord(value.definition) &&
-        isRecord(value.visual_graph)
+        isWorkflowDefinitionPayload(value.definition) &&
+        isVisualGraphPayload(value.visual_graph)
     ) {
         return {
             name: value.name,
-            definition: value.definition as unknown as WorkflowDefinition,
-            visualGraph: value.visual_graph as unknown as VisualGraph,
+            definition: value.definition,
+            visualGraph: value.visual_graph,
             requiredNodes: [],
         }
     }
