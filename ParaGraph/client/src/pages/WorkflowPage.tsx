@@ -252,6 +252,22 @@ type BrowserFileSelection = {
     files: File[]
 }
 
+type SaveFileSelection = {
+    fileName: string
+}
+
+type SaveFilePickerOptions = {
+    suggestedName: string
+    extension: string
+}
+
+type SaveFilePickerHandle = {
+    name: string
+}
+
+type WindowWithSaveFilePicker = Window & {
+    showSaveFilePicker?: (options?: Record<string, unknown>) => Promise<SaveFilePickerHandle>
+}
 function registerPickerCancelHandler(
     input: HTMLInputElement,
     wasChangeHandled: () => boolean,
@@ -352,6 +368,72 @@ function pickFilesFromBrowser(options: { multiple: boolean }): Promise<BrowserFi
         unregisterCancelHandler = registerPickerCancelHandler(input, () => changeHandled, () => settle(null))
         input.click()
     })
+}
+function normalizeFileExtension(extension: string): string {
+    const trimmed = extension.trim().toLowerCase()
+    if (!trimmed) {
+        return '.txt'
+    }
+    return trimmed.startsWith('.') ? trimmed : `.${trimmed}`
+}
+
+function ensureFileNameHasExtension(fileName: string, extension: string): string {
+    const normalizedName = fileName.trim()
+    const normalizedExtension = normalizeFileExtension(extension)
+    if (!normalizedName) {
+        return `output${normalizedExtension}`
+    }
+    return normalizedName.toLowerCase().endsWith(normalizedExtension)
+        ? normalizedName
+        : `${normalizedName}${normalizedExtension}`
+}
+
+function readBaseFileNameFromPath(pathValue: string): string {
+    const normalized = pathValue.trim().replace(/\\/g, '/')
+    const segments = normalized.split('/').filter(Boolean)
+    return segments.length > 0 ? segments[segments.length - 1] : ''
+}
+
+async function pickSaveFileFromBrowser(options: SaveFilePickerOptions): Promise<SaveFileSelection | null> {
+    const browserWindow = window as WindowWithSaveFilePicker
+    const picker = browserWindow.showSaveFilePicker
+    if (typeof picker !== 'function') {
+        throw new Error('Save As is not supported in this browser')
+    }
+    const extension = normalizeFileExtension(options.extension)
+    try {
+        const handle = await picker({
+            suggestedName: ensureFileNameHasExtension(options.suggestedName, extension),
+            types: [
+                {
+                    description: 'Text document',
+                    accept: {
+                        'text/plain': [extension],
+                    },
+                },
+            ],
+        })
+        return { fileName: ensureFileNameHasExtension(handle.name, extension) }
+    } catch (error) {
+        if (error instanceof DOMException && error.name === 'AbortError') {
+            return null
+        }
+        throw error
+    }
+}
+
+function isSaveTextOutputPathParameter(manifest: NodeManifest, parameter: NodeParameterDefinition): boolean {
+    return manifest.id === 'SAVE_TEXT' && parameter.name === 'output_path'
+}
+
+function getSaveTextOutputPathBrowseLabel(pathValue: unknown, extensionValue: unknown): string {
+    const normalizedPath = String(pathValue ?? '').trim()
+    const normalizedExtension = normalizeFileExtension(String(extensionValue ?? '.txt'))
+    const currentFileName = readBaseFileNameFromPath(normalizedPath)
+    if (!currentFileName) {
+        return `output${normalizedExtension}`
+    }
+    return ensureFileNameHasExtension(currentFileName, normalizedExtension)
 }
 function getControllers(manifest: NodeManifest): NonNullable<NodeManifest['controllers']> {
     return manifest.controllers ?? []
@@ -1147,6 +1229,23 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
     async function handlePathBrowse(parameter: NodeParameterDefinition): Promise<void> {
         setBrowseTarget(parameter.name)
         try {
+            if (isSaveTextOutputPathParameter(data.manifest, parameter)) {
+                const extension = String(data.parameters.extension ?? '.txt')
+                const currentPath = data.parameters[parameter.name]
+                const suggestedName = getSaveTextOutputPathBrowseLabel(currentPath, extension)
+                const saveSelection = await pickSaveFileFromBrowser({
+                    suggestedName,
+                    extension,
+                })
+                if (!saveSelection) {
+                    data.onStatusChange('Save As selection cancelled')
+                    return
+                }
+                data.onParameterChange(parameter.name, saveSelection.fileName)
+                data.onStatusChange(`Save target set to ${saveSelection.fileName}`)
+                return
+            }
+
             if (parameter.ui_control === 'directory') {
                 const browserSelection = await pickDirectoryFromBrowser()
                 if (!browserSelection) {
@@ -1444,7 +1543,9 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
                                                     </option>
                                                 ))}
                                             </select>
-                                        ) : parameter.ui_control === 'file' || parameter.ui_control === 'directory' ? (
+                                        ) : parameter.ui_control === 'file'
+                                            || parameter.ui_control === 'directory'
+                                            || isSaveTextOutputPathParameter(data.manifest, parameter) ? (
                                             <div className="workflow-node-inline-input">
                                                 <input
                                                     className="nodrag nopan"

@@ -207,11 +207,15 @@ Parameters: `target_chunk_size`, `unit`, `max_chunk_size`, `merge_strategy` (`se
 
 - Name: Save Text
 - Category: `serialization`
-- Description: Save incoming `text`, `documents`, or `chunks` into one file or multiple files.
+- Description: Save incoming `text`, `documents`, or `chunks` into one file or multiple files (Browse opens a Save As picker for filename selection).
 
 Inputs: `text` (`TEXT`), `documents` (`DOCUMENT_LIST`), `chunks` (`CHUNK_LIST`) - optional; at least one non-empty input required at runtime.
 
 Outputs: `artifact` (`JSON`).
+
+Behavior notes:
+- `output_path` is treated as a reference file path (name + optional extension).
+- With `separate_files = true`, outputs are written as `baseName_00001`, `baseName_00002`, ... using the selected extension.
 
 Parameters:
 
@@ -222,7 +226,6 @@ Parameters:
 | `extension` | `TEXT` | `.txt` | `select` | Yes |
 
 Supported extensions: `.txt`, `.md`, `.doc`, `.pdf`.
-
 ## `LOAD_TEXT` (v1)
 
 - Name: Load Text
@@ -276,4 +279,3 @@ Inputs: `text` (`TEXT`, required).
 - Description: Expose final JSON results.
 
 Inputs: `value` (`JSON`, required).
-
