@@ -215,7 +215,12 @@ Outputs: `artifact` (`JSON`).
 
 Behavior notes:
 - `output_path` is treated as a reference file path (name + optional extension).
-- With `separate_files = true`, outputs are written as `baseName_00001`, `baseName_00002`, ... using the selected extension.
+- With `separate_files = true`, `output_path` is treated as a folder reference:
+- If it includes an extension (for example `exports/chunks.txt`), the folder name uses the stem (`exports/chunks`).
+- Outputs are written inside that folder as `folderName_00001`, `folderName_00002`, ... using the selected extension.
+- Frontend Browse for `SAVE_TEXT.output_path` uses browser file/directory pickers only (no backend-native dialogs).
+- In local browser runs, when Browse is used, selected file/directory handles are used client-side after execution so content is written to the user-selected local target.
+- When this frontend-selected target is active, backend SAVE_TEXT skips writing to `resources/artifacts` for that node run.
 
 Parameters:
 
