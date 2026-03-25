@@ -393,23 +393,19 @@ def _save_text_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> d
     target_root = _resolve_storage_path(parsed.output_path, label="output_path", relative_to_artifacts_root=True)
 
     if parsed.separate_files:
-        target_root.mkdir(parents=True, exist_ok=True)
-        used_names: set[str] = set()
+        reference_path = _ensure_extension(target_root, parsed.extension)
+        destination_dir = reference_path.parent
+        destination_dir.mkdir(parents=True, exist_ok=True)
+        base_stem = _safe_file_stem(reference_path.stem, "output")
         written_files: list[str] = []
         for index, item in enumerate(items, start=1):
-            stem = _safe_file_stem(item["name"], f"item_{index}")
-            candidate_name = f"{stem}{parsed.extension}"
-            suffix_index = 2
-            while candidate_name in used_names:
-                candidate_name = f"{stem}_{suffix_index}{parsed.extension}"
-                suffix_index += 1
-            used_names.add(candidate_name)
-            destination = target_root / candidate_name
+            candidate_name = f"{base_stem}_{index:05d}{parsed.extension}"
+            destination = destination_dir / candidate_name
             destination.write_text(item["text"], encoding="utf-8")
             written_files.append(_to_artifact_path(destination))
         return {
             "artifact": {
-                "path": _to_artifact_path(target_root),
+                "path": _to_artifact_path(destination_dir),
                 "files": written_files,
                 "count": len(written_files),
                 "separate_files": True,

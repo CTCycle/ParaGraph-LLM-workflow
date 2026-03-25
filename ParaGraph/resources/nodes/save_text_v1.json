@@ -37,14 +37,14 @@
         "required": true
       },
       "ui_control": "text",
-      "description": "Destination file path (single file) or folder path (multiple files)."
+      "description": "Destination file path. Use Browse to pick a Save As filename. In separate-files mode, this becomes the base name for generated chunks."
     },
     {
       "name": "separate_files",
       "data_type": "BOOLEAN",
       "default": false,
       "ui_control": "toggle",
-      "description": "When true, save one file per document/chunk item in the destination folder."
+      "description": "When true, save one file per document/chunk item using baseName_00001, baseName_00002, ... in the target folder."
     },
     {
       "name": "extension",

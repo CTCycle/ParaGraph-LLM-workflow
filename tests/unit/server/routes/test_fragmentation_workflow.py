@@ -69,11 +69,11 @@ def test_execute_fragmentation_pipeline_returns_serialization_artifact(
 ) -> None:
     source = tmp_path / 'fragment-source.txt'
     source.write_text('Apples are crisp. Bananas are softer. Carrots are crunchy.', encoding='utf-8')
-    export_dir = tmp_path / 'exports'
+    export_target = tmp_path / 'exports' / 'fragments.md'
 
     compile_response = client.post(
         '/executions/compile',
-        json={'definition': build_fragmentation_definition(str(source), str(export_dir))},
+        json={'definition': build_fragmentation_definition(str(source), str(export_target))},
     )
     assert compile_response.status_code == 200
     payload = compile_response.json()
@@ -95,4 +95,5 @@ def test_execute_fragmentation_pipeline_returns_serialization_artifact(
     written_files = [Path(path) for path in artifact['files']]
     assert all(path.exists() for path in written_files)
     assert all(path.suffix == '.md' for path in written_files)
+    assert all(path.name.startswith('fragments_') for path in written_files)
     assert any('Apples are crisp' in path.read_text(encoding='utf-8') for path in written_files)
