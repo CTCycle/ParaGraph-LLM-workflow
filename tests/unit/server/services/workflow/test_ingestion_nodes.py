@@ -8,18 +8,6 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
 from ParaGraph.server.services.workflow import node_registry
 
 
-def test_document_loader_accepts_multiple_files(tmp_path: Path) -> None:
-    source_a = tmp_path / 'one.txt'
-    source_b = tmp_path / 'two.md'
-    source_a.write_text('alpha', encoding='utf-8')
-    source_b.write_text('beta', encoding='utf-8')
-
-    payload = node_registry.execute('DOCUMENT_LOADER', 1, {'file_paths': [str(source_a), str(source_b)]}, {})
-
-    assert [document['text'] for document in payload['documents']] == ['alpha', 'beta']
-    assert all(document['source_uri'].startswith(str(tmp_path)) for document in payload['documents'])
-
-
 def test_load_documents_emits_deferred_records_without_eager_text(tmp_path: Path) -> None:
     source_dir = tmp_path / 'docs'
     source_dir.mkdir(parents=True, exist_ok=True)

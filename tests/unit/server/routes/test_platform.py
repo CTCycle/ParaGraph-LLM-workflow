@@ -47,7 +47,6 @@ def test_nodes_catalog_exposes_registry(client: TestClient) -> None:
     assert ids == {
         'BY_DELIMITER_CHUNKS',
         'BY_STRUCTURE_CHUNKS',
-        'DOCUMENT_LOADER',
         'FIXED_SIZE_CHUNKS',
         'JSON_OUTPUT',
         'LLM_CHAT',
@@ -391,7 +390,7 @@ def test_compile_endpoint_returns_diagnostics_for_type_mismatch(client: TestClie
             'definition': {
                 'schema_version': 2,
                 'nodes': [
-                    {'node_id': 'doc_1', 'node_type': 'DOCUMENT_LOADER', 'node_version': 1, 'parameters': {'file_path': 'C:/tmp/sample.txt'}},
+                    {'node_id': 'doc_1', 'node_type': 'LOAD_DOCUMENTS', 'node_version': 1, 'parameters': {'folder_path': 'C:/tmp', 'recursive': False}},
                     {'node_id': 'output_1', 'node_type': 'TEXT_OUTPUT', 'node_version': 1, 'parameters': {}},
                 ],
                 'connections': [

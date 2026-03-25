@@ -59,41 +59,6 @@ def _normalize_database_engine(value: Any, *, label: str = "engine") -> str:
     raise ValueError(f"{label} must be one of: {', '.join(sorted(SUPPORTED_DATABASE_ENGINES))}")
 
 
-def _parse_string_list(value: Any, label: str) -> list[str]:
-    parsed = parse_json_value(value, label) if isinstance(value, str) else value
-    if isinstance(parsed, str):
-        parsed = [parsed]
-    if not isinstance(parsed, list) or not all(isinstance(item, str) for item in parsed):
-        raise ValueError(f"{label} must be a JSON array of strings")
-    return [item.strip() for item in parsed if item.strip()]
-
-
-class DocumentLoaderParameters(BaseModel):
-    file_paths: list[str] = Field(default_factory=list)
-
-    @model_validator(mode="before")
-    @classmethod
-    def migrate_legacy_file_path(cls, value: Any) -> Any:
-        if not isinstance(value, dict):
-            return value
-        payload = dict(value)
-        if not payload.get("file_paths") and payload.get("file_path"):
-            payload["file_paths"] = [payload["file_path"]]
-        return payload
-
-    @field_validator("file_paths", mode="before")
-    @classmethod
-    def validate_file_paths(cls, value: Any) -> list[str]:
-        return _parse_string_list(value, "file_paths")
-
-    @field_validator("file_paths")
-    @classmethod
-    def ensure_files_present(cls, value: list[str]) -> list[str]:
-        if not value:
-            raise ValueError("file_paths must contain at least one file path")
-        return value
-
-
 class DirectoryLoaderParameters(BaseModel):
     directory_path: str
     recursive: bool = True
@@ -350,34 +315,6 @@ def _build_database_url(payload: dict[str, Any]) -> tuple[str | URL, dict[str, A
     )
 
 
-def _document_loader_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
-    _ = inputs
-    raw_paths = parameters.get("file_paths")
-    file_paths = raw_paths if isinstance(raw_paths, list) else [parameters.get("file_path")]
-
-    documents: list[dict[str, Any]] = []
-    for raw_path in file_paths:
-        path_value = coerce_text(raw_path).strip()
-        if not path_value:
-            continue
-        path = _resolve_local_path(path_value)
-        if not path.exists() or not path.is_file():
-            raise ValueError(f"Document file not found: {path}")
-        text_content, mime_type = _load_file_text(path)
-        documents.append(
-            _build_document(
-                str(path),
-                text_content,
-                mime_type,
-                {"extension": path.suffix.lower(), "file_name": path.name, "size_bytes": path.stat().st_size},
-            )
-        )
-
-    if not documents:
-        raise ValueError("DOCUMENT_LOADER requires at least one readable file")
-    return {"documents": documents}
-
-
 def _directory_loader_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
     _ = inputs
     directory = _resolve_local_path(coerce_text(parameters.get("directory_path")).strip())
@@ -518,7 +455,6 @@ def _validate_and_build_database_connection(parameters: dict[str, Any]) -> dict[
 
 
 INGESTION_HANDLERS = {
-    "document_loader": NodeHandler(executor=_document_loader_executor, parameter_model=DocumentLoaderParameters),
     "directory_loader": NodeHandler(executor=_directory_loader_executor, parameter_model=DirectoryLoaderParameters),
     "load_documents": NodeHandler(executor=_load_documents_executor, parameter_model=LoadDocumentsParameters),
     "sql_database": NodeHandler(executor=_sql_database_executor, parameter_model=SQLDatabaseParameters),
