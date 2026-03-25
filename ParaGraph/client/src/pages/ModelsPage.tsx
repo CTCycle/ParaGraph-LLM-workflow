@@ -127,6 +127,30 @@ function formatModelSize(value: number | null): string {
     return `Size: ${formatBytes(value)}`
 }
 
+function escapeRegex(text: string): string {
+    return text.replace(/[\\^$.*+?()[\]{}|]/g, '\\$&')
+}
+
+function trimOllamaDescription(modelName: string, description: string | null): string | null {
+    if (!description) {
+        return null
+    }
+
+    const cleanedDescription = description.trim()
+    if (!cleanedDescription) {
+        return null
+    }
+
+    const normalizedModelName = modelName.trim()
+    if (!normalizedModelName) {
+        return cleanedDescription
+    }
+
+    const prefixPattern = new RegExp(`^${escapeRegex(normalizedModelName)}(?:\\s*[-–—:|,]\\s*|\\s+)`, 'i')
+    const withoutPrefix = cleanedDescription.replace(prefixPattern, '').trim()
+    return withoutPrefix || cleanedDescription
+}
+
 function mergeFilterOptions(options: string[], selected: string): string[] {
     const values = new Set(options.map((item) => item.trim()).filter((item) => item.length > 0))
     const normalizedSelected = selected.trim()
@@ -584,6 +608,7 @@ export default function ModelsPage() {
                         {!ollamaLoading &&
                             filteredOllamaModels.map((model) => {
                                 const isPulling = hasPullingModel(model.model)
+                                const trimmedDescription = trimOllamaDescription(model.model, model.description)
                                 return (
                                     <article
                                         key={model.model}
@@ -592,7 +617,7 @@ export default function ModelsPage() {
                                     >
                                         <div className="models-row-main">
                                             <h3>{model.model}</h3>
-                                            {model.description && <p>{model.description}</p>}
+                                            {trimmedDescription && <p>{trimmedDescription}</p>}
                                         </div>
                                         <div className="models-row-actions">
                                             {model.pulled ? (

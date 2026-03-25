@@ -440,17 +440,54 @@ function normalizeProvider(value: unknown): string {
     return text === 'anthropic' ? 'claude' : text
 }
 
+function readNumericConstraint(constraints: Record<string, unknown>, key: string): number | undefined {
+    const value = constraints[key]
+    if (typeof value === 'number' && Number.isFinite(value)) {
+        return value
+    }
+    if (typeof value === 'string' && value.trim()) {
+        const parsed = Number(value)
+        if (Number.isFinite(parsed)) {
+            return parsed
+        }
+    }
+    return undefined
+}
+
+function getNumberConstraints(parameter: NodeParameterDefinition): { min?: number; max?: number; step?: number } {
+    return {
+        min: readNumericConstraint(parameter.constraints, 'min'),
+        max: readNumericConstraint(parameter.constraints, 'max'),
+        step: readNumericConstraint(parameter.constraints, 'step'),
+    }
+}
+
+function clampNumberToConstraints(value: number, constraints: { min?: number; max?: number }): number {
+    let nextValue = value
+    if (typeof constraints.min === 'number' && nextValue < constraints.min) {
+        nextValue = constraints.min
+    }
+    if (typeof constraints.max === 'number' && nextValue > constraints.max) {
+        nextValue = constraints.max
+    }
+    return nextValue
+}
+
 function parseValue(parameter: NodeParameterDefinition, rawValue: string | boolean): unknown {
     if (parameter.ui_control === 'toggle') {
         return Boolean(rawValue)
     }
     if (parameter.ui_control === 'number') {
+        const constraints = getNumberConstraints(parameter)
+        const fallbackValue =
+            typeof parameter.default === 'number' && Number.isFinite(parameter.default) ? parameter.default : 0
         const text = String(rawValue)
         if (!text.trim()) {
-            return parameter.default ?? 0
+            return clampNumberToConstraints(fallbackValue, constraints)
         }
         const parsed = Number(text)
-        return Number.isFinite(parsed) ? parsed : parameter.default ?? 0
+        const numericValue = Number.isFinite(parsed) ? parsed : fallbackValue
+        return clampNumberToConstraints(numericValue, constraints)
     }
     if (parameter.ui_control === 'json') {
         return String(rawValue)
@@ -874,6 +911,10 @@ function buildInitialNodeParameters(
     return initialParameters
 }
 
+function formatWidgetOptionLabel(value: string): string {
+    return value.replace(/_/g, ' ')
+}
+
 function getParameterOptions(
     parameter: NodeParameterDefinition,
     manifest: NodeManifest,
@@ -893,7 +934,7 @@ function getParameterOptions(
     }
     return options
         .filter((option): option is string => typeof option === 'string')
-        .map((option) => ({ value: option, label: option }))
+        .map((option) => ({ value: option, label: formatWidgetOptionLabel(option) }))
 }
 
 function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
@@ -1170,6 +1211,7 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
                             const showHeader = showParameterLabel || parameter.ui_control === 'file-list'
                             const isBrowsing = browseTarget === parameter.name
                             const selectedPaths = parameter.ui_control === 'file-list' ? normalizeStringList(value) : []
+                            const numberConstraints = parameter.ui_control === 'number' ? getNumberConstraints(parameter) : null
                             return (
                                 <label
                                     key={parameter.name}
@@ -1322,6 +1364,9 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
                                                 value={formatParameterValue(parameter, value)}
                                                 onPointerDown={preventNodeInteractionDrag}
                                                 onMouseDown={preventNodeInteractionDrag}
+                                                min={parameter.ui_control === 'number' ? numberConstraints?.min : undefined}
+                                                max={parameter.ui_control === 'number' ? numberConstraints?.max : undefined}
+                                                step={parameter.ui_control === 'number' ? numberConstraints?.step : undefined}
                                                 onChange={(event) => data.onParameterChange(parameter.name, parseValue(parameter, event.target.value))}
                                             />
                                         )}
