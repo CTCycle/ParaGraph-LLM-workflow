@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 from ParaGraph.server.services.workflow.node_handlers.base import NodeHandler
 from ParaGraph.server.services.workflow.node_handlers.common import coerce_text, normalize_provider_name, parse_json_value
 from ParaGraph.server.services.workflow.provider import provider_service
-from ParaGraph.server.services.workflow.vectorstores import VectorStoreError, get_vector_store_adapter
+from ParaGraph.server.services.workflow.vector_stores import VectorStoreError, get_vector_store_adapter
 
 
 class BatchEmbedderParameters(BaseModel):
@@ -202,3 +202,5 @@ RAG_HANDLERS = {
     "similarity_search": NodeHandler(executor=_similarity_search_executor, parameter_model=SimilaritySearchParameters),
     "context_injector": NodeHandler(executor=_context_injector_executor, parameter_model=ContextInjectorParameters),
 }
+
+

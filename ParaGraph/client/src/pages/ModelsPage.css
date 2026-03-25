@@ -10,12 +10,11 @@
 
 .models-page-header h1 {
     margin: 0;
-    font-size: clamp(1.85rem, 2.8vw, 2.4rem);
+    font-size: clamp(1.65rem, 2.3vw, 2.1rem);
 }
 
 .models-page-header p {
     margin: 8px 0 0;
-    max-width: 72ch;
     color: #a9bfda;
     line-height: 1.4;
 }
@@ -399,6 +398,7 @@
         align-items: flex-start;
     }
 }
+
 
 
 
