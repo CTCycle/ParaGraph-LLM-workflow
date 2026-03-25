@@ -58,6 +58,19 @@ HUGGINGFACE_SORT_FIELD_MAP: dict[HuggingFaceSortBy, str | None] = {
     "updated": "lastModified",
 }
 
+HUGGINGFACE_MODEL_LIST_EXPAND_FIELDS: tuple[str, ...] = (
+    "author",
+    "downloads",
+    "gated",
+    "lastModified",
+    "library_name",
+    "likes",
+    "pipeline_tag",
+    "private",
+    "safetensors",
+    "siblings",
+    "tags",
+)
 HUGGINGFACE_FALLBACK_TASKS: tuple[str, ...] = (
     "text-generation",
     "text-classification",
@@ -1707,7 +1720,9 @@ class ProviderService:
         if visibility in {"gated", "public"} and "gated" in parameters:
             kwargs["gated"] = visibility == "gated"
 
-        if "full" in parameters:
+        if "expand" in parameters:
+            kwargs["expand"] = list(HUGGINGFACE_MODEL_LIST_EXPAND_FIELDS)
+        elif "full" in parameters:
             kwargs["full"] = True
         if "limit" in parameters:
             kwargs["limit"] = limit
@@ -1866,6 +1881,8 @@ class ProviderService:
 
 
 provider_service = ProviderService()
+
+
 
 
 

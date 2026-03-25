@@ -13,12 +13,11 @@
 
 .config-page-header h1 {
     margin: 0;
-    font-size: clamp(1.7rem, 2.6vw, 2.2rem);
+    font-size: clamp(1.65rem, 2.3vw, 2.1rem);
 }
 
 .config-page-lede {
     margin: 8px 0 0;
-    max-width: 62ch;
     color: #b9cce3;
 }
 
@@ -232,3 +231,4 @@
         justify-content: flex-end;
     }
 }
+

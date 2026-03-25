@@ -55,6 +55,7 @@ ParaGraph is a FastAPI + React application for authoring and executing manifest-
 - `/providers/huggingface/models`
 - `/providers/huggingface/download`
 - `/providers/huggingface/download/{job_id}`
+- Hugging Face model catalog queries request expanded metadata (for example safetensors and siblings) so backend size estimation can be populated when available.
 
 ### Configurations
 - `/configurations`
@@ -117,3 +118,8 @@ ParaGraph is a FastAPI + React application for authoring and executing manifest-
 - Current architecture and tests target `/workflows` + `/executions` + `/nodes` + `/providers` + `/configurations` route families.
 - Websocket execution streaming uses `/executions/ws/runs/{run_id}`.
 - Legacy `/workflow/*` compatibility endpoints are not the primary active surface for this repository.
+
+## 7. Database Initialization
+
+- On backend startup, ORM metadata is synchronized with the active database engine using `Base.metadata.create_all(...)`.
+- This is idempotent and ensures newly introduced tables (for example `configuration_profiles`) are created even when an older database file already exists.
