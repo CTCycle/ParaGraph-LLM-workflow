@@ -7,7 +7,7 @@ ParaGraph is a FastAPI + React application for authoring and executing manifest-
 - `ParaGraph/server`
   - `app.py`: FastAPI app wiring and router registration.
   - `api/`: HTTP and websocket route modules (`workflows`, `executions`, `nodes`, `providers`, `configurations`, `ws`).
-  - `domain/`: Pydantic contracts (workflow, execution, provider, configuration payloads).
+  - `domain/`: Pydantic/dataclass contracts (workflow, execution, provider, configuration, node API payloads, node handler parameter schemas, runtime payload contracts).
   - `services/workflow/`: compiler, execution orchestration, provider integration, node runtime logic, workflow CRUD.
   - `services/runtime/events.py`: in-memory execution event history + pub/sub used by REST and websocket replay.
   - `repositories/workflow/`: file-backed workflow persistence and run-state repository.

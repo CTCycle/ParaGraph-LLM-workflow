@@ -6,10 +6,15 @@ from collections.abc import Iterable, Iterator
 from typing import Any
 from uuid import NAMESPACE_URL, uuid5
 
-from pydantic import BaseModel, Field, field_validator, model_validator
-
+from ParaGraph.server.domain.node_handler_processing import (
+    ByDelimiterChunksParameters,
+    ByStructureChunksParameters,
+    FixedSizeChunksParameters,
+    MergeSmallChunksParameters,
+    RecursiveSplitChunksParameters,
+    SentenceWindowChunksParameters,
+)
 from ParaGraph.server.services.workflow.node_handlers.base import NodeHandler
-from ParaGraph.server.services.workflow.node_handlers.common import parse_json_value
 from ParaGraph.server.services.workflow.node_handlers.ingestion import _load_file_text, _resolve_local_path
 
 
@@ -28,168 +33,6 @@ _DELIMITER_PRESETS: dict[str, str] = {
     "html_br": "<br>",
     "html_paragraph": "</p>",
 }
-
-
-class FixedSizeChunksParameters(BaseModel):
-    chunk_size: int = Field(default=800, ge=1, le=100_000)
-    chunk_overlap: int = Field(default=80, ge=0, le=99_999)
-    unit: str = "words"
-
-    @field_validator("unit")
-    @classmethod
-    def validate_unit(cls, value: str) -> str:
-        normalized = str(value or "").strip().lower()
-        if normalized not in {"words", "characters"}:
-            raise ValueError("unit must be one of: words, characters")
-        return normalized
-
-    @model_validator(mode="after")
-    def validate_overlap(self) -> "FixedSizeChunksParameters":
-        if self.chunk_overlap >= self.chunk_size:
-            raise ValueError("chunk_overlap must be smaller than chunk_size")
-        return self
-
-
-class ByDelimiterChunksParameters(BaseModel):
-    delimiter: str = "newline"
-    keep_delimiter: bool = False
-    drop_empty: bool = True
-    max_chunk_size: int = Field(default=0, ge=0, le=100_000)
-    overflow_strategy: str = "split_further"
-
-    @field_validator("delimiter")
-    @classmethod
-    def validate_delimiter(cls, value: str) -> str:
-        normalized = str(value or "").strip()
-        if not normalized:
-            raise ValueError("delimiter must not be empty")
-        return normalized
-
-    @field_validator("overflow_strategy")
-    @classmethod
-    def validate_overflow_strategy(cls, value: str) -> str:
-        normalized = str(value or "").strip().lower()
-        if normalized not in {"split_further", "discard", "emit_as_is"}:
-            raise ValueError("overflow_strategy must be one of: split_further, discard, emit_as_is")
-        return normalized
-
-
-class ByStructureChunksParameters(BaseModel):
-    strategy: str = "paragraph"
-    max_chunk_size: int = Field(default=0, ge=0, le=100_000)
-    chunk_overlap: int = Field(default=0, ge=0, le=99_999)
-    unit: str = "words"
-    overflow_strategy: str = "split_further"
-
-    @field_validator("strategy")
-    @classmethod
-    def validate_strategy(cls, value: str) -> str:
-        normalized = str(value or "").strip().lower()
-        if normalized not in {"paragraph", "section", "heading_and_content"}:
-            raise ValueError("strategy must be one of: paragraph, section, heading_and_content")
-        return normalized
-
-    @field_validator("unit")
-    @classmethod
-    def validate_unit(cls, value: str) -> str:
-        normalized = str(value or "").strip().lower()
-        if normalized not in {"words", "characters"}:
-            raise ValueError("unit must be one of: words, characters")
-        return normalized
-
-    @field_validator("overflow_strategy")
-    @classmethod
-    def validate_overflow_strategy(cls, value: str) -> str:
-        normalized = str(value or "").strip().lower()
-        if normalized not in {"split_further", "emit_as_is"}:
-            raise ValueError("overflow_strategy must be one of: split_further, emit_as_is")
-        return normalized
-
-
-class RecursiveSplitChunksParameters(BaseModel):
-    separators: list[str] = Field(default_factory=lambda: ["\n\n", "\n", " "])
-    chunk_size: int = Field(default=800, ge=1, le=100_000)
-    chunk_overlap: int = Field(default=80, ge=0, le=99_999)
-    unit: str = "words"
-    fallback_strategy: str = "continue"
-
-    @field_validator("separators", mode="before")
-    @classmethod
-    def parse_separators(cls, value: Any) -> list[str]:
-        parsed = parse_json_value(value, "separators") if isinstance(value, str) else value
-        if not isinstance(parsed, list) or not all(isinstance(item, str) for item in parsed):
-            raise ValueError("separators must be an array of strings")
-        normalized = [item for item in (entry.strip() for entry in parsed) if item]
-        if not normalized:
-            raise ValueError("separators must include at least one value")
-        return normalized
-
-    @field_validator("unit")
-    @classmethod
-    def validate_unit(cls, value: str) -> str:
-        normalized = str(value or "").strip().lower()
-        if normalized not in {"words", "characters"}:
-            raise ValueError("unit must be one of: words, characters")
-        return normalized
-
-    @field_validator("fallback_strategy")
-    @classmethod
-    def validate_fallback_strategy(cls, value: str) -> str:
-        normalized = str(value or "").strip().lower()
-        if normalized not in {"continue", "force_split"}:
-            raise ValueError("fallback_strategy must be one of: continue, force_split")
-        return normalized
-
-    @model_validator(mode="after")
-    def validate_overlap(self) -> "RecursiveSplitChunksParameters":
-        if self.chunk_overlap >= self.chunk_size:
-            raise ValueError("chunk_overlap must be smaller than chunk_size")
-        return self
-
-
-class SentenceWindowChunksParameters(BaseModel):
-    sentences_per_chunk: int = Field(default=4, ge=1, le=1000)
-    sentence_overlap: int = Field(default=1, ge=0, le=999)
-    max_chunk_size: int = Field(default=0, ge=0, le=100_000)
-    overflow_strategy: str = "split_further"
-
-    @field_validator("overflow_strategy")
-    @classmethod
-    def validate_overflow_strategy(cls, value: str) -> str:
-        normalized = str(value or "").strip().lower()
-        if normalized not in {"split_further", "emit_as_is"}:
-            raise ValueError("overflow_strategy must be one of: split_further, emit_as_is")
-        return normalized
-
-    @model_validator(mode="after")
-    def validate_overlap(self) -> "SentenceWindowChunksParameters":
-        if self.sentence_overlap >= self.sentences_per_chunk:
-            raise ValueError("sentence_overlap must be smaller than sentences_per_chunk")
-        return self
-
-
-class MergeSmallChunksParameters(BaseModel):
-    target_chunk_size: int = Field(default=800, ge=1, le=100_000)
-    unit: str = "words"
-    max_chunk_size: int = Field(default=0, ge=0, le=100_000)
-    merge_strategy: str = "sequential"
-    preserve_boundaries: bool = True
-
-    @field_validator("unit")
-    @classmethod
-    def validate_unit(cls, value: str) -> str:
-        normalized = str(value or "").strip().lower()
-        if normalized not in {"words", "characters"}:
-            raise ValueError("unit must be one of: words, characters")
-        return normalized
-
-    @field_validator("merge_strategy")
-    @classmethod
-    def validate_merge_strategy(cls, value: str) -> str:
-        normalized = str(value or "").strip().lower()
-        if normalized not in {"sequential", "greedy"}:
-            raise ValueError("merge_strategy must be one of: sequential, greedy")
-        return normalized
 
 
 def _hydrate_document_text(document: dict[str, Any]) -> tuple[str, dict[str, Any]]:
@@ -747,6 +590,51 @@ def _iter_merge_fragments(inputs: dict[str, Any]) -> Iterator[dict[str, Any]]:
         }
 
 
+def _flush_current_merged_chunk(
+    *,
+    current_document_id: str | None,
+    current_parts: list[str],
+    current_size: int,
+    current_metadata: dict[str, Any],
+    current_source_uri: str,
+    current_merged_count: int,
+    joiner: str,
+    parsed: MergeSmallChunksParameters,
+    next_index_by_document: dict[str, int],
+    merged_chunks: list[dict[str, Any]],
+) -> tuple[list[str], int, dict[str, Any], str, int]:
+    if not current_parts or current_document_id is None:
+        return current_parts, current_size, current_metadata, current_source_uri, current_merged_count
+
+    chunk_text = joiner.join(part for part in current_parts if part).strip()
+    if not chunk_text:
+        return [], 0, {}, "", 0
+
+    chunk_index = next_index_by_document[current_document_id]
+    next_index_by_document[current_document_id] = chunk_index + 1
+    merged_chunks.append(
+        {
+            "id": str(uuid5(NAMESPACE_URL, f"merge:{current_document_id}:{chunk_index}:{chunk_text}")),
+            "document_id": current_document_id,
+            "text": chunk_text,
+            "source_uri": current_source_uri,
+            "chunk_index": chunk_index,
+            "token_count": len(chunk_text.split()),
+            "metadata": {
+                **current_metadata,
+                "fragmentation_strategy": "merge_small_chunks",
+                "merge_target_chunk_size": parsed.target_chunk_size,
+                "merge_unit": parsed.unit,
+                "merge_max_chunk_size": parsed.max_chunk_size,
+                "merge_strategy": parsed.merge_strategy,
+                "merge_preserve_boundaries": parsed.preserve_boundaries,
+                "merge_input_count": current_merged_count,
+            },
+        }
+    )
+    return [], 0, {}, "", 0
+
+
 def _merge_small_chunks_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
     parsed = MergeSmallChunksParameters.model_validate(parameters)
     hard_limit = _resolve_max_chunk_size(parsed.max_chunk_size)
@@ -761,46 +649,6 @@ def _merge_small_chunks_executor(parameters: dict[str, Any], inputs: dict[str, A
     current_metadata: dict[str, Any] = {}
     current_merged_count = 0
 
-    def flush_current() -> None:
-        nonlocal current_parts, current_size, current_metadata, current_source_uri, current_merged_count, current_document_id
-        if not current_parts or current_document_id is None:
-            return
-        chunk_text = joiner.join(part for part in current_parts if part).strip()
-        if not chunk_text:
-            current_parts = []
-            current_size = 0
-            current_metadata = {}
-            current_source_uri = ""
-            current_merged_count = 0
-            return
-        chunk_index = next_index_by_document[current_document_id]
-        next_index_by_document[current_document_id] = chunk_index + 1
-        merged_chunks.append(
-            {
-                "id": str(uuid5(NAMESPACE_URL, f"merge:{current_document_id}:{chunk_index}:{chunk_text}")),
-                "document_id": current_document_id,
-                "text": chunk_text,
-                "source_uri": current_source_uri,
-                "chunk_index": chunk_index,
-                "token_count": len(chunk_text.split()),
-                "metadata": {
-                    **current_metadata,
-                    "fragmentation_strategy": "merge_small_chunks",
-                    "merge_target_chunk_size": parsed.target_chunk_size,
-                    "merge_unit": parsed.unit,
-                    "merge_max_chunk_size": parsed.max_chunk_size,
-                    "merge_strategy": parsed.merge_strategy,
-                    "merge_preserve_boundaries": parsed.preserve_boundaries,
-                    "merge_input_count": current_merged_count,
-                },
-            }
-        )
-        current_parts = []
-        current_size = 0
-        current_metadata = {}
-        current_source_uri = ""
-        current_merged_count = 0
-
     for fragment in _iter_merge_fragments(inputs):
         fragment_text = str(fragment.get("text", "")).strip()
         if not fragment_text:
@@ -810,7 +658,18 @@ def _merge_small_chunks_executor(parameters: dict[str, Any], inputs: dict[str, A
         fragment_size = _measure_text_size(fragment_text, parsed.unit)
 
         if current_document_id is not None and fragment_document_id != current_document_id:
-            flush_current()
+            current_parts, current_size, current_metadata, current_source_uri, current_merged_count = _flush_current_merged_chunk(
+                current_document_id=current_document_id,
+                current_parts=current_parts,
+                current_size=current_size,
+                current_metadata=current_metadata,
+                current_source_uri=current_source_uri,
+                current_merged_count=current_merged_count,
+                joiner=joiner,
+                parsed=parsed,
+                next_index_by_document=next_index_by_document,
+                merged_chunks=merged_chunks,
+            )
 
         if current_document_id is None:
             current_document_id = fragment_document_id
@@ -823,10 +682,32 @@ def _merge_small_chunks_executor(parameters: dict[str, Any], inputs: dict[str, A
             current_size = fragment_size
             current_merged_count = 1
             if hard_limit is not None and current_size >= hard_limit:
-                flush_current()
+                current_parts, current_size, current_metadata, current_source_uri, current_merged_count = _flush_current_merged_chunk(
+                    current_document_id=current_document_id,
+                    current_parts=current_parts,
+                    current_size=current_size,
+                    current_metadata=current_metadata,
+                    current_source_uri=current_source_uri,
+                    current_merged_count=current_merged_count,
+                    joiner=joiner,
+                    parsed=parsed,
+                    next_index_by_document=next_index_by_document,
+                    merged_chunks=merged_chunks,
+                )
                 current_document_id = None
             elif parsed.merge_strategy == "sequential" and current_size >= parsed.target_chunk_size:
-                flush_current()
+                current_parts, current_size, current_metadata, current_source_uri, current_merged_count = _flush_current_merged_chunk(
+                    current_document_id=current_document_id,
+                    current_parts=current_parts,
+                    current_size=current_size,
+                    current_metadata=current_metadata,
+                    current_source_uri=current_source_uri,
+                    current_merged_count=current_merged_count,
+                    joiner=joiner,
+                    parsed=parsed,
+                    next_index_by_document=next_index_by_document,
+                    merged_chunks=merged_chunks,
+                )
                 current_document_id = None
             continue
 
@@ -835,7 +716,18 @@ def _merge_small_chunks_executor(parameters: dict[str, Any], inputs: dict[str, A
         candidate_size = _measure_text_size(candidate_text, parsed.unit)
 
         if hard_limit is not None and candidate_size > hard_limit:
-            flush_current()
+            current_parts, current_size, current_metadata, current_source_uri, current_merged_count = _flush_current_merged_chunk(
+                current_document_id=current_document_id,
+                current_parts=current_parts,
+                current_size=current_size,
+                current_metadata=current_metadata,
+                current_source_uri=current_source_uri,
+                current_merged_count=current_merged_count,
+                joiner=joiner,
+                parsed=parsed,
+                next_index_by_document=next_index_by_document,
+                merged_chunks=merged_chunks,
+            )
             current_document_id = fragment_document_id
             current_source_uri = fragment_source_uri
             current_metadata = dict(fragment.get("metadata", {})) if isinstance(fragment.get("metadata"), dict) else {}
@@ -843,7 +735,18 @@ def _merge_small_chunks_executor(parameters: dict[str, Any], inputs: dict[str, A
             current_size = fragment_size
             current_merged_count = 1
             if hard_limit is not None and current_size >= hard_limit:
-                flush_current()
+                current_parts, current_size, current_metadata, current_source_uri, current_merged_count = _flush_current_merged_chunk(
+                    current_document_id=current_document_id,
+                    current_parts=current_parts,
+                    current_size=current_size,
+                    current_metadata=current_metadata,
+                    current_source_uri=current_source_uri,
+                    current_merged_count=current_merged_count,
+                    joiner=joiner,
+                    parsed=parsed,
+                    next_index_by_document=next_index_by_document,
+                    merged_chunks=merged_chunks,
+                )
                 current_document_id = None
             continue
 
@@ -859,11 +762,33 @@ def _merge_small_chunks_executor(parameters: dict[str, Any], inputs: dict[str, A
             current_size = candidate_size
             current_merged_count += 1
             if parsed.merge_strategy == "sequential" and current_size >= parsed.target_chunk_size:
-                flush_current()
+                current_parts, current_size, current_metadata, current_source_uri, current_merged_count = _flush_current_merged_chunk(
+                    current_document_id=current_document_id,
+                    current_parts=current_parts,
+                    current_size=current_size,
+                    current_metadata=current_metadata,
+                    current_source_uri=current_source_uri,
+                    current_merged_count=current_merged_count,
+                    joiner=joiner,
+                    parsed=parsed,
+                    next_index_by_document=next_index_by_document,
+                    merged_chunks=merged_chunks,
+                )
                 current_document_id = None
             continue
 
-        flush_current()
+        current_parts, current_size, current_metadata, current_source_uri, current_merged_count = _flush_current_merged_chunk(
+            current_document_id=current_document_id,
+            current_parts=current_parts,
+            current_size=current_size,
+            current_metadata=current_metadata,
+            current_source_uri=current_source_uri,
+            current_merged_count=current_merged_count,
+            joiner=joiner,
+            parsed=parsed,
+            next_index_by_document=next_index_by_document,
+            merged_chunks=merged_chunks,
+        )
         current_document_id = fragment_document_id
         current_source_uri = fragment_source_uri
         current_metadata = dict(fragment.get("metadata", {})) if isinstance(fragment.get("metadata"), dict) else {}
@@ -871,7 +796,18 @@ def _merge_small_chunks_executor(parameters: dict[str, Any], inputs: dict[str, A
         current_size = fragment_size
         current_merged_count = 1
 
-    flush_current()
+    _flush_current_merged_chunk(
+        current_document_id=current_document_id,
+        current_parts=current_parts,
+        current_size=current_size,
+        current_metadata=current_metadata,
+        current_source_uri=current_source_uri,
+        current_merged_count=current_merged_count,
+        joiner=joiner,
+        parsed=parsed,
+        next_index_by_document=next_index_by_document,
+        merged_chunks=merged_chunks,
+    )
 
     if not merged_chunks:
         raise ValueError("MERGE_SMALL_CHUNKS requires at least one document or chunk input containing text")

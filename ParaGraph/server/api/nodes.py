@@ -1,30 +1,15 @@
 from __future__ import annotations
 
-from typing import Any, Literal
-
 from fastapi import APIRouter, File, HTTPException, UploadFile, status
-from pydantic import BaseModel, Field
 
 from ParaGraph.server.domain.nodecatalog import NodeCatalogResponse, NodeManifest
+from ParaGraph.server.domain.nodes import (
+    DatabaseConnectionCheckRequest,
+    DatabaseConnectionCheckResponse,
+    UploadedDirectoryResponse,
+)
 from ParaGraph.server.services.workflow import node_registry
 from ParaGraph.server.services.workflow.browser_uploads import save_uploaded_directory
-
-
-class UploadedDirectoryResponse(BaseModel):
-    path: str
-    file_count: int
-    files: list[str] = Field(default_factory=list)
-
-
-class DatabaseConnectionCheckRequest(BaseModel):
-    node_type: Literal["SQL_DATABASE", "SQL_FILE_DATABASE"]
-    node_version: int = Field(default=1, ge=1)
-    parameters: dict[str, Any] = Field(default_factory=dict)
-
-
-class DatabaseConnectionCheckResponse(BaseModel):
-    ok: bool
-    message: str
 
 
 router = APIRouter(prefix="/nodes", tags=["nodes"])
@@ -66,4 +51,3 @@ def check_database_connection(request: DatabaseConnectionCheckRequest) -> Databa
         return DatabaseConnectionCheckResponse(ok=False, message=str(exc) or "Database connection check failed.")
     except Exception:  # noqa: BLE001
         return DatabaseConnectionCheckResponse(ok=False, message="Database connection check failed.")
-

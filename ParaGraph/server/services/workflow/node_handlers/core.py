@@ -6,10 +6,22 @@ import re
 from pathlib import Path
 from typing import Any
 
-from pydantic import BaseModel, Field, ValidationError, field_validator, model_validator
+from pydantic import ValidationError
 
 from ParaGraph.server.common.constants import RESOURCES_PATH
 from ParaGraph.server.common.security import ensure_path_within_root, is_cloud_deployment
+from ParaGraph.server.domain.node_handler_core import (
+    ChatParameters,
+    EmbeddingParameters,
+    ImageInputParameters,
+    ModelProviderParameters,
+    PromptParameters,
+    RouterParameters,
+    SaveTextParameters,
+    StorageParameters,
+    StructuredParameters,
+    TextSplitParameters,
+)
 from ParaGraph.server.domain.nodecatalog import ProviderModelDefinition
 from ParaGraph.server.services.configuration import configuration_service
 from ParaGraph.server.services.workflow.node_handlers.base import NodeHandler
@@ -43,87 +55,6 @@ def _load_huggingface_modules() -> tuple[Any, Any, Any]:
         raise ValueError("Hugging Face support requires transformers AutoModelForCausalLM and AutoTokenizer")
 
     return torch_module, auto_model_for_causal_lm, auto_tokenizer
-
-
-class PromptParameters(BaseModel):
-    prompt_text: str = ""
-
-
-class ImageInputParameters(BaseModel):
-    file_path: str = ""
-
-
-class ModelProviderParameters(BaseModel):
-    provider: str = "ollama"
-    model_name: str = ""
-
-
-class ChatParameters(BaseModel):
-    provider: str | None = None
-    model_name: str | None = None
-    context_window: int = Field(default=0, ge=0)
-    max_tokens: int = Field(default=512, ge=1)
-    use_reasoning: bool = False
-
-
-class StructuredParameters(ChatParameters):
-    response_schema: dict[str, Any]
-
-    @field_validator("response_schema", mode="before")
-    @classmethod
-    def validate_schema(cls, value: Any) -> dict[str, Any]:
-        schema = parse_json_value(value, "response_schema")
-        validate_schema_definition(schema)
-        return schema
-
-
-class EmbeddingParameters(BaseModel):
-    provider: str = "ollama"
-    model_name: str = "nomic-embed-text"
-
-
-class TextSplitParameters(BaseModel):
-    delimiter: str = "\n"
-
-
-class SaveTextParameters(BaseModel):
-    output_path: str = ""
-    separate_files: bool = False
-    extension: str = ".txt"
-
-    @model_validator(mode="before")
-    @classmethod
-    def migrate_legacy_storage_path(cls, value: Any) -> Any:
-        if not isinstance(value, dict):
-            return value
-        payload = dict(value)
-        if "output_path" not in payload and "storage_path" in payload:
-            payload["output_path"] = payload["storage_path"]
-        return payload
-
-    @field_validator("extension")
-    @classmethod
-    def validate_extension(cls, value: str) -> str:
-        normalized = str(value or "").strip().lower()
-        if normalized not in {".txt", ".md", ".doc", ".pdf"}:
-            raise ValueError("extension must be one of: .txt, .md, .doc, .pdf")
-        return normalized
-
-
-class StorageParameters(BaseModel):
-    storage_path: str = ""
-
-    @field_validator("storage_path")
-    @classmethod
-    def validate_storage_path(cls, value: str) -> str:
-        normalized = value.strip()
-        if not normalized:
-            raise ValueError("storage_path is required. Select a local path.")
-        return normalized
-
-
-class RouterParameters(BaseModel):
-    expected_value: str = ""
 
 
 def _resolve_storage_path(

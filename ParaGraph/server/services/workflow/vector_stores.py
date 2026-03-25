@@ -10,7 +10,7 @@ import numpy as np
 import faiss
 from ParaGraph.server.common.constants import RESOURCES_PATH
 from ParaGraph.server.common.security import ensure_path_within_root, is_cloud_deployment
-from ParaGraph.server.services.workflow.payloads import RetrievalHit, VectorPoint, VectorStoreHandle
+from ParaGraph.server.domain.workflow_payloads import RetrievalHit, VectorPoint, VectorStoreHandle
 
 
 ARTIFACT_ROOT = Path(RESOURCES_PATH) / "artifacts"
@@ -404,4 +404,5 @@ def get_vector_store_adapter(backend: str) -> VectorStoreAdapter:
     if adapter is None:
         raise VectorStoreError(f"Unsupported vector store backend: {backend}")
     return adapter
+
 

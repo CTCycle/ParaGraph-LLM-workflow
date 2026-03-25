@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 
+import { useErrorMessage } from '../app/hooks/useErrorMessage'
 import { usePageMetadata } from '../app/hooks/usePageMetadata'
 import { useModalState } from '../app/hooks/useModalState'
 import {
@@ -9,6 +10,7 @@ import {
     pingOllama,
     saveConfigurationProfile,
 } from '../app/services/workflowApi'
+import ModalActionButtons from '../components/ModalActionButtons'
 import ModalDialog from '../components/ModalDialog'
 import { AccessKeyConfiguration, AppConfigurationPayload, ConfigurationProfileSummary } from '../workflow/schema/types'
 import './ConfigurationsPage.css'
@@ -108,6 +110,7 @@ export default function ConfigurationsPage() {
     const [isLoading, setIsLoading] = useState(true)
     const [isSavingProfile, setIsSavingProfile] = useState(false)
     const [isPingingOllama, setIsPingingOllama] = useState(false)
+    const getErrorMessage = useErrorMessage()
 
     const loadModal = useModalState(false)
     const saveModal = useModalState(false)
@@ -139,7 +142,7 @@ export default function ConfigurationsPage() {
             applyPayload(payload)
             setStatusMessage('Configuration loaded')
         } catch (error) {
-            setStatusMessage(error instanceof Error ? error.message : 'Unable to load configuration')
+            setStatusMessage(getErrorMessage(error, 'Unable to load configuration'))
         } finally {
             setIsLoading(false)
         }
@@ -184,7 +187,7 @@ export default function ConfigurationsPage() {
             setProfiles(response.profiles)
             setSelectedProfileName(response.profiles[0]?.profile_name ?? '')
         } catch (error) {
-            setStatusMessage(error instanceof Error ? error.message : 'Unable to list saved configurations')
+            setStatusMessage(getErrorMessage(error, 'Unable to list saved configurations'))
         } finally {
             setIsLoadingProfiles(false)
         }
@@ -203,7 +206,7 @@ export default function ConfigurationsPage() {
             setStatusMessage(`Loaded configuration '${selectedProfileName}'`)
             loadModal.close()
         } catch (error) {
-            setStatusMessage(error instanceof Error ? error.message : 'Unable to load selected configuration')
+            setStatusMessage(getErrorMessage(error, 'Unable to load selected configuration'))
         } finally {
             setIsLoadingProfile(false)
         }
@@ -225,7 +228,7 @@ export default function ConfigurationsPage() {
             saveModal.close()
             setSaveProfileName('')
         } catch (error) {
-            setStatusMessage(error instanceof Error ? error.message : 'Unable to save configuration')
+            setStatusMessage(getErrorMessage(error, 'Unable to save configuration'))
         } finally {
             setIsSavingProfile(false)
         }
@@ -238,7 +241,7 @@ export default function ConfigurationsPage() {
             const response = await pingOllama(normalizeText(ollamaBaseUrl) || null)
             setOllamaStatus(response.message)
         } catch (error) {
-            setOllamaStatus(error instanceof Error ? error.message : 'Unable to check Ollama status')
+            setOllamaStatus(getErrorMessage(error, 'Unable to check Ollama status'))
         } finally {
             setIsPingingOllama(false)
         }
@@ -359,18 +362,14 @@ export default function ConfigurationsPage() {
                 title="Load configuration"
                 description="Choose one saved configuration profile."
                 actions={(
-                    <>
-                        <button type="button" onClick={loadModal.close} disabled={isLoadingProfile}>
-                            Cancel
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => void handleLoadSelectedProfile()}
-                            disabled={!selectedProfileName || isLoadingProfile || isLoadingProfiles}
-                        >
-                            {isLoadingProfile ? 'Loading...' : 'Load'}
-                        </button>
-                    </>
+                    <ModalActionButtons
+                        cancelLabel="Cancel"
+                        confirmLabel={isLoadingProfile ? 'Loading...' : 'Load'}
+                        onCancel={loadModal.close}
+                        onConfirm={() => void handleLoadSelectedProfile()}
+                        cancelDisabled={isLoadingProfile}
+                        confirmDisabled={!selectedProfileName || isLoadingProfile || isLoadingProfiles}
+                    />
                 )}
             >
                 <div className="config-modal-list">
@@ -401,14 +400,14 @@ export default function ConfigurationsPage() {
                 title="Save configuration"
                 description="Name this configuration profile."
                 actions={(
-                    <>
-                        <button type="button" onClick={saveModal.close} disabled={isSavingProfile}>
-                            Cancel
-                        </button>
-                        <button type="button" onClick={() => void handleSaveProfile()} disabled={isSavingProfile}>
-                            {isSavingProfile ? 'Saving...' : 'Save'}
-                        </button>
-                    </>
+                    <ModalActionButtons
+                        cancelLabel="Cancel"
+                        confirmLabel={isSavingProfile ? 'Saving...' : 'Save'}
+                        onCancel={saveModal.close}
+                        onConfirm={() => void handleSaveProfile()}
+                        cancelDisabled={isSavingProfile}
+                        confirmDisabled={isSavingProfile}
+                    />
                 )}
             >
                 <label className="config-modal-input">
