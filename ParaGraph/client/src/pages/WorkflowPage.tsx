@@ -424,6 +424,23 @@ function defaultParameters(manifest: NodeManifest): Record<string, unknown> {
     return Object.fromEntries(manifest.parameters.map((parameter) => [parameter.name, parameter.default ?? '']))
 }
 
+function normalizePathParameter(parameters: Record<string, unknown>, canonicalName: 'storage_path' | 'folder_path'): void {
+    const current = parameters[canonicalName]
+    if (typeof current === 'string') {
+        parameters[canonicalName] = current.trim()
+    }
+}
+
+function normalizeNodePathParameters(manifest: NodeManifest, parameters: Record<string, unknown>): Record<string, unknown> {
+    const nextParameters = cloneNodeParameters(parameters)
+    if (manifest.id === 'LOAD_TEXT') {
+        normalizePathParameter(nextParameters, 'storage_path')
+    }
+    if (manifest.id === 'LOAD_DOCUMENTS') {
+        normalizePathParameter(nextParameters, 'folder_path')
+    }
+    return nextParameters
+}
 function normalizeJsonParameterValue(value: unknown): string {
     if (typeof value === 'string') {
         return value
@@ -897,18 +914,19 @@ function buildInitialNodeParameters(
         ...defaultParameters(manifest),
         ...(inputParameters ? cloneNodeParameters(inputParameters) : {}),
     }
-    const initialModels = getDynamicModelOptions(manifest, initialParameters, providerModels)
-    if (manifest.id === 'MODEL_PROVIDER' && initialModels.length > 0 && !String(initialParameters.model_name ?? '').trim()) {
-        initialParameters.model_name = initialModels[0].model
+    const normalizedParameters = normalizeNodePathParameters(manifest, initialParameters)
+    const initialModels = getDynamicModelOptions(manifest, normalizedParameters, providerModels)
+    if (manifest.id === 'MODEL_PROVIDER' && initialModels.length > 0 && !String(normalizedParameters.model_name ?? '').trim()) {
+        normalizedParameters.model_name = initialModels[0].model
     }
     for (const parameter of manifest.parameters) {
         if (parameter.ui_control !== 'json') {
             continue
         }
-        const value = initialParameters[parameter.name] ?? parameter.default ?? ''
-        initialParameters[parameter.name] = normalizeJsonParameterValue(value)
+        const value = normalizedParameters[parameter.name] ?? parameter.default ?? ''
+        normalizedParameters[parameter.name] = normalizeJsonParameterValue(value)
     }
-    return initialParameters
+    return normalizedParameters
 }
 
 function formatWidgetOptionLabel(value: string): string {
@@ -1059,16 +1077,19 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
                 }
 
                 const uploaded = await uploadNodeDirectory(browserSelection.files)
+                const normalizedFiles = uploaded.files
+                    .map((pathValue) => String(pathValue).trim())
+                    .filter((pathValue) => Boolean(pathValue))
                 if (parameter.ui_control === 'file-list') {
-                    if (uploaded.files.length === 0) {
+                    if (normalizedFiles.length === 0) {
                         throw new Error('File upload succeeded but returned no files')
                     }
-                    data.onParameterChange(parameter.name, uploaded.files)
-                    data.onStatusChange(`Selected ${uploaded.files.length} file${uploaded.files.length === 1 ? '' : 's'}`)
+                    data.onParameterChange(parameter.name, normalizedFiles)
+                    data.onStatusChange(`Selected ${normalizedFiles.length} file${normalizedFiles.length === 1 ? '' : 's'}`)
                     return
                 }
 
-                const firstPath = uploaded.files[0]
+                const firstPath = normalizedFiles[0]
                 if (!firstPath) {
                     throw new Error('File upload succeeded but returned no file path')
                 }
@@ -1732,7 +1753,7 @@ function WorkflowEditor() {
                 position: node.position,
                 width: dimensions.width,
                 height: dimensions.height,
-                parameters: node.data.parameters,
+                parameters: normalizeNodePathParameters(node.data.manifest, node.data.parameters),
                 collapsed: node.data.collapsed,
                 pinged: node.data.pinged,
                 skipped: node.data.skipped,
@@ -1987,7 +2008,7 @@ function WorkflowEditor() {
             node_id: node.id,
             node_type: node.data.manifest.id,
             node_version: node.data.manifest.version,
-            parameters: node.data.parameters,
+            parameters: normalizeNodePathParameters(node.data.manifest, node.data.parameters),
             skipped: node.data.skipped,
         }))
         const definitionConnections = edges.reduce<WorkflowConnection[]>((accumulator, edge) => {
