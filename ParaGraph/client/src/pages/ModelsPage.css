@@ -1,20 +1,27 @@
 .models-page {
     min-height: calc(100vh - 48px);
-    padding: 22px;
+    padding: 28px;
     background:
-        radial-gradient(circle at 4% 0%, rgba(26, 153, 102, 0.18), transparent 32%),
-        radial-gradient(circle at 95% 0%, rgba(68, 122, 236, 0.18), transparent 36%),
+        radial-gradient(circle at top right, rgba(74, 163, 255, 0.16), transparent 32%),
         linear-gradient(180deg, #040916 0%, #08111f 100%);
     color: #eef6ff;
 }
 
+.models-page-header {
+    margin-bottom: 18px;
+}
+
 .models-page-header h1 {
     margin: 0;
-    font-size: clamp(1.65rem, 2.3vw, 2.1rem);
+    font-size: clamp(1.35rem, 1.85vw, 1.75rem);
+    line-height: 1.2;
 }
 
 .models-page-header p {
-    margin: 8px 0 0;
+    margin: 10px 0 0;
+    display: block;
+    width: 100%;
+    max-width: none;
     color: #a9bfda;
     line-height: 1.4;
 }
@@ -362,11 +369,7 @@
 }
 
 @media (max-width: 920px) {
-    .models-page {
-        padding: 14px;
-    }
-
-    .models-toolbar,
+.models-toolbar,
     .models-toolbar-hf {
         grid-template-columns: 1fr;
     }
@@ -402,3 +405,9 @@
 
 
 
+
+@media (max-width: 760px) {
+    .models-page {
+        padding: 16px;
+    }
+}

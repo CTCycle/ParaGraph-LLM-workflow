@@ -18,7 +18,7 @@ describe('NodesPage import modal', () => {
 
         const initialManifest = createNodeManifest()
         fetchNodeCatalogMock.mockResolvedValue({ nodes: [initialManifest] })
-        importNodeManifestMock.mockImplementation(async (manifest: { id: string; version: number }) => {
+        importNodeManifestMock.mockImplementation(async (manifest) => {
             if (manifest.id === 'FAIL_NODE') {
                 throw new Error('Duplicate node id/version')
             }
