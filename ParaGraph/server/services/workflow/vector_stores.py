@@ -260,7 +260,7 @@ class VectorStoreAdapter:
         hnsw_m: int,
     ) -> VectorStoreHandle:
         if not points:
-            raise VectorStoreError("VECTOR_DB_WRITER requires at least one vector point")
+            raise VectorStoreError("Vector store write requires at least one vector point")
 
         normalized_index_name = _normalize_index_name(index_name)
         root_path = _resolve_vectorstore_root(storage_directory)
@@ -404,3 +404,4 @@ def get_vector_store_adapter(backend: str) -> VectorStoreAdapter:
     if adapter is None:
         raise VectorStoreError(f"Unsupported vector store backend: {backend}")
     return adapter
+

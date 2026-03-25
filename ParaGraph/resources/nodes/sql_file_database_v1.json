@@ -1,9 +1,9 @@
 {
   "id": "SQL_FILE_DATABASE",
   "version": 1,
-  "name": "SQL File Database",
+  "name": "Embedded SQL Database",
   "category": "control",
-  "description": "Configure a file-based SQL dataset and expose a typed controller handle for downstream SQL nodes.",
+  "description": "Configure an embedded SQL dataset and expose a typed controller handle for downstream SQL nodes.",
   "inputs": [],
   "outputs": [],
   "controllers": [
@@ -110,4 +110,3 @@
     "side_effecting": false
   }
 }
-

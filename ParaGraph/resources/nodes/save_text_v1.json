@@ -3,12 +3,22 @@
   "version": 1,
   "name": "Save Text",
   "category": "serialization",
-  "description": "Write text to a local file path and return artifact metadata.",
+  "description": "Save incoming text, documents, or chunks to one file or multiple files and return artifact metadata.",
   "inputs": [
     {
       "name": "text",
       "data_type": "TEXT",
-      "required": true
+      "required": false
+    },
+    {
+      "name": "documents",
+      "data_type": "DOCUMENT_LIST",
+      "required": false
+    },
+    {
+      "name": "chunks",
+      "data_type": "CHUNK_LIST",
+      "required": false
     }
   ],
   "outputs": [
@@ -20,14 +30,37 @@
   ],
   "parameters": [
     {
-      "name": "storage_path",
+      "name": "output_path",
       "data_type": "TEXT",
       "default": "",
       "constraints": {
         "required": true
       },
-      "ui_control": "file",
-      "description": "Destination file path for the text payload."
+      "ui_control": "text",
+      "description": "Destination file path (single file) or folder path (multiple files)."
+    },
+    {
+      "name": "separate_files",
+      "data_type": "BOOLEAN",
+      "default": false,
+      "ui_control": "toggle",
+      "description": "When true, save one file per document/chunk item in the destination folder."
+    },
+    {
+      "name": "extension",
+      "data_type": "TEXT",
+      "default": ".txt",
+      "constraints": {
+        "required": true,
+        "options": [
+          ".txt",
+          ".md",
+          ".doc",
+          ".pdf"
+        ]
+      },
+      "ui_control": "select",
+      "description": "File extension used for generated files."
     }
   ],
   "ui": {

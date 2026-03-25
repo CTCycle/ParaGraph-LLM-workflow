@@ -455,6 +455,9 @@ function parseValue(parameter: NodeParameterDefinition, rawValue: string | boole
     if (parameter.ui_control === 'json') {
         return String(rawValue)
     }
+    if (parameter.ui_control === 'string-list') {
+        return normalizeStringList(rawValue)
+    }
     return rawValue
 }
 
@@ -734,6 +737,9 @@ function formatParameterValue(parameter: NodeParameterDefinition, value: unknown
             return String(value ?? '')
         }
     }
+    if (parameter.ui_control === 'string-list') {
+        return formatPathListValue(value)
+    }
     return String(value ?? '')
 }
 
@@ -807,9 +813,14 @@ function formatPathListValue(value: unknown): string {
 }
 
 function isMultilineControl(parameter: NodeParameterDefinition): boolean {
-    return parameter.ui_control === 'textarea' || parameter.ui_control === 'json' || parameter.ui_control === 'file-list'
-}
+    return (
+        parameter.ui_control === 'textarea'
+        || parameter.ui_control === 'json'
+        || parameter.ui_control === 'file-list'
+        || parameter.ui_control === 'string-list'
+    )
 
+}
 function preventNodeInteractionDrag(event: ReactPointerEvent<HTMLElement> | ReactMouseEvent<HTMLElement>): void {
     event.stopPropagation()
 }
@@ -1234,6 +1245,15 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
                                                     }}
                                                 />
                                             </div>
+                                        ) : parameter.ui_control === 'string-list' ? (
+                                            <textarea
+                                                rows={4}
+                                                className="workflow-node-path-list-input nodrag nopan"
+                                                value={formatPathListValue(value)}
+                                                onPointerDown={preventNodeInteractionDrag}
+                                                onMouseDown={preventNodeInteractionDrag}
+                                                onChange={(event) => data.onParameterChange(parameter.name, normalizeStringList(event.target.value))}
+                                            />
                                         ) : parameter.ui_control === 'file-list' ? (
                                             <textarea
                                                 rows={4}
