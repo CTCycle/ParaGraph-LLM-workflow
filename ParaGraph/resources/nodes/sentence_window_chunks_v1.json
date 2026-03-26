@@ -2,7 +2,7 @@
   "id": "SENTENCE_WINDOW_CHUNKS",
   "version": 1,
   "name": "Sentence Window Chunks",
-  "category": "fragmentation",
+  "category": "text_segmentation",
   "description": "Split text into sentences and group them into overlapping sliding windows.",
   "inputs": [
     {
@@ -24,7 +24,7 @@
       "data_type": "CHUNK_LIST",
       "required": false,
       "accepts_multiple": false,
-      "description": "Optional upstream chunks for chained fragmentation."
+      "description": "Optional upstream chunks for chained text segmentation."
     }
   ],
   "outputs": [
@@ -99,3 +99,4 @@
     "side_effecting": false
   }
 }
+

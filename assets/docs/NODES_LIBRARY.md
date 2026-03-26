@@ -1,6 +1,6 @@
 # Nodes Library
 
-This document is the reference for all currently implemented workflow nodes and their parameters.
+This document tracks the current workflow node catalog.
 
 Source of truth: `ParaGraph/resources/nodes/*.json`
 
@@ -10,306 +10,161 @@ Node manifests support three connection collections:
 
 - `inputs`: data dependencies consumed by node execution.
 - `outputs`: data payloads produced by node execution.
-- `controllers`: behavior/configuration control links (not part of regular data flow), with directional placement metadata (`scope`).
-
-For all LLM nodes, the `model` link is a required `controller` with `scope: target` (single inbound model selection).
+- `controllers`: behavior/configuration links (not regular data flow), with directional placement metadata (`scope`).
 
 Controller placement contract:
-- `scope: source` -> connector appears on the right edge (same lane as outputs).
-- `scope: target` -> snap-point appears on the left edge (same lane as inputs).
-- `scope: both` -> both source and target handles are rendered.
+- `scope: source` -> right edge (same lane as outputs).
+- `scope: target` -> left edge (same lane as inputs).
+- `scope: both` -> both source and target handles.
 
 ## Categories
 
-The node category set remains:
+Current category set:
 
 - `input`
+- `prompt`
 - `model`
-- `processing` (reserved; no built-in processing nodes in the current library)
-- `fragmentation`
+- `processing`
+- `text_segmentation`
 - `output`
 - `serialization`
+- `database`
 - `control`
+
+`fragmentation` is not part of the catalog anymore.
 
 ## Node Index
 
 | Node ID | Version | Name | Category | Manifest |
 |---|---:|---|---|---|
-| `BY_DELIMITER_CHUNKS` | 1 | By Delimiter Chunks | fragmentation | `by_delimiter_chunks_v1.json` |
-| `BY_STRUCTURE_CHUNKS` | 1 | By Structure Chunks | fragmentation | `by_structure_chunks_v1.json` |
-| `FIXED_SIZE_CHUNKS` | 1 | Fixed Size Chunks | fragmentation | `fixed_size_chunks_v1.json` |
-| `JSON_OUTPUT` | 1 | JSON Output | output | `json_output_v1.json` |
-| `LLM_CHAT` | 1 | LLM Chat | model | `llm_chat_v1.json` |
-| `LLM_STRUCTURED` | 1 | LLM Structured | model | `llm_structured_v1.json` |
-| `LOAD_DOCUMENTS` | 1 | Load Documents | serialization | `load_documents_v1.json` |
-| `LOAD_TEXT` | 1 | Load Text | serialization | `load_text_v1.json` |
-| `MERGE_SMALL_CHUNKS` | 1 | Merge Small Chunks | fragmentation | `merge_small_chunks_v1.json` |
-| `MODEL_PROVIDER` | 1 | Model Provider | model | `model_provider_v1.json` |
-| `PROMPT` | 1 | Prompt | input | `prompt_v1.json` |
-| `RECURSIVE_SPLIT_CHUNKS` | 1 | Recursive Split Chunks | fragmentation | `recursive_split_chunks_v1.json` |
-| `SAVE_AS_FILE` | 1 | Save As File | serialization | `save_as_file_v1.json` |
-| `SAVE_AS_FOLDER` | 1 | Save As Folder | serialization | `save_as_folder_v1.json` |
-| `SENTENCE_WINDOW_CHUNKS` | 1 | Sentence Window Chunks | fragmentation | `sentence_window_chunks_v1.json` |
-| `SQL_DATABASE` | 1 | SQL Database | control | `sql_database_v1.json` |
-| `SQL_FILE_DATABASE` | 1 | Embedded SQL Database | control | `sql_file_database_v1.json` |
-| `TEXT_OUTPUT` | 1 | Text Output | output | `text_output_v1.json` |
+| `BY_DELIMITER_CHUNKS` | 1 | By Delimiter Chunks | `text_segmentation` | `by_delimiter_chunks_v1.json` |
+| `BY_STRUCTURE_CHUNKS` | 1 | By Structure Chunks | `text_segmentation` | `by_structure_chunks_v1.json` |
+| `FIXED_SIZE_CHUNKS` | 1 | Fixed Size Chunks | `text_segmentation` | `fixed_size_chunks_v1.json` |
+| `JSON_OUTPUT` | 1 | JSON Output | `output` | `json_output_v1.json` |
+| `LLM_CHAT` | 1 | LLM Chat | `model` | `llm_chat_v1.json` |
+| `LLM_STRUCTURED` | 1 | LLM Structured | `model` | `llm_structured_v1.json` |
+| `LOAD_DOCUMENTS` | 1 | Load Documents | `serialization` | `load_documents_v1.json` |
+| `LOAD_TEXT` | 1 | Load Text | `serialization` | `load_text_v1.json` |
+| `MERGE_SMALL_CHUNKS` | 1 | Merge Small Chunks | `text_segmentation` | `merge_small_chunks_v1.json` |
+| `MODEL_PROVIDER` | 1 | Model Provider | `model` | `model_provider_v1.json` |
+| `PROMPT` | 1 | Prompt | `prompt` | `prompt_v1.json` |
+| `PROMPT_TEMPLATE` | 1 | Prompt Template | `prompt` | `prompt_template_v1.json` |
+| `RECURSIVE_SPLIT_CHUNKS` | 1 | Recursive Split Chunks | `text_segmentation` | `recursive_split_chunks_v1.json` |
+| `REGEX_SPLIT_CHUNKS` | 1 | Regex Split Chunks | `text_segmentation` | `regex_split_chunks_v1.json` |
+| `SAVE_AS_FILE` | 1 | Save As File | `serialization` | `save_as_file_v1.json` |
+| `SAVE_AS_FOLDER` | 1 | Save As Folder | `serialization` | `save_as_folder_v1.json` |
+| `SENTENCE_WINDOW_CHUNKS` | 1 | Sentence Window Chunks | `text_segmentation` | `sentence_window_chunks_v1.json` |
+| `SQL_DATABASE` | 1 | SQL Database | `database` | `sql_database_v1.json` |
+| `SQL_FILE_DATABASE` | 1 | Embedded SQL Database | `database` | `sql_file_database_v1.json` |
+| `TEXT_OUTPUT` | 1 | Text Output | `output` | `text_output_v1.json` |
 
 ---
 
-## `MODEL_PROVIDER` (v1)
+## `PROMPT` (v1)
 
-- Name: Model Provider
-- Category: `model`
-- Description: Select a provider and model, then expose a reusable typed model handle to connected LLM nodes.
+- Category: `prompt`
+- Output: `text` (`TEXT`)
+- Parameter: `prompt_text` (`TEXT`, textarea)
 
-Controllers:
+## `PROMPT_TEMPLATE` (v1)
 
-| Name | Data Type | Required | Scope |
-|---|---|---:|---|
-| `model` | `MODEL_HANDLE` | No | `source` |
+- Category: `prompt`
+- Description: Compose prompt text from a template with up to 8 optional values.
+
+Inputs:
+- `var_1`..`var_8` (`ANY`, optional)
+
+Outputs:
+- `text` (`TEXT`)
 
 Parameters:
+- `template` (`TEXT`, required, textarea)
+- `variable_names` (`JSON`, string-list, max 8)
+- `missing_variable` (`TEXT`, select: `error | empty | keep_placeholder`)
+- `cleanup` (`TEXT`, select: `none | trim_lines | drop_empty_lines | collapse_blank_lines`)
 
-| Name | Data Type | Default | UI Control | Required |
-|---|---|---|---|---:|
-| `provider` | `TEXT` | `ollama` | `select` | Yes |
-| `model_name` | `TEXT` | `""` | `select` | Yes |
+Behavior:
+- Placeholders use `{{name}}` syntax.
+- `variable_names[i]` aliases `var_(i+1)`.
+- Missing placeholder behavior is controlled by `missing_variable`.
+- Non-text inputs are coerced to text; list-like document/chunk values are joined by blank lines.
+
+## `MODEL_PROVIDER` (v1)
+
+- Category: `model`
+- Controller output: `model` (`MODEL_HANDLE`, `scope: source`)
+- Parameters: `provider`, `model_name`
 
 ## `LLM_CHAT` (v1)
 
-- Name: LLM Chat
 - Category: `model`
-- Description: Run a chat completion with a typed model handle and return plain text.
-
-Inputs: `user_prompt` (`TEXT`), `system_prompt` (`TEXT`), `image` (`IMAGE`) - all optional.
-
-Outputs: `response` (`TEXT`).
-
-Controllers: `model` (`MODEL_HANDLE`, required, `scope: target`).
-
-Parameters: `context_window`, `max_tokens`, `use_reasoning`.
+- Inputs: `user_prompt` (`TEXT`), `system_prompt` (`TEXT`), `image` (`IMAGE`)
+- Controller input: `model` (`MODEL_HANDLE`, required, `scope: target`)
+- Output: `response` (`TEXT`)
 
 ## `LLM_STRUCTURED` (v1)
 
-- Name: LLM Structured
 - Category: `model`
-- Description: Run structured generation and return schema-validated JSON.
-
-Inputs: `user_prompt` (`TEXT`), `system_prompt` (`TEXT`), `image` (`IMAGE`) - all optional.
-
-Outputs: `result` (`JSON`).
-
-Controllers: `model` (`MODEL_HANDLE`, required, `scope: target`).
-
-Parameters: `context_window`, `max_tokens`, `use_reasoning`, `response_schema`.
-
-## `PROMPT` (v1)
-
-- Name: Prompt
-- Category: `input`
-- Description: Provide generic prompt text to the workflow graph.
-
-Outputs: `text` (`TEXT`).
-
-Parameters: `prompt_text` (`TEXT`, required, textarea).
+- Inputs: `user_prompt` (`TEXT`), `system_prompt` (`TEXT`), `image` (`IMAGE`)
+- Controller input: `model` (`MODEL_HANDLE`, required, `scope: target`)
+- Output: `result` (`JSON`)
+- Parameters include `response_schema`
 
 ## `LOAD_DOCUMENTS` (v1)
 
-- Name: Load Documents
 - Category: `serialization`
-- Description: Scan a folder and emit deferred `DOCUMENT_LIST` file references.
+- Output: `documents` (`DOCUMENT_LIST`)
+- Parameters: `folder_path`, `recursive`
+- Emits deferred records (`metadata.deferred_load = true`) for scalable processing.
 
-Outputs: `documents` (`DOCUMENT_LIST`).
+## `LOAD_TEXT` (v1)
 
-Parameters:
+- Category: `serialization`
+- Output: `text` (`TEXT`)
+- Parameter: `storage_path`
+- Uses shared ingestion loader for text/document/pdf handling with encoding fallback.
 
-| Name | Data Type | Default | UI Control | Required |
-|---|---|---|---|---:|
-| `folder_path` | `TEXT` | `""` | `directory` | Yes |
-| `recursive` | `BOOLEAN` | `true` | `toggle` | No |
+## Text Segmentation Nodes (v1)
 
-Behavior notes:
-- Emits deferred records (`metadata.deferred_load = true`) to avoid eager file loading.
-- Supports common text/document formats (`.txt`, `.md`, `.pdf`, `.doc`, `.docx`, `.json`, `.html`, `.csv`, `.xml`, `.yaml`, `.log`, etc.).
+Category for all nodes below: `text_segmentation`
 
-## `FIXED_SIZE_CHUNKS` (v1)
-
-- Name: Fixed Size Chunks
-- Category: `fragmentation`
-- Description: Split documents or upstream chunks into fixed-size windows.
-
-Inputs: `documents` (`DOCUMENT_LIST`) or `chunks` (`CHUNK_LIST`).
-
-Outputs: `chunks` (`CHUNK_LIST`).
-
-Parameters: `chunk_size`, `chunk_overlap`, `unit` (`words | characters`).
-
-## `BY_DELIMITER_CHUNKS` (v1)
-
-- Name: By Delimiter Chunks
-- Category: `fragmentation`
-- Description: Split by an explicit delimiter or preset and optionally keep delimiters.
-
-Inputs: `documents` or `chunks`.
-
-Outputs: `chunks`.
-
-Parameters: `delimiter`, `keep_delimiter`, `drop_empty`, `max_chunk_size`, `overflow_strategy` (`split_further | discard | emit_as_is`).
-
-## `BY_STRUCTURE_CHUNKS` (v1)
-
-- Name: By Structure Chunks
-- Category: `fragmentation`
-- Description: Split by structural boundaries (paragraph/section/heading-content).
-
-Inputs: `documents` or `chunks`.
-
-Outputs: `chunks`.
-
-Parameters: `strategy`, `max_chunk_size`, `chunk_overlap`, `unit`, `overflow_strategy`.
-
-## `RECURSIVE_SPLIT_CHUNKS` (v1)
-
-- Name: Recursive Split Chunks
-- Category: `fragmentation`
-- Description: Apply ordered separators from coarse to fine until chunk constraints are met.
-
-Inputs: `documents` or `chunks`.
-
-Outputs: `chunks`.
-
-Parameters: `separators` (ordered string list), `chunk_size`, `chunk_overlap`, `unit`, `fallback_strategy` (`continue | force_split`).
-
-## `SENTENCE_WINDOW_CHUNKS` (v1)
-
-- Name: Sentence Window Chunks
-- Category: `fragmentation`
-- Description: Segment text into sentences and emit overlapping sentence windows.
-
-Inputs: `documents` or `chunks`.
-
-Outputs: `chunks`.
-
-Parameters: `sentences_per_chunk`, `sentence_overlap`, `max_chunk_size`, `overflow_strategy`.
-
-## `MERGE_SMALL_CHUNKS` (v1)
-
-- Name: Merge Small Chunks
-- Category: `fragmentation`
-- Description: Merge consecutive fragments until target size thresholds are reached.
-
-Inputs: `documents` or `chunks`.
-
-Outputs: `chunks`.
-
-Parameters: `target_chunk_size`, `unit`, `max_chunk_size`, `merge_strategy` (`sequential | greedy`), `preserve_boundaries`.
+- `FIXED_SIZE_CHUNKS`: fixed-size windows by `words|characters`.
+- `BY_DELIMITER_CHUNKS`: split by delimiter/preset with overflow strategy.
+- `BY_STRUCTURE_CHUNKS`: split by paragraph/section/heading-content.
+- `RECURSIVE_SPLIT_CHUNKS`: ordered separators with fallback strategy.
+- `REGEX_SPLIT_CHUNKS`: regex-driven split using Python `re`.
+- `SENTENCE_WINDOW_CHUNKS`: overlapping sentence windows.
+- `MERGE_SMALL_CHUNKS`: merge adjacent chunks to target size.
 
 ## `SAVE_AS_FILE` (v1)
 
-- Name: Save As File
 - Category: `serialization`
-- Description: Save incoming `text`, `documents`, or `chunks` into a single file.
-
-Inputs: `text` (`TEXT`), `documents` (`DOCUMENT_LIST`), `chunks` (`CHUNK_LIST`) - optional; at least one non-empty input required at runtime.
-
-Outputs: `artifact` (`JSON`).
-
-Behavior notes:
-- Always writes one file.
-- If multiple text items are provided, they are concatenated with `/n/n`.
-- Frontend Browse for `SAVE_AS_FILE.output_path` uses browser Save As picker only (no backend-native dialogs).
-- In local browser runs, when Browse is used, frontend writes directly to the selected file.
-- When this frontend-selected target is active, backend `SAVE_AS_FILE` skips writing to `resources/artifacts` for that node run.
-- In local browser runs with `client_side_write`, backend `SAVE_AS_FILE` artifact includes ordered `item_texts` so deferred `LOAD_DOCUMENTS` inputs can be written client-side.
-
-Parameters:
-
-| Name | Data Type | Default | UI Control | Required |
-|---|---|---|---|---:|
-| `output_path` | `TEXT` | `""` | `text` | Yes |
-| `extension` | `TEXT` | `.txt` | `select` | Yes |
-
-Supported extensions: `.txt`, `.md`, `.doc`, `.pdf`.
+- Inputs: `text`, `documents`, `chunks` (at least one non-empty at runtime)
+- Output: `artifact` (`JSON`)
+- Writes a single file; multi-item input is concatenated with `/n/n`.
+- Supports deferred document resolution and client-side write mode metadata.
 
 ## `SAVE_AS_FOLDER` (v1)
 
-- Name: Save As Folder
 - Category: `serialization`
-- Description: Save incoming `text`, `documents`, or `chunks` as individual files inside a selected folder.
-
-Inputs: `text` (`TEXT`), `documents` (`DOCUMENT_LIST`), `chunks` (`CHUNK_LIST`) - optional; at least one non-empty input required at runtime.
-
-Outputs: `artifact` (`JSON`).
-
-Behavior notes:
-- Always writes one file per collected item, including the single-item case.
-- Files are named `foldername_000001`, `foldername_000002`, ... using the selected extension.
-- Frontend Browse for `SAVE_AS_FOLDER.output_path` uses browser folder picker only (no backend-native dialogs).
-- In local browser runs, when Browse is used, frontend writes files directly inside the selected folder.
-- When this frontend-selected target is active, backend `SAVE_AS_FOLDER` skips writing to `resources/artifacts` for that node run.
-- In local browser runs with `client_side_write`, backend `SAVE_AS_FOLDER` artifact includes ordered `item_texts` so deferred `LOAD_DOCUMENTS` inputs can be written client-side.
-
-Parameters:
-
-| Name | Data Type | Default | UI Control | Required |
-|---|---|---|---|---:|
-| `output_path` | `TEXT` | `""` | `text` | Yes |
-| `extension` | `TEXT` | `.txt` | `select` | Yes |
-
-Supported extensions: `.txt`, `.md`, `.doc`, `.pdf`.
-## `LOAD_TEXT` (v1)
-
-- Name: Load Text
-- Category: `serialization`
-- Description: Load plain text content from a local file path.
-
-Outputs: `text` (`TEXT`).
-
-Parameters: `storage_path` (`TEXT`, required).
+- Inputs: `text`, `documents`, `chunks` (at least one non-empty at runtime)
+- Output: `artifact` (`JSON`)
+- Writes one file per item with indexed filenames.
+- Supports deferred document resolution and client-side write mode metadata.
 
 ## `SQL_DATABASE` (v1)
 
-- Name: SQL Database
-- Category: `control`
-- Description: Configure a server SQL connection handle.
-
-Controllers:
-
-| Name | Data Type | Required | Scope |
-|---|---|---:|---|
-| `connection` | `DATABASE_CONNECTION` | No | `source` |
-
-Parameters include server connection values (`db_engine`, `db_host`, `db_port`, `db_name`, `db_user`, `db_password`, `db_ssl`, `db_ssl_ca`, `db_connect_timeout`).
+- Category: `database`
+- Controller output: `connection` (`DATABASE_CONNECTION`, `scope: source`)
+- Parameters include server DB connectivity settings.
 
 ## `SQL_FILE_DATABASE` (v1)
 
-- Name: Embedded SQL Database
-- Category: `control`
-- Description: Configure an embedded SQL file dataset (SQLite in v1) and expose a typed connection handle.
+- Category: `database`
+- Controller output: `connection` (`DATABASE_CONNECTION`, `scope: source`)
+- Parameters include `db_engine=sqlite` and `db_path`.
 
-Controllers:
+## Outputs
 
-| Name | Data Type | Required | Scope |
-|---|---|---:|---|
-| `connection` | `DATABASE_CONNECTION` | No | `source` |
-
-Parameters include `db_engine` (`sqlite`) and `db_path`, plus reserved compatibility fields.
-
-## `TEXT_OUTPUT` (v1)
-
-- Name: Text Output
-- Category: `output`
-- Description: Expose final text results.
-
-Inputs: `text` (`TEXT`, required).
-
-## `JSON_OUTPUT` (v1)
-
-- Name: JSON Output
-- Category: `output`
-- Description: Expose final JSON results.
-
-Inputs: `value` (`JSON`, required).
-
-
-
+- `TEXT_OUTPUT` (v1): category `output`, input `text` (`TEXT`) -> output `text`.
+- `JSON_OUTPUT` (v1): category `output`, input `value` (`JSON`) -> output `json`.

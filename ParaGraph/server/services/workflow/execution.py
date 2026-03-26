@@ -64,8 +64,8 @@ class ExecutionService:
 
             try:
                 resolved_inputs, resolved_controllers = self._resolve_inputs(step, outputs_by_step)
-                cache_key = self._build_cache_key(step, resolved_inputs, resolved_controllers)
-                if step.cacheable and cache_key in cache:
+                cache_key = self._build_cache_key(step, resolved_inputs, resolved_controllers) if step.cacheable else None
+                if cache_key is not None and cache_key in cache:
                     port_outputs = cache[cache_key]
                 else:
                     port_outputs = node_registry.execute(
@@ -75,12 +75,11 @@ class ExecutionService:
                         resolved_inputs,
                         resolved_controllers,
                     )
-                    if step.cacheable:
+                    if cache_key is not None:
                         cache[cache_key] = port_outputs
 
-                output_state = {"inputs": resolved_inputs, "controllers": resolved_controllers, "ports": port_outputs}
-                outputs_by_step[step_id] = output_state
-                output_state_public = self._redact_output_state(output_state)
+                outputs_by_step[step_id] = port_outputs
+                output_state_public = self._redact_output_state({"ports": port_outputs})
 
                 result = self._extract_terminal_output(step.node_type, resolved_inputs, port_outputs)
                 if result is not None:
@@ -135,8 +134,7 @@ class ExecutionService:
         resolved_controllers: dict[str, Any] = {}
 
         for binding in step.bindings:
-            source_payload = outputs_by_step.get(binding.source_node_id, {})
-            source_ports = source_payload.get("ports", {})
+            source_ports = outputs_by_step.get(binding.source_node_id, {})
             value = source_ports.get(binding.source_output)
             binding_is_controller = binding.binding_type == "controller"
             target_manifest_map = manifests_by_controller if binding_is_controller else manifests_by_input

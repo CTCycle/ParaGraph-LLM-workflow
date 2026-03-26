@@ -2,8 +2,8 @@
   "id": "FIXED_SIZE_CHUNKS",
   "version": 1,
   "name": "Fixed Size Chunks",
-  "category": "fragmentation",
-  "description": "Split documents or incoming chunks into fixed-size chunks for chained fragmentation pipelines.",
+  "category": "text_segmentation",
+  "description": "Split documents or incoming chunks into fixed-size chunks for chained text segmentation pipelines.",
   "inputs": [
     {
       "name": "text",
@@ -24,7 +24,7 @@
       "data_type": "CHUNK_LIST",
       "required": false,
       "accepts_multiple": false,
-      "description": "Optional upstream chunks for chained fragmentation."
+      "description": "Optional upstream chunks for chained text segmentation."
     }
   ],
   "outputs": [
@@ -88,3 +88,4 @@
     "side_effecting": false
   }
 }
+

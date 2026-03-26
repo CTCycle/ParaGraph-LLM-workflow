@@ -66,6 +66,7 @@ type WorkflowNodeData = {
     pinged: boolean
     skipped: boolean
     isActive: boolean
+    glowLevel: number
     runtimeOutput: Record<string, unknown> | null
     providerModels: ProviderModelDefinition[]
     onParameterChange: (parameterName: string, value: unknown) => void
@@ -165,6 +166,8 @@ const SAVE_AS_FILE_NODE_TYPE = 'SAVE_AS_FILE'
 const SAVE_AS_FOLDER_NODE_TYPE = 'SAVE_AS_FOLDER'
 const SAVE_AS_FILE_CHUNK_SEPARATOR = '/n/n'
 const SAVE_AS_FOLDER_INDEX_WIDTH = 6
+const MAX_NODE_GLOW_TRAIL = 3
+const NODE_GLOW_CLEAR_DELAY_MS = 1200
 
 type HandleKind = 'input' | 'output' | 'controller'
 type ParsedHandle = { kind: HandleKind; name: string }
@@ -671,6 +674,38 @@ function parseHandleId(handleId: string): ParsedHandle | null {
     return { kind, name }
 }
 
+
+export function pushNodeGlowTrail(current: string[], nodeId: string | null, maxEntries = MAX_NODE_GLOW_TRAIL): string[] {
+    if (!nodeId) {
+        return current
+    }
+    return [nodeId, ...current.filter((entry) => entry !== nodeId)].slice(0, Math.max(1, maxEntries))
+}
+
+export function buildNodeGlowLevelMap(activeNodeId: string | null, trailNodeIds: string[]): Record<string, number> {
+    const levels: Record<string, number> = {}
+    if (activeNodeId) {
+        levels[activeNodeId] = 3
+    }
+
+    const uniqueTrail = trailNodeIds.filter((nodeId, index, list) => list.indexOf(nodeId) === index)
+    let trailingRank = 0
+    for (const nodeId of uniqueTrail) {
+        if (!nodeId || nodeId === activeNodeId) {
+            continue
+        }
+        trailingRank += 1
+        const trailLevel = Math.max(1, 3 - trailingRank)
+        if (trailLevel > 0) {
+            levels[nodeId] = trailLevel
+        }
+    }
+    return levels
+}
+
+function isRecursiveSeparatorParameter(manifest: NodeManifest, parameter: NodeParameterDefinition): boolean {
+    return manifest.id === 'RECURSIVE_SPLIT_CHUNKS' && parameter.ui_control === 'string-list' && parameter.name === 'separators'
+}
 function resolveHighlightedNodeId(
     run: ExecutionRunState,
     plan: CompiledExecutionPlan | null,
@@ -1230,36 +1265,45 @@ function formatJsonOutputRuntime(value: Record<string, unknown> | null): string 
         return String(candidate)
     }
 }
-function normalizeStringList(value: unknown): string[] {
+export function normalizeStringList(value: unknown, options: { trimItems?: boolean } = {}): string[] {
+    const trimItems = options.trimItems ?? true
+
+    const normalizeItem = (item: string): string => {
+        const normalized = item.replace(/\r$/u, '')
+        return trimItems ? normalized.trim() : normalized
+    }
+
+    const shouldKeepItem = (item: string): boolean => (trimItems ? Boolean(item) : item !== '')
+
     if (Array.isArray(value)) {
         return value
             .filter((item): item is string => typeof item === 'string')
-            .map((item) => item.trim())
-            .filter(Boolean)
+            .map(normalizeItem)
+            .filter(shouldKeepItem)
     }
     if (typeof value === 'string') {
-        const trimmed = value.trim()
-        if (!trimmed) {
+        const input = trimItems ? value.trim() : value
+        if (!input) {
             return []
         }
         try {
-            const parsed: unknown = JSON.parse(trimmed)
+            const parsed: unknown = JSON.parse(input)
             if (Array.isArray(parsed)) {
-                return normalizeStringList(parsed)
+                return normalizeStringList(parsed, { trimItems })
             }
         } catch {
             // Fall back to newline-delimited parsing.
         }
-        return trimmed
-            .split(/\r?\n/)
-            .map((item) => item.trim())
-            .filter(Boolean)
+        return input
+            .split(/\r?\n/u)
+            .map(normalizeItem)
+            .filter(shouldKeepItem)
     }
     return []
 }
 
-function formatPathListValue(value: unknown): string {
-    return normalizeStringList(value).join('\n')
+function formatPathListValue(value: unknown, options: { trimItems?: boolean } = {}): string {
+    return normalizeStringList(value, options).join('\n')
 }
 
 function isMultilineControl(parameter: NodeParameterDefinition): boolean {
@@ -1538,6 +1582,7 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
             style={nodeStyle}
             data-selected={selected || undefined}
             data-active={data.isActive || undefined}
+            data-glow-level={data.glowLevel > 0 ? data.glowLevel : undefined}
             data-collapsed={data.collapsed || undefined}
             data-pinged={data.pinged || undefined}
             data-skipped={data.skipped || undefined}
@@ -1657,6 +1702,7 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
                             const showParameterLabel = parameter.ui_control !== 'textarea'
                             const showHeader = showParameterLabel || parameter.ui_control === 'file-list'
                             const isBrowsing = browseTarget === parameter.name
+                            const isSeparatorList = isRecursiveSeparatorParameter(data.manifest, parameter)
                             const selectedPaths = parameter.ui_control === 'file-list' ? normalizeStringList(value) : []
                             const numberConstraints = parameter.ui_control === 'number' ? getNumberConstraints(parameter) : null
                             return (
@@ -1736,12 +1782,17 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
                                             </div>
                                         ) : parameter.ui_control === 'string-list' ? (
                                             <textarea
-                                                rows={4}
-                                                className="workflow-node-path-list-input nodrag nopan"
-                                                value={formatPathListValue(value)}
+                                                rows={isSeparatorList ? 6 : 4}
+                                                className={`workflow-node-path-list-input ${isSeparatorList ? 'workflow-node-path-list-input-separators' : ''} nodrag nopan`}
+                                                value={formatPathListValue(value, { trimItems: !isSeparatorList })}
                                                 onPointerDown={preventNodeInteractionDrag}
                                                 onMouseDown={preventNodeInteractionDrag}
-                                                onChange={(event) => data.onParameterChange(parameter.name, normalizeStringList(event.target.value))}
+                                                onChange={(event) =>
+                                                    data.onParameterChange(
+                                                        parameter.name,
+                                                        normalizeStringList(event.target.value, { trimItems: !isSeparatorList }),
+                                                    )
+                                                }
                                             />
                                         ) : parameter.ui_control === 'file-list' ? (
                                             <textarea
@@ -1881,6 +1932,7 @@ function WorkflowEditor() {
     const [selectedManifestKey, setSelectedManifestKey] = useState<string | null>(null)
     const [expandedCategories, setExpandedCategories] = useState<CategoryExpansionState>(() => createExpandedCategoriesState())
     const [activeNodeId, setActiveNodeId] = useState<string | null>(null)
+    const [glowTrailNodeIds, setGlowTrailNodeIds] = useState<string[]>([])
     const [nodeContextMenu, setNodeContextMenu] = useState<NodeContextMenuState | null>(null)
     const [nodes, setNodes, onNodesChange] = useNodesState<Node<WorkflowNodeData>>([])
     const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([])
@@ -1894,6 +1946,35 @@ function WorkflowEditor() {
     const pasteCountRef = useRef(0)
     const canvasPanelRef = useRef<HTMLDivElement | null>(null)
     const { fitView, getZoom, screenToFlowPosition, zoomIn, zoomTo } = useReactFlow<Node<WorkflowNodeData>, Edge>()
+    const glowLevelByNodeId = useMemo(
+        () => buildNodeGlowLevelMap(activeNodeId, glowTrailNodeIds),
+        [activeNodeId, glowTrailNodeIds],
+    )
+
+    function updateExecutionHighlight(nodeId: string | null): void {
+        setActiveNodeId(nodeId)
+        if (nodeId) {
+            setGlowTrailNodeIds((current) => pushNodeGlowTrail(current, nodeId))
+        }
+    }
+
+    function clearExecutionHighlight(): void {
+        setActiveNodeId(null)
+    }
+
+    useEffect(() => {
+        if (activeNodeId || glowTrailNodeIds.length === 0) {
+            return
+        }
+
+        const clearTimer = window.setTimeout(() => {
+            setGlowTrailNodeIds([])
+        }, NODE_GLOW_CLEAR_DELAY_MS)
+
+        return () => {
+            window.clearTimeout(clearTimer)
+        }
+    }, [activeNodeId, glowTrailNodeIds])
 
     useEffect(() => {
         return () => {
@@ -1928,11 +2009,12 @@ function WorkflowEditor() {
                 data: {
                     ...node.data,
                     isActive: node.id === activeNodeId,
+                    glowLevel: glowLevelByNodeId[node.id] ?? 0,
                     providerModels,
                 },
             })),
         )
-    }, [activeNodeId, providerModels, setNodes])
+    }, [activeNodeId, glowLevelByNodeId, providerModels, setNodes])
 
     useEffect(() => {
         if (providerModels.length === 0) {
@@ -2307,6 +2389,7 @@ function WorkflowEditor() {
                 pinged: isPinged,
                 skipped: input.skipped ?? false,
                 isActive: nodeId === activeNodeId,
+                glowLevel: nodeId === activeNodeId ? 3 : 0,
                 runtimeOutput: null,
                 onParameterChange: (parameterName, value) => {
                     updateNode(nodeId, (current) => {
@@ -2745,7 +2828,8 @@ function WorkflowEditor() {
         setNodes(restoredNodes)
         setEdges(restoredEdges)
         setNodeContextMenu(null)
-        setActiveNodeId(null)
+        clearExecutionHighlight()
+        setGlowTrailNodeIds([])
         if (restoredNodes[0]) {
             setSelectedManifestKey(manifestKey(restoredNodes[0].data.manifest))
         }
@@ -2920,7 +3004,8 @@ function WorkflowEditor() {
         }
         setExecutionErrorModal(null)
         setIsRunning(true)
-        setActiveNodeId(null)
+        clearExecutionHighlight()
+        setGlowTrailNodeIds([])
         setNodes((current) =>
             current.map((node) => ({
                 ...node,
@@ -2948,7 +3033,7 @@ function WorkflowEditor() {
                             event.step_id
                                 ? activePlanRef.current?.steps.find((step) => step.step_id === event.step_id)?.node_id ?? null
                                 : null
-                        setActiveNodeId(fromPayload || fromPlan)
+                        updateExecutionHighlight(fromPayload || fromPlan)
                         setStatusText(`Running ${event.step_id || 'step'}...`)
                     }
                 },
@@ -2958,7 +3043,7 @@ function WorkflowEditor() {
             })
 
             const finalState = await pollExecution(execution.run_id, execution.poll_interval, (run) => {
-                setActiveNodeId(resolveHighlightedNodeId(run, activePlanRef.current))
+                updateExecutionHighlight(resolveHighlightedNodeId(run, activePlanRef.current))
                 setStatusText(`Run ${run.status} (${Math.round(run.progress)}%)`)
                 if (run.outputs && Object.keys(run.outputs).length > 0) {
                     applyRunOutputs(run.outputs)
@@ -2966,7 +3051,7 @@ function WorkflowEditor() {
             })
 
             latestRunState = finalState
-            setActiveNodeId(null)
+            clearExecutionHighlight()
             applyRunOutputs(finalState.outputs)
             if (finalState.status === 'completed') {
                 const localSaveStatus = await syncSaveNodeBrowserSelections(finalState)
@@ -2977,7 +3062,7 @@ function WorkflowEditor() {
                 setStatusText(`Workflow ${finalState.status}`)
             }
         } catch (runError) {
-            setActiveNodeId(null)
+            clearExecutionHighlight()
             const message = runError instanceof Error ? runError.message : 'Execution failed'
             setStatusText(message)
             setExecutionErrorModal({
@@ -2987,7 +3072,7 @@ function WorkflowEditor() {
         } finally {
             stopEventsRef.current?.()
             stopEventsRef.current = null
-            setActiveNodeId(null)
+            clearExecutionHighlight()
             setIsRunning(false)
             activePlanRef.current = null
         }
@@ -3019,7 +3104,8 @@ function WorkflowEditor() {
                             saveNodeBrowseSelectionsRef.current = {}
                             setNodes([])
                             setEdges([])
-                            setActiveNodeId(null)
+                            clearExecutionHighlight()
+                            setGlowTrailNodeIds([])
                             setNodeContextMenu(null)
                         }}
                     >
@@ -3319,10 +3405,4 @@ export default function WorkflowPage() {
         </ReactFlowProvider>
     )
 }
-
-
-
-
-
-
 

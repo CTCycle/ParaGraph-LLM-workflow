@@ -17,6 +17,7 @@ from ParaGraph.server.domain.node_handler_core import (
     ImageInputParameters,
     ModelProviderParameters,
     PromptParameters,
+    PromptTemplateParameters,
     RouterParameters,
     SaveAsFileParameters,
     SaveAsFolderParameters,
@@ -45,7 +46,7 @@ _HF_MODEL_CACHE: dict[str, tuple[Any, Any]] = {}
 SAVE_AS_FILE_CHUNK_SEPARATOR = "/n/n"
 SAVE_AS_FOLDER_INDEX_WIDTH = 6
 
-
+# -----------------------------------------------------------------------------
 def _load_huggingface_modules() -> tuple[Any, Any, Any]:
     try:
         torch_module = importlib.import_module("torch")
@@ -60,7 +61,7 @@ def _load_huggingface_modules() -> tuple[Any, Any, Any]:
 
     return torch_module, auto_model_for_causal_lm, auto_tokenizer
 
-
+# -----------------------------------------------------------------------------
 def _resolve_storage_path(
     raw_path: Any,
     *,
@@ -87,7 +88,7 @@ def _resolve_storage_path(
         return ensure_path_within_root(resolved, artifact_root, label=label)
     return resolved
 
-
+# -----------------------------------------------------------------------------
 def _to_artifact_path(path: Path) -> str:
     artifact_root = ARTIFACT_ROOT.resolve()
     try:
@@ -95,17 +96,103 @@ def _to_artifact_path(path: Path) -> str:
     except ValueError:
         return str(path.resolve())
 
-
+# -----------------------------------------------------------------------------
 def _prompt_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
     _ = inputs
     return {"text": coerce_text(parameters.get("prompt_text", "")).strip()}
 
 
+def _extract_template_record_text(record: dict[str, Any]) -> str:
+    candidate = coerce_text(record.get("text") or record.get("content") or record.get("chunk") or "")
+    return candidate
+
+
+def _coerce_template_value(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, str):
+        return value
+    if isinstance(value, (int, float, bool)):
+        return str(value)
+    if isinstance(value, list):
+        if all(isinstance(item, dict) for item in value):
+            parts = [_extract_template_record_text(item).strip() for item in value]
+            text_parts = [item for item in parts if item]
+            if text_parts:
+                return "\n\n".join(text_parts)
+        try:
+            return json.dumps(value, indent=2, ensure_ascii=True, default=str)
+        except Exception:  # noqa: BLE001
+            return str(value)
+    if isinstance(value, dict):
+        extracted = _extract_template_record_text(value).strip()
+        if extracted:
+            return extracted
+        try:
+            return json.dumps(value, indent=2, ensure_ascii=True, default=str)
+        except Exception:  # noqa: BLE001
+            return str(value)
+    try:
+        return json.dumps(value, indent=2, ensure_ascii=True, default=str)
+    except Exception:  # noqa: BLE001
+        return str(value)
+
+
+_PROMPT_TEMPLATE_PATTERN = re.compile(r"\{\{\s*([^{}]+?)\s*\}\}")
+
+
+def _apply_prompt_template_cleanup(text: str, mode: str) -> str:
+    if mode == "none":
+        return text
+    if mode == "trim_lines":
+        return "\n".join(line.strip() for line in text.splitlines())
+    if mode == "drop_empty_lines":
+        return "\n".join(line for line in (entry.strip() for entry in text.splitlines()) if line)
+    if mode == "collapse_blank_lines":
+        normalized = "\n".join(line.rstrip() for line in text.splitlines())
+        return re.sub(r"\n{3,}", "\n\n", normalized)
+    return text
+
+
+def _prompt_template_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
+    parsed = PromptTemplateParameters.model_validate(parameters)
+    value_map: dict[str, str] = {}
+    for index in range(1, 9):
+        key = f"var_{index}"
+        if key in inputs and inputs.get(key) is not None:
+            value_map[key] = _coerce_template_value(inputs.get(key))
+
+    for index, alias in enumerate(parsed.variable_names, start=1):
+        source_key = f"var_{index}"
+        if source_key in value_map:
+            value_map[alias] = value_map[source_key]
+
+    missing_variables: set[str] = set()
+
+    def replace_placeholder(match: re.Match[str]) -> str:
+        variable_name = match.group(1).strip()
+        if variable_name in value_map:
+            return value_map[variable_name]
+        missing_variables.add(variable_name)
+        if parsed.missing_variable == "empty":
+            return ""
+        if parsed.missing_variable == "keep_placeholder":
+            return match.group(0)
+        return match.group(0)
+
+    rendered = _PROMPT_TEMPLATE_PATTERN.sub(replace_placeholder, parsed.template)
+    if missing_variables and parsed.missing_variable == "error":
+        missing_list = ", ".join(sorted(missing_variables))
+        raise ValueError(f"PROMPT_TEMPLATE missing variable values for: {missing_list}")
+
+    return {"text": _apply_prompt_template_cleanup(rendered, parsed.cleanup)}
+
+# -----------------------------------------------------------------------------
 def _image_input_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
     _ = inputs
     return {"image": {"path": coerce_text(parameters.get("file_path", "")).strip()}}
 
-
+# -----------------------------------------------------------------------------
 def _build_messages(parameters: dict[str, Any], inputs: dict[str, Any], *, structured_schema: dict[str, Any] | None = None) -> list[dict[str, Any]]:
     user_prompt = coerce_text(inputs.get("user_prompt") or parameters.get("prompt") or parameters.get("prompt_text") or "").strip()
     system_prompt = coerce_text(inputs.get("system_prompt") or parameters.get("system_prompt") or "").strip()
@@ -148,7 +235,7 @@ def _build_messages(parameters: dict[str, Any], inputs: dict[str, Any], *, struc
         messages.append({"role": "user", "content": user_content})
     return messages
 
-
+# -----------------------------------------------------------------------------
 def _build_generation_options(parameters: dict[str, Any], *, include_context_window: bool) -> dict[str, Any]:
     max_tokens = max(1, coerce_int(parameters.get("max_tokens"), 512))
     options: dict[str, Any] = {"max_output_tokens": max_tokens}
@@ -158,7 +245,7 @@ def _build_generation_options(parameters: dict[str, Any], *, include_context_win
             options["num_ctx"] = context_window
     return options
 
-
+# -----------------------------------------------------------------------------
 def _resolve_model_selection(parameters: dict[str, Any], inputs: dict[str, Any]) -> ProviderModelDefinition:
     _ = parameters
     model_input = inputs.get("model")
@@ -169,7 +256,7 @@ def _resolve_model_selection(parameters: dict[str, Any], inputs: dict[str, Any])
     except ValidationError as exc:
         raise ValueError("model controller must be a valid model handle") from exc
 
-
+# -----------------------------------------------------------------------------
 def _run_huggingface_chat(
     *,
     model_name: str,
@@ -208,7 +295,7 @@ def _run_huggingface_chat(
         return decoded[len(prompt_text):].strip()
     return decoded.strip()
 
-
+# -----------------------------------------------------------------------------
 def _execute_model_node(
     *,
     provider: str,
@@ -395,7 +482,7 @@ def _collect_save_items(inputs: dict[str, Any]) -> list[dict[str, str]]:
 
     return items
 
-
+# -----------------------------------------------------------------------------
 def _ensure_extension(path: Path, extension: str) -> Path:
     if path.suffix.lower() == extension:
         return path
@@ -403,19 +490,19 @@ def _ensure_extension(path: Path, extension: str) -> Path:
         return path.with_suffix(extension)
     return Path(f"{path.as_posix()}{extension}")
 
-
+# -----------------------------------------------------------------------------
 def _prepare_directory(path: Path) -> None:
     if path.exists() and path.is_file():
         path.unlink()
     path.mkdir(parents=True, exist_ok=True)
 
-
+# -----------------------------------------------------------------------------
 def _prepare_file_destination(path: Path) -> None:
     if path.exists() and path.is_dir():
         shutil.rmtree(path)
     path.parent.mkdir(parents=True, exist_ok=True)
 
-
+# -----------------------------------------------------------------------------
 def _build_client_side_save_as_file_artifact(
     parsed: SaveAsFileParameters,
     item_texts: list[str],
@@ -436,7 +523,7 @@ def _build_client_side_save_as_file_artifact(
         }
     }
 
-
+# -----------------------------------------------------------------------------
 def _save_as_file_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
     parsed = SaveAsFileParameters.model_validate(parameters)
     items = _collect_save_items(inputs)
@@ -454,7 +541,11 @@ def _save_as_file_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -
     target_root = _resolve_storage_path(parsed.output_path, label="output_path", relative_to_artifacts_root=True)
     destination = _ensure_extension(target_root, parsed.extension)
     _prepare_file_destination(destination)
-    destination.write_text(SAVE_AS_FILE_CHUNK_SEPARATOR.join(item_texts), encoding="utf-8")
+    with destination.open("w", encoding="utf-8") as stream:
+        for index, item_text in enumerate(item_texts):
+            if index > 0:
+                stream.write(SAVE_AS_FILE_CHUNK_SEPARATOR)
+            stream.write(item_text)
     resolved_path = _to_artifact_path(destination)
     return {
         "artifact": {
@@ -465,7 +556,7 @@ def _save_as_file_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -
         }
     }
 
-
+# -----------------------------------------------------------------------------
 def _build_client_side_save_as_folder_artifact(
     parsed: SaveAsFolderParameters,
     item_count: int,
@@ -491,7 +582,7 @@ def _build_client_side_save_as_folder_artifact(
         }
     }
 
-
+# -----------------------------------------------------------------------------
 def _save_as_folder_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
     parsed = SaveAsFolderParameters.model_validate(parameters)
     items = _collect_save_items(inputs)
@@ -525,15 +616,18 @@ def _save_as_folder_executor(parameters: dict[str, Any], inputs: dict[str, Any])
         }
     }
 
-
+# -----------------------------------------------------------------------------
 def _load_text_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
     _ = inputs
     source = _resolve_storage_path(parameters.get("storage_path"), label="storage_path")
     if not source.exists():
         raise ValueError(f"Text file not found: {source}")
-    return {"text": source.read_text(encoding="utf-8")}
+    if not source.is_file():
+        raise ValueError(f"storage_path must point to a file: {source}")
+    text_content, _mime_type = _load_file_text(source)
+    return {"text": text_content}
 
-
+# -----------------------------------------------------------------------------
 def _if_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
     _ = parameters
     return {"result": inputs.get("true_value") if bool(inputs.get("condition")) else inputs.get("false_value")}
@@ -549,6 +643,7 @@ def _router_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict
 
 CORE_HANDLERS = {
     "prompt": NodeHandler(executor=_prompt_executor, parameter_model=PromptParameters),
+    "prompt_template": NodeHandler(executor=_prompt_template_executor, parameter_model=PromptTemplateParameters),
     "user_prompt": NodeHandler(executor=_prompt_executor, parameter_model=PromptParameters),
     "system_prompt": NodeHandler(executor=_prompt_executor, parameter_model=PromptParameters),
     "image_input": NodeHandler(executor=_image_input_executor, parameter_model=ImageInputParameters),

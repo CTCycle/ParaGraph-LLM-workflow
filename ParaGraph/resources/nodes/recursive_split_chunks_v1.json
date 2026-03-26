@@ -2,7 +2,7 @@
   "id": "RECURSIVE_SPLIT_CHUNKS",
   "version": 1,
   "name": "Recursive Split Chunks",
-  "category": "fragmentation",
+  "category": "text_segmentation",
   "description": "Split documents or incoming chunks using ordered separators with recursive fallback to finer boundaries.",
   "inputs": [
     {
@@ -24,7 +24,7 @@
       "data_type": "CHUNK_LIST",
       "required": false,
       "accepts_multiple": false,
-      "description": "Optional upstream chunks for chained fragmentation."
+      "description": "Optional upstream chunks for chained text segmentation."
     }
   ],
   "outputs": [

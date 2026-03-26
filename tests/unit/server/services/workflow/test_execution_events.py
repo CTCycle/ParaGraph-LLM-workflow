@@ -40,7 +40,7 @@ def test_execution_service_emits_expected_event_order_for_prompt_to_output_plan(
                 node_id="prompt_1",
                 node_type="PROMPT",
                 node_version=1,
-                category="input",
+                category="prompt",
                 executor_key="prompt",
                 parameters={"prompt_text": "hello"},
                 bindings=[],
@@ -114,3 +114,99 @@ def test_redact_output_state_masks_nested_sensitive_fields() -> None:
     assert redacted["controllers"]["credentials"]["nested"]["username"] == "alice"
     assert redacted["ports"]["result"]["access_token"] == "***"
     assert redacted["ports"]["result"]["metadata"][0]["authorization"] == "***"
+
+
+def test_execution_service_skips_cache_key_build_for_non_cacheable_steps(job_state_factory, monkeypatch) -> None:
+    plan = CompiledExecutionPlan(
+        plan_id='plan-no-cache-key',
+        step_order=['prompt_1', 'output_1'],
+        steps=[
+            ExecutionStepPlan(
+                step_id='prompt_1',
+                node_id='prompt_1',
+                node_type='PROMPT',
+                node_version=1,
+                category='prompt',
+                executor_key='prompt',
+                parameters={'prompt_text': 'hello'},
+                bindings=[],
+                cacheable=False,
+            ),
+            ExecutionStepPlan(
+                step_id='output_1',
+                node_id='output_1',
+                node_type='TEXT_OUTPUT',
+                node_version=1,
+                category='output',
+                executor_key='text_output',
+                parameters={},
+                bindings=[
+                    ExecutionBinding(
+                        binding_type='input',
+                        input_name='text',
+                        source_node_id='prompt_1',
+                        source_output='text',
+                    )
+                ],
+                cacheable=False,
+            ),
+        ],
+        metadata={},
+    )
+
+    def fail_cache_key(*_args, **_kwargs):
+        raise AssertionError('_build_cache_key should not be called for non-cacheable steps')
+
+    monkeypatch.setattr(execution_service, '_build_cache_key', fail_cache_key)
+    job_state_factory('run-no-cache-key', 'workflow')
+
+    result = execution_service.execute_plan_job(plan=plan, workflow_id=None, job_id='run-no-cache-key')
+
+    assert result == {'outputs': {'output_1': {'text': 'hello'}}}
+
+
+def test_execution_service_persists_compact_step_output_payload(job_state_factory) -> None:
+    plan = CompiledExecutionPlan(
+        plan_id='plan-compact-output',
+        step_order=['prompt_1', 'output_1'],
+        steps=[
+            ExecutionStepPlan(
+                step_id='prompt_1',
+                node_id='prompt_1',
+                node_type='PROMPT',
+                node_version=1,
+                category='prompt',
+                executor_key='prompt',
+                parameters={'prompt_text': 'hello'},
+                bindings=[],
+                cacheable=False,
+            ),
+            ExecutionStepPlan(
+                step_id='output_1',
+                node_id='output_1',
+                node_type='TEXT_OUTPUT',
+                node_version=1,
+                category='output',
+                executor_key='text_output',
+                parameters={},
+                bindings=[
+                    ExecutionBinding(
+                        binding_type='input',
+                        input_name='text',
+                        source_node_id='prompt_1',
+                        source_output='text',
+                    )
+                ],
+                cacheable=False,
+            ),
+        ],
+        metadata={},
+    )
+
+    job_state_factory('run-compact-output', 'workflow')
+    execution_service.execute_plan_job(plan=plan, workflow_id=None, job_id='run-compact-output')
+    run = execution_service.get_run('run-compact-output')
+
+    assert run is not None
+    assert all(set(step.output.keys()) == {'ports'} for step in run.steps)
+

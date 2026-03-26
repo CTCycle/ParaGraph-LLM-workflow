@@ -94,6 +94,18 @@ class ByStructureChunksParameters(BaseModel):
         return normalized
 
 
+class RegexSplitChunksParameters(BaseModel):
+    regex: str = ""
+
+    @field_validator("regex")
+    @classmethod
+    def validate_regex(cls, value: str) -> str:
+        normalized = str(value or "").strip()
+        if not normalized:
+            raise ValueError("regex must not be empty")
+        return normalized
+
+
 class RecursiveSplitChunksParameters(BaseModel):
     separators: list[str] = Field(default_factory=lambda: ["\n\n", "\n", " "])
     chunk_size: int = Field(default=800, ge=1, le=100_000)
@@ -107,7 +119,7 @@ class RecursiveSplitChunksParameters(BaseModel):
         parsed = _parse_json_value(value, "separators") if isinstance(value, str) else value
         if not isinstance(parsed, list) or not all(isinstance(item, str) for item in parsed):
             raise ValueError("separators must be an array of strings")
-        normalized = [item for item in (entry.strip() for entry in parsed) if item]
+        normalized = [entry for entry in parsed if entry != ""]
         if not normalized:
             raise ValueError("separators must include at least one value")
         return normalized

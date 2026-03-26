@@ -2,22 +2,37 @@
   "id": "PROMPT",
   "version": 1,
   "name": "Prompt",
-  "category": "input",
+  "category": "prompt",
   "description": "Provide generic prompt text to the workflow graph.",
   "inputs": [],
   "outputs": [
-    {"name": "text", "data_type": "TEXT", "required": true}
+    {
+      "name": "text",
+      "data_type": "TEXT",
+      "required": true
+    }
   ],
   "parameters": [
     {
       "name": "prompt_text",
       "data_type": "TEXT",
       "default": "",
-      "constraints": {"required": true},
+      "constraints": {
+        "required": true
+      },
       "ui_control": "textarea",
       "description": "Prompt text emitted to downstream nodes."
     }
   ],
-  "ui": {"default_width": 320, "accent_color": "#59c6ff", "collapsed_by_default": false},
-  "runtime": {"executor_key": "prompt", "cacheable": true, "deterministic": true, "side_effecting": false}
+  "ui": {
+    "default_width": 320,
+    "accent_color": "#59c6ff",
+    "collapsed_by_default": false
+  },
+  "runtime": {
+    "executor_key": "prompt",
+    "cacheable": true,
+    "deterministic": true,
+    "side_effecting": false
+  }
 }

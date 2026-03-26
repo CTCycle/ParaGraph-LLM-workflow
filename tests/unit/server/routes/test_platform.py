@@ -57,7 +57,9 @@ def test_nodes_catalog_exposes_registry(client: TestClient) -> None:
         'MERGE_SMALL_CHUNKS',
         'MODEL_PROVIDER',
         'PROMPT',
+        'PROMPT_TEMPLATE',
         'RECURSIVE_SPLIT_CHUNKS',
+        'REGEX_SPLIT_CHUNKS',
         'SAVE_AS_FILE',
         'SAVE_AS_FOLDER',
         'SENTENCE_WINDOW_CHUNKS',
@@ -68,6 +70,10 @@ def test_nodes_catalog_exposes_registry(client: TestClient) -> None:
     assert 'USER_PROMPT' not in ids
     assert 'SYSTEM_PROMPT' not in ids
     assert 'LLM_GENERATE' not in ids
+    categories = {node['category'] for node in payload['nodes']}
+    assert 'fragmentation' not in categories
+    assert 'text_segmentation' in categories
+    assert 'prompt' in categories
 
 
 def test_nodes_import_persists_manifest(client: TestClient, monkeypatch, tmp_path: Path) -> None:
@@ -474,5 +480,7 @@ def test_workflow_crud_and_versions(client: TestClient) -> None:
 
     assert update_response.status_code == 200
     assert update_response.json()['latest_version'] == 2
+
+
 
 
