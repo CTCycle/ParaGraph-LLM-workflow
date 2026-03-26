@@ -85,6 +85,8 @@ def test_execution_service_emits_expected_event_order_for_prompt_to_output_plan(
         "execution.completed",
     ]
     assert [event.sequence for event in history] == list(range(1, len(history) + 1))
+    step_completed = [event for event in history if event.event_type == "execution.step.completed"]
+    assert [event.payload.get("progress") for event in step_completed] == [50.0, 99.0]
 
 
 

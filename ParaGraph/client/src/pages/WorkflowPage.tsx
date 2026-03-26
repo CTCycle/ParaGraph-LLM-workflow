@@ -556,6 +556,16 @@ function collectSaveTextItemsFromRuntimeInputs(inputs: Record<string, unknown>):
     return items
 }
 
+function collectSaveTextItemsFromArtifact(artifact: Record<string, unknown>): string[] {
+    const rawItems = artifact.item_texts
+    if (!Array.isArray(rawItems)) {
+        return []
+    }
+    return rawItems
+        .map((item) => coerceTextPayload(item))
+        .filter((item) => item.trim().length > 0)
+}
+
 function toSafeFileStem(rawName: string, fallback: string): string {
     const cleaned = rawName.replace(/[^A-Za-z0-9._-]+/g, '_').replace(/^[._-]+|[._-]+$/g, '')
     return cleaned || fallback
@@ -2389,11 +2399,16 @@ function WorkflowEditor() {
             if (!node) {
                 continue
             }
-            if (!isRecord(step.output) || !isRecord(step.output.inputs)) {
+            if (!isRecord(step.output)) {
                 continue
             }
-
-            const items = collectSaveTextItemsFromRuntimeInputs(step.output.inputs)
+            const outputPorts = isRecord(step.output.ports) ? step.output.ports : null
+            const artifact = outputPorts && isRecord(outputPorts.artifact) ? outputPorts.artifact : null
+            const itemTextsFromArtifact = artifact ? collectSaveTextItemsFromArtifact(artifact) : []
+            const itemTextsFromInputs = isRecord(step.output.inputs)
+                ? collectSaveTextItemsFromRuntimeInputs(step.output.inputs)
+                : []
+            const items = itemTextsFromArtifact.length > 0 ? itemTextsFromArtifact : itemTextsFromInputs
             if (items.length === 0) {
                 continue
             }

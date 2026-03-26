@@ -4,6 +4,7 @@ import {
     ArrowUpToLine,
     BrainCircuit,
     Database,
+    HardDrive,
     GitBranch,
     Cog,
     Plus,
@@ -79,7 +80,8 @@ const NODE_CATEGORY_ICONS: Record<NodeCategory, LucideIcon> = {
     processing: Cog,
     fragmentation: Scissors,
     output: ArrowUpToLine,
-    serialization: Database,
+    serialization: HardDrive,
+    database: Database,
     control: GitBranch,
 }
 
@@ -90,6 +92,7 @@ const EMPTY_CATEGORY_COUNTS: Record<NodeCategory, number> = {
     fragmentation: 0,
     output: 0,
     serialization: 0,
+    database: 0,
     control: 0,
 }
 
@@ -392,4 +395,5 @@ export default function NodesPage() {
         </>
     )
 }
+
 

@@ -92,13 +92,7 @@ def test_sql_file_database_node_roundtrip(tmp_path: Path) -> None:
         'SQL_FILE_DATABASE',
         1,
         {
-            'db_engine': 'sqlite',
             'db_path': str(database_path),
-            'db_name': 'FAIRS',
-            'db_user': 'postgres',
-            'db_password': 'change_me',
-            'db_ssl': False,
-            'db_ssl_ca': '',
             'db_connect_timeout': 30,
         },
         {},
@@ -107,7 +101,7 @@ def test_sql_file_database_node_roundtrip(tmp_path: Path) -> None:
     assert connection_payload['connection']['engine'] == 'sqlite'
     assert connection_payload['connection']['file_path'] == str(database_path.resolve())
     assert connection_payload['connection']['read_only'] is True
-    assert connection_payload['connection']['database_name'] == 'FAIRS'
+    assert connection_payload['connection']['database_name'] == 'file_dataset'
 
 
 def test_sql_database_requires_required_fields_before_connect_attempt() -> None:

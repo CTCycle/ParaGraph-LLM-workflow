@@ -9,6 +9,7 @@ export const NODE_CATEGORY_ORDER: NodeCategory[] = [
     'fragmentation',
     'output',
     'serialization',
+    'database',
     'control',
 ]
 
@@ -19,6 +20,7 @@ export const NODE_CATEGORY_LABELS: Record<NodeCategory, string> = {
     fragmentation: 'Fragmentation',
     output: 'Output',
     serialization: 'Serialization',
+    database: 'Database',
     control: 'Control',
 }
 
@@ -30,6 +32,7 @@ export function toNodeCategoryFilter(value: string): NodeCategoryFilter {
         value === 'fragmentation' ||
         value === 'output' ||
         value === 'serialization' ||
+        value === 'database' ||
         value === 'control'
     ) {
         return value

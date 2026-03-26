@@ -2,7 +2,7 @@
   "id": "SQL_FILE_DATABASE",
   "version": 1,
   "name": "Embedded SQL Database",
-  "category": "control",
+  "category": "database",
   "description": "Configure an embedded SQL dataset and expose a typed controller handle for downstream SQL nodes.",
   "inputs": [],
   "outputs": [],
@@ -18,19 +18,6 @@
   ],
   "parameters": [
     {
-      "name": "db_engine",
-      "data_type": "TEXT",
-      "default": "sqlite",
-      "constraints": {
-        "required": true,
-        "options": [
-          "sqlite"
-        ]
-      },
-      "ui_control": "select",
-      "description": "File database engine."
-    },
-    {
       "name": "db_path",
       "data_type": "TEXT",
       "default": "",
@@ -39,52 +26,6 @@
       },
       "ui_control": "file",
       "description": "Path to the database file."
-    },
-    {
-      "name": "db_port",
-      "data_type": "JSON",
-      "default": 5432,
-      "constraints": {
-        "min": 1,
-        "max": 65535
-      },
-      "ui_control": "number",
-      "description": "Reserved for cross-engine compatibility."
-    },
-    {
-      "name": "db_name",
-      "data_type": "TEXT",
-      "default": "paragraph",
-      "ui_control": "text",
-      "description": "Logical dataset name."
-    },
-    {
-      "name": "db_user",
-      "data_type": "TEXT",
-      "default": "postgres",
-      "ui_control": "text",
-      "description": "Reserved for cross-engine compatibility."
-    },
-    {
-      "name": "db_password",
-      "data_type": "TEXT",
-      "default": "change_me",
-      "ui_control": "password",
-      "description": "Reserved for cross-engine compatibility."
-    },
-    {
-      "name": "db_ssl",
-      "data_type": "BOOLEAN",
-      "default": false,
-      "ui_control": "toggle",
-      "description": "Reserved for cross-engine compatibility."
-    },
-    {
-      "name": "db_ssl_ca",
-      "data_type": "TEXT",
-      "default": "",
-      "ui_control": "file",
-      "description": "Reserved for cross-engine compatibility."
     },
     {
       "name": "db_connect_timeout",

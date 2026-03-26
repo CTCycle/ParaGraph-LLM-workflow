@@ -309,6 +309,7 @@ export function subscribeExecutionEvents(
     },
 ): () => void {
     const ws = new WebSocket(`${resolveWsBase()}/executions/ws/runs/${encodeURIComponent(runId)}`)
+    let closedByClient = false
 
     ws.onmessage = (message) => {
         try {
@@ -322,7 +323,14 @@ export function subscribeExecutionEvents(
         }
     }
 
-    ws.onerror = () => handlers.onError?.('Execution event stream disconnected')
-    return () => ws.close()
+    ws.onerror = () => {
+        if (!closedByClient) {
+            handlers.onError?.('Execution event stream disconnected')
+        }
+    }
+    return () => {
+        closedByClient = true
+        ws.close()
+    }
 }
 

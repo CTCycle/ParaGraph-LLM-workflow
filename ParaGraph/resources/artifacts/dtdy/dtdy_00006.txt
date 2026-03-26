@@ -1,0 +1,2 @@
+25-03-2026 21:40:06 - ParaGraph - INFO - Initializing sqlite database backend
+25-03-2026 21:40:06 - ParaGraph - INFO - Ensuring application tables exist for sqlite backend.

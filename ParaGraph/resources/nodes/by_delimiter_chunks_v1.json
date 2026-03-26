@@ -6,6 +6,13 @@
   "description": "Split documents or incoming chunks using explicit delimiters.",
   "inputs": [
     {
+      "name": "text",
+      "data_type": "TEXT",
+      "required": false,
+      "accepts_multiple": false,
+      "description": "Raw text input to fragment."
+    },
+    {
       "name": "documents",
       "data_type": "DOCUMENT_LIST",
       "required": false,

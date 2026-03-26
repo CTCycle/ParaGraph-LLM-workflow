@@ -143,6 +143,43 @@ describe('workflowApi service layer', () => {
         expect(socket.close).toHaveBeenCalledTimes(1)
     })
 
+
+    it('does not emit disconnect error after explicit unsubscribe', () => {
+        class MockWebSocket {
+            static instances: MockWebSocket[] = []
+
+            public onmessage: ((event: MessageEvent<string>) => void) | null = null
+            public onerror: ((event: Event) => void) | null = null
+            public close = vi.fn()
+
+            constructor(public readonly url: string) {
+                MockWebSocket.instances.push(this)
+            }
+
+            emitError(): void {
+                this.onerror?.(new Event('error'))
+            }
+        }
+
+        vi.stubGlobal('WebSocket', MockWebSocket as unknown as typeof WebSocket)
+
+        const errors: string[] = []
+        const unsubscribe = subscribeExecutionEvents('run-1', {
+            onEvent() {
+                // No-op for this scenario.
+            },
+            onError(error) {
+                errors.push(error)
+            },
+        })
+
+        const socket = MockWebSocket.instances[0]
+        unsubscribe()
+        socket.emitError()
+
+        expect(socket.close).toHaveBeenCalledTimes(1)
+        expect(errors).not.toContain('Execution event stream disconnected')
+    })
     it('guards Hugging Face download argument preconditions', () => {
         expect(() => downloadHuggingFaceModel('  ')).toThrow('Repository id is required')
         expect(() => getHuggingFaceDownloadStatus('  ')).toThrow('Download job id is required')

@@ -88,6 +88,19 @@ def _iter_mapping_payload(raw_value: Any) -> Iterator[dict[str, Any]]:
 
 
 def _iter_sources(inputs: dict[str, Any]) -> Iterator[dict[str, Any]]:
+    text_input = str(inputs.get("text", ""))
+    if text_input.strip():
+        source_id = str(uuid5(NAMESPACE_URL, f"text:{text_input.strip()}"))
+        yield {
+            "scope": "text",
+            "scope_id": source_id,
+            "document_id": source_id,
+            "source_uri": "",
+            "text": text_input,
+            "metadata": {},
+            "mime_type": "text/plain",
+        }
+
     for document in _iter_mapping_payload(inputs.get("documents")):
         document_id = str(document.get("id", "")).strip()
         source_uri = str(document.get("source_uri", "")).strip()
@@ -175,13 +188,13 @@ def _build_chunk_records(
     base_metadata = dict(source.get("metadata", {}))
     for chunk_index, chunk_text in enumerate(fragment for fragment in fragments if fragment.strip()):
         record_metadata = {**base_metadata, **metadata_updates, "fragmentation_strategy": strategy_name}
-        if source.get("scope") == "document":
-            record_metadata.setdefault("mime_type", source.get("mime_type", "text/plain"))
-            chunk_id_seed = f"document:{source.get('scope_id')}:{chunk_index}:{chunk_text}"
-        else:
-            parent_chunk_id = str(source.get("parent_chunk_id", "")).strip()
+        if source.get("scope") == "chunk":
+            parent_chunk_id = str(source.get("parent_chunk_id") or source.get("scope_id") or "").strip()
             record_metadata["fragmentation_parent_chunk_id"] = parent_chunk_id
             chunk_id_seed = f"chunk:{parent_chunk_id}:{chunk_index}:{chunk_text}"
+        else:
+            record_metadata.setdefault("mime_type", source.get("mime_type", "text/plain"))
+            chunk_id_seed = f"{source.get('scope')}:{source.get('scope_id')}:{chunk_index}:{chunk_text}"
 
         chunks.append(
             {
@@ -424,7 +437,7 @@ def _fixed_size_chunks_executor(parameters: dict[str, Any], inputs: dict[str, An
             )
         )
     if not chunks:
-        raise ValueError("FIXED_SIZE_CHUNKS requires at least one document or chunk input containing text")
+        raise ValueError("FIXED_SIZE_CHUNKS requires at least one document, chunk, or text input containing text")
     return {"chunks": chunks}
 
 
@@ -468,7 +481,7 @@ def _by_delimiter_chunks_executor(parameters: dict[str, Any], inputs: dict[str, 
         )
 
     if not chunks:
-        raise ValueError("BY_DELIMITER_CHUNKS requires at least one document or chunk input containing text")
+        raise ValueError("BY_DELIMITER_CHUNKS requires at least one document, chunk, or text input containing text")
     return {"chunks": chunks}
 
 
@@ -505,7 +518,7 @@ def _by_structure_chunks_executor(parameters: dict[str, Any], inputs: dict[str, 
         )
 
     if not chunks:
-        raise ValueError("BY_STRUCTURE_CHUNKS requires at least one document or chunk input containing text")
+        raise ValueError("BY_STRUCTURE_CHUNKS requires at least one document, chunk, or text input containing text")
     return {"chunks": chunks}
 
 
@@ -537,7 +550,7 @@ def _recursive_split_chunks_executor(parameters: dict[str, Any], inputs: dict[st
         )
 
     if not chunks:
-        raise ValueError("RECURSIVE_SPLIT_CHUNKS requires at least one document or chunk input containing text")
+        raise ValueError("RECURSIVE_SPLIT_CHUNKS requires at least one document, chunk, or text input containing text")
     return {"chunks": chunks}
 
 
@@ -576,7 +589,7 @@ def _sentence_window_chunks_executor(parameters: dict[str, Any], inputs: dict[st
         )
 
     if not chunks:
-        raise ValueError("SENTENCE_WINDOW_CHUNKS requires at least one document or chunk input containing text")
+        raise ValueError("SENTENCE_WINDOW_CHUNKS requires at least one document, chunk, or text input containing text")
     return {"chunks": chunks}
 
 
@@ -810,7 +823,7 @@ def _merge_small_chunks_executor(parameters: dict[str, Any], inputs: dict[str, A
     )
 
     if not merged_chunks:
-        raise ValueError("MERGE_SMALL_CHUNKS requires at least one document or chunk input containing text")
+        raise ValueError("MERGE_SMALL_CHUNKS requires at least one document, chunk, or text input containing text")
     return {"chunks": merged_chunks}
 
 

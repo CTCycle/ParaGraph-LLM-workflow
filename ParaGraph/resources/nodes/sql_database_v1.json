@@ -2,7 +2,7 @@
   "id": "SQL_DATABASE",
   "version": 1,
   "name": "SQL Database",
-  "category": "control",
+  "category": "database",
   "description": "Configure a SQL server connection and expose a typed controller handle for downstream SQL nodes.",
   "inputs": [],
   "outputs": [],

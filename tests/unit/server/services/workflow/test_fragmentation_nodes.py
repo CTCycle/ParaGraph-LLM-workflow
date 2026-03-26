@@ -69,10 +69,21 @@ def test_fixed_size_chunks_rejects_invalid_overlap() -> None:
 
 
 def test_fixed_size_chunks_requires_non_empty_input() -> None:
-    with pytest.raises(ValueError, match="requires at least one document or chunk input"):
+    with pytest.raises(ValueError, match="requires at least one document, chunk, or text input"):
         node_registry.execute(
             "FIXED_SIZE_CHUNKS",
             1,
             {"chunk_size": 5, "chunk_overlap": 1, "unit": "words"},
             {},
         )
+
+
+def test_fixed_size_chunks_supports_direct_text_input() -> None:
+    payload = node_registry.execute(
+        "FIXED_SIZE_CHUNKS",
+        1,
+        {"chunk_size": 2, "chunk_overlap": 0, "unit": "words"},
+        {"text": "alpha beta gamma"},
+    )
+
+    assert [chunk["text"] for chunk in payload["chunks"]] == ["alpha beta", "gamma"]

@@ -250,14 +250,14 @@ def _sql_file_database_executor(parameters: dict[str, Any], inputs: dict[str, An
     _ = inputs
     parsed = SQLFileDatabaseParameters.model_validate(parameters)
     connection_payload = {
-        "engine": parsed.db_engine,
-        "database_name": parsed.db_name,
+        "engine": "sqlite",
+        "database_name": "",
         "host": "",
-        "port": parsed.db_port,
-        "username": parsed.db_user,
-        "password": parsed.db_password,
+        "port": None,
+        "username": "",
+        "password": "",
         "file_path": parsed.db_path,
-        "options": _build_sql_connection_options(db_ssl=parsed.db_ssl, db_ssl_ca=parsed.db_ssl_ca),
+        "options": {},
         "connect_timeout_s": parsed.db_connect_timeout,
     }
     return _validate_and_build_database_connection(connection_payload)

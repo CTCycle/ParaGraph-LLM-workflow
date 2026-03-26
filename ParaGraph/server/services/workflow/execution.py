@@ -87,7 +87,8 @@ class ExecutionService:
                     output_payload[step.node_id] = result
                     job_manager.update_result(job_id, {"outputs": dict(output_payload)})
 
-                progress = (index / total_steps) * 100.0
+                computed_progress = (index / total_steps) * 100.0
+                progress = computed_progress if index < total_steps else 99.0
                 self._set_step_state(
                     job_id,
                     step_id,
@@ -225,3 +226,4 @@ class ExecutionService:
 
 
 execution_service = ExecutionService()
+

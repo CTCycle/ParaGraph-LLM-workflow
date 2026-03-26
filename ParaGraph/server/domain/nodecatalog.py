@@ -5,7 +5,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 
-NodeCategory = Literal["input", "model", "processing", "fragmentation", "output", "serialization", "control"]
+NodeCategory = Literal["input", "model", "processing", "fragmentation", "output", "serialization", "database", "control"]
 NodeDataType = Literal[
     "TEXT",
     "IMAGE",

@@ -1,0 +1,265 @@
+25-03-2026 22:42:51 - ParaGraph - INFO - Initializing sqlite database backend
+25-03-2026 22:42:51 - ParaGraph - INFO - Ensuring application tables exist for sqlite backend.
+25-03-2026 22:42:53 - ParaGraph - INFO - Migrated SQLite database to C:\Users\Thomas V\AppData\Local\Temp\pytest-of-TV\pytest-164\test_sqlite_repository_migrate0\database.db
+25-03-2026 22:42:53 - ParaGraph - WARNING - Table missing_table does not exist
+25-03-2026 22:42:53 - asyncio - DEBUG - Using proactor: IocpProactor
+25-03-2026 22:42:53 - httpx - INFO - HTTP Request: GET http://testserver/configurations?session_name=session-a "HTTP/1.1 200 OK"
+25-03-2026 22:42:53 - httpx - INFO - HTTP Request: PUT http://testserver/configurations "HTTP/1.1 200 OK"
+25-03-2026 22:42:53 - httpx - INFO - HTTP Request: GET http://testserver/configurations/profiles?session_name=session-a "HTTP/1.1 200 OK"
+25-03-2026 22:42:53 - httpx - INFO - HTTP Request: GET http://testserver/configurations/profiles/workbench?session_name=session-a "HTTP/1.1 200 OK"
+25-03-2026 22:42:53 - httpx - INFO - HTTP Request: PUT http://testserver/configurations/profiles/workbench "HTTP/1.1 200 OK"
+25-03-2026 22:42:53 - httpx - INFO - HTTP Request: POST http://testserver/configurations/ollama/ping?session_name=session-a "HTTP/1.1 200 OK"
+25-03-2026 22:42:53 - asyncio - DEBUG - Using proactor: IocpProactor
+25-03-2026 22:42:53 - httpx - INFO - HTTP Request: GET http://testserver/configurations/profiles/missing?session_name=default "HTTP/1.1 404 Not Found"
+25-03-2026 22:42:53 - httpx - INFO - HTTP Request: PUT http://testserver/configurations/profiles/missing "HTTP/1.1 400 Bad Request"
+25-03-2026 22:42:53 - asyncio - DEBUG - Using proactor: IocpProactor
+25-03-2026 22:42:53 - httpx - INFO - HTTP Request: POST http://testserver/executions/compile "HTTP/1.1 200 OK"
+25-03-2026 22:42:53 - asyncio - DEBUG - Using proactor: IocpProactor
+25-03-2026 22:42:53 - httpx - INFO - HTTP Request: POST http://testserver/executions/compile "HTTP/1.1 200 OK"
+25-03-2026 22:42:53 - asyncio - DEBUG - Using proactor: IocpProactor
+25-03-2026 22:42:53 - httpx - INFO - HTTP Request: POST http://testserver/executions/compile "HTTP/1.1 200 OK"
+25-03-2026 22:42:53 - httpx - INFO - HTTP Request: POST http://testserver/executions/compile "HTTP/1.1 200 OK"
+25-03-2026 22:42:53 - httpx - INFO - HTTP Request: POST http://testserver/executions/compile "HTTP/1.1 200 OK"
+25-03-2026 22:42:53 - asyncio - DEBUG - Using proactor: IocpProactor
+25-03-2026 22:42:53 - httpx - INFO - HTTP Request: GET http://testserver/executions/run-missing "HTTP/1.1 404 Not Found"
+25-03-2026 22:42:53 - asyncio - DEBUG - Using proactor: IocpProactor
+25-03-2026 22:42:53 - httpx - INFO - HTTP Request: POST http://testserver/executions/compile "HTTP/1.1 200 OK"
+25-03-2026 22:42:53 - ParaGraph - INFO - Started job 7f3b12ea (type=workflow)
+25-03-2026 22:42:53 - httpx - INFO - HTTP Request: POST http://testserver/executions "HTTP/1.1 202 Accepted"
+25-03-2026 22:42:53 - httpx - INFO - HTTP Request: GET http://testserver/executions/7f3b12ea "HTTP/1.1 200 OK"
+25-03-2026 22:42:53 - asyncio - DEBUG - Using proactor: IocpProactor
+25-03-2026 22:42:53 - httpx - INFO - HTTP Request: GET http://testserver/nodes/catalog "HTTP/1.1 200 OK"
+25-03-2026 22:42:53 - asyncio - DEBUG - Using proactor: IocpProactor
+25-03-2026 22:42:53 - httpx - INFO - HTTP Request: POST http://testserver/nodes/import "HTTP/1.1 201 Created"
+25-03-2026 22:42:53 - asyncio - DEBUG - Using proactor: IocpProactor
+25-03-2026 22:42:53 - python_multipart.multipart - DEBUG - Calling on_part_begin with no data
+25-03-2026 22:42:53 - python_multipart.multipart - DEBUG - Calling on_header_field with data[36:55]
+25-03-2026 22:42:53 - python_multipart.multipart - DEBUG - Calling on_header_value with data[57:111]
+25-03-2026 22:42:53 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+25-03-2026 22:42:53 - python_multipart.multipart - DEBUG - Calling on_header_field with data[113:125]
+25-03-2026 22:42:53 - python_multipart.multipart - DEBUG - Calling on_header_value with data[127:137]
+25-03-2026 22:42:53 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+25-03-2026 22:42:53 - python_multipart.multipart - DEBUG - Calling on_headers_finished with no data
+25-03-2026 22:42:53 - python_multipart.multipart - DEBUG - Calling on_part_data with data[141:152]
+25-03-2026 22:42:53 - python_multipart.multipart - DEBUG - Calling on_part_end with no data
+25-03-2026 22:42:53 - python_multipart.multipart - DEBUG - Calling on_part_begin with no data
+25-03-2026 22:42:53 - python_multipart.multipart - DEBUG - Calling on_header_field with data[190:209]
+25-03-2026 22:42:53 - python_multipart.multipart - DEBUG - Calling on_header_value with data[211:270]
+25-03-2026 22:42:53 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+25-03-2026 22:42:53 - python_multipart.multipart - DEBUG - Calling on_header_field with data[272:284]
+25-03-2026 22:42:53 - python_multipart.multipart - DEBUG - Calling on_header_value with data[286:299]
+25-03-2026 22:42:53 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+25-03-2026 22:42:53 - python_multipart.multipart - DEBUG - Calling on_headers_finished with no data
+25-03-2026 22:42:53 - python_multipart.multipart - DEBUG - Calling on_part_data with data[303:310]
+25-03-2026 22:42:53 - python_multipart.multipart - DEBUG - Calling on_part_end with no data
+25-03-2026 22:42:53 - python_multipart.multipart - DEBUG - Calling on_end with no data
+25-03-2026 22:42:53 - httpx - INFO - HTTP Request: POST http://testserver/nodes/uploads/directory "HTTP/1.1 200 OK"
+25-03-2026 22:42:53 - asyncio - DEBUG - Using proactor: IocpProactor
+25-03-2026 22:42:53 - python_multipart.multipart - DEBUG - Calling on_part_begin with no data
+25-03-2026 22:42:53 - python_multipart.multipart - DEBUG - Calling on_header_field with data[36:55]
+25-03-2026 22:42:53 - python_multipart.multipart - DEBUG - Calling on_header_value with data[57:106]
+25-03-2026 22:42:53 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+25-03-2026 22:42:53 - python_multipart.multipart - DEBUG - Calling on_header_field with data[108:120]
+25-03-2026 22:42:53 - python_multipart.multipart - DEBUG - Calling on_header_value with data[122:132]
+25-03-2026 22:42:53 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+25-03-2026 22:42:53 - python_multipart.multipart - DEBUG - Calling on_headers_finished with no data
+25-03-2026 22:42:53 - python_multipart.multipart - DEBUG - Calling on_part_data with data[136:143]
+25-03-2026 22:42:53 - python_multipart.multipart - DEBUG - Calling on_part_end with no data
+25-03-2026 22:42:53 - python_multipart.multipart - DEBUG - Calling on_end with no data
+25-03-2026 22:42:53 - httpx - INFO - HTTP Request: POST http://testserver/nodes/uploads/directory "HTTP/1.1 422 Unprocessable Entity"
+25-03-2026 22:42:53 - asyncio - DEBUG - Using proactor: IocpProactor
+25-03-2026 22:42:53 - python_multipart.multipart - DEBUG - Calling on_part_begin with no data
+25-03-2026 22:42:53 - python_multipart.multipart - DEBUG - Calling on_header_field with data[36:55]
+25-03-2026 22:42:53 - python_multipart.multipart - DEBUG - Calling on_header_value with data[57:104]
+25-03-2026 22:42:53 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+25-03-2026 22:42:53 - python_multipart.multipart - DEBUG - Calling on_header_field with data[106:118]
+25-03-2026 22:42:53 - python_multipart.multipart - DEBUG - Calling on_header_value with data[120:130]
+25-03-2026 22:42:53 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+25-03-2026 22:42:53 - python_multipart.multipart - DEBUG - Calling on_headers_finished with no data
+25-03-2026 22:42:53 - python_multipart.multipart - DEBUG - Calling on_part_data with data[134:141]
+25-03-2026 22:42:53 - python_multipart.multipart - DEBUG - Calling on_part_end with no data
+25-03-2026 22:42:53 - python_multipart.multipart - DEBUG - Calling on_end with no data
+25-03-2026 22:42:53 - httpx - INFO - HTTP Request: POST http://testserver/nodes/uploads/directory "HTTP/1.1 422 Unprocessable Entity"
+25-03-2026 22:42:53 - asyncio - DEBUG - Using proactor: IocpProactor
+25-03-2026 22:42:53 - httpx - INFO - HTTP Request: POST http://testserver/nodes/check-database-connection "HTTP/1.1 200 OK"
+25-03-2026 22:42:54 - asyncio - DEBUG - Using proactor: IocpProactor
+25-03-2026 22:42:54 - httpx - INFO - HTTP Request: POST http://testserver/nodes/check-database-connection "HTTP/1.1 200 OK"
+25-03-2026 22:42:54 - asyncio - DEBUG - Using proactor: IocpProactor
+25-03-2026 22:42:54 - httpx - INFO - HTTP Request: GET http://testserver/providers/models "HTTP/1.1 200 OK"
+25-03-2026 22:42:54 - asyncio - DEBUG - Using proactor: IocpProactor
+25-03-2026 22:42:54 - httpx - INFO - HTTP Request: GET http://testserver/providers/ollama/library?refresh=true "HTTP/1.1 200 OK"
+25-03-2026 22:42:54 - asyncio - DEBUG - Using proactor: IocpProactor
+25-03-2026 22:42:54 - httpx - INFO - HTTP Request: POST http://testserver/providers/ollama/pull "HTTP/1.1 200 OK"
+25-03-2026 22:42:54 - asyncio - DEBUG - Using proactor: IocpProactor
+25-03-2026 22:42:54 - httpx - INFO - HTTP Request: GET http://testserver/providers/huggingface/models?search=llama&sort=downloads&page=1&page_size=25 "HTTP/1.1 200 OK"
+25-03-2026 22:42:54 - asyncio - DEBUG - Using proactor: IocpProactor
+25-03-2026 22:42:54 - httpx - INFO - HTTP Request: POST http://testserver/providers/huggingface/download "HTTP/1.1 200 OK"
+25-03-2026 22:42:54 - asyncio - DEBUG - Using proactor: IocpProactor
+25-03-2026 22:42:54 - httpx - INFO - HTTP Request: GET http://testserver/providers/huggingface/download/job-1234 "HTTP/1.1 200 OK"
+25-03-2026 22:42:54 - asyncio - DEBUG - Using proactor: IocpProactor
+25-03-2026 22:42:54 - httpx - INFO - HTTP Request: DELETE http://testserver/providers/huggingface/download/job-1234 "HTTP/1.1 200 OK"
+25-03-2026 22:42:54 - asyncio - DEBUG - Using proactor: IocpProactor
+25-03-2026 22:42:54 - httpx - INFO - HTTP Request: POST http://testserver/executions/compile "HTTP/1.1 200 OK"
+25-03-2026 22:42:54 - asyncio - DEBUG - Using proactor: IocpProactor
+25-03-2026 22:42:54 - httpx - INFO - HTTP Request: POST http://testserver/workflows "HTTP/1.1 201 Created"
+25-03-2026 22:42:54 - httpx - INFO - HTTP Request: GET http://testserver/workflows/wf_50ed252d23 "HTTP/1.1 200 OK"
+25-03-2026 22:42:54 - httpx - INFO - HTTP Request: PUT http://testserver/workflows/wf_50ed252d23 "HTTP/1.1 200 OK"
+25-03-2026 22:42:54 - asyncio - DEBUG - Using proactor: IocpProactor
+25-03-2026 22:42:54 - httpx - INFO - HTTP Request: GET http://testserver/providers/ollama/library "HTTP/1.1 503 Service Unavailable"
+25-03-2026 22:42:54 - httpx - INFO - HTTP Request: POST http://testserver/providers/ollama/pull "HTTP/1.1 502 Bad Gateway"
+25-03-2026 22:42:54 - httpx - INFO - HTTP Request: GET http://testserver/providers/huggingface/models "HTTP/1.1 429 Too Many Requests"
+25-03-2026 22:42:54 - httpx - INFO - HTTP Request: POST http://testserver/providers/huggingface/download "HTTP/1.1 404 Not Found"
+25-03-2026 22:42:54 - httpx - INFO - HTTP Request: GET http://testserver/providers/huggingface/download/job-404 "HTTP/1.1 404 Not Found"
+25-03-2026 22:42:54 - httpx - INFO - HTTP Request: DELETE http://testserver/providers/huggingface/download/job-409 "HTTP/1.1 409 Conflict"
+25-03-2026 22:42:54 - asyncio - DEBUG - Using proactor: IocpProactor
+25-03-2026 22:42:54 - httpx - INFO - HTTP Request: POST http://testserver/executions/compile "HTTP/1.1 200 OK"
+25-03-2026 22:42:54 - asyncio - DEBUG - Using proactor: IocpProactor
+25-03-2026 22:42:54 - httpx - INFO - HTTP Request: POST http://testserver/executions/compile "HTTP/1.1 200 OK"
+25-03-2026 22:42:54 - asyncio - DEBUG - Using proactor: IocpProactor
+25-03-2026 22:42:54 - httpcore.connection - DEBUG - connect_tcp.started host='127.0.0.1' port=11434 local_address=None timeout=30.0 socket_options=None
+25-03-2026 22:42:54 - httpcore.connection - DEBUG - connect_tcp.complete return_value=<httpcore._backends.sync.SyncStream object at 0x0000022FF9B85FD0>
+25-03-2026 22:42:54 - httpcore.http11 - DEBUG - send_request_headers.started request=<Request [b'GET']>
+25-03-2026 22:42:54 - httpcore.http11 - DEBUG - send_request_headers.complete
+25-03-2026 22:42:54 - httpcore.http11 - DEBUG - send_request_body.started request=<Request [b'GET']>
+25-03-2026 22:42:54 - httpcore.http11 - DEBUG - send_request_body.complete
+25-03-2026 22:42:54 - httpcore.http11 - DEBUG - receive_response_headers.started request=<Request [b'GET']>
+25-03-2026 22:42:54 - httpcore.http11 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Content-Type', b'application/json; charset=utf-8'), (b'Date', b'Wed, 25 Mar 2026 21:42:54 GMT'), (b'Transfer-Encoding', b'chunked')])
+25-03-2026 22:42:54 - httpx - INFO - HTTP Request: GET http://127.0.0.1:11434/api/tags "HTTP/1.1 200 OK"
+25-03-2026 22:42:54 - httpcore.http11 - DEBUG - receive_response_body.started request=<Request [b'GET']>
+25-03-2026 22:42:54 - httpcore.http11 - DEBUG - receive_response_body.complete
+25-03-2026 22:42:54 - httpcore.http11 - DEBUG - response_closed.started
+25-03-2026 22:42:54 - httpcore.http11 - DEBUG - response_closed.complete
+25-03-2026 22:42:54 - httpcore.connection - DEBUG - close.started
+25-03-2026 22:42:54 - httpcore.connection - DEBUG - close.complete
+25-03-2026 22:42:54 - httpcore.connection - DEBUG - connect_tcp.started host='127.0.0.1' port=11434 local_address=None timeout=30.0 socket_options=None
+25-03-2026 22:42:54 - httpcore.connection - DEBUG - connect_tcp.complete return_value=<httpcore._backends.sync.SyncStream object at 0x0000022FF9C48050>
+25-03-2026 22:42:54 - httpcore.http11 - DEBUG - send_request_headers.started request=<Request [b'GET']>
+25-03-2026 22:42:54 - httpcore.http11 - DEBUG - send_request_headers.complete
+25-03-2026 22:42:54 - httpcore.http11 - DEBUG - send_request_body.started request=<Request [b'GET']>
+25-03-2026 22:42:54 - httpcore.http11 - DEBUG - send_request_body.complete
+25-03-2026 22:42:54 - httpcore.http11 - DEBUG - receive_response_headers.started request=<Request [b'GET']>
+25-03-2026 22:42:54 - httpcore.http11 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Content-Type', b'application/json; charset=utf-8'), (b'Date', b'Wed, 25 Mar 2026 21:42:54 GMT'), (b'Transfer-Encoding', b'chunked')])
+25-03-2026 22:42:54 - httpx - INFO - HTTP Request: GET http://127.0.0.1:11434/api/tags "HTTP/1.1 200 OK"
+25-03-2026 22:42:54 - httpcore.http11 - DEBUG - receive_response_body.started request=<Request [b'GET']>
+25-03-2026 22:42:54 - httpcore.http11 - DEBUG - receive_response_body.complete
+25-03-2026 22:42:54 - httpcore.http11 - DEBUG - response_closed.started
+25-03-2026 22:42:54 - httpcore.http11 - DEBUG - response_closed.complete
+25-03-2026 22:42:54 - httpcore.connection - DEBUG - close.started
+25-03-2026 22:42:54 - httpcore.connection - DEBUG - close.complete
+25-03-2026 22:42:54 - httpx - INFO - HTTP Request: POST http://testserver/executions/compile "HTTP/1.1 200 OK"
+25-03-2026 22:42:54 - asyncio - DEBUG - Using proactor: IocpProactor
+25-03-2026 22:42:55 - httpcore.connection - DEBUG - connect_tcp.started host='127.0.0.1' port=11434 local_address=None timeout=30.0 socket_options=None
+25-03-2026 22:42:55 - httpcore.connection - DEBUG - connect_tcp.complete return_value=<httpcore._backends.sync.SyncStream object at 0x0000022FF9C49590>
+25-03-2026 22:42:55 - httpcore.http11 - DEBUG - send_request_headers.started request=<Request [b'GET']>
+25-03-2026 22:42:55 - httpcore.http11 - DEBUG - send_request_headers.complete
+25-03-2026 22:42:55 - httpcore.http11 - DEBUG - send_request_body.started request=<Request [b'GET']>
+25-03-2026 22:42:55 - httpcore.http11 - DEBUG - send_request_body.complete
+25-03-2026 22:42:55 - httpcore.http11 - DEBUG - receive_response_headers.started request=<Request [b'GET']>
+25-03-2026 22:42:55 - httpcore.http11 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Content-Type', b'application/json; charset=utf-8'), (b'Date', b'Wed, 25 Mar 2026 21:42:55 GMT'), (b'Transfer-Encoding', b'chunked')])
+25-03-2026 22:42:55 - httpx - INFO - HTTP Request: GET http://127.0.0.1:11434/api/tags "HTTP/1.1 200 OK"
+25-03-2026 22:42:55 - httpcore.http11 - DEBUG - receive_response_body.started request=<Request [b'GET']>
+25-03-2026 22:42:55 - httpcore.http11 - DEBUG - receive_response_body.complete
+25-03-2026 22:42:55 - httpcore.http11 - DEBUG - response_closed.started
+25-03-2026 22:42:55 - httpcore.http11 - DEBUG - response_closed.complete
+25-03-2026 22:42:55 - httpcore.connection - DEBUG - close.started
+25-03-2026 22:42:55 - httpcore.connection - DEBUG - close.complete
+25-03-2026 22:42:55 - httpcore.connection - DEBUG - connect_tcp.started host='127.0.0.1' port=11434 local_address=None timeout=30.0 socket_options=None
+25-03-2026 22:42:55 - httpcore.connection - DEBUG - connect_tcp.complete return_value=<httpcore._backends.sync.SyncStream object at 0x0000022FF9C582B0>
+25-03-2026 22:42:55 - httpcore.http11 - DEBUG - send_request_headers.started request=<Request [b'GET']>
+25-03-2026 22:42:55 - httpcore.http11 - DEBUG - send_request_headers.complete
+25-03-2026 22:42:55 - httpcore.http11 - DEBUG - send_request_body.started request=<Request [b'GET']>
+25-03-2026 22:42:55 - httpcore.http11 - DEBUG - send_request_body.complete
+25-03-2026 22:42:55 - httpcore.http11 - DEBUG - receive_response_headers.started request=<Request [b'GET']>
+25-03-2026 22:42:55 - httpcore.http11 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Content-Type', b'application/json; charset=utf-8'), (b'Date', b'Wed, 25 Mar 2026 21:42:55 GMT'), (b'Transfer-Encoding', b'chunked')])
+25-03-2026 22:42:55 - httpx - INFO - HTTP Request: GET http://127.0.0.1:11434/api/tags "HTTP/1.1 200 OK"
+25-03-2026 22:42:55 - httpcore.http11 - DEBUG - receive_response_body.started request=<Request [b'GET']>
+25-03-2026 22:42:55 - httpcore.http11 - DEBUG - receive_response_body.complete
+25-03-2026 22:42:55 - httpcore.http11 - DEBUG - response_closed.started
+25-03-2026 22:42:55 - httpcore.http11 - DEBUG - response_closed.complete
+25-03-2026 22:42:55 - httpcore.connection - DEBUG - close.started
+25-03-2026 22:42:55 - httpcore.connection - DEBUG - close.complete
+25-03-2026 22:42:55 - httpx - INFO - HTTP Request: POST http://testserver/executions/compile "HTTP/1.1 200 OK"
+25-03-2026 22:42:55 - asyncio - DEBUG - Using proactor: IocpProactor
+25-03-2026 22:42:55 - httpx - INFO - HTTP Request: POST http://testserver/executions/compile "HTTP/1.1 200 OK"
+25-03-2026 22:42:55 - asyncio - DEBUG - Using proactor: IocpProactor
+25-03-2026 22:42:55 - httpx - INFO - HTTP Request: POST http://testserver/executions/compile "HTTP/1.1 200 OK"
+25-03-2026 22:42:55 - asyncio - DEBUG - Using proactor: IocpProactor
+25-03-2026 22:42:55 - httpx - INFO - HTTP Request: POST http://testserver/executions/compile "HTTP/1.1 200 OK"
+25-03-2026 22:42:55 - asyncio - DEBUG - Using proactor: IocpProactor
+25-03-2026 22:42:55 - httpcore.connection - DEBUG - connect_tcp.started host='127.0.0.1' port=11434 local_address=None timeout=30.0 socket_options=None
+25-03-2026 22:42:55 - httpcore.connection - DEBUG - connect_tcp.complete return_value=<httpcore._backends.sync.SyncStream object at 0x0000022FF9C59A70>
+25-03-2026 22:42:55 - httpcore.http11 - DEBUG - send_request_headers.started request=<Request [b'GET']>
+25-03-2026 22:42:55 - httpcore.http11 - DEBUG - send_request_headers.complete
+25-03-2026 22:42:55 - httpcore.http11 - DEBUG - send_request_body.started request=<Request [b'GET']>
+25-03-2026 22:42:55 - httpcore.http11 - DEBUG - send_request_body.complete
+25-03-2026 22:42:55 - httpcore.http11 - DEBUG - receive_response_headers.started request=<Request [b'GET']>
+25-03-2026 22:42:55 - httpcore.http11 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Content-Type', b'application/json; charset=utf-8'), (b'Date', b'Wed, 25 Mar 2026 21:42:55 GMT'), (b'Transfer-Encoding', b'chunked')])
+25-03-2026 22:42:55 - httpx - INFO - HTTP Request: GET http://127.0.0.1:11434/api/tags "HTTP/1.1 200 OK"
+25-03-2026 22:42:55 - httpcore.http11 - DEBUG - receive_response_body.started request=<Request [b'GET']>
+25-03-2026 22:42:55 - httpcore.http11 - DEBUG - receive_response_body.complete
+25-03-2026 22:42:55 - httpcore.http11 - DEBUG - response_closed.started
+25-03-2026 22:42:55 - httpcore.http11 - DEBUG - response_closed.complete
+25-03-2026 22:42:55 - httpcore.connection - DEBUG - close.started
+25-03-2026 22:42:55 - httpcore.connection - DEBUG - close.complete
+25-03-2026 22:42:55 - httpx - INFO - HTTP Request: POST http://testserver/executions/compile "HTTP/1.1 200 OK"
+25-03-2026 22:42:55 - ParaGraph - INFO - Started job c5b51c83 (type=workflow)
+25-03-2026 22:42:55 - httpx - INFO - HTTP Request: POST http://testserver/executions "HTTP/1.1 202 Accepted"
+25-03-2026 22:42:55 - httpx - INFO - HTTP Request: GET http://testserver/executions/c5b51c83 "HTTP/1.1 200 OK"
+25-03-2026 22:42:55 - asyncio - DEBUG - Using proactor: IocpProactor
+25-03-2026 22:42:55 - httpcore.connection - DEBUG - connect_tcp.started host='127.0.0.1' port=11434 local_address=None timeout=30.0 socket_options=None
+25-03-2026 22:42:55 - httpcore.connection - DEBUG - connect_tcp.complete return_value=<httpcore._backends.sync.SyncStream object at 0x0000022FF9BC1C70>
+25-03-2026 22:42:55 - httpcore.http11 - DEBUG - send_request_headers.started request=<Request [b'GET']>
+25-03-2026 22:42:55 - httpcore.http11 - DEBUG - send_request_headers.complete
+25-03-2026 22:42:55 - httpcore.http11 - DEBUG - send_request_body.started request=<Request [b'GET']>
+25-03-2026 22:42:55 - httpcore.http11 - DEBUG - send_request_body.complete
+25-03-2026 22:42:55 - httpcore.http11 - DEBUG - receive_response_headers.started request=<Request [b'GET']>
+25-03-2026 22:42:55 - httpcore.http11 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Content-Type', b'application/json; charset=utf-8'), (b'Date', b'Wed, 25 Mar 2026 21:42:55 GMT'), (b'Transfer-Encoding', b'chunked')])
+25-03-2026 22:42:55 - httpx - INFO - HTTP Request: GET http://127.0.0.1:11434/api/tags "HTTP/1.1 200 OK"
+25-03-2026 22:42:55 - httpcore.http11 - DEBUG - receive_response_body.started request=<Request [b'GET']>
+25-03-2026 22:42:55 - httpcore.http11 - DEBUG - receive_response_body.complete
+25-03-2026 22:42:55 - httpcore.http11 - DEBUG - response_closed.started
+25-03-2026 22:42:55 - httpcore.http11 - DEBUG - response_closed.complete
+25-03-2026 22:42:55 - httpcore.connection - DEBUG - close.started
+25-03-2026 22:42:55 - httpcore.connection - DEBUG - close.complete
+25-03-2026 22:42:55 - httpx - INFO - HTTP Request: POST http://testserver/executions/compile "HTTP/1.1 200 OK"
+25-03-2026 22:42:55 - ParaGraph - INFO - Started job 5145ac60 (type=workflow)
+25-03-2026 22:42:55 - httpx - INFO - HTTP Request: POST http://testserver/executions "HTTP/1.1 202 Accepted"
+25-03-2026 22:42:55 - httpx - INFO - HTTP Request: GET http://testserver/executions/5145ac60 "HTTP/1.1 200 OK"
+25-03-2026 22:42:55 - asyncio - DEBUG - Using proactor: IocpProactor
+25-03-2026 22:42:56 - httpcore.connection - DEBUG - connect_tcp.started host='127.0.0.1' port=11434 local_address=None timeout=30.0 socket_options=None
+25-03-2026 22:42:56 - httpcore.connection - DEBUG - connect_tcp.complete return_value=<httpcore._backends.sync.SyncStream object at 0x0000022FF9C54050>
+25-03-2026 22:42:56 - httpcore.http11 - DEBUG - send_request_headers.started request=<Request [b'GET']>
+25-03-2026 22:42:56 - httpcore.http11 - DEBUG - send_request_headers.complete
+25-03-2026 22:42:56 - httpcore.http11 - DEBUG - send_request_body.started request=<Request [b'GET']>
+25-03-2026 22:42:56 - httpcore.http11 - DEBUG - send_request_body.complete
+25-03-2026 22:42:56 - httpcore.http11 - DEBUG - receive_response_headers.started request=<Request [b'GET']>
+25-03-2026 22:42:56 - httpcore.http11 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Content-Type', b'application/json; charset=utf-8'), (b'Date', b'Wed, 25 Mar 2026 21:42:56 GMT'), (b'Transfer-Encoding', b'chunked')])
+25-03-2026 22:42:56 - httpx - INFO - HTTP Request: GET http://127.0.0.1:11434/api/tags "HTTP/1.1 200 OK"
+25-03-2026 22:42:56 - httpcore.http11 - DEBUG - receive_response_body.started request=<Request [b'GET']>
+25-03-2026 22:42:56 - httpcore.http11 - DEBUG - receive_response_body.complete
+25-03-2026 22:42:56 - httpcore.http11 - DEBUG - response_closed.started
+25-03-2026 22:42:56 - httpcore.http11 - DEBUG - response_closed.complete
+25-03-2026 22:42:56 - httpcore.connection - DEBUG - close.started
+25-03-2026 22:42:56 - httpcore.connection - DEBUG - close.complete
+25-03-2026 22:42:56 - httpx - INFO - HTTP Request: POST http://testserver/executions/compile "HTTP/1.1 200 OK"
+25-03-2026 22:42:56 - ParaGraph - INFO - Started job 49ee8310 (type=workflow)
+25-03-2026 22:42:56 - httpx - INFO - HTTP Request: POST http://testserver/executions "HTTP/1.1 202 Accepted"
+25-03-2026 22:42:56 - httpx - INFO - HTTP Request: GET http://testserver/executions/49ee8310 "HTTP/1.1 200 OK"
+25-03-2026 22:42:56 - asyncio - DEBUG - Using proactor: IocpProactor
+25-03-2026 22:42:56 - httpx - INFO - HTTP Request: POST http://testserver/workflows "HTTP/1.1 201 Created"
+25-03-2026 22:42:56 - httpx - INFO - HTTP Request: GET http://testserver/workflows/wf_9214050ae1/versions "HTTP/1.1 200 OK"
+25-03-2026 22:42:56 - httpx - INFO - HTTP Request: PUT http://testserver/workflows/wf_9214050ae1 "HTTP/1.1 200 OK"
+25-03-2026 22:42:56 - httpx - INFO - HTTP Request: GET http://testserver/workflows/wf_9214050ae1/versions "HTTP/1.1 200 OK"
+25-03-2026 22:42:56 - asyncio - DEBUG - Using proactor: IocpProactor
+25-03-2026 22:42:56 - httpx - INFO - HTTP Request: GET http://testserver/workflows/wf_missing/versions "HTTP/1.1 404 Not Found"
+25-03-2026 22:42:56 - ParaGraph - INFO - Started job a474e3c2 (type=unit)
+25-03-2026 22:42:56 - ParaGraph - INFO - Started job 988b2c10 (type=unit)
+25-03-2026 22:42:56 - asyncio - DEBUG - Using proactor: IocpProactor
+25-03-2026 22:42:56 - asyncio - DEBUG - Using proactor: IocpProactor
+25-03-2026 22:42:56 - httpx - INFO - HTTP Request: GET http://testserver/ "HTTP/1.1 307 Temporary Redirect"
+25-03-2026 22:42:56 - asyncio - DEBUG - Using proactor: IocpProactor
+25-03-2026 22:42:56 - httpx - INFO - HTTP Request: POST http://testserver/executions/compile "HTTP/1.1 200 OK"
+25-03-2026 22:42:56 - ParaGraph - INFO - Started job f66afd8a (type=workflow)
+25-03-2026 22:42:56 - httpx - INFO - HTTP Request: POST http://testserver/executions "HTTP/1.1 202 Accepted"
+25-03-2026 22:42:56 - httpx - INFO - HTTP Request: GET http://testserver/executions/f66afd8a "HTTP/1.1 200 OK"
+25-03-2026 22:42:56 - httpx - INFO - HTTP Request: GET http://testserver/executions/f66afd8a/events "HTTP/1.1 200 OK"
