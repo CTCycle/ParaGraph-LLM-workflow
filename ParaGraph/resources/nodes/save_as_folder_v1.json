@@ -1,9 +1,9 @@
 {
-  "id": "SAVE_TEXT",
+  "id": "SAVE_AS_FOLDER",
   "version": 1,
-  "name": "Save Text",
+  "name": "Save As Folder",
   "category": "serialization",
-  "description": "Save incoming text, documents, or chunks to one file or multiple files and return artifact metadata.",
+  "description": "Save incoming text, documents, or chunks as one or more files inside a target folder.",
   "inputs": [
     {
       "name": "text",
@@ -37,14 +37,7 @@
         "required": true
       },
       "ui_control": "text",
-      "description": "Destination path. In single-file mode this is the output file path. In separate-files mode this is treated as a folder name (suffix removed if provided) where generated files are written."
-    },
-    {
-      "name": "separate_files",
-      "data_type": "BOOLEAN",
-      "default": false,
-      "ui_control": "toggle",
-      "description": "When true, create/use the folder from output_path and save one file per document/chunk item as folderName_00001, folderName_00002, ..."
+      "description": "Destination folder path. Files are saved as foldername_000001, foldername_000002, ..."
     },
     {
       "name": "extension",
@@ -69,7 +62,7 @@
     "collapsed_by_default": false
   },
   "runtime": {
-    "executor_key": "save_text",
+    "executor_key": "save_as_folder",
     "cacheable": false,
     "deterministic": true,
     "side_effecting": true

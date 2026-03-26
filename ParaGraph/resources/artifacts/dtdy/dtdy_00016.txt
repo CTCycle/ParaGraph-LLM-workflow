@@ -1,7 +1,0 @@
-26-03-2026 00:33:08 - ParaGraph - INFO - Initializing sqlite database backend
-26-03-2026 00:33:08 - ParaGraph - INFO - Ensuring application tables exist for sqlite backend.
-26-03-2026 00:33:09 - asyncio - DEBUG - Using proactor: IocpProactor
-26-03-2026 00:33:09 - httpx - INFO - HTTP Request: POST http://testserver/executions/compile "HTTP/1.1 200 OK"
-26-03-2026 00:33:09 - ParaGraph - INFO - Started job c13d5ff8 (type=workflow)
-26-03-2026 00:33:09 - httpx - INFO - HTTP Request: POST http://testserver/executions "HTTP/1.1 202 Accepted"
-26-03-2026 00:33:09 - httpx - INFO - HTTP Request: GET http://testserver/executions/c13d5ff8 "HTTP/1.1 200 OK"

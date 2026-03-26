@@ -18,7 +18,8 @@ from ParaGraph.server.domain.node_handler_core import (
     ModelProviderParameters,
     PromptParameters,
     RouterParameters,
-    SaveTextParameters,
+    SaveAsFileParameters,
+    SaveAsFolderParameters,
     StorageParameters,
     StructuredParameters,
     TextSplitParameters,
@@ -41,6 +42,8 @@ from ParaGraph.server.services.workflow.node_handlers.ingestion import _load_fil
 
 ARTIFACT_ROOT = Path(RESOURCES_PATH) / "artifacts"
 _HF_MODEL_CACHE: dict[str, tuple[Any, Any]] = {}
+SAVE_AS_FILE_CHUNK_SEPARATOR = "/n/n"
+SAVE_AS_FOLDER_INDEX_WIDTH = 6
 
 
 def _load_huggingface_modules() -> tuple[Any, Any, Any]:
@@ -350,7 +353,7 @@ def _extract_text_from_payload(payload: dict[str, Any], candidate_keys: tuple[st
     return ""
 
 
-def _collect_save_text_items(inputs: dict[str, Any]) -> list[dict[str, str]]:
+def _collect_save_items(inputs: dict[str, Any]) -> list[dict[str, str]]:
     items: list[dict[str, str]] = []
     text_payload = coerce_text(inputs.get("text") or "")
     if text_payload.strip():
@@ -413,15 +416,58 @@ def _prepare_file_destination(path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
 
 
-def _resolve_multiple_files_directory(target_root: Path) -> Path:
-    # In multi-file mode, the output path is treated as a folder name.
-    if target_root.suffix:
-        return target_root.with_suffix("")
-    return target_root
+def _build_client_side_save_as_file_artifact(
+    parsed: SaveAsFileParameters,
+    item_texts: list[str],
+) -> dict[str, Any]:
+    output_path = coerce_text(parsed.output_path).strip()
+    if not output_path:
+        raise ValueError("output_path is required. Select a local path.")
+
+    destination = _ensure_extension(Path(output_path).expanduser(), parsed.extension)
+    resolved_path = str(destination)
+    return {
+        "artifact": {
+            "path": resolved_path,
+            "files": [resolved_path],
+            "count": 1,
+            "extension": parsed.extension,
+            "item_texts": item_texts,
+        }
+    }
 
 
-def _build_client_side_save_text_artifact(
-    parsed: SaveTextParameters,
+def _save_as_file_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
+    parsed = SaveAsFileParameters.model_validate(parameters)
+    items = _collect_save_items(inputs)
+    if not items:
+        raise ValueError("SAVE_AS_FILE requires at least one non-empty text, documents, or chunks input")
+
+    item_texts = [item["text"] for item in items]
+
+    if parsed.client_side_write and not is_cloud_deployment():
+        return _build_client_side_save_as_file_artifact(
+            parsed,
+            item_texts,
+        )
+
+    target_root = _resolve_storage_path(parsed.output_path, label="output_path", relative_to_artifacts_root=True)
+    destination = _ensure_extension(target_root, parsed.extension)
+    _prepare_file_destination(destination)
+    destination.write_text(SAVE_AS_FILE_CHUNK_SEPARATOR.join(item_texts), encoding="utf-8")
+    resolved_path = _to_artifact_path(destination)
+    return {
+        "artifact": {
+            "path": resolved_path,
+            "files": [resolved_path],
+            "count": 1,
+            "extension": parsed.extension,
+        }
+    }
+
+
+def _build_client_side_save_as_folder_artifact(
+    parsed: SaveAsFolderParameters,
     item_count: int,
     item_texts: list[str],
 ) -> dict[str, Any]:
@@ -429,84 +475,52 @@ def _build_client_side_save_text_artifact(
     if not output_path:
         raise ValueError("output_path is required. Select a local path.")
 
-    target_root = Path(output_path).expanduser()
-    if parsed.separate_files:
-        destination_dir = _resolve_multiple_files_directory(target_root)
-        base_stem = _safe_file_stem(destination_dir.name, "output")
-        files = [
-            str(destination_dir / f"{base_stem}_{index:05d}{parsed.extension}")
-            for index in range(1, item_count + 1)
-        ]
-        return {
-            "artifact": {
-                "path": str(destination_dir),
-                "files": files,
-                "count": len(files),
-                "separate_files": True,
-                "extension": parsed.extension,
-                "item_texts": item_texts,
-            }
-        }
-
-    destination = _ensure_extension(target_root, parsed.extension)
-    resolved_path = str(destination)
+    destination_dir = Path(output_path).expanduser()
+    base_stem = _safe_file_stem(destination_dir.name, "output")
+    files = [
+        str(destination_dir / f"{base_stem}_{index:0{SAVE_AS_FOLDER_INDEX_WIDTH}d}{parsed.extension}")
+        for index in range(1, item_count + 1)
+    ]
     return {
         "artifact": {
-            "path": resolved_path,
-            "files": [resolved_path],
-            "count": 1,
-            "separate_files": False,
+            "path": str(destination_dir),
+            "files": files,
+            "count": len(files),
             "extension": parsed.extension,
             "item_texts": item_texts,
         }
     }
 
 
-def _save_text_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
-    parsed = SaveTextParameters.model_validate(parameters)
-    items = _collect_save_text_items(inputs)
+def _save_as_folder_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
+    parsed = SaveAsFolderParameters.model_validate(parameters)
+    items = _collect_save_items(inputs)
     if not items:
-        raise ValueError("SAVE_TEXT requires at least one non-empty text, documents, or chunks input")
+        raise ValueError("SAVE_AS_FOLDER requires at least one non-empty text, documents, or chunks input")
 
+    item_texts = [item["text"] for item in items]
     if parsed.client_side_write and not is_cloud_deployment():
-        return _build_client_side_save_text_artifact(
+        return _build_client_side_save_as_folder_artifact(
             parsed,
             len(items),
-            [item["text"] for item in items],
+            item_texts,
         )
 
-    target_root = _resolve_storage_path(parsed.output_path, label="output_path", relative_to_artifacts_root=True)
+    destination_dir = _resolve_storage_path(parsed.output_path, label="output_path", relative_to_artifacts_root=True)
+    _prepare_directory(destination_dir)
+    base_stem = _safe_file_stem(destination_dir.name, "output")
+    written_files: list[str] = []
+    for index, item in enumerate(items, start=1):
+        candidate_name = f"{base_stem}_{index:0{SAVE_AS_FOLDER_INDEX_WIDTH}d}{parsed.extension}"
+        destination = destination_dir / candidate_name
+        destination.write_text(item["text"], encoding="utf-8")
+        written_files.append(_to_artifact_path(destination))
 
-    if parsed.separate_files:
-        destination_dir = _resolve_multiple_files_directory(target_root)
-        _prepare_directory(destination_dir)
-        base_stem = _safe_file_stem(destination_dir.name, "output")
-        written_files: list[str] = []
-        for index, item in enumerate(items, start=1):
-            candidate_name = f"{base_stem}_{index:05d}{parsed.extension}"
-            destination = destination_dir / candidate_name
-            destination.write_text(item["text"], encoding="utf-8")
-            written_files.append(_to_artifact_path(destination))
-        return {
-            "artifact": {
-                "path": _to_artifact_path(destination_dir),
-                "files": written_files,
-                "count": len(written_files),
-                "separate_files": True,
-                "extension": parsed.extension,
-            }
-        }
-
-    destination = _ensure_extension(target_root, parsed.extension)
-    _prepare_file_destination(destination)
-    destination.write_text("\n\n".join(item["text"] for item in items), encoding="utf-8")
-    resolved_path = _to_artifact_path(destination)
     return {
         "artifact": {
-            "path": resolved_path,
-            "files": [resolved_path],
-            "count": 1,
-            "separate_files": False,
+            "path": _to_artifact_path(destination_dir),
+            "files": written_files,
+            "count": len(written_files),
             "extension": parsed.extension,
         }
     }
@@ -544,7 +558,8 @@ CORE_HANDLERS = {
     "embedding_model": NodeHandler(executor=_embedding_executor, parameter_model=EmbeddingParameters),
     "tokenize": NodeHandler(executor=_tokenize_executor),
     "text_split": NodeHandler(executor=_text_split_executor, parameter_model=TextSplitParameters),
-    "save_text": NodeHandler(executor=_save_text_executor, parameter_model=SaveTextParameters),
+    "save_as_file": NodeHandler(executor=_save_as_file_executor, parameter_model=SaveAsFileParameters),
+    "save_as_folder": NodeHandler(executor=_save_as_folder_executor, parameter_model=SaveAsFolderParameters),
     "load_text": NodeHandler(executor=_load_text_executor, parameter_model=StorageParameters),
     "if": NodeHandler(executor=_if_executor),
     "router": NodeHandler(executor=_router_executor, parameter_model=RouterParameters),

@@ -127,9 +127,8 @@ class TextSplitParameters(BaseModel):
     delimiter: str = "\n"
 
 
-class SaveTextParameters(BaseModel):
+class _SaveNodeParameters(BaseModel):
     output_path: str = ""
-    separate_files: bool = False
     extension: str = ".txt"
     client_side_write: bool = False
 
@@ -150,6 +149,14 @@ class SaveTextParameters(BaseModel):
         if normalized not in {".txt", ".md", ".doc", ".pdf"}:
             raise ValueError("extension must be one of: .txt, .md, .doc, .pdf")
         return normalized
+
+
+class SaveAsFileParameters(_SaveNodeParameters):
+    pass
+
+
+class SaveAsFolderParameters(_SaveNodeParameters):
+    pass
 
 
 class StorageParameters(BaseModel):
