@@ -4,6 +4,7 @@ import {
     ArrowUpToLine,
     BrainCircuit,
     Database,
+    MessageSquare,
     HardDrive,
     GitBranch,
     Cog,
@@ -76,9 +77,10 @@ const NODE_MANIFEST_TEMPLATE = `{
 
 const NODE_CATEGORY_ICONS: Record<NodeCategory, LucideIcon> = {
     input: ArrowDownToLine,
+    prompt: MessageSquare,
     model: BrainCircuit,
     processing: Cog,
-    fragmentation: Scissors,
+    text_segmentation: Scissors,
     output: ArrowUpToLine,
     serialization: HardDrive,
     database: Database,
@@ -87,9 +89,10 @@ const NODE_CATEGORY_ICONS: Record<NodeCategory, LucideIcon> = {
 
 const EMPTY_CATEGORY_COUNTS: Record<NodeCategory, number> = {
     input: 0,
+    prompt: 0,
     model: 0,
     processing: 0,
-    fragmentation: 0,
+    text_segmentation: 0,
     output: 0,
     serialization: 0,
     database: 0,
@@ -395,5 +398,4 @@ export default function NodesPage() {
         </>
     )
 }
-
 

@@ -1,0 +1,63 @@
+{
+  "id": "REGEX_SPLIT_CHUNKS",
+  "version": 1,
+  "name": "Regex Split Chunks",
+  "category": "text_segmentation",
+  "description": "Split text, documents, or upstream chunks using a regex separator rule.",
+  "inputs": [
+    {
+      "name": "text",
+      "data_type": "TEXT",
+      "required": false,
+      "accepts_multiple": false,
+      "description": "Raw text input to fragment."
+    },
+    {
+      "name": "documents",
+      "data_type": "DOCUMENT_LIST",
+      "required": false,
+      "accepts_multiple": false,
+      "description": "Document collection to fragment."
+    },
+    {
+      "name": "chunks",
+      "data_type": "CHUNK_LIST",
+      "required": false,
+      "accepts_multiple": false,
+      "description": "Optional upstream chunks for chained text segmentation."
+    }
+  ],
+  "outputs": [
+    {
+      "name": "chunks",
+      "data_type": "CHUNK_LIST",
+      "required": true,
+      "accepts_multiple": false,
+      "description": "Regex-generated chunks."
+    }
+  ],
+  "parameters": [
+    {
+      "name": "regex",
+      "data_type": "TEXT",
+      "default": "\\n\\n+",
+      "constraints": {
+        "required": true
+      },
+      "ui_control": "text",
+      "description": "Python regex pattern used as split separator."
+    }
+  ],
+  "ui": {
+    "default_width": 360,
+    "accent_color": "#d99128",
+    "collapsed_by_default": false
+  },
+  "runtime": {
+    "executor_key": "regex_split_chunks",
+    "cacheable": false,
+    "deterministic": true,
+    "side_effecting": false
+  }
+}
+

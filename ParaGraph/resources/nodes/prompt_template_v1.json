@@ -1,0 +1,139 @@
+{
+  "id": "PROMPT_TEMPLATE",
+  "version": 1,
+  "name": "Prompt Template",
+  "category": "prompt",
+  "description": "Compose prompt text using a template and up to eight optional variables.",
+  "inputs": [
+    {
+      "name": "var_1",
+      "data_type": "ANY",
+      "required": false,
+      "accepts_multiple": false,
+      "description": "Optional template variable input 1."
+    },
+    {
+      "name": "var_2",
+      "data_type": "ANY",
+      "required": false,
+      "accepts_multiple": false,
+      "description": "Optional template variable input 2."
+    },
+    {
+      "name": "var_3",
+      "data_type": "ANY",
+      "required": false,
+      "accepts_multiple": false,
+      "description": "Optional template variable input 3."
+    },
+    {
+      "name": "var_4",
+      "data_type": "ANY",
+      "required": false,
+      "accepts_multiple": false,
+      "description": "Optional template variable input 4."
+    },
+    {
+      "name": "var_5",
+      "data_type": "ANY",
+      "required": false,
+      "accepts_multiple": false,
+      "description": "Optional template variable input 5."
+    },
+    {
+      "name": "var_6",
+      "data_type": "ANY",
+      "required": false,
+      "accepts_multiple": false,
+      "description": "Optional template variable input 6."
+    },
+    {
+      "name": "var_7",
+      "data_type": "ANY",
+      "required": false,
+      "accepts_multiple": false,
+      "description": "Optional template variable input 7."
+    },
+    {
+      "name": "var_8",
+      "data_type": "ANY",
+      "required": false,
+      "accepts_multiple": false,
+      "description": "Optional template variable input 8."
+    }
+  ],
+  "outputs": [
+    {
+      "name": "text",
+      "data_type": "TEXT",
+      "required": true,
+      "accepts_multiple": false,
+      "description": "Rendered template text."
+    }
+  ],
+  "parameters": [
+    {
+      "name": "template",
+      "data_type": "TEXT",
+      "default": "",
+      "constraints": {
+        "required": true
+      },
+      "ui_control": "textarea",
+      "description": "Template text with {{name}} placeholders."
+    },
+    {
+      "name": "variable_names",
+      "data_type": "JSON",
+      "default": [],
+      "constraints": {
+        "required": false,
+        "max_items": 8
+      },
+      "ui_control": "string-list",
+      "description": "Optional aliases for var_1..var_8 in order."
+    },
+    {
+      "name": "missing_variable",
+      "data_type": "TEXT",
+      "default": "error",
+      "constraints": {
+        "required": true,
+        "options": [
+          "error",
+          "empty",
+          "keep_placeholder"
+        ]
+      },
+      "ui_control": "select",
+      "description": "Behavior when a referenced placeholder has no bound value."
+    },
+    {
+      "name": "cleanup",
+      "data_type": "TEXT",
+      "default": "none",
+      "constraints": {
+        "required": true,
+        "options": [
+          "none",
+          "trim_lines",
+          "drop_empty_lines",
+          "collapse_blank_lines"
+        ]
+      },
+      "ui_control": "select",
+      "description": "Optional post-format cleanup applied to rendered text."
+    }
+  ],
+  "ui": {
+    "default_width": 380,
+    "accent_color": "#59c6ff",
+    "collapsed_by_default": false
+  },
+  "runtime": {
+    "executor_key": "prompt_template",
+    "cacheable": false,
+    "deterministic": true,
+    "side_effecting": false
+  }
+}

@@ -2,10 +2,20 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
-NodeCategory = Literal["input", "model", "processing", "fragmentation", "output", "serialization", "database", "control"]
+NodeCategory = Literal[
+    "input",
+    "prompt",
+    "model",
+    "processing",
+    "text_segmentation",
+    "output",
+    "serialization",
+    "database",
+    "control",
+]
 NodeDataType = Literal[
     "TEXT",
     "IMAGE",
@@ -94,6 +104,11 @@ class NodeManifest(BaseModel):
     parameters: list[NodeParameterDefinition] = Field(default_factory=list)
     ui: NodeUiDefinition = Field(default_factory=NodeUiDefinition)
     runtime: NodeRuntimeDefinition
+
+    @field_validator("category", mode="before")
+    @classmethod
+    def normalize_category(cls, value: str) -> str:
+        return str(value or "").strip().lower()
 
 
 class NodeCatalogResponse(BaseModel):

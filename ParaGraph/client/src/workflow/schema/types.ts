@@ -1,8 +1,9 @@
 export type NodeCategory =
     | 'input'
+    | 'prompt'
     | 'model'
     | 'processing'
-    | 'fragmentation'
+    | 'text_segmentation'
     | 'output'
     | 'serialization'
     | 'database'

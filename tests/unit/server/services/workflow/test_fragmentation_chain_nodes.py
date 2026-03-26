@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from ParaGraph.server.domain.node_handler_processing import RecursiveSplitChunksParameters
 from ParaGraph.server.services.workflow import node_registry
 
 
@@ -105,3 +106,17 @@ def test_recursive_then_merge_small_chunks_supports_chained_fragmentation() -> N
     ]
     assert merged['chunks'][0]['metadata']['fragmentation_strategy'] == 'merge_small_chunks'
     assert merged['chunks'][0]['metadata']['merge_input_count'] == 2
+
+
+def test_recursive_split_chunk_separator_parsing_preserves_whitespace_entries() -> None:
+    parsed = RecursiveSplitChunksParameters.model_validate(
+        {
+            'separators': '["\\n\\n", " "]',
+            'chunk_size': 20,
+            'chunk_overlap': 0,
+            'unit': 'words',
+            'fallback_strategy': 'continue',
+        }
+    )
+
+    assert parsed.separators == ['\n\n', ' ']

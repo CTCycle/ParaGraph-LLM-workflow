@@ -5,7 +5,7 @@ from typing import Any
 
 from bs4 import BeautifulSoup
 
-
+# -----------------------------------------------------------------------------
 def coerce_text(value: Any) -> str:
     if value is None:
         return ""
@@ -15,7 +15,7 @@ def coerce_text(value: Any) -> str:
         return str(value)
     return json.dumps(value)
 
-
+# -----------------------------------------------------------------------------
 def coerce_bool(value: Any) -> bool:
     if isinstance(value, bool):
         return value
@@ -23,7 +23,7 @@ def coerce_bool(value: Any) -> bool:
         return bool(value)
     return str(value or "").strip().lower() in {"1", "true", "yes", "on"}
 
-
+# -----------------------------------------------------------------------------
 def coerce_int(value: Any, default: int) -> int:
     if value is None:
         return default
@@ -32,7 +32,7 @@ def coerce_int(value: Any, default: int) -> int:
     except (TypeError, ValueError):
         return default
 
-
+# -----------------------------------------------------------------------------
 def coerce_float(value: Any, default: float) -> float:
     if value is None:
         return default
@@ -41,7 +41,7 @@ def coerce_float(value: Any, default: float) -> float:
     except (TypeError, ValueError):
         return default
 
-
+# -----------------------------------------------------------------------------
 def parse_json_value(value: Any, label: str) -> Any:
     if isinstance(value, (dict, list, int, float, bool)) or value is None:
         return value
@@ -53,21 +53,21 @@ def parse_json_value(value: Any, label: str) -> Any:
     except json.JSONDecodeError as exc:
         raise ValueError(f"{label} must be valid JSON") from exc
 
-
+# -----------------------------------------------------------------------------
 def normalize_provider_name(provider: Any, default: str = "ollama") -> str:
     normalized = coerce_text(provider or default).strip().lower()
     if normalized == "anthropic":
         return "claude"
     return normalized or default
 
-
+# -----------------------------------------------------------------------------
 def strip_html(text: str) -> str:
     soup = BeautifulSoup(text, "html.parser")
     for tag in soup(["script", "style"]):
         tag.decompose()
     return " ".join(soup.get_text(" ").split())
 
-
+# -----------------------------------------------------------------------------
 def validate_schema_definition(schema: Any, path: str = "$") -> None:
     if not isinstance(schema, dict):
         raise ValueError("response_schema must be a JSON object")
@@ -104,7 +104,7 @@ def validate_schema_definition(schema: Any, path: str = "$") -> None:
     if enum is not None and not isinstance(enum, list):
         raise ValueError(f"enum at {path} must be an array")
 
-
+# -----------------------------------------------------------------------------
 def validate_json_against_schema(value: Any, schema: dict[str, Any], path: str = "$") -> None:
     schema_type = schema.get("type")
     if schema_type == "object":

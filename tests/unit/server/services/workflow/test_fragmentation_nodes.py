@@ -87,3 +87,34 @@ def test_fixed_size_chunks_supports_direct_text_input() -> None:
     )
 
     assert [chunk["text"] for chunk in payload["chunks"]] == ["alpha beta", "gamma"]
+
+
+def test_regex_split_chunks_splits_text_by_pattern() -> None:
+    payload = node_registry.execute(
+        "REGEX_SPLIT_CHUNKS",
+        1,
+        {"regex": "\\s*[;,]\\s*"},
+        {"text": "alpha, beta;gamma"},
+    )
+
+    assert [chunk["text"] for chunk in payload["chunks"]] == ["alpha", "beta", "gamma"]
+
+
+def test_regex_split_chunks_rejects_invalid_regex() -> None:
+    with pytest.raises(ValueError, match="Invalid regex pattern for REGEX_SPLIT_CHUNKS"):
+        node_registry.execute(
+            "REGEX_SPLIT_CHUNKS",
+            1,
+            {"regex": "["},
+            {"text": "alpha beta"},
+        )
+
+
+def test_regex_split_chunks_requires_non_empty_input() -> None:
+    with pytest.raises(ValueError, match="requires at least one document, chunk, or text input"):
+        node_registry.execute(
+            "REGEX_SPLIT_CHUNKS",
+            1,
+            {"regex": "\\s+"},
+            {},
+        )

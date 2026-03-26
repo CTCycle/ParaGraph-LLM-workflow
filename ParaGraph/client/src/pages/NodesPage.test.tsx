@@ -66,4 +66,20 @@ describe('NodesPage import modal', () => {
         await userEvent.click(within(secondDialog).getByRole('button', { name: 'Import Node' }))
         await screen.findByText('Duplicate node id/version')
     })
+    it('shows prompt and text segmentation category filters', async () => {
+        const fetchNodeCatalogMock = vi.mocked(workflowApi.fetchNodeCatalog)
+        fetchNodeCatalogMock.mockResolvedValue({
+            nodes: [
+                createNodeManifest({ id: 'PROMPT', name: 'Prompt Node', category: 'prompt' }),
+                createNodeManifest({ id: 'RECURSIVE_SPLIT_CHUNKS', name: 'Recursive Split', category: 'text_segmentation' }),
+            ],
+        })
+
+        render(<NodesPage />)
+        await screen.findByText('Prompt Node')
+
+        expect(screen.getByRole('checkbox', { name: /Prompt/i })).toBeInTheDocument()
+        expect(screen.getByRole('checkbox', { name: /Text Segmentation/i })).toBeInTheDocument()
+    })
 })
+

@@ -8,6 +8,7 @@ from uuid import NAMESPACE_URL, uuid5
 
 from ParaGraph.server.domain.node_handler_processing import (
     ByDelimiterChunksParameters,
+    RegexSplitChunksParameters,
     ByStructureChunksParameters,
     FixedSizeChunksParameters,
     MergeSmallChunksParameters,
@@ -251,6 +252,17 @@ def _iter_split_by_delimiter(text: str, delimiter: str, *, keep_delimiter: bool)
         end = index + len(delimiter) if keep_delimiter else index
         yield text[start:end]
         start = index + len(delimiter)
+
+
+def _iter_split_by_regex(text: str, pattern: str) -> Iterator[str]:
+    try:
+        compiled = re.compile(pattern)
+    except re.error as exc:
+        raise ValueError(f"Invalid regex pattern for REGEX_SPLIT_CHUNKS: {exc}") from exc
+    for fragment in compiled.split(text):
+        cleaned = fragment.strip()
+        if cleaned:
+            yield cleaned
 
 
 def _apply_overflow(
@@ -554,6 +566,24 @@ def _recursive_split_chunks_executor(parameters: dict[str, Any], inputs: dict[st
     return {"chunks": chunks}
 
 
+def _regex_split_chunks_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
+    parsed = RegexSplitChunksParameters.model_validate(parameters)
+    chunks: list[dict[str, Any]] = []
+    for source in _iter_sources(inputs):
+        chunks.extend(
+            _build_chunk_records(
+                source,
+                _iter_split_by_regex(source["text"], parsed.regex),
+                strategy_name="regex_split_chunks",
+                metadata_updates={"fragmentation_regex": parsed.regex},
+            )
+        )
+
+    if not chunks:
+        raise ValueError("REGEX_SPLIT_CHUNKS requires at least one document, chunk, or text input containing text")
+    return {"chunks": chunks}
+
+
 def _sentence_window_chunks_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
     parsed = SentenceWindowChunksParameters.model_validate(parameters)
     max_chunk_size = _resolve_max_chunk_size(parsed.max_chunk_size)
@@ -831,6 +861,7 @@ PROCESSING_HANDLERS = {
     "fixed_size_chunks": NodeHandler(executor=_fixed_size_chunks_executor, parameter_model=FixedSizeChunksParameters),
     "by_delimiter_chunks": NodeHandler(executor=_by_delimiter_chunks_executor, parameter_model=ByDelimiterChunksParameters),
     "by_structure_chunks": NodeHandler(executor=_by_structure_chunks_executor, parameter_model=ByStructureChunksParameters),
+    "regex_split_chunks": NodeHandler(executor=_regex_split_chunks_executor, parameter_model=RegexSplitChunksParameters),
     "recursive_split_chunks": NodeHandler(executor=_recursive_split_chunks_executor, parameter_model=RecursiveSplitChunksParameters),
     "sentence_window_chunks": NodeHandler(executor=_sentence_window_chunks_executor, parameter_model=SentenceWindowChunksParameters),
     "merge_small_chunks": NodeHandler(executor=_merge_small_chunks_executor, parameter_model=MergeSmallChunksParameters),

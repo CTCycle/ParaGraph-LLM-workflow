@@ -496,8 +496,19 @@
     color: #eef6ff;
     box-shadow: 0 14px 28px rgba(0, 0, 0, 0.28);
     overflow: visible;
+    transition: border-color 220ms ease, box-shadow 220ms ease, filter 220ms ease;
 }
 
+
+.workflow-node[data-glow-level='2']:not([data-active='true']) {
+    border-color: color-mix(in srgb, var(--node-accent) 74%, #6baeff);
+    box-shadow: 0 0 0 1px rgba(89, 172, 255, 0.28), 0 0 18px rgba(89, 172, 255, 0.2), 0 16px 30px rgba(0, 0, 0, 0.3);
+}
+
+.workflow-node[data-glow-level='1']:not([data-active='true']) {
+    border-color: color-mix(in srgb, var(--node-accent) 66%, #3a5578);
+    box-shadow: 0 0 0 1px rgba(72, 138, 210, 0.18), 0 0 10px rgba(72, 138, 210, 0.14), 0 14px 26px rgba(0, 0, 0, 0.28);
+}
 .workflow-node[data-active='true'] {
     border-color: #69b4ff;
     box-shadow: 0 0 0 2px rgba(63, 147, 255, 0.42), 0 0 26px rgba(51, 153, 255, 0.38), 0 18px 34px rgba(0, 0, 0, 0.32);
@@ -884,6 +895,13 @@
     font-family: 'Cascadia Mono', 'Consolas', 'Courier New', monospace;
 }
 
+.workflow-node-path-list-input-separators {
+    min-height: 110px;
+    max-height: 180px;
+    overflow: auto;
+    white-space: pre;
+}
+
 .workflow-node-runtime-output {
     min-height: 84px;
     margin: 0;
@@ -1119,3 +1137,4 @@
     color: #ffe0e6;
     cursor: pointer;
 }
+

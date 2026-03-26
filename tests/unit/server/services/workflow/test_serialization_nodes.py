@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 
 from ParaGraph.server.services.workflow import node_registry
+from ParaGraph.server.services.workflow.node_handlers import core as core_node_handlers
 
 
 
@@ -381,3 +382,61 @@ def test_save_as_folder_rejects_absolute_paths_in_cloud_mode(monkeypatch, tmp_pa
             {'output_path': str(destination), 'extension': '.txt'},
             {'text': 'cloud payload'},
         )
+
+
+def test_load_text_supports_non_utf8_text_with_fallback_encoding(tmp_path: Path) -> None:
+    source_file = tmp_path / 'latin1.txt'
+    source_file.write_bytes('café in latin1'.encode('latin-1'))
+
+    loaded = node_registry.execute('LOAD_TEXT', 1, {'storage_path': str(source_file)}, {})
+
+    assert loaded['text'] == 'café in latin1'
+
+
+def test_load_text_uses_shared_loader_for_pdf_paths(monkeypatch, tmp_path: Path) -> None:
+    source_file = tmp_path / 'sample.pdf'
+    source_file.write_bytes(b'%PDF-1.4\n%%EOF\n')
+
+    observed: dict[str, Path] = {}
+
+    def fake_loader(path: Path) -> tuple[str, str]:
+        observed['path'] = path
+        return ('pdf payload', 'application/pdf')
+
+    monkeypatch.setattr(core_node_handlers, '_load_file_text', fake_loader)
+
+    loaded = node_registry.execute('LOAD_TEXT', 1, {'storage_path': str(source_file)}, {})
+
+    assert loaded['text'] == 'pdf payload'
+    assert observed['path'] == source_file.resolve()
+
+
+def test_save_as_folder_resolves_deferred_documents_before_writing(tmp_path: Path) -> None:
+    source_file = tmp_path / 'deferred.txt'
+    source_file.write_text('resolved deferred text', encoding='utf-8')
+
+    destination_folder = tmp_path / 'exports' / 'resolved_docs'
+    result = node_registry.execute(
+        'SAVE_AS_FOLDER',
+        1,
+        {'output_path': str(destination_folder), 'extension': '.txt'},
+        {
+            'documents': [
+                {
+                    'id': 'doc-1',
+                    'text': '',
+                    'source_uri': str(source_file),
+                    'mime_type': 'text/plain',
+                    'metadata': {
+                        'deferred_load': True,
+                        'file_name': source_file.name,
+                        'file_path': str(source_file),
+                    },
+                }
+            ]
+        },
+    )
+
+    saved_paths = [Path(path) for path in result['artifact']['files']]
+    assert len(saved_paths) == 1
+    assert saved_paths[0].read_text(encoding='utf-8') == 'resolved deferred text'

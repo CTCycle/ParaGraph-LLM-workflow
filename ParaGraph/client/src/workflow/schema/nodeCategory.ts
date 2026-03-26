@@ -4,9 +4,10 @@ export type NodeCategoryFilter = 'all' | NodeCategory
 
 export const NODE_CATEGORY_ORDER: NodeCategory[] = [
     'input',
+    'prompt',
     'model',
     'processing',
-    'fragmentation',
+    'text_segmentation',
     'output',
     'serialization',
     'database',
@@ -15,9 +16,10 @@ export const NODE_CATEGORY_ORDER: NodeCategory[] = [
 
 export const NODE_CATEGORY_LABELS: Record<NodeCategory, string> = {
     input: 'Input',
+    prompt: 'Prompt',
     model: 'Model',
     processing: 'Processing',
-    fragmentation: 'Fragmentation',
+    text_segmentation: 'Text Segmentation',
     output: 'Output',
     serialization: 'Serialization',
     database: 'Database',
@@ -27,9 +29,10 @@ export const NODE_CATEGORY_LABELS: Record<NodeCategory, string> = {
 export function toNodeCategoryFilter(value: string): NodeCategoryFilter {
     if (
         value === 'input' ||
+        value === 'prompt' ||
         value === 'model' ||
         value === 'processing' ||
-        value === 'fragmentation' ||
+        value === 'text_segmentation' ||
         value === 'output' ||
         value === 'serialization' ||
         value === 'database' ||

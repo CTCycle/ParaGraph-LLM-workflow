@@ -11,7 +11,7 @@ export function createNodeManifest(overrides: Partial<NodeManifest> = {}): NodeM
         id: 'PROMPT',
         version: 1,
         name: 'Prompt',
-        category: 'input',
+        category: 'prompt',
         description: 'Static prompt',
         inputs: [],
         outputs: [
@@ -128,4 +128,3 @@ export function createHuggingFaceCatalog(
         ...overrides,
     }
 }
-

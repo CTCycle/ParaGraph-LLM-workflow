@@ -2,7 +2,7 @@
   "id": "MERGE_SMALL_CHUNKS",
   "version": 1,
   "name": "Merge Small Chunks",
-  "category": "fragmentation",
+  "category": "text_segmentation",
   "description": "Merge consecutive small fragments into larger chunks up to a target size.",
   "inputs": [
     {

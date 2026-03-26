@@ -90,6 +90,58 @@ class PromptParameters(BaseModel):
     prompt_text: str = ""
 
 
+class PromptTemplateParameters(BaseModel):
+    template: str = ""
+    variable_names: list[str] = Field(default_factory=list)
+    missing_variable: str = "error"
+    cleanup: str = "none"
+
+    @field_validator("template")
+    @classmethod
+    def validate_template(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("template is required")
+        return value
+
+    @field_validator("variable_names", mode="before")
+    @classmethod
+    def parse_variable_names(cls, value: Any) -> list[str]:
+        if value is None:
+            return []
+        parsed = _parse_json_value(value, "variable_names") if isinstance(value, str) else value
+        if not isinstance(parsed, list):
+            raise ValueError("variable_names must be an array of strings")
+        names: list[str] = []
+        for item in parsed:
+            if not isinstance(item, str):
+                raise ValueError("variable_names must be an array of strings")
+            normalized = item.strip()
+            if not normalized:
+                continue
+            names.append(normalized)
+        if len(names) > 8:
+            raise ValueError("variable_names must include at most 8 values")
+        if len(set(name.lower() for name in names)) != len(names):
+            raise ValueError("variable_names must not include duplicates")
+        return names
+
+    @field_validator("missing_variable")
+    @classmethod
+    def validate_missing_variable(cls, value: str) -> str:
+        normalized = str(value or "").strip().lower()
+        if normalized not in {"error", "empty", "keep_placeholder"}:
+            raise ValueError("missing_variable must be one of: error, empty, keep_placeholder")
+        return normalized
+
+    @field_validator("cleanup")
+    @classmethod
+    def validate_cleanup(cls, value: str) -> str:
+        normalized = str(value or "").strip().lower()
+        if normalized not in {"none", "trim_lines", "drop_empty_lines", "collapse_blank_lines"}:
+            raise ValueError("cleanup must be one of: none, trim_lines, drop_empty_lines, collapse_blank_lines")
+        return normalized
+
+
 class ImageInputParameters(BaseModel):
     file_path: str = ""
 
