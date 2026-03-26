@@ -58,7 +58,8 @@ def test_nodes_catalog_exposes_registry(client: TestClient) -> None:
         'MODEL_PROVIDER',
         'PROMPT',
         'RECURSIVE_SPLIT_CHUNKS',
-        'SAVE_TEXT',
+        'SAVE_AS_FILE',
+        'SAVE_AS_FOLDER',
         'SENTENCE_WINDOW_CHUNKS',
         'SQL_DATABASE',
         'SQL_FILE_DATABASE',
@@ -473,4 +474,5 @@ def test_workflow_crud_and_versions(client: TestClient) -> None:
 
     assert update_response.status_code == 200
     assert update_response.json()['latest_version'] == 2
+
 

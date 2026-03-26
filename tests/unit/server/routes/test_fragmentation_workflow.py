@@ -5,6 +5,7 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 
 
+
 def build_fragmentation_definition(source_path: str, output_path: str) -> dict[str, object]:
     source_folder = str(Path(source_path).resolve().parent)
     return {
@@ -42,11 +43,10 @@ def build_fragmentation_definition(source_path: str, output_path: str) -> dict[s
             },
             {
                 'node_id': 'save_1',
-                'node_type': 'SAVE_TEXT',
+                'node_type': 'SAVE_AS_FOLDER',
                 'node_version': 1,
                 'parameters': {
                     'output_path': output_path,
-                    'separate_files': True,
                     'extension': '.md',
                 },
             },
@@ -62,6 +62,7 @@ def build_fragmentation_definition(source_path: str, output_path: str) -> dict[s
     }
 
 
+
 def test_execute_fragmentation_pipeline_returns_serialization_artifact(
     client: TestClient,
     tmp_path: Path,
@@ -69,7 +70,7 @@ def test_execute_fragmentation_pipeline_returns_serialization_artifact(
 ) -> None:
     source = tmp_path / 'fragment-source.txt'
     source.write_text('Apples are crisp. Bananas are softer. Carrots are crunchy.', encoding='utf-8')
-    export_target = tmp_path / 'exports' / 'fragments.md'
+    export_target = tmp_path / 'exports' / 'fragments'
 
     compile_response = client.post(
         '/executions/compile',
@@ -88,7 +89,6 @@ def test_execute_fragmentation_pipeline_returns_serialization_artifact(
 
     assert final_status['status'] == 'completed'
     artifact = run_payload['outputs']['output_1']['json']
-    assert artifact['separate_files'] is True
     assert artifact['extension'] == '.md'
     assert artifact['count'] >= 1
 

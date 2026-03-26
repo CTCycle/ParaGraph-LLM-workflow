@@ -1,9 +1,6 @@
 # Project-specific generated/runtime artifacts
+ParaGraph/resources/artifacts/**
 ParaGraph/resources/models/**
-ParaGraph/resources/checkpoints/**
-ParaGraph/resources/database/**
-runtimes/**
-ParaGraph/resources/logs/**
 ParaGraph/resources/workflows/**
 ParaGraph/client/node_modules/
 ParaGraph/client/dist/
@@ -11,6 +8,7 @@ ParaGraph/client/dist-ssr/
 ParaGraph/client/logs/
 ParaGraph/resources/tokenizers/**
 ParaGraph/client/*.local
+runtimes/**
 
 # Python
 __pycache__/

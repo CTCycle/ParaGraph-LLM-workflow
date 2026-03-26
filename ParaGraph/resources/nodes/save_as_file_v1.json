@@ -1,0 +1,70 @@
+{
+  "id": "SAVE_AS_FILE",
+  "version": 1,
+  "name": "Save As File",
+  "category": "serialization",
+  "description": "Save incoming text, documents, or chunks into a single file and preserve the selected extension.",
+  "inputs": [
+    {
+      "name": "text",
+      "data_type": "TEXT",
+      "required": false
+    },
+    {
+      "name": "documents",
+      "data_type": "DOCUMENT_LIST",
+      "required": false
+    },
+    {
+      "name": "chunks",
+      "data_type": "CHUNK_LIST",
+      "required": false
+    }
+  ],
+  "outputs": [
+    {
+      "name": "artifact",
+      "data_type": "JSON",
+      "required": true
+    }
+  ],
+  "parameters": [
+    {
+      "name": "output_path",
+      "data_type": "TEXT",
+      "default": "",
+      "constraints": {
+        "required": true
+      },
+      "ui_control": "text",
+      "description": "Destination file path. If multiple input chunks are provided, they are merged into a single file."
+    },
+    {
+      "name": "extension",
+      "data_type": "TEXT",
+      "default": ".txt",
+      "constraints": {
+        "required": true,
+        "options": [
+          ".txt",
+          ".md",
+          ".doc",
+          ".pdf"
+        ]
+      },
+      "ui_control": "select",
+      "description": "File extension used for generated files."
+    }
+  ],
+  "ui": {
+    "default_width": 320,
+    "accent_color": "#4f9d7d",
+    "collapsed_by_default": false
+  },
+  "runtime": {
+    "executor_key": "save_as_file",
+    "cacheable": false,
+    "deterministic": true,
+    "side_effecting": true
+  }
+}

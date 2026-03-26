@@ -47,7 +47,8 @@ The node category set remains:
 | `MODEL_PROVIDER` | 1 | Model Provider | model | `model_provider_v1.json` |
 | `PROMPT` | 1 | Prompt | input | `prompt_v1.json` |
 | `RECURSIVE_SPLIT_CHUNKS` | 1 | Recursive Split Chunks | fragmentation | `recursive_split_chunks_v1.json` |
-| `SAVE_TEXT` | 1 | Save Text | serialization | `save_text_v1.json` |
+| `SAVE_AS_FILE` | 1 | Save As File | serialization | `save_as_file_v1.json` |
+| `SAVE_AS_FOLDER` | 1 | Save As Folder | serialization | `save_as_folder_v1.json` |
 | `SENTENCE_WINDOW_CHUNKS` | 1 | Sentence Window Chunks | fragmentation | `sentence_window_chunks_v1.json` |
 | `SQL_DATABASE` | 1 | SQL Database | control | `sql_database_v1.json` |
 | `SQL_FILE_DATABASE` | 1 | Embedded SQL Database | control | `sql_file_database_v1.json` |
@@ -203,32 +204,56 @@ Outputs: `chunks`.
 
 Parameters: `target_chunk_size`, `unit`, `max_chunk_size`, `merge_strategy` (`sequential | greedy`), `preserve_boundaries`.
 
-## `SAVE_TEXT` (v1)
+## `SAVE_AS_FILE` (v1)
 
-- Name: Save Text
+- Name: Save As File
 - Category: `serialization`
-- Description: Save incoming `text`, `documents`, or `chunks` into one file or multiple files (Browse opens a Save As picker for filename selection).
+- Description: Save incoming `text`, `documents`, or `chunks` into a single file.
 
 Inputs: `text` (`TEXT`), `documents` (`DOCUMENT_LIST`), `chunks` (`CHUNK_LIST`) - optional; at least one non-empty input required at runtime.
 
 Outputs: `artifact` (`JSON`).
 
 Behavior notes:
-- `output_path` is treated as a reference file path (name + optional extension).
-- With `separate_files = true`, `output_path` is treated as a folder reference:
-- If it includes an extension (for example `exports/chunks.txt`), the folder name uses the stem (`exports/chunks`).
-- Outputs are written inside that folder as `folderName_00001`, `folderName_00002`, ... using the selected extension.
-- Frontend Browse for `SAVE_TEXT.output_path` uses browser file/directory pickers only (no backend-native dialogs).
-- In local browser runs, when Browse is used, selected file/directory handles are used client-side after execution so content is written to the user-selected local target.
-- When this frontend-selected target is active, backend SAVE_TEXT skips writing to `resources/artifacts` for that node run.
-- In local browser runs with `client_side_write`, backend SAVE_TEXT artifact also includes ordered `item_texts` so deferred `LOAD_DOCUMENTS` inputs can be written client-side without empty files.
+- Always writes one file.
+- If multiple text items are provided, they are concatenated with `/n/n`.
+- Frontend Browse for `SAVE_AS_FILE.output_path` uses browser Save As picker only (no backend-native dialogs).
+- In local browser runs, when Browse is used, frontend writes directly to the selected file.
+- When this frontend-selected target is active, backend `SAVE_AS_FILE` skips writing to `resources/artifacts` for that node run.
+- In local browser runs with `client_side_write`, backend `SAVE_AS_FILE` artifact includes ordered `item_texts` so deferred `LOAD_DOCUMENTS` inputs can be written client-side.
 
 Parameters:
 
 | Name | Data Type | Default | UI Control | Required |
 |---|---|---|---|---:|
 | `output_path` | `TEXT` | `""` | `text` | Yes |
-| `separate_files` | `BOOLEAN` | `false` | `toggle` | No |
+| `extension` | `TEXT` | `.txt` | `select` | Yes |
+
+Supported extensions: `.txt`, `.md`, `.doc`, `.pdf`.
+
+## `SAVE_AS_FOLDER` (v1)
+
+- Name: Save As Folder
+- Category: `serialization`
+- Description: Save incoming `text`, `documents`, or `chunks` as individual files inside a selected folder.
+
+Inputs: `text` (`TEXT`), `documents` (`DOCUMENT_LIST`), `chunks` (`CHUNK_LIST`) - optional; at least one non-empty input required at runtime.
+
+Outputs: `artifact` (`JSON`).
+
+Behavior notes:
+- Always writes one file per collected item, including the single-item case.
+- Files are named `foldername_000001`, `foldername_000002`, ... using the selected extension.
+- Frontend Browse for `SAVE_AS_FOLDER.output_path` uses browser folder picker only (no backend-native dialogs).
+- In local browser runs, when Browse is used, frontend writes files directly inside the selected folder.
+- When this frontend-selected target is active, backend `SAVE_AS_FOLDER` skips writing to `resources/artifacts` for that node run.
+- In local browser runs with `client_side_write`, backend `SAVE_AS_FOLDER` artifact includes ordered `item_texts` so deferred `LOAD_DOCUMENTS` inputs can be written client-side.
+
+Parameters:
+
+| Name | Data Type | Default | UI Control | Required |
+|---|---|---|---|---:|
+| `output_path` | `TEXT` | `""` | `text` | Yes |
 | `extension` | `TEXT` | `.txt` | `select` | Yes |
 
 Supported extensions: `.txt`, `.md`, `.doc`, `.pdf`.
@@ -285,3 +310,6 @@ Inputs: `text` (`TEXT`, required).
 - Description: Expose final JSON results.
 
 Inputs: `value` (`JSON`, required).
+
+
+

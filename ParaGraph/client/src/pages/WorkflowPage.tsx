@@ -69,15 +69,15 @@ type WorkflowNodeData = {
     runtimeOutput: Record<string, unknown> | null
     providerModels: ProviderModelDefinition[]
     onParameterChange: (parameterName: string, value: unknown) => void
-    onSaveTextBrowseSelection: (selection: SaveTextBrowserSelection | null) => void
+    onSaveNodeBrowseSelection: (selection: SaveNodeBrowserSelection | null) => void
     onStatusChange: (message: string) => void
     onTogglePing: () => void
     onToggleCollapse: () => void
 }
 
-type SaveTextBrowserSelection =
-    | { kind: 'single'; fileHandle: FileSystemFileHandle }
-    | { kind: 'multiple'; directoryHandle: FileSystemDirectoryHandle }
+type SaveNodeBrowserSelection =
+    | { kind: 'file'; fileHandle: FileSystemFileHandle }
+    | { kind: 'folder'; directoryHandle: FileSystemDirectoryHandle }
 
 type NodeContextMenuState = {
     nodeId: string
@@ -160,7 +160,11 @@ const WORKFLOW_EDGE_STYLE = { stroke: '#5ba7ff', strokeWidth: 2.2 }
 const WORKFLOW_BUNDLE_VERSION = 1
 const WORKFLOW_BUNDLE_APP = 'ParaGraph'
 const BROWSER_PICKER_CANCEL_GUARD_MS = 1200
-const SAVE_TEXT_CLIENT_SIDE_PARAMETER = 'client_side_write'
+const SAVE_NODE_CLIENT_SIDE_PARAMETER = 'client_side_write'
+const SAVE_AS_FILE_NODE_TYPE = 'SAVE_AS_FILE'
+const SAVE_AS_FOLDER_NODE_TYPE = 'SAVE_AS_FOLDER'
+const SAVE_AS_FILE_CHUNK_SEPARATOR = '/n/n'
+const SAVE_AS_FOLDER_INDEX_WIDTH = 6
 
 type HandleKind = 'input' | 'output' | 'controller'
 type ParsedHandle = { kind: HandleKind; name: string }
@@ -458,11 +462,15 @@ async function pickSaveFileFromBrowser(options: SaveFilePickerOptions): Promise<
     }
 }
 
-function isSaveTextOutputPathParameter(manifest: NodeManifest, parameter: NodeParameterDefinition): boolean {
-    return manifest.id === 'SAVE_TEXT' && parameter.name === 'output_path'
+function isSaveAsFileOutputPathParameter(manifest: NodeManifest, parameter: NodeParameterDefinition): boolean {
+    return manifest.id === SAVE_AS_FILE_NODE_TYPE && parameter.name === 'output_path'
 }
 
-function getSaveTextOutputPathBrowseLabel(pathValue: unknown, extensionValue: unknown): string {
+function isSaveAsFolderOutputPathParameter(manifest: NodeManifest, parameter: NodeParameterDefinition): boolean {
+    return manifest.id === SAVE_AS_FOLDER_NODE_TYPE && parameter.name === 'output_path'
+}
+
+function getSaveAsFileOutputPathBrowseLabel(pathValue: unknown, extensionValue: unknown): string {
     const normalizedPath = String(pathValue ?? '').trim()
     const normalizedExtension = normalizeFileExtension(String(extensionValue ?? '.txt'))
     const currentFileName = readBaseFileNameFromPath(normalizedPath)
@@ -480,13 +488,46 @@ function stripExtensionFromName(fileName: string): string {
     return normalized.slice(0, extensionIndex)
 }
 
-function getSaveTextOutputFolderLabel(pathValue: unknown): string {
+function getSaveAsFolderOutputLabel(pathValue: unknown, fallbackFolderName = 'output'): string {
     const normalizedPath = String(pathValue ?? '').trim()
     const currentFileName = readBaseFileNameFromPath(normalizedPath)
     if (!currentFileName) {
-        return 'output'
+        return fallbackFolderName
     }
-    return stripExtensionFromName(currentFileName) || 'output'
+    return stripExtensionFromName(currentFileName) || fallbackFolderName
+}
+
+function shouldPreserveSaveNodeBrowseSelection(
+    manifestId: string,
+    selection: SaveNodeBrowserSelection | undefined,
+    outputPathValue: unknown,
+    extensionValue: unknown,
+): boolean {
+    if (!selection) {
+        return false
+    }
+    const normalizedOutputPath = String(outputPathValue ?? '').trim()
+    if (!normalizedOutputPath) {
+        return false
+    }
+
+    if (manifestId === SAVE_AS_FILE_NODE_TYPE) {
+        if (selection.kind !== 'file') {
+            return false
+        }
+        const normalizedExtension = normalizeFileExtension(String(extensionValue ?? '.txt'))
+        const selectedFileName = ensureFileNameHasExtension(selection.fileHandle.name, normalizedExtension)
+        return selectedFileName === normalizedOutputPath
+    }
+
+    if (manifestId === SAVE_AS_FOLDER_NODE_TYPE) {
+        if (selection.kind !== 'folder') {
+            return false
+        }
+        return selection.directoryHandle.name === normalizedOutputPath
+    }
+
+    return false
 }
 
 function coerceTextPayload(value: unknown): string {
@@ -523,7 +564,7 @@ function extractTextFromPayloadRecord(record: Record<string, unknown>, keys: str
     return ''
 }
 
-function collectSaveTextItemsFromRuntimeInputs(inputs: Record<string, unknown>): string[] {
+function collectSaveNodeItemsFromRuntimeInputs(inputs: Record<string, unknown>): string[] {
     const items: string[] = []
 
     const textPayload = coerceTextPayload(inputs.text)
@@ -556,7 +597,7 @@ function collectSaveTextItemsFromRuntimeInputs(inputs: Record<string, unknown>):
     return items
 }
 
-function collectSaveTextItemsFromArtifact(artifact: Record<string, unknown>): string[] {
+function collectSaveNodeItemsFromArtifact(artifact: Record<string, unknown>): string[] {
     const rawItems = artifact.item_texts
     if (!Array.isArray(rawItems)) {
         return []
@@ -628,6 +669,38 @@ function parseHandleId(handleId: string): ParsedHandle | null {
         return null
     }
     return { kind, name }
+}
+
+function resolveHighlightedNodeId(
+    run: ExecutionRunState,
+    plan: CompiledExecutionPlan | null,
+): string | null {
+    const runningStep = run.steps.find((step) => step.status === 'running')
+    if (runningStep?.node_id) {
+        return runningStep.node_id
+    }
+
+    if (plan) {
+        const stepsById = new Map(run.steps.map((step) => [step.step_id, step]))
+        for (let index = plan.step_order.length - 1; index >= 0; index -= 1) {
+            const plannedStep = stepsById.get(plan.step_order[index])
+            if (!plannedStep) {
+                continue
+            }
+            if (plannedStep.status === 'completed' || plannedStep.status === 'failed' || plannedStep.status === 'skipped') {
+                return plannedStep.node_id
+            }
+        }
+    }
+
+    for (let index = run.steps.length - 1; index >= 0; index -= 1) {
+        const step = run.steps[index]
+        if (step.status === 'completed' || step.status === 'failed' || step.status === 'skipped') {
+            return step.node_id
+        }
+    }
+
+    return null
 }
 
 function resolveNodeDimensions(node: Node<WorkflowNodeData>): { width?: number; height?: number } {
@@ -1374,24 +1447,10 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
     async function handlePathBrowse(parameter: NodeParameterDefinition): Promise<void> {
         setBrowseTarget(parameter.name)
         try {
-            if (isSaveTextOutputPathParameter(data.manifest, parameter)) {
+            if (isSaveAsFileOutputPathParameter(data.manifest, parameter)) {
                 const extension = String(data.parameters.extension ?? '.txt')
-                const separateFiles = Boolean(data.parameters.separate_files)
                 const currentPath = data.parameters[parameter.name]
-                if (separateFiles) {
-                    const directorySelection = await pickDirectoryHandleFromBrowser()
-                    if (!directorySelection) {
-                        data.onStatusChange('Directory selection cancelled')
-                        return
-                    }
-                    const folderName = getSaveTextOutputFolderLabel(currentPath)
-                    data.onSaveTextBrowseSelection({ kind: 'multiple', directoryHandle: directorySelection.directoryHandle })
-                    data.onParameterChange(parameter.name, folderName)
-                    data.onStatusChange(`Save target set to ${directorySelection.directoryName}/${folderName}`)
-                    return
-                }
-
-                const suggestedName = getSaveTextOutputPathBrowseLabel(currentPath, extension)
+                const suggestedName = getSaveAsFileOutputPathBrowseLabel(currentPath, extension)
                 const saveSelection = await pickSaveFileFromBrowser({
                     suggestedName,
                     extension,
@@ -1400,9 +1459,21 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
                     data.onStatusChange('Save As selection cancelled')
                     return
                 }
-                data.onSaveTextBrowseSelection({ kind: 'single', fileHandle: saveSelection.fileHandle })
+                data.onSaveNodeBrowseSelection({ kind: 'file', fileHandle: saveSelection.fileHandle })
                 data.onParameterChange(parameter.name, saveSelection.fileName)
                 data.onStatusChange(`Save target set to ${saveSelection.fileName}`)
+                return
+            }
+
+            if (isSaveAsFolderOutputPathParameter(data.manifest, parameter)) {
+                const directorySelection = await pickDirectoryHandleFromBrowser()
+                if (!directorySelection) {
+                    data.onStatusChange('Directory selection cancelled')
+                    return
+                }
+                data.onSaveNodeBrowseSelection({ kind: 'folder', directoryHandle: directorySelection.directoryHandle })
+                data.onParameterChange(parameter.name, directorySelection.directoryName)
+                data.onStatusChange(`Save target set to ${directorySelection.directoryName}`)
                 return
             }
 
@@ -1705,7 +1776,8 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
                                             </select>
                                         ) : parameter.ui_control === 'file'
                                             || parameter.ui_control === 'directory'
-                                            || isSaveTextOutputPathParameter(data.manifest, parameter) ? (
+                                            || isSaveAsFileOutputPathParameter(data.manifest, parameter)
+                                            || isSaveAsFolderOutputPathParameter(data.manifest, parameter) ? (
                                             <div className="workflow-node-inline-input">
                                                 <input
                                                     className="nodrag nopan"
@@ -1729,8 +1801,11 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
                                                             type="button"
                                                             className="workflow-node-picker-clear"
                                                             onClick={() => {
-                                                                if (isSaveTextOutputPathParameter(data.manifest, parameter)) {
-                                                                    data.onSaveTextBrowseSelection(null)
+                                                                if (
+                                                                    isSaveAsFileOutputPathParameter(data.manifest, parameter)
+                                                                    || isSaveAsFolderOutputPathParameter(data.manifest, parameter)
+                                                                ) {
+                                                                    data.onSaveNodeBrowseSelection(null)
                                                                 }
                                                                 data.onParameterChange(parameter.name, '')
                                                             }}
@@ -1812,7 +1887,7 @@ function WorkflowEditor() {
     const [isGridVisible, setIsGridVisible] = useState(true)
     const stopEventsRef = useRef<(() => void) | null>(null)
     const activePlanRef = useRef<CompiledExecutionPlan | null>(null)
-    const saveTextBrowseSelectionsRef = useRef<Record<string, SaveTextBrowserSelection>>({})
+    const saveNodeBrowseSelectionsRef = useRef<Record<string, SaveNodeBrowserSelection>>({})
     const hasHydratedWorkflowRef = useRef(false)
     const draggedManifestKeyRef = useRef<string | null>(null)
     const copiedNodeRef = useRef<CopiedNodeSnapshot | null>(null)
@@ -1994,7 +2069,7 @@ function WorkflowEditor() {
             event.preventDefault()
             const selectedNodeSet = new Set(selectedNodeIds)
             for (const selectedNodeId of selectedNodeIds) {
-                delete saveTextBrowseSelectionsRef.current[selectedNodeId]
+                delete saveNodeBrowseSelectionsRef.current[selectedNodeId]
             }
             setNodes((current) => current.filter((node) => !selectedNodeSet.has(node.id)))
             setEdges((current) =>
@@ -2094,7 +2169,7 @@ function WorkflowEditor() {
                     },
                 ]
             })
-        saveTextBrowseSelectionsRef.current = {}
+        saveNodeBrowseSelectionsRef.current = {}
         setNodes(restoredNodes)
         setEdges(restoredEdges)
         setIsLibraryVisible(false)
@@ -2180,7 +2255,7 @@ function WorkflowEditor() {
     }
 
     function removeNode(nodeId: string): void {
-        delete saveTextBrowseSelectionsRef.current[nodeId]
+        delete saveNodeBrowseSelectionsRef.current[nodeId]
         setNodes((current) => current.filter((node) => node.id !== nodeId))
         setEdges((current) => current.filter((edge) => edge.source !== nodeId && edge.target !== nodeId))
         setNodeContextMenu((current) => (current?.nodeId === nodeId ? null : current))
@@ -2236,9 +2311,21 @@ function WorkflowEditor() {
                 onParameterChange: (parameterName, value) => {
                     updateNode(nodeId, (current) => {
                         const nextParameters = { ...current.data.parameters, [parameterName]: value }
-                        if (parameterName === 'separate_files') {
-                            delete saveTextBrowseSelectionsRef.current[nodeId]
-                            delete nextParameters[SAVE_TEXT_CLIENT_SIDE_PARAMETER]
+                        if (
+                            parameterName === 'output_path'
+                            && (current.data.manifest.id === SAVE_AS_FILE_NODE_TYPE || current.data.manifest.id === SAVE_AS_FOLDER_NODE_TYPE)
+                        ) {
+                            const currentSelection = saveNodeBrowseSelectionsRef.current[nodeId]
+                            const keepSelection = shouldPreserveSaveNodeBrowseSelection(
+                                current.data.manifest.id,
+                                currentSelection,
+                                value,
+                                nextParameters.extension,
+                            )
+                            if (!keepSelection) {
+                                delete saveNodeBrowseSelectionsRef.current[nodeId]
+                                delete nextParameters[SAVE_NODE_CLIENT_SIDE_PARAMETER]
+                            }
                         }
                         if (parameterName === 'provider') {
                             nextParameters.provider = normalizeProvider(value)
@@ -2257,12 +2344,12 @@ function WorkflowEditor() {
                         }
                     })
                 },
-                onSaveTextBrowseSelection: (selection) => {
+                onSaveNodeBrowseSelection: (selection) => {
                     if (selection) {
-                        saveTextBrowseSelectionsRef.current[nodeId] = selection
+                        saveNodeBrowseSelectionsRef.current[nodeId] = selection
                         return
                     }
-                    delete saveTextBrowseSelectionsRef.current[nodeId]
+                    delete saveNodeBrowseSelectionsRef.current[nodeId]
                 },
                 onStatusChange: (message) => {
                     setStatusText(message)
@@ -2382,16 +2469,19 @@ function WorkflowEditor() {
             })),
         )
     }
-
-    async function syncSaveTextBrowserSelections(finalState: ExecutionRunState): Promise<string | null> {
+    async function syncSaveNodeBrowserSelections(finalState: ExecutionRunState): Promise<string | null> {
         const nodesById = new Map(nodes.map((node) => [node.id, node]))
         let savedFiles = 0
 
         for (const step of finalState.steps) {
-            if (step.node_type !== 'SAVE_TEXT' || step.status !== 'completed') {
+            if (step.status !== 'completed') {
                 continue
             }
-            const selection = saveTextBrowseSelectionsRef.current[step.node_id]
+            if (step.node_type !== SAVE_AS_FILE_NODE_TYPE && step.node_type !== SAVE_AS_FOLDER_NODE_TYPE) {
+                continue
+            }
+
+            const selection = saveNodeBrowseSelectionsRef.current[step.node_id]
             if (!selection) {
                 continue
             }
@@ -2402,11 +2492,12 @@ function WorkflowEditor() {
             if (!isRecord(step.output)) {
                 continue
             }
+
             const outputPorts = isRecord(step.output.ports) ? step.output.ports : null
             const artifact = outputPorts && isRecord(outputPorts.artifact) ? outputPorts.artifact : null
-            const itemTextsFromArtifact = artifact ? collectSaveTextItemsFromArtifact(artifact) : []
+            const itemTextsFromArtifact = artifact ? collectSaveNodeItemsFromArtifact(artifact) : []
             const itemTextsFromInputs = isRecord(step.output.inputs)
-                ? collectSaveTextItemsFromRuntimeInputs(step.output.inputs)
+                ? collectSaveNodeItemsFromRuntimeInputs(step.output.inputs)
                 : []
             const items = itemTextsFromArtifact.length > 0 ? itemTextsFromArtifact : itemTextsFromInputs
             if (items.length === 0) {
@@ -2414,24 +2505,21 @@ function WorkflowEditor() {
             }
 
             const extension = normalizeFileExtension(String(node.data.parameters.extension ?? '.txt'))
-            const separateFiles = Boolean(node.data.parameters.separate_files)
-
-            if (!separateFiles && selection.kind === 'single') {
-                await writeTextToFileHandle(selection.fileHandle, items.join('\n\n'))
+            if (step.node_type === SAVE_AS_FILE_NODE_TYPE && selection.kind === 'file') {
+                await writeTextToFileHandle(selection.fileHandle, items.join(SAVE_AS_FILE_CHUNK_SEPARATOR))
                 savedFiles += 1
                 continue
             }
 
-            if (separateFiles && selection.kind === 'multiple') {
+            if (step.node_type === SAVE_AS_FOLDER_NODE_TYPE && selection.kind === 'folder') {
                 const folderName = toSafeFileStem(
-                    getSaveTextOutputFolderLabel(node.data.parameters.output_path),
+                    getSaveAsFolderOutputLabel(node.data.parameters.output_path, selection.directoryHandle.name),
                     'output',
                 )
-                const folderHandle = await selection.directoryHandle.getDirectoryHandle(folderName, { create: true })
                 const baseStem = toSafeFileStem(folderName, 'output')
                 for (const [index, text] of items.entries()) {
-                    const fileName = `${baseStem}_${String(index + 1).padStart(5, '0')}${extension}`
-                    const fileHandle = await folderHandle.getFileHandle(fileName, { create: true })
+                    const fileName = `${baseStem}_${String(index + 1).padStart(SAVE_AS_FOLDER_INDEX_WIDTH, '0')}${extension}`
+                    const fileHandle = await selection.directoryHandle.getFileHandle(fileName, { create: true })
                     await writeTextToFileHandle(fileHandle, text)
                     savedFiles += 1
                 }
@@ -2447,11 +2535,11 @@ function WorkflowEditor() {
     function buildDefinition(): WorkflowDefinition {
         const definitionNodes = nodes.map((node) => {
             const parameters = normalizeNodePathParameters(node.data.manifest, node.data.parameters)
-            if (node.data.manifest.id === 'SAVE_TEXT') {
-                if (saveTextBrowseSelectionsRef.current[node.id]) {
-                    parameters[SAVE_TEXT_CLIENT_SIDE_PARAMETER] = true
+            if (node.data.manifest.id === SAVE_AS_FILE_NODE_TYPE || node.data.manifest.id === SAVE_AS_FOLDER_NODE_TYPE) {
+                if (saveNodeBrowseSelectionsRef.current[node.id]) {
+                    parameters[SAVE_NODE_CLIENT_SIDE_PARAMETER] = true
                 } else {
-                    delete parameters[SAVE_TEXT_CLIENT_SIDE_PARAMETER]
+                    delete parameters[SAVE_NODE_CLIENT_SIDE_PARAMETER]
                 }
             }
             return {
@@ -2653,7 +2741,7 @@ function WorkflowEditor() {
                     },
                 ]
             })
-        saveTextBrowseSelectionsRef.current = {}
+        saveNodeBrowseSelectionsRef.current = {}
         setNodes(restoredNodes)
         setEdges(restoredEdges)
         setNodeContextMenu(null)
@@ -2870,7 +2958,7 @@ function WorkflowEditor() {
             })
 
             const finalState = await pollExecution(execution.run_id, execution.poll_interval, (run) => {
-                setActiveNodeId(run.steps.find((step) => step.status === 'running')?.node_id ?? null)
+                setActiveNodeId(resolveHighlightedNodeId(run, activePlanRef.current))
                 setStatusText(`Run ${run.status} (${Math.round(run.progress)}%)`)
                 if (run.outputs && Object.keys(run.outputs).length > 0) {
                     applyRunOutputs(run.outputs)
@@ -2881,7 +2969,7 @@ function WorkflowEditor() {
             setActiveNodeId(null)
             applyRunOutputs(finalState.outputs)
             if (finalState.status === 'completed') {
-                const localSaveStatus = await syncSaveTextBrowserSelections(finalState)
+                const localSaveStatus = await syncSaveNodeBrowserSelections(finalState)
                 setStatusText(localSaveStatus || 'Workflow completed')
             } else if (finalState.status === 'failed') {
                 throw new Error(finalState.error || 'Workflow failed')
@@ -2897,6 +2985,9 @@ function WorkflowEditor() {
                 message: formatWorkflowExecutionError(runError, latestRunState),
             })
         } finally {
+            stopEventsRef.current?.()
+            stopEventsRef.current = null
+            setActiveNodeId(null)
             setIsRunning(false)
             activePlanRef.current = null
         }
@@ -2925,7 +3016,7 @@ function WorkflowEditor() {
                     <button
                         type="button"
                         onClick={() => {
-                            saveTextBrowseSelectionsRef.current = {}
+                            saveNodeBrowseSelectionsRef.current = {}
                             setNodes([])
                             setEdges([])
                             setActiveNodeId(null)
@@ -3228,3 +3319,10 @@ export default function WorkflowPage() {
         </ReactFlowProvider>
     )
 }
+
+
+
+
+
+
+
