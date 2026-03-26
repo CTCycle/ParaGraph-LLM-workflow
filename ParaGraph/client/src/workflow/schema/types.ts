@@ -5,6 +5,7 @@ export type NodeCategory =
     | 'fragmentation'
     | 'output'
     | 'serialization'
+    | 'database'
     | 'control'
 export type NodeDataType =
     | 'TEXT'

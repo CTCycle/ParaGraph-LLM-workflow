@@ -221,6 +221,7 @@ Behavior notes:
 - Frontend Browse for `SAVE_TEXT.output_path` uses browser file/directory pickers only (no backend-native dialogs).
 - In local browser runs, when Browse is used, selected file/directory handles are used client-side after execution so content is written to the user-selected local target.
 - When this frontend-selected target is active, backend SAVE_TEXT skips writing to `resources/artifacts` for that node run.
+- In local browser runs with `client_side_write`, backend SAVE_TEXT artifact also includes ordered `item_texts` so deferred `LOAD_DOCUMENTS` inputs can be written client-side without empty files.
 
 Parameters:
 

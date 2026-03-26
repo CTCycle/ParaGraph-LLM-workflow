@@ -21,6 +21,7 @@ from ParaGraph.server.domain.nodecatalog import (
 )
 from ParaGraph.server.services.workflow import nodes as node_module
 from ParaGraph.server.services.workflow import provider_service
+from ParaGraph.server.common.constants import RESOURCES_PATH
 
 
 def build_prompt_to_output_definition() -> dict[str, object]:
@@ -122,6 +123,27 @@ def test_nodes_upload_directory_stages_browser_selected_folder(client: TestClien
             shutil.rmtree(staged_root, ignore_errors=True)
 
 
+def test_nodes_upload_directory_staging_root_is_stable_across_working_directory(client: TestClient, monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    response = client.post(
+        '/nodes/uploads/directory',
+        files=[
+            ('files', ('dataset/readme.txt', b'hello world', 'text/plain')),
+        ],
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    staged_root = Path(payload['path'])
+    expected_root = (Path(RESOURCES_PATH) / "artifacts" / "browser_uploads").resolve()
+    try:
+        assert staged_root.is_relative_to(expected_root)
+        assert (staged_root / "dataset" / "readme.txt").read_text(encoding="utf-8") == "hello world"
+    finally:
+        if staged_root.exists():
+            shutil.rmtree(staged_root, ignore_errors=True)
+
 def test_nodes_upload_directory_rejects_parent_directory_segments(client: TestClient) -> None:
     response = client.post(
         '/nodes/uploads/directory',
@@ -140,7 +162,6 @@ def test_nodes_upload_directory_rejects_absolute_paths(client: TestClient) -> No
 
     assert response.status_code == 422
     assert 'absolute paths' in response.json()['detail'].lower()
-
 
 
 def test_nodes_database_connection_check_returns_success_for_sqlite(client: TestClient, tmp_path: Path) -> None:

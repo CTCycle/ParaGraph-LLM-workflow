@@ -5,8 +5,10 @@ from uuid import uuid4
 
 from fastapi import UploadFile
 
+from ParaGraph.server.common.constants import RESOURCES_PATH
 
-UPLOAD_ROOT = Path("ParaGraph/resources/artifacts/browser_uploads")
+
+UPLOAD_ROOT = Path(RESOURCES_PATH) / "artifacts" / "browser_uploads"
 
 
 def _sanitize_relative_upload_path(file_name: str) -> Path:

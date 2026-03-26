@@ -160,23 +160,8 @@ class SQLDatabaseParameters(BaseModel):
 
 
 class SQLFileDatabaseParameters(BaseModel):
-    db_engine: str = "sqlite"
     db_path: str = ""
-    db_port: int = Field(default=5432, ge=1, le=65535)
-    db_name: str = "FAIRS"
-    db_user: str = "postgres"
-    db_password: str = "change_me"
-    db_ssl: bool = False
-    db_ssl_ca: str = ""
     db_connect_timeout: float = Field(default=30.0, ge=1.0, le=120.0)
-
-    @field_validator("db_engine")
-    @classmethod
-    def validate_db_engine(cls, value: str) -> str:
-        normalized = str(value or "").strip().lower()
-        if normalized != "sqlite":
-            raise ValueError("db_engine must be sqlite")
-        return normalized
 
     @field_validator("db_path")
     @classmethod

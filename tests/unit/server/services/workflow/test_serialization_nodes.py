@@ -235,7 +235,6 @@ def test_save_text_multi_file_mode_replaces_file_collision_with_folder(tmp_path:
     assert [path.read_text(encoding='utf-8') for path in saved_paths] == ['alpha', 'beta']
 
 
-
 def test_save_text_client_side_write_returns_metadata_without_backend_write_single_file(tmp_path: Path) -> None:
     destination = tmp_path / 'desktop' / 'file_name'
 
@@ -255,6 +254,7 @@ def test_save_text_client_side_write_returns_metadata_without_backend_write_sing
     assert not expected_file.exists()
     assert save_result['artifact']['path'] == str(expected_file)
     assert save_result['artifact']['files'] == [str(expected_file)]
+    assert save_result['artifact']['item_texts'] == ['payload']
 
 
 def test_save_text_client_side_write_returns_metadata_without_backend_write_multiple_files(tmp_path: Path) -> None:
@@ -302,7 +302,45 @@ def test_save_text_client_side_write_returns_metadata_without_backend_write_mult
     assert not expected_folder.exists()
     assert save_result['artifact']['path'] == str(expected_folder)
     assert save_result['artifact']['files'] == [str(path) for path in expected_files]
+    assert save_result['artifact']['item_texts'] == ['alpha', 'beta']
 
+
+def test_save_text_client_side_write_resolves_deferred_documents_into_item_texts(tmp_path: Path) -> None:
+    source_file = tmp_path / 'source.txt'
+    source_file.write_text('resolved deferred document', encoding='utf-8')
+
+    destination = tmp_path / 'desktop' / 'from-load-documents.txt'
+    save_result = node_registry.execute(
+        'SAVE_TEXT',
+        1,
+        {
+            'output_path': str(destination),
+            'separate_files': False,
+            'extension': '.txt',
+            'client_side_write': True,
+        },
+        {
+            'documents': [
+                {
+                    'id': 'doc-1',
+                    'text': '',
+                    'source_uri': str(source_file),
+                    'mime_type': 'text/plain',
+                    'metadata': {
+                        'deferred_load': True,
+                        'file_name': source_file.name,
+                        'file_path': str(source_file),
+                    },
+                }
+            ]
+        },
+    )
+
+    expected_file = destination.with_suffix('.txt')
+    assert not expected_file.exists()
+    assert save_result['artifact']['path'] == str(expected_file)
+    assert save_result['artifact']['files'] == [str(expected_file)]
+    assert save_result['artifact']['item_texts'] == ['resolved deferred document']
 
 def test_load_text_rejects_empty_storage_path() -> None:
     with pytest.raises(ValueError, match='storage_path is required'):

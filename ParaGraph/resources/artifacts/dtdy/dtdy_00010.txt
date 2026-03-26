@@ -1,0 +1,339 @@
+25-03-2026 23:20:30 - ParaGraph - INFO - Initializing sqlite database backend
+25-03-2026 23:20:30 - ParaGraph - INFO - Ensuring application tables exist for sqlite backend.
+25-03-2026 23:20:34 - httpcore.connection - DEBUG - connect_tcp.started host='127.0.0.1' port=11434 local_address=None timeout=30.0 socket_options=None
+25-03-2026 23:20:34 - httpcore.connection - DEBUG - connect_tcp.complete return_value=<httpcore._backends.sync.SyncStream object at 0x0000014D6C7067B0>
+25-03-2026 23:20:34 - httpcore.http11 - DEBUG - send_request_headers.started request=<Request [b'GET']>
+25-03-2026 23:20:34 - httpcore.http11 - DEBUG - send_request_headers.complete
+25-03-2026 23:20:34 - httpcore.http11 - DEBUG - send_request_body.started request=<Request [b'GET']>
+25-03-2026 23:20:34 - httpcore.http11 - DEBUG - send_request_body.complete
+25-03-2026 23:20:34 - httpcore.http11 - DEBUG - receive_response_headers.started request=<Request [b'GET']>
+25-03-2026 23:20:34 - httpcore.http11 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Content-Type', b'application/json; charset=utf-8'), (b'Date', b'Wed, 25 Mar 2026 22:20:34 GMT'), (b'Transfer-Encoding', b'chunked')])
+25-03-2026 23:20:34 - httpx - INFO - HTTP Request: GET http://127.0.0.1:11434/api/tags "HTTP/1.1 200 OK"
+25-03-2026 23:20:34 - httpcore.http11 - DEBUG - receive_response_body.started request=<Request [b'GET']>
+25-03-2026 23:20:34 - httpcore.http11 - DEBUG - receive_response_body.complete
+25-03-2026 23:20:34 - httpcore.http11 - DEBUG - response_closed.started
+25-03-2026 23:20:34 - httpcore.http11 - DEBUG - response_closed.complete
+25-03-2026 23:20:34 - httpcore.connection - DEBUG - close.started
+25-03-2026 23:20:34 - httpcore.connection - DEBUG - close.complete
+25-03-2026 23:20:44 - python_multipart.multipart - DEBUG - Calling on_part_begin with no data
+25-03-2026 23:20:44 - python_multipart.multipart - DEBUG - Calling on_header_field with data[42:61]
+25-03-2026 23:20:44 - python_multipart.multipart - DEBUG - Calling on_header_value with data[63:119]
+25-03-2026 23:20:44 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+25-03-2026 23:20:44 - python_multipart.multipart - DEBUG - Calling on_header_field with data[121:133]
+25-03-2026 23:20:44 - python_multipart.multipart - DEBUG - Calling on_header_value with data[135:159]
+25-03-2026 23:20:44 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+25-03-2026 23:20:44 - python_multipart.multipart - DEBUG - Calling on_headers_finished with no data
+25-03-2026 23:20:44 - python_multipart.multipart - DEBUG - Calling on_part_data with data[163:6494]
+25-03-2026 23:20:44 - python_multipart.multipart - DEBUG - Calling on_part_end with no data
+25-03-2026 23:20:44 - python_multipart.multipart - DEBUG - Calling on_part_begin with no data
+25-03-2026 23:20:44 - python_multipart.multipart - DEBUG - Calling on_header_field with data[6538:6557]
+25-03-2026 23:20:44 - python_multipart.multipart - DEBUG - Calling on_header_value with data[6559:6618]
+25-03-2026 23:20:44 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+25-03-2026 23:20:44 - python_multipart.multipart - DEBUG - Calling on_header_field with data[6620:6632]
+25-03-2026 23:20:44 - python_multipart.multipart - DEBUG - Calling on_header_value with data[6634:6658]
+25-03-2026 23:20:44 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+25-03-2026 23:20:44 - python_multipart.multipart - DEBUG - Calling on_headers_finished with no data
+25-03-2026 23:20:44 - python_multipart.multipart - DEBUG - Calling on_part_data with data[6662:9672]
+25-03-2026 23:20:44 - python_multipart.multipart - DEBUG - Calling on_part_end with no data
+25-03-2026 23:20:44 - python_multipart.multipart - DEBUG - Calling on_part_begin with no data
+25-03-2026 23:20:44 - python_multipart.multipart - DEBUG - Calling on_header_field with data[9716:9735]
+25-03-2026 23:20:44 - python_multipart.multipart - DEBUG - Calling on_header_value with data[9737:9794]
+25-03-2026 23:20:44 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+25-03-2026 23:20:44 - python_multipart.multipart - DEBUG - Calling on_header_field with data[9796:9808]
+25-03-2026 23:20:44 - python_multipart.multipart - DEBUG - Calling on_header_value with data[9810:9834]
+25-03-2026 23:20:44 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+25-03-2026 23:20:44 - python_multipart.multipart - DEBUG - Calling on_headers_finished with no data
+25-03-2026 23:20:44 - python_multipart.multipart - DEBUG - Calling on_part_data with data[9838:11613]
+25-03-2026 23:20:44 - python_multipart.multipart - DEBUG - Calling on_part_end with no data
+25-03-2026 23:20:44 - python_multipart.multipart - DEBUG - Calling on_part_begin with no data
+25-03-2026 23:20:44 - python_multipart.multipart - DEBUG - Calling on_header_field with data[11657:11676]
+25-03-2026 23:20:44 - python_multipart.multipart - DEBUG - Calling on_header_value with data[11678:11739]
+25-03-2026 23:20:44 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+25-03-2026 23:20:44 - python_multipart.multipart - DEBUG - Calling on_header_field with data[11741:11753]
+25-03-2026 23:20:44 - python_multipart.multipart - DEBUG - Calling on_header_value with data[11755:11779]
+25-03-2026 23:20:44 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+25-03-2026 23:20:44 - python_multipart.multipart - DEBUG - Calling on_headers_finished with no data
+25-03-2026 23:20:44 - python_multipart.multipart - DEBUG - Calling on_part_data with data[11783:16198]
+25-03-2026 23:20:44 - python_multipart.multipart - DEBUG - Calling on_part_end with no data
+25-03-2026 23:20:44 - python_multipart.multipart - DEBUG - Calling on_part_begin with no data
+25-03-2026 23:20:44 - python_multipart.multipart - DEBUG - Calling on_header_field with data[16242:16261]
+25-03-2026 23:20:44 - python_multipart.multipart - DEBUG - Calling on_header_value with data[16263:16323]
+25-03-2026 23:20:44 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+25-03-2026 23:20:44 - python_multipart.multipart - DEBUG - Calling on_header_field with data[16325:16337]
+25-03-2026 23:20:44 - python_multipart.multipart - DEBUG - Calling on_header_value with data[16339:16363]
+25-03-2026 23:20:44 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+25-03-2026 23:20:44 - python_multipart.multipart - DEBUG - Calling on_headers_finished with no data
+25-03-2026 23:20:44 - python_multipart.multipart - DEBUG - Calling on_part_data with data[16367:20833]
+25-03-2026 23:20:44 - python_multipart.multipart - DEBUG - Calling on_part_end with no data
+25-03-2026 23:20:44 - python_multipart.multipart - DEBUG - Calling on_part_begin with no data
+25-03-2026 23:20:44 - python_multipart.multipart - DEBUG - Calling on_header_field with data[20877:20896]
+25-03-2026 23:20:44 - python_multipart.multipart - DEBUG - Calling on_header_value with data[20898:20963]
+25-03-2026 23:20:44 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+25-03-2026 23:20:44 - python_multipart.multipart - DEBUG - Calling on_header_field with data[20965:20977]
+25-03-2026 23:20:44 - python_multipart.multipart - DEBUG - Calling on_header_value with data[20979:21003]
+25-03-2026 23:20:44 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+25-03-2026 23:20:44 - python_multipart.multipart - DEBUG - Calling on_headers_finished with no data
+25-03-2026 23:20:44 - python_multipart.multipart - DEBUG - Calling on_part_data with data[21007:23379]
+25-03-2026 23:20:44 - python_multipart.multipart - DEBUG - Calling on_part_end with no data
+25-03-2026 23:20:44 - python_multipart.multipart - DEBUG - Calling on_part_begin with no data
+25-03-2026 23:20:44 - python_multipart.multipart - DEBUG - Calling on_header_field with data[23423:23442]
+25-03-2026 23:20:44 - python_multipart.multipart - DEBUG - Calling on_header_value with data[23444:23515]
+25-03-2026 23:20:44 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+25-03-2026 23:20:44 - python_multipart.multipart - DEBUG - Calling on_header_field with data[23517:23529]
+25-03-2026 23:20:44 - python_multipart.multipart - DEBUG - Calling on_header_value with data[23531:23555]
+25-03-2026 23:20:44 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+25-03-2026 23:20:44 - python_multipart.multipart - DEBUG - Calling on_headers_finished with no data
+25-03-2026 23:20:44 - python_multipart.multipart - DEBUG - Calling on_part_data with data[23559:26536]
+25-03-2026 23:20:44 - python_multipart.multipart - DEBUG - Calling on_part_end with no data
+25-03-2026 23:20:44 - python_multipart.multipart - DEBUG - Calling on_part_begin with no data
+25-03-2026 23:20:44 - python_multipart.multipart - DEBUG - Calling on_header_field with data[26580:26599]
+25-03-2026 23:20:44 - python_multipart.multipart - DEBUG - Calling on_header_value with data[26601:26659]
+25-03-2026 23:20:44 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+25-03-2026 23:20:44 - python_multipart.multipart - DEBUG - Calling on_header_field with data[26661:26673]
+25-03-2026 23:20:44 - python_multipart.multipart - DEBUG - Calling on_header_value with data[26675:26699]
+25-03-2026 23:20:44 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+25-03-2026 23:20:44 - python_multipart.multipart - DEBUG - Calling on_headers_finished with no data
+25-03-2026 23:20:44 - python_multipart.multipart - DEBUG - Calling on_part_data with data[26703:32071]
+25-03-2026 23:20:44 - python_multipart.multipart - DEBUG - Calling on_part_end with no data
+25-03-2026 23:20:44 - python_multipart.multipart - DEBUG - Calling on_end with no data
+25-03-2026 23:20:48 - ParaGraph - INFO - Started job 2a70319d (type=workflow)
+25-03-2026 23:23:59 - python_multipart.multipart - DEBUG - Calling on_part_begin with no data
+25-03-2026 23:23:59 - python_multipart.multipart - DEBUG - Calling on_header_field with data[42:61]
+25-03-2026 23:23:59 - python_multipart.multipart - DEBUG - Calling on_header_value with data[63:117]
+25-03-2026 23:23:59 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+25-03-2026 23:23:59 - python_multipart.multipart - DEBUG - Calling on_header_field with data[119:131]
+25-03-2026 23:23:59 - python_multipart.multipart - DEBUG - Calling on_header_value with data[133:157]
+25-03-2026 23:23:59 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+25-03-2026 23:23:59 - python_multipart.multipart - DEBUG - Calling on_headers_finished with no data
+25-03-2026 23:23:59 - python_multipart.multipart - DEBUG - Calling on_part_data with data[161:3171]
+25-03-2026 23:23:59 - python_multipart.multipart - DEBUG - Calling on_part_end with no data
+25-03-2026 23:23:59 - python_multipart.multipart - DEBUG - Calling on_end with no data
+25-03-2026 23:24:02 - ParaGraph - INFO - Started job 24c620c6 (type=workflow)
+25-03-2026 23:29:32 - ParaGraph - INFO - Started job 0a822683 (type=workflow)
+25-03-2026 23:31:41 - ParaGraph - INFO - Started job 81bedda1 (type=workflow)
+25-03-2026 23:32:18 - ParaGraph - INFO - Started job ff9d651f (type=workflow)
+25-03-2026 23:34:53 - ParaGraph - INFO - Started job 332be211 (type=workflow)
+25-03-2026 23:35:07 - ParaGraph - INFO - Started job 7c350fdd (type=workflow)
+25-03-2026 23:35:52 - httpcore.connection - DEBUG - connect_tcp.started host='127.0.0.1' port=11434 local_address=None timeout=30.0 socket_options=None
+25-03-2026 23:35:52 - httpcore.connection - DEBUG - connect_tcp.complete return_value=<httpcore._backends.sync.SyncStream object at 0x0000014D6C9EC190>
+25-03-2026 23:35:52 - httpcore.http11 - DEBUG - send_request_headers.started request=<Request [b'GET']>
+25-03-2026 23:35:52 - httpcore.http11 - DEBUG - send_request_headers.complete
+25-03-2026 23:35:52 - httpcore.http11 - DEBUG - send_request_body.started request=<Request [b'GET']>
+25-03-2026 23:35:52 - httpcore.http11 - DEBUG - send_request_body.complete
+25-03-2026 23:35:52 - httpcore.http11 - DEBUG - receive_response_headers.started request=<Request [b'GET']>
+25-03-2026 23:35:52 - httpcore.http11 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Content-Type', b'application/json; charset=utf-8'), (b'Date', b'Wed, 25 Mar 2026 22:35:52 GMT'), (b'Transfer-Encoding', b'chunked')])
+25-03-2026 23:35:52 - httpx - INFO - HTTP Request: GET http://127.0.0.1:11434/api/tags "HTTP/1.1 200 OK"
+25-03-2026 23:35:52 - httpcore.http11 - DEBUG - receive_response_body.started request=<Request [b'GET']>
+25-03-2026 23:35:52 - httpcore.http11 - DEBUG - receive_response_body.complete
+25-03-2026 23:35:52 - httpcore.http11 - DEBUG - response_closed.started
+25-03-2026 23:35:52 - httpcore.http11 - DEBUG - response_closed.complete
+25-03-2026 23:35:52 - httpcore.connection - DEBUG - close.started
+25-03-2026 23:35:52 - httpcore.connection - DEBUG - close.complete
+25-03-2026 23:35:53 - ParaGraph - INFO - Started job 623bda50 (type=workflow)
+25-03-2026 23:36:18 - ParaGraph - INFO - Started job 45b135b1 (type=workflow)
+25-03-2026 23:36:22 - ParaGraph - INFO - Started job dcaa1bda (type=workflow)
+25-03-2026 23:36:52 - python_multipart.multipart - DEBUG - Calling on_part_begin with no data
+25-03-2026 23:36:52 - python_multipart.multipart - DEBUG - Calling on_header_field with data[42:61]
+25-03-2026 23:36:52 - python_multipart.multipart - DEBUG - Calling on_header_value with data[63:119]
+25-03-2026 23:36:52 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+25-03-2026 23:36:52 - python_multipart.multipart - DEBUG - Calling on_header_field with data[121:133]
+25-03-2026 23:36:52 - python_multipart.multipart - DEBUG - Calling on_header_value with data[135:159]
+25-03-2026 23:36:52 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+25-03-2026 23:36:52 - python_multipart.multipart - DEBUG - Calling on_headers_finished with no data
+25-03-2026 23:36:52 - python_multipart.multipart - DEBUG - Calling on_part_data with data[163:6494]
+25-03-2026 23:36:52 - python_multipart.multipart - DEBUG - Calling on_part_end with no data
+25-03-2026 23:36:52 - python_multipart.multipart - DEBUG - Calling on_part_begin with no data
+25-03-2026 23:36:52 - python_multipart.multipart - DEBUG - Calling on_header_field with data[6538:6557]
+25-03-2026 23:36:52 - python_multipart.multipart - DEBUG - Calling on_header_value with data[6559:6618]
+25-03-2026 23:36:52 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+25-03-2026 23:36:52 - python_multipart.multipart - DEBUG - Calling on_header_field with data[6620:6632]
+25-03-2026 23:36:52 - python_multipart.multipart - DEBUG - Calling on_header_value with data[6634:6658]
+25-03-2026 23:36:52 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+25-03-2026 23:36:52 - python_multipart.multipart - DEBUG - Calling on_headers_finished with no data
+25-03-2026 23:36:52 - python_multipart.multipart - DEBUG - Calling on_part_data with data[6662:9672]
+25-03-2026 23:36:52 - python_multipart.multipart - DEBUG - Calling on_part_end with no data
+25-03-2026 23:36:52 - python_multipart.multipart - DEBUG - Calling on_part_begin with no data
+25-03-2026 23:36:52 - python_multipart.multipart - DEBUG - Calling on_header_field with data[9716:9735]
+25-03-2026 23:36:52 - python_multipart.multipart - DEBUG - Calling on_header_value with data[9737:9794]
+25-03-2026 23:36:52 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+25-03-2026 23:36:52 - python_multipart.multipart - DEBUG - Calling on_header_field with data[9796:9808]
+25-03-2026 23:36:52 - python_multipart.multipart - DEBUG - Calling on_header_value with data[9810:9834]
+25-03-2026 23:36:52 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+25-03-2026 23:36:52 - python_multipart.multipart - DEBUG - Calling on_headers_finished with no data
+25-03-2026 23:36:52 - python_multipart.multipart - DEBUG - Calling on_part_data with data[9838:11613]
+25-03-2026 23:36:52 - python_multipart.multipart - DEBUG - Calling on_part_end with no data
+25-03-2026 23:36:52 - python_multipart.multipart - DEBUG - Calling on_part_begin with no data
+25-03-2026 23:36:52 - python_multipart.multipart - DEBUG - Calling on_header_field with data[11657:11676]
+25-03-2026 23:36:52 - python_multipart.multipart - DEBUG - Calling on_header_value with data[11678:11739]
+25-03-2026 23:36:52 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+25-03-2026 23:36:52 - python_multipart.multipart - DEBUG - Calling on_header_field with data[11741:11753]
+25-03-2026 23:36:52 - python_multipart.multipart - DEBUG - Calling on_header_value with data[11755:11779]
+25-03-2026 23:36:52 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+25-03-2026 23:36:52 - python_multipart.multipart - DEBUG - Calling on_headers_finished with no data
+25-03-2026 23:36:52 - python_multipart.multipart - DEBUG - Calling on_part_data with data[11783:16198]
+25-03-2026 23:36:52 - python_multipart.multipart - DEBUG - Calling on_part_end with no data
+25-03-2026 23:36:52 - python_multipart.multipart - DEBUG - Calling on_part_begin with no data
+25-03-2026 23:36:52 - python_multipart.multipart - DEBUG - Calling on_header_field with data[16242:16261]
+25-03-2026 23:36:52 - python_multipart.multipart - DEBUG - Calling on_header_value with data[16263:16323]
+25-03-2026 23:36:52 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+25-03-2026 23:36:52 - python_multipart.multipart - DEBUG - Calling on_header_field with data[16325:16337]
+25-03-2026 23:36:52 - python_multipart.multipart - DEBUG - Calling on_header_value with data[16339:16363]
+25-03-2026 23:36:52 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+25-03-2026 23:36:52 - python_multipart.multipart - DEBUG - Calling on_headers_finished with no data
+25-03-2026 23:36:52 - python_multipart.multipart - DEBUG - Calling on_part_data with data[16367:20833]
+25-03-2026 23:36:52 - python_multipart.multipart - DEBUG - Calling on_part_end with no data
+25-03-2026 23:36:52 - python_multipart.multipart - DEBUG - Calling on_part_begin with no data
+25-03-2026 23:36:52 - python_multipart.multipart - DEBUG - Calling on_header_field with data[20877:20896]
+25-03-2026 23:36:52 - python_multipart.multipart - DEBUG - Calling on_header_value with data[20898:20963]
+25-03-2026 23:36:52 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+25-03-2026 23:36:52 - python_multipart.multipart - DEBUG - Calling on_header_field with data[20965:20977]
+25-03-2026 23:36:52 - python_multipart.multipart - DEBUG - Calling on_header_value with data[20979:21003]
+25-03-2026 23:36:52 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+25-03-2026 23:36:52 - python_multipart.multipart - DEBUG - Calling on_headers_finished with no data
+25-03-2026 23:36:52 - python_multipart.multipart - DEBUG - Calling on_part_data with data[21007:23379]
+25-03-2026 23:36:52 - python_multipart.multipart - DEBUG - Calling on_part_end with no data
+25-03-2026 23:36:52 - python_multipart.multipart - DEBUG - Calling on_part_begin with no data
+25-03-2026 23:36:52 - python_multipart.multipart - DEBUG - Calling on_header_field with data[23423:23442]
+25-03-2026 23:36:52 - python_multipart.multipart - DEBUG - Calling on_header_value with data[23444:23515]
+25-03-2026 23:36:52 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+25-03-2026 23:36:52 - python_multipart.multipart - DEBUG - Calling on_header_field with data[23517:23529]
+25-03-2026 23:36:52 - python_multipart.multipart - DEBUG - Calling on_header_value with data[23531:23555]
+25-03-2026 23:36:52 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+25-03-2026 23:36:52 - python_multipart.multipart - DEBUG - Calling on_headers_finished with no data
+25-03-2026 23:36:52 - python_multipart.multipart - DEBUG - Calling on_part_data with data[23559:26536]
+25-03-2026 23:36:52 - python_multipart.multipart - DEBUG - Calling on_part_end with no data
+25-03-2026 23:36:52 - python_multipart.multipart - DEBUG - Calling on_part_begin with no data
+25-03-2026 23:36:52 - python_multipart.multipart - DEBUG - Calling on_header_field with data[26580:26599]
+25-03-2026 23:36:52 - python_multipart.multipart - DEBUG - Calling on_header_value with data[26601:26659]
+25-03-2026 23:36:52 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+25-03-2026 23:36:52 - python_multipart.multipart - DEBUG - Calling on_header_field with data[26661:26673]
+25-03-2026 23:36:52 - python_multipart.multipart - DEBUG - Calling on_header_value with data[26675:26699]
+25-03-2026 23:36:52 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+25-03-2026 23:36:52 - python_multipart.multipart - DEBUG - Calling on_headers_finished with no data
+25-03-2026 23:36:52 - python_multipart.multipart - DEBUG - Calling on_part_data with data[26703:32071]
+25-03-2026 23:36:52 - python_multipart.multipart - DEBUG - Calling on_part_end with no data
+25-03-2026 23:36:52 - python_multipart.multipart - DEBUG - Calling on_end with no data
+25-03-2026 23:36:56 - ParaGraph - INFO - Started job 1fd73ee0 (type=workflow)
+25-03-2026 23:37:21 - ParaGraph - INFO - Started job dc455199 (type=workflow)
+25-03-2026 23:37:26 - ParaGraph - INFO - Started job 568166da (type=workflow)
+25-03-2026 23:37:40 - ParaGraph - INFO - Started job d48e27f1 (type=workflow)
+25-03-2026 23:38:24 - ParaGraph - INFO - Started job 508c9e6a (type=workflow)
+25-03-2026 23:38:31 - ParaGraph - INFO - Started job ffe18d58 (type=workflow)
+25-03-2026 23:39:41 - ParaGraph - INFO - Started job 2d4f1068 (type=workflow)
+25-03-2026 23:39:52 - ParaGraph - INFO - Started job 02a3e564 (type=workflow)
+25-03-2026 23:40:09 - ParaGraph - INFO - Started job 620f5333 (type=workflow)
+25-03-2026 23:42:06 - ParaGraph - INFO - Started job 74dd88c2 (type=workflow)
+25-03-2026 23:49:18 - ParaGraph - INFO - Started job f50919a1 (type=workflow)
+25-03-2026 23:53:19 - httpcore.connection - DEBUG - connect_tcp.started host='127.0.0.1' port=11434 local_address=None timeout=30.0 socket_options=None
+25-03-2026 23:53:19 - httpcore.connection - DEBUG - connect_tcp.complete return_value=<httpcore._backends.sync.SyncStream object at 0x0000014D6DEF4E10>
+25-03-2026 23:53:19 - httpcore.http11 - DEBUG - send_request_headers.started request=<Request [b'GET']>
+25-03-2026 23:53:19 - httpcore.http11 - DEBUG - send_request_headers.complete
+25-03-2026 23:53:19 - httpcore.http11 - DEBUG - send_request_body.started request=<Request [b'GET']>
+25-03-2026 23:53:19 - httpcore.http11 - DEBUG - send_request_body.complete
+25-03-2026 23:53:19 - httpcore.http11 - DEBUG - receive_response_headers.started request=<Request [b'GET']>
+25-03-2026 23:53:19 - httpcore.http11 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Content-Type', b'application/json; charset=utf-8'), (b'Date', b'Wed, 25 Mar 2026 22:53:19 GMT'), (b'Transfer-Encoding', b'chunked')])
+25-03-2026 23:53:19 - httpx - INFO - HTTP Request: GET http://127.0.0.1:11434/api/tags "HTTP/1.1 200 OK"
+25-03-2026 23:53:19 - httpcore.http11 - DEBUG - receive_response_body.started request=<Request [b'GET']>
+25-03-2026 23:53:19 - httpcore.http11 - DEBUG - receive_response_body.complete
+25-03-2026 23:53:19 - httpcore.http11 - DEBUG - response_closed.started
+25-03-2026 23:53:19 - httpcore.http11 - DEBUG - response_closed.complete
+25-03-2026 23:53:19 - httpcore.connection - DEBUG - close.started
+25-03-2026 23:53:19 - httpcore.connection - DEBUG - close.complete
+25-03-2026 23:53:27 - python_multipart.multipart - DEBUG - Calling on_part_begin with no data
+25-03-2026 23:53:27 - python_multipart.multipart - DEBUG - Calling on_header_field with data[42:61]
+25-03-2026 23:53:27 - python_multipart.multipart - DEBUG - Calling on_header_value with data[63:119]
+25-03-2026 23:53:27 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+25-03-2026 23:53:27 - python_multipart.multipart - DEBUG - Calling on_header_field with data[121:133]
+25-03-2026 23:53:27 - python_multipart.multipart - DEBUG - Calling on_header_value with data[135:159]
+25-03-2026 23:53:27 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+25-03-2026 23:53:27 - python_multipart.multipart - DEBUG - Calling on_headers_finished with no data
+25-03-2026 23:53:27 - python_multipart.multipart - DEBUG - Calling on_part_data with data[163:6494]
+25-03-2026 23:53:27 - python_multipart.multipart - DEBUG - Calling on_part_end with no data
+25-03-2026 23:53:27 - python_multipart.multipart - DEBUG - Calling on_part_begin with no data
+25-03-2026 23:53:27 - python_multipart.multipart - DEBUG - Calling on_header_field with data[6538:6557]
+25-03-2026 23:53:27 - python_multipart.multipart - DEBUG - Calling on_header_value with data[6559:6618]
+25-03-2026 23:53:27 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+25-03-2026 23:53:27 - python_multipart.multipart - DEBUG - Calling on_header_field with data[6620:6632]
+25-03-2026 23:53:27 - python_multipart.multipart - DEBUG - Calling on_header_value with data[6634:6658]
+25-03-2026 23:53:27 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+25-03-2026 23:53:27 - python_multipart.multipart - DEBUG - Calling on_headers_finished with no data
+25-03-2026 23:53:27 - python_multipart.multipart - DEBUG - Calling on_part_data with data[6662:9672]
+25-03-2026 23:53:27 - python_multipart.multipart - DEBUG - Calling on_part_end with no data
+25-03-2026 23:53:27 - python_multipart.multipart - DEBUG - Calling on_part_begin with no data
+25-03-2026 23:53:27 - python_multipart.multipart - DEBUG - Calling on_header_field with data[9716:9735]
+25-03-2026 23:53:27 - python_multipart.multipart - DEBUG - Calling on_header_value with data[9737:9794]
+25-03-2026 23:53:27 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+25-03-2026 23:53:27 - python_multipart.multipart - DEBUG - Calling on_header_field with data[9796:9808]
+25-03-2026 23:53:27 - python_multipart.multipart - DEBUG - Calling on_header_value with data[9810:9834]
+25-03-2026 23:53:27 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+25-03-2026 23:53:27 - python_multipart.multipart - DEBUG - Calling on_headers_finished with no data
+25-03-2026 23:53:27 - python_multipart.multipart - DEBUG - Calling on_part_data with data[9838:11613]
+25-03-2026 23:53:27 - python_multipart.multipart - DEBUG - Calling on_part_end with no data
+25-03-2026 23:53:27 - python_multipart.multipart - DEBUG - Calling on_part_begin with no data
+25-03-2026 23:53:27 - python_multipart.multipart - DEBUG - Calling on_header_field with data[11657:11676]
+25-03-2026 23:53:27 - python_multipart.multipart - DEBUG - Calling on_header_value with data[11678:11739]
+25-03-2026 23:53:27 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+25-03-2026 23:53:27 - python_multipart.multipart - DEBUG - Calling on_header_field with data[11741:11753]
+25-03-2026 23:53:27 - python_multipart.multipart - DEBUG - Calling on_header_value with data[11755:11779]
+25-03-2026 23:53:27 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+25-03-2026 23:53:27 - python_multipart.multipart - DEBUG - Calling on_headers_finished with no data
+25-03-2026 23:53:27 - python_multipart.multipart - DEBUG - Calling on_part_data with data[11783:16198]
+25-03-2026 23:53:27 - python_multipart.multipart - DEBUG - Calling on_part_end with no data
+25-03-2026 23:53:27 - python_multipart.multipart - DEBUG - Calling on_part_begin with no data
+25-03-2026 23:53:27 - python_multipart.multipart - DEBUG - Calling on_header_field with data[16242:16261]
+25-03-2026 23:53:27 - python_multipart.multipart - DEBUG - Calling on_header_value with data[16263:16323]
+25-03-2026 23:53:27 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+25-03-2026 23:53:27 - python_multipart.multipart - DEBUG - Calling on_header_field with data[16325:16337]
+25-03-2026 23:53:27 - python_multipart.multipart - DEBUG - Calling on_header_value with data[16339:16363]
+25-03-2026 23:53:27 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+25-03-2026 23:53:27 - python_multipart.multipart - DEBUG - Calling on_headers_finished with no data
+25-03-2026 23:53:27 - python_multipart.multipart - DEBUG - Calling on_part_data with data[16367:20833]
+25-03-2026 23:53:27 - python_multipart.multipart - DEBUG - Calling on_part_end with no data
+25-03-2026 23:53:27 - python_multipart.multipart - DEBUG - Calling on_part_begin with no data
+25-03-2026 23:53:27 - python_multipart.multipart - DEBUG - Calling on_header_field with data[20877:20896]
+25-03-2026 23:53:27 - python_multipart.multipart - DEBUG - Calling on_header_value with data[20898:20963]
+25-03-2026 23:53:27 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+25-03-2026 23:53:27 - python_multipart.multipart - DEBUG - Calling on_header_field with data[20965:20977]
+25-03-2026 23:53:27 - python_multipart.multipart - DEBUG - Calling on_header_value with data[20979:21003]
+25-03-2026 23:53:27 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+25-03-2026 23:53:27 - python_multipart.multipart - DEBUG - Calling on_headers_finished with no data
+25-03-2026 23:53:27 - python_multipart.multipart - DEBUG - Calling on_part_data with data[21007:23379]
+25-03-2026 23:53:27 - python_multipart.multipart - DEBUG - Calling on_part_end with no data
+25-03-2026 23:53:27 - python_multipart.multipart - DEBUG - Calling on_part_begin with no data
+25-03-2026 23:53:27 - python_multipart.multipart - DEBUG - Calling on_header_field with data[23423:23442]
+25-03-2026 23:53:27 - python_multipart.multipart - DEBUG - Calling on_header_value with data[23444:23515]
+25-03-2026 23:53:27 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+25-03-2026 23:53:27 - python_multipart.multipart - DEBUG - Calling on_header_field with data[23517:23529]
+25-03-2026 23:53:27 - python_multipart.multipart - DEBUG - Calling on_header_value with data[23531:23555]
+25-03-2026 23:53:27 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+25-03-2026 23:53:27 - python_multipart.multipart - DEBUG - Calling on_headers_finished with no data
+25-03-2026 23:53:27 - python_multipart.multipart - DEBUG - Calling on_part_data with data[23559:26536]
+25-03-2026 23:53:27 - python_multipart.multipart - DEBUG - Calling on_part_end with no data
+25-03-2026 23:53:27 - python_multipart.multipart - DEBUG - Calling on_part_begin with no data
+25-03-2026 23:53:27 - python_multipart.multipart - DEBUG - Calling on_header_field with data[26580:26599]
+25-03-2026 23:53:27 - python_multipart.multipart - DEBUG - Calling on_header_value with data[26601:26659]
+25-03-2026 23:53:27 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+25-03-2026 23:53:27 - python_multipart.multipart - DEBUG - Calling on_header_field with data[26661:26673]
+25-03-2026 23:53:27 - python_multipart.multipart - DEBUG - Calling on_header_value with data[26675:26699]
+25-03-2026 23:53:27 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+25-03-2026 23:53:27 - python_multipart.multipart - DEBUG - Calling on_headers_finished with no data
+25-03-2026 23:53:27 - python_multipart.multipart - DEBUG - Calling on_part_data with data[26703:32071]
+25-03-2026 23:53:27 - python_multipart.multipart - DEBUG - Calling on_part_end with no data
+25-03-2026 23:53:27 - python_multipart.multipart - DEBUG - Calling on_end with no data
+25-03-2026 23:53:44 - ParaGraph - INFO - Started job 40d8238f (type=workflow)
+26-03-2026 00:22:46 - httpcore.connection - DEBUG - connect_tcp.started host='127.0.0.1' port=11434 local_address=None timeout=30.0 socket_options=None
+26-03-2026 00:22:46 - httpcore.connection - DEBUG - connect_tcp.complete return_value=<httpcore._backends.sync.SyncStream object at 0x0000014D6C77BBB0>
+26-03-2026 00:22:46 - httpcore.http11 - DEBUG - send_request_headers.started request=<Request [b'GET']>
+26-03-2026 00:22:46 - httpcore.http11 - DEBUG - send_request_headers.complete
+26-03-2026 00:22:46 - httpcore.http11 - DEBUG - send_request_body.started request=<Request [b'GET']>
+26-03-2026 00:22:46 - httpcore.http11 - DEBUG - send_request_body.complete
+26-03-2026 00:22:46 - httpcore.http11 - DEBUG - receive_response_headers.started request=<Request [b'GET']>
+26-03-2026 00:22:46 - httpcore.http11 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Content-Type', b'application/json; charset=utf-8'), (b'Date', b'Wed, 25 Mar 2026 23:22:46 GMT'), (b'Transfer-Encoding', b'chunked')])
+26-03-2026 00:22:46 - httpx - INFO - HTTP Request: GET http://127.0.0.1:11434/api/tags "HTTP/1.1 200 OK"
+26-03-2026 00:22:46 - httpcore.http11 - DEBUG - receive_response_body.started request=<Request [b'GET']>
+26-03-2026 00:22:46 - httpcore.http11 - DEBUG - receive_response_body.complete
+26-03-2026 00:22:46 - httpcore.http11 - DEBUG - response_closed.started
+26-03-2026 00:22:46 - httpcore.http11 - DEBUG - response_closed.complete
+26-03-2026 00:22:46 - httpcore.connection - DEBUG - close.started
+26-03-2026 00:22:46 - httpcore.connection - DEBUG - close.complete
+26-03-2026 00:22:48 - ParaGraph - INFO - Started job 73a6f13d (type=workflow)

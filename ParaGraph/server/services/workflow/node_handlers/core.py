@@ -420,7 +420,11 @@ def _resolve_multiple_files_directory(target_root: Path) -> Path:
     return target_root
 
 
-def _build_client_side_save_text_artifact(parsed: SaveTextParameters, item_count: int) -> dict[str, Any]:
+def _build_client_side_save_text_artifact(
+    parsed: SaveTextParameters,
+    item_count: int,
+    item_texts: list[str],
+) -> dict[str, Any]:
     output_path = coerce_text(parsed.output_path).strip()
     if not output_path:
         raise ValueError("output_path is required. Select a local path.")
@@ -440,6 +444,7 @@ def _build_client_side_save_text_artifact(parsed: SaveTextParameters, item_count
                 "count": len(files),
                 "separate_files": True,
                 "extension": parsed.extension,
+                "item_texts": item_texts,
             }
         }
 
@@ -452,6 +457,7 @@ def _build_client_side_save_text_artifact(parsed: SaveTextParameters, item_count
             "count": 1,
             "separate_files": False,
             "extension": parsed.extension,
+            "item_texts": item_texts,
         }
     }
 
@@ -463,7 +469,11 @@ def _save_text_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> d
         raise ValueError("SAVE_TEXT requires at least one non-empty text, documents, or chunks input")
 
     if parsed.client_side_write and not is_cloud_deployment():
-        return _build_client_side_save_text_artifact(parsed, len(items))
+        return _build_client_side_save_text_artifact(
+            parsed,
+            len(items),
+            [item["text"] for item in items],
+        )
 
     target_root = _resolve_storage_path(parsed.output_path, label="output_path", relative_to_artifacts_root=True)
 
