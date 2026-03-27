@@ -38,6 +38,8 @@ If changes materially affect behavior, architecture, or usage, update the releva
 - Use local machine runtimes for Node/npm commands.
 - For npm commands, prefer: `& "C:\Program Files\PowerShell\7\pwsh.exe" -NoProfile -Command "cmd /c npm <command>"`.
 - Use `cmd /c` only when invoking `.bat` scripts or CMD-specific syntax.
+- After any frontend change, run a frontend rebuild from `ParaGraph/client` using `npm run build` and fix build issues before finishing.
+
 
 ## FRONTEND FILE PICKER RULES
 - Do not implement backend-native file/folder dialogs for workflow nodes (no Tkinter or server-side OS dialogs).
@@ -45,3 +47,4 @@ If changes materially affect behavior, architecture, or usage, update the releva
 
 ## FILE CHANGE NOTICE
 - Any significant change requires updating `assets/docs` and informing the user.
+

@@ -588,6 +588,7 @@
     display: grid;
     gap: 4px;
     min-width: 0;
+    flex: 1 1 auto;
 }
 
 .workflow-node-header strong {
@@ -1231,10 +1232,14 @@
 }
 
 
+.workflow-node-prompt .workflow-node-parameter-field-multiline {
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    padding: 0;
+}
 
-
-
-
-
-
-
+.workflow-node-prompt .workflow-node-parameter-field-multiline:focus-within {
+    border-color: transparent;
+    box-shadow: none;
+}

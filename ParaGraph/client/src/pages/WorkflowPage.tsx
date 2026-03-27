@@ -1678,7 +1678,7 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
     const targetControllers = controllers.filter((controller) => supportsControllerTarget(data.manifest, controller))
     return (
         <div
-            className="workflow-node"
+            className={`workflow-node ${data.manifest.id === 'PROMPT' ? 'workflow-node-prompt' : ''}`}
             style={nodeStyle}
             data-selected={selected || undefined}
             data-active={data.isActive || undefined}
@@ -1706,7 +1706,6 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
                 <div className="workflow-node-header-actions">
                     {data.isActive && <span className="workflow-node-badge workflow-node-badge-running">Running</span>}
                     {data.skipped && <span className="workflow-node-badge workflow-node-badge-skipped">Skipped</span>}
-                    {structured && <span className="workflow-node-badge">Structured</span>}
                     {sqlConnectionNode && (
                         <button
                             type="button"
@@ -3699,31 +3698,5 @@ export default function WorkflowPage() {
         </ReactFlowProvider>
     )
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
