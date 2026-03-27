@@ -10,9 +10,11 @@ NodeCategory = Literal[
     "prompt",
     "model",
     "processing",
+    "embeddings",
     "text_segmentation",
     "output",
     "serialization",
+    "vector_storage",
     "database",
     "control",
 ]
@@ -133,6 +135,7 @@ class ProviderModelDefinition(BaseModel):
     model: str
     label: str
     supports_image: bool = False
+    supports_embeddings: bool = False
     supports_reasoning: bool = False
     supports_structured_output: bool = True
     timeout_s: float | None = Field(default=None, ge=1)

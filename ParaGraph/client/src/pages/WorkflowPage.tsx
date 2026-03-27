@@ -64,17 +64,22 @@ type WorkflowNodeData = {
     manifest: NodeManifest
     parameters: Record<string, unknown>
     collapsed: boolean
+    itemsExpanded: boolean
+    selectedItemKey: string | null
     pinged: boolean
     skipped: boolean
     isActive: boolean
     glowLevel: number
     runtimeOutput: Record<string, unknown> | null
+    runtimeStepOutput: Record<string, unknown> | null
     providerModels: ProviderModelDefinition[]
     onParameterChange: (parameterName: string, value: unknown) => void
     onSaveNodeBrowseSelection: (selection: SaveNodeBrowserSelection | null) => void
     onStatusChange: (message: string) => void
     onTogglePing: () => void
     onToggleCollapse: () => void
+    onToggleItemsExpanded: () => void
+    onSelectItem: (itemKey: string | null) => void
 }
 
 type SaveNodeBrowserSelection =
@@ -113,6 +118,7 @@ type PersistedWorkflowNode = {
     height?: number
     parameters: Record<string, unknown>
     collapsed: boolean
+    items_expanded?: boolean
     pinged: boolean
     skipped: boolean
 }
@@ -165,6 +171,12 @@ type EditorSelectionNode = {
     runtimeOutput: Record<string, unknown> | null
 }
 
+type NodeItemRecord = {
+    key: string
+    label: string
+    preview: string
+}
+
 type WorkflowTextEditorBinding = {
     nodeId: string | null
     text: string
@@ -190,6 +202,95 @@ const SAVE_AS_FILE_CHUNK_SEPARATOR = '/n/n'
 const SAVE_AS_FOLDER_INDEX_WIDTH = 6
 const MAX_NODE_GLOW_TRAIL = 3
 const NODE_GLOW_CLEAR_DELAY_MS = 1200
+const TEXT_EMBEDDING_MODEL_OPTIONS: Record<string, ProviderModelDefinition[]> = {
+    cloud: [
+        {
+            provider: 'openai',
+            model: 'text-embedding-3-small',
+            label: 'Text Embedding 3 Small',
+            supports_image: false,
+            supports_embeddings: true,
+            supports_reasoning: false,
+            supports_structured_output: false,
+        },
+        {
+            provider: 'openai',
+            model: 'text-embedding-3-large',
+            label: 'Text Embedding 3 Large',
+            supports_image: false,
+            supports_embeddings: true,
+            supports_reasoning: false,
+            supports_structured_output: false,
+        },
+        {
+            provider: 'gemini',
+            model: 'gemini-embedding-001',
+            label: 'Gemini Embedding 001',
+            supports_image: false,
+            supports_embeddings: true,
+            supports_reasoning: false,
+            supports_structured_output: false,
+        },
+    ],
+    huggingface: [
+        {
+            provider: 'huggingface',
+            model: 'sentence-transformers/all-MiniLM-L6-v2',
+            label: 'all-MiniLM-L6-v2',
+            supports_image: false,
+            supports_embeddings: true,
+            supports_reasoning: false,
+            supports_structured_output: false,
+        },
+        {
+            provider: 'huggingface',
+            model: 'intfloat/e5-base-v2',
+            label: 'E5 Base v2',
+            supports_image: false,
+            supports_embeddings: true,
+            supports_reasoning: false,
+            supports_structured_output: false,
+        },
+        {
+            provider: 'huggingface',
+            model: 'BAAI/bge-small-en-v1.5',
+            label: 'BGE Small EN v1.5',
+            supports_image: false,
+            supports_embeddings: true,
+            supports_reasoning: false,
+            supports_structured_output: false,
+        },
+    ],
+    ollama: [
+        {
+            provider: 'ollama',
+            model: 'nomic-embed-text',
+            label: 'nomic-embed-text',
+            supports_image: false,
+            supports_embeddings: true,
+            supports_reasoning: false,
+            supports_structured_output: false,
+        },
+        {
+            provider: 'ollama',
+            model: 'mxbai-embed-large',
+            label: 'mxbai-embed-large',
+            supports_image: false,
+            supports_embeddings: true,
+            supports_reasoning: false,
+            supports_structured_output: false,
+        },
+        {
+            provider: 'ollama',
+            model: 'bge-m3',
+            label: 'bge-m3',
+            supports_image: false,
+            supports_embeddings: true,
+            supports_reasoning: false,
+            supports_structured_output: false,
+        },
+    ],
+}
 const WORKFLOW_EDITOR_HANDLE_HEIGHT_PX = 22
 
 type HandleKind = 'input' | 'output' | 'controller'
@@ -633,6 +734,111 @@ function collectSaveNodeItemsFromArtifact(artifact: Record<string, unknown>): st
         .filter((item) => item.trim().length > 0)
 }
 
+function toNodeItemPreview(value: string): string {
+    const compact = value.replace(/\s+/g, ' ').trim()
+    if (compact.length <= 180) {
+        return compact
+    }
+    return compact.slice(0, 177) + '...'
+}
+
+function collectNodeItemsFromPayloadValue(value: unknown): NodeItemRecord[] {
+    const items: NodeItemRecord[] = []
+    const textPayload = coerceTextPayload((isRecord(value) ? value.text : undefined) ?? value)
+    if (textPayload.trim()) {
+        items.push({ key: `text:${textPayload.slice(0, 32)}`, label: 'Text', preview: textPayload })
+    }
+
+    const documents = (Array.isArray(isRecord(value) ? value.documents : undefined) ? (isRecord(value) ? value.documents : []) : []) as unknown[]
+    for (const [index, document] of documents.entries()) {
+        if (!isRecord(document)) {
+            continue
+        }
+        const text = extractTextFromPayloadRecord(document, ['text', 'content', 'chunk'])
+        if (!text.trim()) {
+            continue
+        }
+        const metadata = isRecord(document.metadata) ? document.metadata : {}
+        const label = coerceTextPayload(metadata.file_name) || coerceTextPayload(document.source_uri) || `Document ${index + 1}`
+        const key = coerceTextPayload(document.id) || `document:${index}`
+        items.push({ key, label, preview: text })
+    }
+
+    const chunks = (Array.isArray(isRecord(value) ? value.chunks : undefined) ? (isRecord(value) ? value.chunks : []) : []) as unknown[]
+    for (const [index, chunk] of chunks.entries()) {
+        if (!isRecord(chunk)) {
+            continue
+        }
+        const text = extractTextFromPayloadRecord(chunk, ['text', 'content', 'chunk'])
+        if (!text.trim()) {
+            continue
+        }
+        const chunkIndex = typeof chunk.chunk_index === 'number' ? chunk.chunk_index + 1 : index + 1
+        const label = `Chunk ${chunkIndex}`
+        const key = coerceTextPayload(chunk.id) || `chunk:${index}`
+        items.push({ key, label, preview: text })
+    }
+
+    const points = (Array.isArray(isRecord(value) ? value.points : undefined) ? (isRecord(value) ? value.points : []) : []) as unknown[]
+    for (const [index, point] of points.entries()) {
+        if (!isRecord(point)) {
+            continue
+        }
+        const text = coerceTextPayload(point.text)
+        if (!text.trim()) {
+            continue
+        }
+        const label = coerceTextPayload(point.document_id) || `Embedding ${index + 1}`
+        const key = coerceTextPayload(point.id) || `point:${index}`
+        items.push({ key, label, preview: text })
+    }
+
+    return items
+}
+
+function collectNodeItemsFromParameters(manifest: NodeManifest, parameters: Record<string, unknown>): NodeItemRecord[] {
+    const items: NodeItemRecord[] = []
+    for (const parameter of manifest.parameters) {
+        if (parameter.ui_control !== 'string-list' && parameter.ui_control !== 'file-list') {
+            continue
+        }
+        const values = normalizeStringList(parameters[parameter.name])
+        for (const [index, value] of values.entries()) {
+            if (!value.trim()) {
+                continue
+            }
+            items.push({
+                key: `${parameter.name}:${index}`,
+                label: `${formatParameterLabel(parameter.name)} ${index + 1}`,
+                preview: value,
+            })
+        }
+    }
+    return items
+}
+
+function collectNodeItems(manifest: NodeManifest, parameters: Record<string, unknown>, runtimeStepOutput: Record<string, unknown> | null): NodeItemRecord[] {
+    const runtimePorts = isRecord(runtimeStepOutput?.ports) ? collectNodeItemsFromPayloadValue(runtimeStepOutput.ports) : []
+    if (runtimePorts.length > 0) {
+        return runtimePorts
+    }
+    const runtimeInputs = isRecord(runtimeStepOutput?.inputs) ? collectNodeItemsFromPayloadValue(runtimeStepOutput.inputs) : []
+    if (runtimeInputs.length > 0) {
+        return runtimeInputs
+    }
+    return collectNodeItemsFromParameters(manifest, parameters)
+}
+
+function isNodeItemExpandable(manifest: NodeManifest): boolean {
+    if (manifest.parameters.some((parameter) => parameter.ui_control === 'string-list' || parameter.ui_control === 'file-list')) {
+        return true
+    }
+    return [...manifest.inputs, ...manifest.outputs].some((port) => (
+        port.data_type === 'DOCUMENT_LIST'
+        || port.data_type === 'CHUNK_LIST'
+        || port.data_type === 'VECTOR_POINT_LIST'
+    ))
+}
 function toSafeFileStem(rawName: string, fallback: string): string {
     const cleaned = rawName.replace(/[^A-Za-z0-9._-]+/g, '_').replace(/^[._-]+|[._-]+$/g, '')
     return cleaned || fallback
@@ -1446,6 +1652,10 @@ function getDynamicModelOptions(
         const provider = normalizeProvider(parameters.provider ?? 'ollama') || 'ollama'
         return providerModels.filter((item) => item.provider === provider)
     }
+    if (manifest.id === 'TEXT_EMBEDDING') {
+        const provider = normalizeProvider(parameters.provider ?? 'cloud') || 'cloud'
+        return TEXT_EMBEDDING_MODEL_OPTIONS[provider] ?? []
+    }
     return []
 }
 
@@ -1460,7 +1670,7 @@ function buildInitialNodeParameters(
     }
     const normalizedParameters = normalizeNodePathParameters(manifest, initialParameters)
     const initialModels = getDynamicModelOptions(manifest, normalizedParameters, providerModels)
-    if (manifest.id === 'MODEL_PROVIDER' && initialModels.length > 0 && !String(normalizedParameters.model_name ?? '').trim()) {
+    if ((manifest.id === 'MODEL_PROVIDER' || manifest.id === 'TEXT_EMBEDDING') && initialModels.length > 0 && !String(normalizedParameters.model_name ?? '').trim()) {
         normalizedParameters.model_name = initialModels[0].model
     }
     for (const parameter of manifest.parameters) {
@@ -1513,7 +1723,19 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
 
     const runtimeOutputText = isJsonOutputNode ? formatJsonOutputRuntime(data.runtimeOutput) : formatRuntimeOutput(data.runtimeOutput)
     const shouldShowRuntimeOutput = Boolean(runtimeOutputText) || isJsonOutputNode
+    const isItemExpandable = isNodeItemExpandable(data.manifest)
+    const nodeItems = collectNodeItems(data.manifest, data.parameters, data.runtimeStepOutput)
+    const hasNodeItems = nodeItems.length > 0
+    const nodeItemsEmptyMessage = data.runtimeStepOutput ? 'No items available.' : 'Run the node to inspect items.'
 
+    useEffect(() => {
+        if (!data.selectedItemKey) {
+            return
+        }
+        if (!nodeItems.some((item) => item.key === data.selectedItemKey)) {
+            data.onSelectItem(null)
+        }
+    }, [data.onSelectItem, data.selectedItemKey, nodeItems])
     useEffect(() => {
         setJsonDrafts((current) => {
             const nextJsonDrafts: Record<string, string> = {}
@@ -1758,6 +1980,22 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
                     >
                         {data.pinged ? '◎' : '○'}
                     </button>
+                    {isItemExpandable && (
+                        <button
+                            type="button"
+                            className="workflow-node-items-toggle nodrag nopan"
+                            aria-label={data.itemsExpanded ? 'Collapse to hide items' : 'Expand to see items'}
+                            title={data.itemsExpanded ? 'Collapse to hide items' : 'Expand to see items'}
+                            onPointerDown={preventNodeInteractionDrag}
+                            onMouseDown={preventNodeInteractionDrag}
+                            onClick={(event) => {
+                                event.stopPropagation()
+                                data.onToggleItemsExpanded()
+                            }}
+                        >
+                            {data.itemsExpanded ? '▥' : '▤'}
+                        </button>
+                    )}
                     <button
                         type="button"
                         className="workflow-node-toggle nodrag nopan"
@@ -2061,6 +2299,38 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
                     >
                         {runtimeOutputText}
                     </pre>
+                </div>
+            )}
+
+            {data.itemsExpanded && !data.collapsed && (
+                <div className="workflow-node-items">
+                    <div className="workflow-node-items-header">
+                        <span className="workflow-node-runtime-label">Items</span>
+                        {hasNodeItems && <span className="workflow-node-items-count">{nodeItems.length}</span>}
+                    </div>
+                    {hasNodeItems ? (
+                        <div className="workflow-node-items-scroll">
+                            {nodeItems.map((item) => (
+                                <button
+                                    key={item.key}
+                                    type="button"
+                                    className="workflow-node-item nodrag nopan"
+                                    data-selected={data.selectedItemKey === item.key || undefined}
+                                    onPointerDown={preventNodeInteractionDrag}
+                                    onMouseDown={preventNodeInteractionDrag}
+                                    onClick={(event) => {
+                                        event.stopPropagation()
+                                        data.onSelectItem(data.selectedItemKey === item.key ? null : item.key)
+                                    }}
+                                >
+                                    <span className="workflow-node-item-label">{item.label}</span>
+                                    <span className="workflow-node-item-preview">{toNodeItemPreview(item.preview)}</span>
+                                </button>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="workflow-node-items-empty">{nodeItemsEmptyMessage}</div>
+                    )}
                 </div>
             )}
 
@@ -2559,6 +2829,7 @@ function WorkflowEditor() {
                 height: dimensions.height,
                 parameters: normalizeNodePathParameters(node.data.manifest, node.data.parameters),
                 collapsed: node.data.collapsed,
+                items_expanded: node.data.itemsExpanded,
                 pinged: node.data.pinged,
                 skipped: node.data.skipped,
             }
@@ -2612,7 +2883,7 @@ function WorkflowEditor() {
         }
         return nodes.find((node) => node.id === nodeContextMenu.nodeId) ?? null
     }, [nodeContextMenu, nodes])
-
+    const contextMenuNodeIsExpandable = contextMenuNode ? isNodeItemExpandable(contextMenuNode.data.manifest) : false
     function updateNode(nodeId: string, updater: (node: Node<WorkflowNodeData>) => Node<WorkflowNodeData>): void {
         setNodes((current) => current.map((node) => (node.id === nodeId ? updater(node) : node)))
     }
@@ -2635,6 +2906,7 @@ function WorkflowEditor() {
         position?: XYPosition
         parameters?: Record<string, unknown>
         collapsed?: boolean
+        itemsExpanded?: boolean
         pinged?: boolean
         skipped?: boolean
         selected?: boolean
@@ -2667,11 +2939,14 @@ function WorkflowEditor() {
                 parameters: initialParameters,
                 providerModels,
                 collapsed: input.collapsed ?? input.manifest.ui.collapsed_by_default,
+                itemsExpanded: input.itemsExpanded ?? false,
+                selectedItemKey: null,
                 pinged: isPinged,
                 skipped: input.skipped ?? false,
                 isActive: nodeId === activeNodeId,
                 glowLevel: nodeId === activeNodeId ? 3 : 0,
                 runtimeOutput: null,
+                runtimeStepOutput: null,
                 onParameterChange: (parameterName, value) => {
                     updateNode(nodeId, (current) => {
                         const nextParameters = { ...current.data.parameters, [parameterName]: value }
@@ -2704,6 +2979,7 @@ function WorkflowEditor() {
                             data: {
                                 ...current.data,
                                 parameters: nextParameters,
+                                selectedItemKey: null,
                             },
                         }
                     })
@@ -2726,6 +3002,25 @@ function WorkflowEditor() {
                         ...current,
                         data: { ...current.data, collapsed: !current.data.collapsed },
                         style: { ...current.style, width: current.style?.width ?? defaultWidth },
+                    }))
+                },
+                onToggleItemsExpanded: () => {
+                    updateNode(nodeId, (current) => {
+                        const nextItemsExpanded = !current.data.itemsExpanded
+                        return {
+                            ...current,
+                            data: {
+                                ...current.data,
+                                itemsExpanded: nextItemsExpanded,
+                                collapsed: nextItemsExpanded ? false : current.data.collapsed,
+                            },
+                        }
+                    })
+                },
+                onSelectItem: (itemKey) => {
+                    updateNode(nodeId, (current) => ({
+                        ...current,
+                        data: { ...current.data, selectedItemKey: itemKey },
                     }))
                 },
             },
@@ -2791,6 +3086,7 @@ function WorkflowEditor() {
             },
             parameters: mode === 'clone' ? sourceNode.data.parameters : undefined,
             collapsed: mode === 'clone' ? sourceNode.data.collapsed : sourceNode.data.manifest.ui.collapsed_by_default,
+            itemsExpanded: mode === 'clone' ? sourceNode.data.itemsExpanded : false,
             pinged: mode === 'clone' ? sourceNode.data.pinged : false,
             skipped: mode === 'clone' ? sourceNode.data.skipped : false,
             width: mode === 'clone' ? dimensions.width : undefined,
@@ -2822,15 +3118,32 @@ function WorkflowEditor() {
         setStatusText(`Reset ${node.data.manifest.name} configuration`)
     }
 
-    function applyRunOutputs(outputs: Record<string, Record<string, unknown>>): void {
+    function applyRunState(run: ExecutionRunState | null): void {
+        const outputs = run?.outputs ?? {}
+        const stepOutputByNodeId = new Map<string, Record<string, unknown>>()
+        for (const step of run?.steps ?? []) {
+            if (isRecord(step.output)) {
+                stepOutputByNodeId.set(step.node_id, step.output)
+            }
+        }
+
         setNodes((current) =>
-            current.map((node) => ({
-                ...node,
-                data: {
-                    ...node.data,
-                    runtimeOutput: outputs[node.id] ?? null,
-                },
-            })),
+            current.map((node) => {
+                const runtimeStepOutput = stepOutputByNodeId.get(node.id) ?? null
+                const selectedItemKey = node.data.selectedItemKey && collectNodeItems(node.data.manifest, node.data.parameters, runtimeStepOutput)
+                    .some((item) => item.key === node.data.selectedItemKey)
+                    ? node.data.selectedItemKey
+                    : null
+                return {
+                    ...node,
+                    data: {
+                        ...node.data,
+                        runtimeOutput: outputs[node.id] ?? null,
+                        runtimeStepOutput,
+                        selectedItemKey,
+                    },
+                }
+            }),
         )
     }
     async function syncSaveNodeBrowserSelections(finalState: ExecutionRunState): Promise<string | null> {
@@ -2960,6 +3273,7 @@ function WorkflowEditor() {
                     width: dimensions.width ?? node.data.manifest.ui.default_width,
                     height: dimensions.height ?? NODE_MIN_HEIGHT,
                     collapsed: node.data.collapsed,
+                    items_expanded: node.data.itemsExpanded,
                     pinged: node.data.pinged,
                     skipped: node.data.skipped,
                 }
@@ -3021,6 +3335,7 @@ function WorkflowEditor() {
             const width = visualNode && isFiniteNumber(visualNode.width) ? visualNode.width : undefined
             const height = visualNode && isFiniteNumber(visualNode.height) ? visualNode.height : undefined
             const collapsed = visualNode ? Boolean(visualNode.collapsed) : manifest.ui.collapsed_by_default
+            const itemsExpanded = visualNode ? Boolean(visualNode.items_expanded) : false
             const pinged = visualNode ? Boolean(visualNode.pinged) : false
             const skipped = typeof rawNode.skipped === 'boolean' ? rawNode.skipped : visualNode ? Boolean(visualNode.skipped) : false
             const parameters = isRecord(rawNode.parameters) ? rawNode.parameters : {}
@@ -3031,6 +3346,7 @@ function WorkflowEditor() {
                 position,
                 parameters,
                 collapsed,
+                itemsExpanded,
                 pinged,
                 skipped,
                 width,
@@ -3312,9 +3628,7 @@ function WorkflowEditor() {
                 (run) => {
                     updateExecutionHighlight(resolveHighlightedNodeId(run, activePlanRef.current))
                     setStatusText(`Run ${run.status} (${Math.round(run.progress)}%)`)
-                    if (run.outputs && Object.keys(run.outputs).length > 0) {
-                        applyRunOutputs(run.outputs)
-                    }
+                    applyRunState(run)
                 },
                 { signal: pollingAbortController.signal },
             )
@@ -3334,7 +3648,7 @@ function WorkflowEditor() {
 
     async function finalizeRunState(finalState: ExecutionRunState): Promise<void> {
         clearExecutionHighlight()
-        applyRunOutputs(finalState.outputs)
+        applyRunState(finalState)
         if (finalState.status === 'completed') {
             const localSaveStatus = await syncSaveNodeBrowserSelections(finalState)
             setStatusText(localSaveStatus || 'Workflow completed')
@@ -3406,7 +3720,12 @@ function WorkflowEditor() {
         setNodes((current) =>
             current.map((node) => ({
                 ...node,
-                data: { ...node.data, runtimeOutput: null },
+                data: {
+                    ...node.data,
+                    runtimeOutput: null,
+                    runtimeStepOutput: null,
+                    selectedItemKey: null,
+                },
             })),
         )
         setStatusText('Compiling workflow...')
@@ -3754,6 +4073,21 @@ function WorkflowEditor() {
                             </button>
                             <button
                                 type="button"
+                                className={`workflow-node-context-menu-item ${contextMenuNodeIsExpandable ? '' : 'workflow-node-context-menu-item-disabled'}`}
+                                role="menuitem"
+                                disabled={!contextMenuNodeIsExpandable}
+                                onClick={() => {
+                                    if (!contextMenuNodeIsExpandable) {
+                                        return
+                                    }
+                                    contextMenuNode.data.onToggleItemsExpanded()
+                                    setNodeContextMenu(null)
+                                }}
+                            >
+                                {contextMenuNode.data.itemsExpanded ? 'Collapse to hide items' : 'Expand to see items'}
+                            </button>
+                            <button
+                                type="button"
                                 className="workflow-node-context-menu-item" role="menuitem"
                                 onClick={() => {
                                     toggleNodeSkipped(contextMenuNode.id)
@@ -3834,4 +4168,3 @@ export default function WorkflowPage() {
         </ReactFlowProvider>
     )
 }
-

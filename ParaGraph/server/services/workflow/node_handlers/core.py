@@ -6,6 +6,9 @@ import re
 import shutil
 from pathlib import Path
 from typing import Any
+from uuid import NAMESPACE_URL, uuid5
+
+import httpx
 
 from pydantic import ValidationError
 
@@ -16,6 +19,7 @@ from ParaGraph.server.domain.node_handler_core import (
     ChatParameters,
     EmbeddingParameters,
     ImageInputParameters,
+    LanceDbParameters,
     ModelProviderParameters,
     PromptParameters,
     PromptTemplateParameters,
@@ -27,6 +31,7 @@ from ParaGraph.server.domain.node_handler_core import (
     TextSplitParameters,
 )
 from ParaGraph.server.domain.nodecatalog import ProviderModelDefinition
+from ParaGraph.server.domain.workflow_payloads import VectorPoint
 from ParaGraph.server.services.configuration import configuration_service
 from ParaGraph.server.services.workflow.node_handlers.base import NodeHandler
 from ParaGraph.server.services.workflow.node_handlers.common import (
@@ -40,10 +45,13 @@ from ParaGraph.server.services.workflow.node_handlers.common import (
 )
 from ParaGraph.server.services.workflow.provider import provider_service
 from ParaGraph.server.services.workflow.node_handlers.ingestion import _load_file_text, _resolve_local_path
+from ParaGraph.server.services.workflow.vector_stores import get_vector_store_adapter
 
 
 ARTIFACT_ROOT = Path(RESOURCES_PATH) / "artifacts"
 _HF_MODEL_CACHE: dict[str, tuple[Any, Any]] = {}
+_HF_EMBEDDING_CACHE: dict[str, tuple[Any, Any, Any]] = {}
+TEXT_EMBEDDING_CLOUD_PROVIDERS = ("openai", "gemini")
 SAVE_AS_FILE_CHUNK_SEPARATOR = "/n/n"
 SAVE_AS_FOLDER_INDEX_WIDTH = 6
 
@@ -61,6 +69,28 @@ def _load_huggingface_modules() -> tuple[Any, Any, Any]:
         raise ValueError("Hugging Face support requires transformers AutoModelForCausalLM and AutoTokenizer")
 
     return torch_module, auto_model_for_causal_lm, auto_tokenizer
+
+
+def _load_huggingface_embedding_modules() -> tuple[Any, Any, Any]:
+    try:
+        torch_module = importlib.import_module("torch")
+        transformers_module = importlib.import_module("transformers")
+    except ModuleNotFoundError as exc:
+        raise ValueError("Hugging Face embeddings require installing torch and transformers") from exc
+
+    auto_model = getattr(transformers_module, "AutoModel", None)
+    auto_tokenizer = getattr(transformers_module, "AutoTokenizer", None)
+    if auto_model is None or auto_tokenizer is None:
+        raise ValueError("Hugging Face embeddings require transformers AutoModel and AutoTokenizer")
+
+    return torch_module, auto_model, auto_tokenizer
+
+
+def _normalize_embedding_vector(vector: list[float]) -> list[float]:
+    magnitude = sum(item * item for item in vector) ** 0.5
+    if magnitude <= 0:
+        return vector
+    return [float(item / magnitude) for item in vector]
 
 # -----------------------------------------------------------------------------
 def _resolve_storage_path(
@@ -402,13 +432,210 @@ def _llm_structured_executor(parameters: dict[str, Any], inputs: dict[str, Any])
     )
 
 
+def _load_document_text_content(document: dict[str, Any], *, fallback_index: int) -> tuple[str, str, dict[str, Any]]:
+    metadata = document.get("metadata") if isinstance(document.get("metadata"), dict) else {}
+    text_content = _extract_text_from_payload(document, ("text", "content", "chunk"))
+    source_uri = coerce_text(document.get("source_uri") or metadata.get("file_path") or f"document:{fallback_index}").strip()
+    if not text_content.strip():
+        path_candidate = coerce_text(metadata.get("file_path") or source_uri).strip()
+        if path_candidate:
+            path = _resolve_local_path(path_candidate)
+            if path.exists() and path.is_file():
+                text_content, _mime_type = _load_file_text(path)
+    return text_content.strip(), source_uri, metadata
+
+
+def _resolve_text_embedding_provider(provider_bucket: str, model_name: str) -> str:
+    normalized_bucket = normalize_provider_name(provider_bucket, default="cloud")
+    if normalized_bucket != "cloud":
+        return normalized_bucket
+    if model_name.lower().startswith("gemini-"):
+        return "gemini"
+    return "openai"
+
+
+def _embed_text_with_gemini(*, model_name: str, text: str) -> list[float]:
+    config = configuration_service.load_configuration()
+    access_key = next((item for item in config.access_keys if normalize_provider_name(item.provider, default="") == "gemini"), None)
+    api_key = access_key.api_key if access_key else None
+    base_url = (access_key.base_url if access_key and access_key.base_url else "https://generativelanguage.googleapis.com/v1beta").rstrip("/")
+    if not api_key:
+        raise ValueError("Provider 'gemini' requires an access key in Configurations")
+
+    response = httpx.post(
+        f"{base_url}/models/{model_name}:embedContent",
+        json={
+            "model": f"models/{model_name}",
+            "content": {"parts": [{"text": text}]},
+        },
+        timeout=30.0,
+        headers={"x-goog-api-key": api_key, "Content-Type": "application/json"},
+    )
+    response.raise_for_status()
+    payload = response.json()
+    embedding = payload.get("embedding") if isinstance(payload, dict) else None
+    values = embedding.get("values") if isinstance(embedding, dict) else None
+    if not isinstance(values, list):
+        raise ValueError("Invalid Gemini embeddings response")
+    return [float(item) for item in values]
+
+
+def _embed_text_with_huggingface(*, model_name: str, text: str) -> list[float]:
+    torch_module, auto_model, auto_tokenizer = _load_huggingface_embedding_modules()
+    config = configuration_service.load_configuration()
+    access_key = next((item for item in config.access_keys if normalize_provider_name(item.provider, default="") == "huggingface"), None)
+    access_token = access_key.api_key if access_key and access_key.api_key else None
+
+    if model_name not in _HF_EMBEDDING_CACHE:
+        tokenizer = auto_tokenizer.from_pretrained(model_name, token=access_token)
+        model = auto_model.from_pretrained(model_name, token=access_token)
+        _HF_EMBEDDING_CACHE[model_name] = (torch_module, tokenizer, model)
+
+    cached_torch, tokenizer, model = _HF_EMBEDDING_CACHE[model_name]
+    encoded = tokenizer([text], padding=True, truncation=True, return_tensors="pt")
+    target_device = getattr(model, "device", None)
+    if target_device is not None:
+        encoded = {key: value.to(target_device) for key, value in encoded.items()}
+
+    with cached_torch.no_grad():
+        outputs = model(**encoded)
+        last_hidden_state = getattr(outputs, "last_hidden_state", None)
+        if last_hidden_state is None:
+            raise ValueError("Hugging Face embedding model did not return a hidden state")
+        attention_mask = encoded["attention_mask"].unsqueeze(-1).expand(last_hidden_state.size()).float()
+        pooled = (last_hidden_state * attention_mask).sum(dim=1) / attention_mask.sum(dim=1).clamp(min=1.0)
+        vector = pooled[0].detach().cpu().tolist()
+    return _normalize_embedding_vector([float(item) for item in vector])
+
+
+def _embed_text_for_text_embedding_node(*, provider: str, model_name: str, text: str) -> list[float]:
+    if provider in {"openai", "ollama"}:
+        return provider_service.embed_text(provider=provider, model=model_name, text=text)
+    if provider == "gemini":
+        return _embed_text_with_gemini(model_name=model_name, text=text)
+    if provider == "huggingface":
+        return _embed_text_with_huggingface(model_name=model_name, text=text)
+    raise ValueError(f"Unsupported embedding provider: {provider}")
+
+
+def _collect_embedding_points(
+    *,
+    inputs: dict[str, Any],
+    provider: str,
+    model_name: str,
+) -> list[dict[str, Any]]:
+    points: list[dict[str, Any]] = []
+    text_payload = coerce_text(inputs.get("text") or "").strip()
+    if text_payload:
+        document_id = str(uuid5(NAMESPACE_URL, f"text:{text_payload}"))
+        points.append(
+            {
+                "id": str(uuid5(NAMESPACE_URL, f"point:{document_id}")),
+                "chunk_id": "",
+                "document_id": document_id,
+                "text": text_payload,
+                "source_uri": "inline:text",
+                "vector": _embed_text_for_text_embedding_node(provider=provider, model_name=model_name, text=text_payload),
+                "embedding_provider": provider,
+                "embedding_model": model_name,
+                "metadata": {"origin": "text"},
+            }
+        )
+
+    documents = inputs.get("documents") if isinstance(inputs.get("documents"), list) else []
+    for index, document in enumerate(documents, start=1):
+        if not isinstance(document, dict):
+            continue
+        text_content, source_uri, metadata = _load_document_text_content(document, fallback_index=index)
+        if not text_content:
+            continue
+        document_id = coerce_text(document.get("id") or "").strip() or str(uuid5(NAMESPACE_URL, source_uri))
+        points.append(
+            {
+                "id": str(uuid5(NAMESPACE_URL, f"point:{document_id}")),
+                "chunk_id": "",
+                "document_id": document_id,
+                "text": text_content,
+                "source_uri": source_uri,
+                "vector": _embed_text_for_text_embedding_node(provider=provider, model_name=model_name, text=text_content),
+                "embedding_provider": provider,
+                "embedding_model": model_name,
+                "metadata": {**metadata, "origin": "document"},
+            }
+        )
+
+    chunks = inputs.get("chunks") if isinstance(inputs.get("chunks"), list) else []
+    for index, chunk in enumerate(chunks, start=1):
+        if not isinstance(chunk, dict):
+            continue
+        text_content = _extract_text_from_payload(chunk, ("text", "content", "chunk")).strip()
+        if not text_content:
+            continue
+        chunk_id = coerce_text(chunk.get("id") or "").strip() or str(uuid5(NAMESPACE_URL, f"chunk:{index}:{text_content}"))
+        document_id = coerce_text(chunk.get("document_id") or "").strip() or str(uuid5(NAMESPACE_URL, chunk_id))
+        source_uri = coerce_text(chunk.get("source_uri") or f"chunk:{chunk_id}").strip()
+        metadata = chunk.get("metadata") if isinstance(chunk.get("metadata"), dict) else {}
+        points.append(
+            {
+                "id": chunk_id,
+                "chunk_id": chunk_id,
+                "document_id": document_id,
+                "text": text_content,
+                "source_uri": source_uri,
+                "vector": _embed_text_for_text_embedding_node(provider=provider, model_name=model_name, text=text_content),
+                "embedding_provider": provider,
+                "embedding_model": model_name,
+                "metadata": {**metadata, "origin": "chunk"},
+            }
+        )
+
+    return points
+
+
 def _embedding_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
-    text = coerce_text(inputs.get("text") or "").strip()
-    if not text:
-        raise ValueError("EMBEDDING_MODEL requires text input")
-    provider = normalize_provider_name(parameters.get("provider"), default="ollama")
-    model_name = coerce_text(parameters.get("model_name") or "nomic-embed-text").strip() or "nomic-embed-text"
-    return {"embedding": provider_service.embed_text(provider=provider, model=model_name, text=text)}
+    parsed = EmbeddingParameters.model_validate(parameters)
+    model_name = coerce_text(parsed.model_name).strip()
+    if not model_name:
+        raise ValueError("TEXT_EMBEDDING requires a model_name")
+    provider = _resolve_text_embedding_provider(parsed.provider, model_name)
+    points = _collect_embedding_points(inputs=inputs, provider=provider, model_name=model_name)
+    if not points:
+        raise ValueError("TEXT_EMBEDDING requires at least one non-empty text, document, or chunk")
+    return {"points": [VectorPoint.model_validate(point).model_dump(mode="json") for point in points]}
+
+
+def _flatten_vector_point_inputs(raw_points: Any) -> list[dict[str, Any]]:
+    if isinstance(raw_points, list):
+        flattened: list[dict[str, Any]] = []
+        for item in raw_points:
+            if isinstance(item, list):
+                flattened.extend(_flatten_vector_point_inputs(item))
+            elif isinstance(item, dict):
+                flattened.append(item)
+        return flattened
+    if isinstance(raw_points, dict):
+        return [raw_points]
+    return []
+
+
+def _lance_db_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
+    parsed = LanceDbParameters.model_validate(parameters)
+    points = _flatten_vector_point_inputs(inputs.get("points"))
+    if not points:
+        raise ValueError("LANCE_DB requires at least one embeddings input")
+    adapter = get_vector_store_adapter("lancedb")
+    store = adapter.write_points(
+        index_name=parsed.table_name,
+        storage_directory=parsed.storage_path,
+        metric=parsed.distance_metric,
+        index_type="ivf_pq",
+        write_mode=parsed.write_mode,
+        points=points,
+        nlist=parsed.num_partitions,
+        hnsw_m=16,
+        create_vector_index=parsed.create_vector_index,
+    )
+    return {"store": store.model_dump(mode="json")}
 
 
 def _tokenize_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
@@ -667,6 +894,8 @@ CORE_HANDLERS = {
     "llm_chat": NodeHandler(executor=_llm_chat_executor, parameter_model=ChatParameters),
     "llm_structured": NodeHandler(executor=_llm_structured_executor, parameter_model=StructuredParameters),
     "embedding_model": NodeHandler(executor=_embedding_executor, parameter_model=EmbeddingParameters),
+    "text_embedding": NodeHandler(executor=_embedding_executor, parameter_model=EmbeddingParameters),
+    "lance_db": NodeHandler(executor=_lance_db_executor, parameter_model=LanceDbParameters),
     "tokenize": NodeHandler(executor=_tokenize_executor),
     "text_split": NodeHandler(executor=_text_split_executor, parameter_model=TextSplitParameters),
     "save_as_file": NodeHandler(executor=_save_as_file_executor, parameter_model=SaveAsFileParameters),

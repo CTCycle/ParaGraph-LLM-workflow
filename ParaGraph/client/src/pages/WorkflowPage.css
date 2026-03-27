@@ -1243,3 +1243,126 @@
     border-color: transparent;
     box-shadow: none;
 }
+
+
+
+.workflow-node-context-menu-item-disabled,
+.workflow-node-context-menu-item:disabled {
+    color: rgba(155, 176, 202, 0.52);
+    cursor: default;
+}
+
+.workflow-node-context-menu-item-disabled:hover,
+.workflow-node-context-menu-item:disabled:hover {
+    background: transparent;
+}
+
+.workflow-node-items-toggle {
+    width: 28px;
+    height: 28px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    cursor: pointer;
+    color: #9fd6ff;
+    font-size: 0.94rem;
+    line-height: 1;
+}
+
+.workflow-node-items-toggle:hover {
+    background: rgba(95, 174, 255, 0.18);
+}
+
+.workflow-node-items {
+    display: grid;
+    gap: 8px;
+    margin: 0 10px 10px;
+    padding: 8px 10px 10px;
+    border: 1px solid rgba(188, 209, 236, 0.12);
+    border-radius: 14px;
+    background: linear-gradient(180deg, rgba(13, 20, 34, 0.9) 0%, rgba(8, 13, 24, 0.94) 100%);
+}
+
+.workflow-node-items-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.workflow-node-items-count {
+    color: #9fd6ff;
+    font-size: 0.7rem;
+}
+
+.workflow-node-items-scroll {
+    display: grid;
+    gap: 6px;
+    max-height: 180px;
+    overflow-y: auto;
+    padding-right: 2px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(129, 151, 183, 0.24) transparent;
+}
+
+.workflow-node-items-scroll::-webkit-scrollbar {
+    width: 4px;
+}
+
+.workflow-node-items-scroll::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.workflow-node-items-scroll::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    background: rgba(129, 151, 183, 0.22);
+}
+
+.workflow-node-item {
+    display: grid;
+    gap: 4px;
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid rgba(188, 209, 236, 0.12);
+    border-radius: 10px;
+    background: rgba(10, 15, 27, 0.72);
+    color: #eef6ff;
+    text-align: left;
+    cursor: pointer;
+    transition: border-color 140ms ease, background 140ms ease;
+}
+
+.workflow-node-item:hover {
+    background: rgba(22, 33, 54, 0.9);
+    border-color: rgba(115, 183, 255, 0.32);
+}
+
+.workflow-node-item[data-selected='true'] {
+    border-color: color-mix(in srgb, var(--node-accent) 58%, rgba(255, 255, 255, 0.24));
+    background: color-mix(in srgb, var(--node-accent) 16%, rgba(11, 18, 30, 0.92));
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--node-accent) 24%, transparent);
+}
+
+.workflow-node-item-label {
+    color: #f1f8ff;
+    font-size: 0.78rem;
+    font-weight: 600;
+}
+
+.workflow-node-item-preview,
+.workflow-node-items-empty {
+    color: #9bb0ca;
+    font-size: 0.72rem;
+    line-height: 1.35;
+}
+
+.workflow-node-item-preview {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+}
+
+.workflow-node-items-empty {
+    padding: 2px 0;
+}

@@ -143,12 +143,53 @@ class StructuredParameters(ChatParameters):
 
 
 class EmbeddingParameters(BaseModel):
-    provider: str = "ollama"
+    provider: str = "cloud"
     model_name: str = "nomic-embed-text"
 
 
 class TextSplitParameters(BaseModel):
     delimiter: str = "\n"
+
+
+class LanceDbParameters(BaseModel):
+    storage_path: str = ""
+    table_name: str = "embeddings"
+    write_mode: str = "overwrite"
+    distance_metric: str = "cosine"
+    create_vector_index: bool = True
+    num_partitions: int = Field(default=256, ge=1)
+
+    @field_validator("storage_path")
+    @classmethod
+    def validate_storage_path(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("storage_path is required. Select a local path.")
+        return normalized
+
+    @field_validator("table_name")
+    @classmethod
+    def validate_table_name(cls, value: str) -> str:
+        normalized = str(value or "").strip()
+        if not normalized:
+            raise ValueError("table_name is required")
+        return normalized
+
+    @field_validator("write_mode")
+    @classmethod
+    def validate_write_mode(cls, value: str) -> str:
+        normalized = str(value or "").strip().lower()
+        if normalized not in {"overwrite", "append"}:
+            raise ValueError("write_mode must be 'overwrite' or 'append'")
+        return normalized
+
+    @field_validator("distance_metric")
+    @classmethod
+    def validate_distance_metric(cls, value: str) -> str:
+        normalized = str(value or "").strip().lower()
+        if normalized not in {"l2", "cosine", "dot"}:
+            raise ValueError("distance_metric must be one of: l2, cosine, dot")
+        return normalized
 
 
 class _SaveNodeParameters(BaseModel):

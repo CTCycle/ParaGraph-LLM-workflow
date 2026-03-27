@@ -79,7 +79,12 @@ class ExecutionService:
                         cache[cache_key] = port_outputs
 
                 outputs_by_step[step_id] = port_outputs
-                output_state_public = self._redact_output_state({"ports": port_outputs})
+                output_state_public = self._redact_output_state(
+                    {
+                        "inputs": self._json_safe(resolved_inputs),
+                        "ports": self._json_safe(port_outputs),
+                    }
+                )
 
                 result = self._extract_terminal_output(step.node_type, resolved_inputs, port_outputs)
                 if result is not None:
@@ -224,4 +229,3 @@ class ExecutionService:
 
 
 execution_service = ExecutionService()
-

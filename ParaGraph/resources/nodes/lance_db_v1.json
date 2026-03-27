@@ -1,0 +1,105 @@
+{
+  "id": "LANCE_DB",
+  "version": 1,
+  "name": "LanceDB",
+  "category": "vector_storage",
+  "description": "Persist embedding points to a LanceDB table stored in a selected local folder.",
+  "inputs": [
+    {
+      "name": "points",
+      "data_type": "VECTOR_POINT_LIST",
+      "required": true,
+      "accepts_multiple": true,
+      "description": "One or more embedded point collections to store."
+    }
+  ],
+  "outputs": [
+    {
+      "name": "store",
+      "data_type": "VECTOR_STORE_HANDLE",
+      "required": true,
+      "accepts_multiple": false,
+      "description": "Stored LanceDB vector table handle."
+    }
+  ],
+  "parameters": [
+    {
+      "name": "storage_path",
+      "data_type": "TEXT",
+      "default": "",
+      "constraints": {
+        "required": true
+      },
+      "ui_control": "directory",
+      "description": "Folder used to store the LanceDB database files."
+    },
+    {
+      "name": "table_name",
+      "data_type": "TEXT",
+      "default": "embeddings",
+      "constraints": {
+        "required": true
+      },
+      "ui_control": "text",
+      "description": "Table name inside the selected LanceDB database."
+    },
+    {
+      "name": "write_mode",
+      "data_type": "TEXT",
+      "default": "overwrite",
+      "constraints": {
+        "required": true,
+        "options": [
+          "overwrite",
+          "append"
+        ]
+      },
+      "ui_control": "select",
+      "description": "Whether to overwrite the table or append to it."
+    },
+    {
+      "name": "distance_metric",
+      "data_type": "TEXT",
+      "default": "cosine",
+      "constraints": {
+        "required": true,
+        "options": [
+          "cosine",
+          "l2",
+          "dot"
+        ]
+      },
+      "ui_control": "select",
+      "description": "Distance metric used by the vector index."
+    },
+    {
+      "name": "create_vector_index",
+      "data_type": "BOOLEAN",
+      "default": true,
+      "ui_control": "toggle",
+      "description": "Create a vector index after writing the points."
+    },
+    {
+      "name": "num_partitions",
+      "data_type": "JSON",
+      "default": 256,
+      "constraints": {
+        "min": 1,
+        "step": 1
+      },
+      "ui_control": "number",
+      "description": "Requested IVF partition count when creating the vector index."
+    }
+  ],
+  "ui": {
+    "default_width": 360,
+    "accent_color": "#59a6ff",
+    "collapsed_by_default": false
+  },
+  "runtime": {
+    "executor_key": "lance_db",
+    "cacheable": false,
+    "deterministic": false,
+    "side_effecting": true
+  }
+}
