@@ -588,9 +588,14 @@ export default function ModelsPage() {
                                 value={ollamaSearch}
                                 onChange={(event) => setOllamaSearch(event.target.value)}
                                 placeholder="Search by model name"
+                                aria-label="Search Ollama models"
                             />
                         </label>
-                        <select value={ollamaFilter} onChange={(event) => setOllamaFilter(parseOllamaModelFilter(event.target.value))}>
+                        <select
+                            aria-label="Filter Ollama models by pull state"
+                            value={ollamaFilter}
+                            onChange={(event) => setOllamaFilter(parseOllamaModelFilter(event.target.value))}
+                        >
                             <option value="all">All states</option>
                             <option value="pulled">Pulled only</option>
                             <option value="unpulled">Unpulled only</option>
@@ -668,6 +673,7 @@ export default function ModelsPage() {
                                 value={hfSearchInput}
                                 onChange={(event) => setHfSearchInput(event.target.value)}
                                 placeholder="Search by model name or repo id"
+                                aria-label="Search Hugging Face models"
                             />
                         </label>
                         <input
@@ -675,8 +681,9 @@ export default function ModelsPage() {
                             value={hfAuthor}
                             onChange={(event) => setHfAuthor(event.target.value)}
                             placeholder="Author or org"
+                            aria-label="Filter Hugging Face models by author"
                         />
-                        <select value={hfTask} onChange={(event) => setHfTask(event.target.value)}>
+                        <select aria-label="Filter Hugging Face models by task" value={hfTask} onChange={(event) => setHfTask(event.target.value)}>
                             <option value="">All tasks</option>
                             {hfTaskOptions.map((task) => (
                                 <option key={task} value={task}>
@@ -684,7 +691,7 @@ export default function ModelsPage() {
                                 </option>
                             ))}
                         </select>
-                        <select value={hfLibrary} onChange={(event) => setHfLibrary(event.target.value)}>
+                        <select aria-label="Filter Hugging Face models by library" value={hfLibrary} onChange={(event) => setHfLibrary(event.target.value)}>
                             <option value="">All libraries</option>
                             {hfLibraryOptions.map((library) => (
                                 <option key={library} value={library}>
@@ -693,6 +700,7 @@ export default function ModelsPage() {
                             ))}
                         </select>
                         <select
+                            aria-label="Filter Hugging Face models by visibility"
                             value={hfVisibility}
                             onChange={(event) => setHfVisibility(parseVisibilityFilter(event.target.value))}
                         >
@@ -701,7 +709,11 @@ export default function ModelsPage() {
                             <option value="gated">Gated</option>
                             <option value="private">Private</option>
                         </select>
-                        <select value={hfSort} onChange={(event) => setHfSort(parseHuggingFaceSortBy(event.target.value))}>
+                        <select
+                            aria-label="Sort Hugging Face models"
+                            value={hfSort}
+                            onChange={(event) => setHfSort(parseHuggingFaceSortBy(event.target.value))}
+                        >
                             <option value="relevance">Relevance</option>
                             <option value="downloads">Downloads</option>
                             <option value="likes">Likes</option>
@@ -820,4 +832,6 @@ export default function ModelsPage() {
         </section>
     )
 }
+
+
 

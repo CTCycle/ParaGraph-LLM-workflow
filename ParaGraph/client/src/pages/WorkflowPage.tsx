@@ -2074,6 +2074,22 @@ function WorkflowEditor() {
     }, [nodeContextMenu])
 
     useEffect(() => {
+        if (!executionErrorModal) {
+            return
+        }
+
+        const handleEscape = (event: KeyboardEvent): void => {
+            if (event.key !== 'Escape') {
+                return
+            }
+            event.preventDefault()
+            setExecutionErrorModal(null)
+        }
+
+        window.addEventListener('keydown', handleEscape)
+        return () => window.removeEventListener('keydown', handleEscape)
+    }, [executionErrorModal])
+    useEffect(() => {
         function handleKeyboardShortcuts(event: KeyboardEvent): void {
             if (isEditableEventTarget(event.target)) {
                 return
@@ -3121,8 +3137,16 @@ function WorkflowEditor() {
             </div>
 
             {executionErrorModal && (
-                <div className="workflow-error-modal-backdrop" role="presentation">
-                    <div className="workflow-error-modal" role="dialog" aria-modal="true" aria-label="Workflow execution error">
+                <div
+                    className="workflow-error-modal-backdrop"
+                    role="presentation"
+                    onMouseDown={(event) => {
+                        if (event.target === event.currentTarget) {
+                            setExecutionErrorModal(null)
+                        }
+                    }}
+                >
+                    <div className="workflow-error-modal" role="dialog" aria-modal="true" aria-label="Workflow execution error" onMouseDown={(event) => event.stopPropagation()}>
                         <button
                             type="button"
                             className="workflow-error-modal-close"
@@ -3163,6 +3187,7 @@ function WorkflowEditor() {
                                     type="search"
                                     value={search}
                                     placeholder="Search nodes"
+                                    aria-label="Search workflow nodes"
                                     onChange={(event) => setSearch(event.target.value)}
                                 />
                             </div>
@@ -3323,7 +3348,7 @@ function WorkflowEditor() {
                         >
                             <button
                                 type="button"
-                                className="workflow-node-context-menu-item"
+                                className="workflow-node-context-menu-item" role="menuitem"
                                 onClick={() => {
                                     toggleNodePing(contextMenuNode.id)
                                     setNodeContextMenu(null)
@@ -3333,7 +3358,7 @@ function WorkflowEditor() {
                             </button>
                             <button
                                 type="button"
-                                className="workflow-node-context-menu-item"
+                                className="workflow-node-context-menu-item" role="menuitem"
                                 onClick={() => {
                                     addSiblingNode(contextMenuNode.id, 'default')
                                     setNodeContextMenu(null)
@@ -3343,7 +3368,7 @@ function WorkflowEditor() {
                             </button>
                             <button
                                 type="button"
-                                className="workflow-node-context-menu-item"
+                                className="workflow-node-context-menu-item" role="menuitem"
                                 onClick={() => {
                                     addSiblingNode(contextMenuNode.id, 'clone')
                                     setNodeContextMenu(null)
@@ -3353,7 +3378,7 @@ function WorkflowEditor() {
                             </button>
                             <button
                                 type="button"
-                                className="workflow-node-context-menu-item"
+                                className="workflow-node-context-menu-item" role="menuitem"
                                 onClick={() => {
                                     resetNodeConfiguration(contextMenuNode.id)
                                     setNodeContextMenu(null)
@@ -3363,7 +3388,7 @@ function WorkflowEditor() {
                             </button>
                             <button
                                 type="button"
-                                className="workflow-node-context-menu-item"
+                                className="workflow-node-context-menu-item" role="menuitem"
                                 onClick={() => {
                                     toggleNodeSkipped(contextMenuNode.id)
                                     setNodeContextMenu(null)
@@ -3374,7 +3399,7 @@ function WorkflowEditor() {
                             <div className="workflow-node-context-menu-separator" role="separator" />
                             <button
                                 type="button"
-                                className="workflow-node-context-menu-item workflow-node-context-menu-item-danger"
+                                className="workflow-node-context-menu-item workflow-node-context-menu-item-danger" role="menuitem"
                                 onClick={() => {
                                     removeNode(contextMenuNode.id)
                                     setStatusText(`Removed ${contextMenuNode.data.manifest.name}`)
@@ -3405,4 +3430,6 @@ export default function WorkflowPage() {
         </ReactFlowProvider>
     )
 }
+
+
 
