@@ -273,6 +273,7 @@ export interface ProviderModelDefinition {
     supports_image: boolean
     supports_reasoning: boolean
     supports_structured_output: boolean
+    timeout_s?: number | null
 }
 
 export interface ProviderModelCatalogResponse {
@@ -458,5 +459,4 @@ export interface DatabaseConnectionCheckResponse {
     ok: boolean
     message: string
 }
-
 

@@ -120,6 +120,7 @@ class ImageInputParameters(BaseModel):
 class ModelProviderParameters(BaseModel):
     provider: str = "ollama"
     model_name: str = ""
+    timeout_seconds: float = Field(default=120, ge=1)
 
 
 class ChatParameters(BaseModel):

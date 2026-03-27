@@ -80,6 +80,7 @@ ParaGraph is a FastAPI + React application for authoring and executing manifest-
   - import/export workflow JSON bundles
   - compile + run actions
   - status updates from polling + websocket events
+  - active execution resume after navigation (run id + poll interval restored from localStorage)
   - node runtime output rendering
 
 - Nodes page:

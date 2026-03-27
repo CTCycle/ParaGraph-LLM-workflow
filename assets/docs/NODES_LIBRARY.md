@@ -22,7 +22,7 @@ MODEL_PROVIDER (v1)
 Category: model
 Inputs: none
 Output: model controller (MODEL_HANDLE, source)
-Notes: Publishes provider/model selection for downstream model nodes.
+Notes: Publishes provider/model selection for downstream model nodes and carries a configurable request timeout (seconds, default `120`).
 
 LLM_CHAT (v1)
 Category: model

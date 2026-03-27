@@ -256,8 +256,39 @@ export function getExecution(runId: string): Promise<ExecutionRunState> {
     return requestJson<ExecutionRunState>(`/executions/${encodeURIComponent(runId)}`)
 }
 
-function sleep(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms))
+function createAbortError(): Error {
+    const error = new Error('Execution polling aborted')
+    error.name = 'AbortError'
+    return error
+}
+
+function sleep(ms: number, signal?: AbortSignal): Promise<void> {
+    if (!signal) {
+        return new Promise((resolve) => setTimeout(resolve, ms))
+    }
+
+    if (signal.aborted) {
+        return Promise.reject(createAbortError())
+    }
+
+    return new Promise((resolve, reject) => {
+        const timer = globalThis.setTimeout(() => {
+            cleanup()
+            resolve()
+        }, ms)
+
+        const handleAbort = (): void => {
+            cleanup()
+            reject(createAbortError())
+        }
+
+        const cleanup = (): void => {
+            globalThis.clearTimeout(timer)
+            signal.removeEventListener('abort', handleAbort)
+        }
+
+        signal.addEventListener('abort', handleAbort, { once: true })
+    })
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -283,15 +314,22 @@ export async function pollExecution(
     runId: string,
     pollSeconds: number,
     onTick?: (run: ExecutionRunState) => void,
+    options?: { signal?: AbortSignal },
 ): Promise<ExecutionRunState> {
     const waitMs = Math.max(250, Math.round(pollSeconds * 1000))
+    const signal = options?.signal
+
     for (;;) {
+        if (signal?.aborted) {
+            throw createAbortError()
+        }
+
         const run = await getExecution(runId)
         onTick?.(run)
         if (run.status !== 'queued' && run.status !== 'running') {
             return run
         }
-        await sleep(waitMs)
+        await sleep(waitMs, signal)
     }
 }
 

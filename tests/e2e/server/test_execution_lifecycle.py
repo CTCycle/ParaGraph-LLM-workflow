@@ -96,7 +96,7 @@ def _poll_run_until_terminal(client: TestClient, run_id: str, timeout_s: float =
 
 
 def test_execution_lifecycle_end_to_end_with_websocket_replay(client: TestClient, monkeypatch) -> None:
-    def _model_definition(provider: str, model: str, session_name: str = "default") -> ProviderModelDefinition:
+    def _model_definition(provider: str, model: str, session_name: str = "default", timeout_s: float | None = None) -> ProviderModelDefinition:
         _ = session_name
         return ProviderModelDefinition(
             provider=provider,
@@ -105,6 +105,7 @@ def test_execution_lifecycle_end_to_end_with_websocket_replay(client: TestClient
             supports_image=False,
             supports_reasoning=False,
             supports_structured_output=True,
+            timeout_s=timeout_s,
         )
 
     monkeypatch.setattr(node_module.provider_service, "validate_model_request", lambda **kwargs: None)
