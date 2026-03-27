@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest'
 
-import { buildNodeGlowLevelMap, normalizeStringList, pushNodeGlowTrail } from './WorkflowPage'
+import {
+    buildNodeGlowLevelMap,
+    formatListEditorValue,
+    normalizeStringList,
+    parseListEditorDraft,
+    pushNodeGlowTrail,
+    resolveWorkflowTextEditorBinding,
+} from './WorkflowPage'
 
 describe('WorkflowPage helper behavior', () => {
     it('builds a short glow trail and assigns decreasing glow levels', () => {
@@ -23,5 +30,50 @@ describe('WorkflowPage helper behavior', () => {
         expect(defaultNormalized).toEqual([])
         expect(preserveNormalized).toEqual([' ', '\t'])
     })
-})
 
+    it('keeps Enter/newline draft text visible while still parsing list values', () => {
+        const draft = 'alpha\n'
+        const parsed = parseListEditorDraft(draft)
+        const display = formatListEditorValue([], draft)
+
+        expect(parsed).toEqual(['alpha'])
+        expect(display).toBe('alpha\n')
+    })
+
+    it('resolves bottom editor binding for prompt, output, and empty selection', () => {
+        const promptBinding = resolveWorkflowTextEditorBinding({
+            id: 'prompt_1',
+            manifestId: 'PROMPT',
+            category: 'prompt',
+            parameters: { prompt_text: 'Draft prompt' },
+            runtimeOutput: null,
+        })
+        const outputBinding = resolveWorkflowTextEditorBinding({
+            id: 'output_1',
+            manifestId: 'TEXT_OUTPUT',
+            category: 'output',
+            parameters: {},
+            runtimeOutput: { text: 'Runtime text' },
+        })
+        const emptyBinding = resolveWorkflowTextEditorBinding(null)
+
+        expect(promptBinding).toEqual({
+            nodeId: 'prompt_1',
+            text: 'Draft prompt',
+            editable: true,
+            parameterName: 'prompt_text',
+        })
+        expect(outputBinding).toEqual({
+            nodeId: 'output_1',
+            text: 'Runtime text',
+            editable: false,
+            parameterName: null,
+        })
+        expect(emptyBinding).toEqual({
+            nodeId: null,
+            text: '',
+            editable: false,
+            parameterName: null,
+        })
+    })
+})

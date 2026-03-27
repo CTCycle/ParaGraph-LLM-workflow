@@ -1,6 +1,7 @@
 import {
     type CSSProperties,
     type DragEvent as ReactDragEvent,
+    type KeyboardEvent as ReactKeyboardEvent,
     type MouseEvent as ReactMouseEvent,
     type PointerEvent as ReactPointerEvent,
     useEffect,
@@ -149,6 +150,21 @@ type SelectedWorkflowJson = {
     fileName: string
     jsonPayload: string
 }
+
+type EditorSelectionNode = {
+    id: string
+    manifestId: string
+    category: NodeCategory
+    parameters: Record<string, unknown>
+    runtimeOutput: Record<string, unknown> | null
+}
+
+type WorkflowTextEditorBinding = {
+    nodeId: string | null
+    text: string
+    editable: boolean
+    parameterName: string | null
+}
 const NODE_MIN_WIDTH = 240
 const NODE_MAX_WIDTH = 680
 const NODE_MIN_HEIGHT = 140
@@ -168,6 +184,7 @@ const SAVE_AS_FILE_CHUNK_SEPARATOR = '/n/n'
 const SAVE_AS_FOLDER_INDEX_WIDTH = 6
 const MAX_NODE_GLOW_TRAIL = 3
 const NODE_GLOW_CLEAR_DELAY_MS = 1200
+const WORKFLOW_EDITOR_HANDLE_HEIGHT_PX = 22
 
 type HandleKind = 'input' | 'output' | 'controller'
 type ParsedHandle = { kind: HandleKind; name: string }
@@ -1306,6 +1323,64 @@ function formatPathListValue(value: unknown, options: { trimItems?: boolean } = 
     return normalizeStringList(value, options).join('\n')
 }
 
+export function parseListEditorDraft(value: string, options: { trimItems?: boolean } = {}): string[] {
+    return normalizeStringList(value, options)
+}
+
+export function formatListEditorValue(
+    value: unknown,
+    draft: string | null | undefined,
+    options: { trimItems?: boolean } = {},
+): string {
+    if (typeof draft === 'string') {
+        return draft
+    }
+    return formatPathListValue(value, options)
+}
+
+export function resolveWorkflowTextEditorBinding(selectedNode: EditorSelectionNode | null): WorkflowTextEditorBinding {
+    if (!selectedNode) {
+        return { nodeId: null, text: '', editable: false, parameterName: null }
+    }
+
+    if (selectedNode.manifestId === 'PROMPT') {
+        return {
+            nodeId: selectedNode.id,
+            text: String(selectedNode.parameters.prompt_text ?? ''),
+            editable: true,
+            parameterName: 'prompt_text',
+        }
+    }
+
+    if (selectedNode.manifestId === 'PROMPT_TEMPLATE') {
+        return {
+            nodeId: selectedNode.id,
+            text: String(selectedNode.parameters.template ?? ''),
+            editable: true,
+            parameterName: 'template',
+        }
+    }
+
+    if (selectedNode.category === 'output') {
+        const text = selectedNode.manifestId === 'JSON_OUTPUT'
+            ? formatJsonOutputRuntime(selectedNode.runtimeOutput)
+            : formatRuntimeOutput(selectedNode.runtimeOutput)
+        return {
+            nodeId: selectedNode.id,
+            text,
+            editable: false,
+            parameterName: null,
+        }
+    }
+
+    return {
+        nodeId: selectedNode.id,
+        text: '',
+        editable: false,
+        parameterName: null,
+    }
+}
+
 function isMultilineControl(parameter: NodeParameterDefinition): boolean {
     return (
         parameter.ui_control === 'textarea'
@@ -1316,6 +1391,10 @@ function isMultilineControl(parameter: NodeParameterDefinition): boolean {
 
 }
 function preventNodeInteractionDrag(event: ReactPointerEvent<HTMLElement> | ReactMouseEvent<HTMLElement>): void {
+    event.stopPropagation()
+}
+
+function stopKeyboardEventPropagation(event: ReactKeyboardEvent<HTMLElement>): void {
     event.stopPropagation()
 }
 
@@ -1402,6 +1481,7 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
     const sqlConnectionNode = isSqlConnectionNode(data.manifest)
     const [browseTarget, setBrowseTarget] = useState<string | null>(null)
     const [jsonDrafts, setJsonDrafts] = useState<Record<string, string>>({})
+    const [listDrafts, setListDrafts] = useState<Record<string, string>>({})
     const [jsonValidationStates, setJsonValidationStates] = useState<Record<string, JsonValidationState>>({})
     const [runtimeJsonValidation, setRuntimeJsonValidation] = useState<JsonValidationState>('idle')
     const [connectionCheckState, setConnectionCheckState] = useState<'idle' | 'checking' | 'success' | 'error'>('idle')
@@ -1433,6 +1513,26 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
             return current
         })
     }, [data.manifest.parameters, data.parameters])
+
+    useEffect(() => {
+        setListDrafts((current) => {
+            const listParameters = new Set(
+                data.manifest.parameters
+                    .filter((parameter) => parameter.ui_control === 'string-list' || parameter.ui_control === 'file-list')
+                    .map((parameter) => parameter.name),
+            )
+            const next: Record<string, string> = {}
+            let hasChanges = false
+            for (const [key, value] of Object.entries(current)) {
+                if (listParameters.has(key)) {
+                    next[key] = value
+                } else {
+                    hasChanges = true
+                }
+            }
+            return hasChanges ? next : current
+        })
+    }, [data.manifest.parameters])
 
     useEffect(() => {
         setConnectionCheckState('idle')
@@ -1748,6 +1848,7 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
                                                 value={formatParameterValue(parameter, value)}
                                                 onPointerDown={preventNodeInteractionDrag}
                                                 onMouseDown={preventNodeInteractionDrag}
+                                                onKeyDown={stopKeyboardEventPropagation}
                                                 onChange={(event) => data.onParameterChange(parameter.name, parseValue(parameter, event.target.value))}
                                             />
                                         ) : parameter.ui_control === 'json' ? (
@@ -1772,6 +1873,7 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
                                                     value={jsonDrafts[parameter.name] ?? normalizeJsonParameterValue(value)}
                                                     onPointerDown={preventNodeInteractionDrag}
                                                     onMouseDown={preventNodeInteractionDrag}
+                                                    onKeyDown={stopKeyboardEventPropagation}
                                                     onChange={(event) => {
                                                         const nextValue = event.target.value
                                                         setJsonDrafts((current) => ({ ...current, [parameter.name]: nextValue }))
@@ -1784,30 +1886,53 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
                                             <textarea
                                                 rows={isSeparatorList ? 6 : 4}
                                                 className={`workflow-node-path-list-input ${isSeparatorList ? 'workflow-node-path-list-input-separators' : ''} nodrag nopan`}
-                                                value={formatPathListValue(value, { trimItems: !isSeparatorList })}
+                                                value={formatListEditorValue(value, listDrafts[parameter.name], { trimItems: !isSeparatorList })}
                                                 onPointerDown={preventNodeInteractionDrag}
                                                 onMouseDown={preventNodeInteractionDrag}
-                                                onChange={(event) =>
+                                                onKeyDown={stopKeyboardEventPropagation}
+                                                onBlur={() =>
+                                                    setListDrafts((current) => {
+                                                        const next = { ...current }
+                                                        delete next[parameter.name]
+                                                        return next
+                                                    })
+                                                }
+                                                onChange={(event) => {
+                                                    const nextDraft = event.target.value
+                                                    setListDrafts((current) => ({ ...current, [parameter.name]: nextDraft }))
                                                     data.onParameterChange(
                                                         parameter.name,
-                                                        normalizeStringList(event.target.value, { trimItems: !isSeparatorList }),
+                                                        parseListEditorDraft(nextDraft, { trimItems: !isSeparatorList }),
                                                     )
-                                                }
+                                                }}
                                             />
                                         ) : parameter.ui_control === 'file-list' ? (
                                             <textarea
                                                 rows={4}
                                                 className="workflow-node-path-list-input nodrag nopan"
-                                                value={formatPathListValue(value)}
+                                                value={formatListEditorValue(value, listDrafts[parameter.name])}
                                                 onPointerDown={preventNodeInteractionDrag}
                                                 onMouseDown={preventNodeInteractionDrag}
-                                                onChange={(event) => data.onParameterChange(parameter.name, normalizeStringList(event.target.value))}
+                                                onKeyDown={stopKeyboardEventPropagation}
+                                                onBlur={() =>
+                                                    setListDrafts((current) => {
+                                                        const next = { ...current }
+                                                        delete next[parameter.name]
+                                                        return next
+                                                    })
+                                                }
+                                                onChange={(event) => {
+                                                    const nextDraft = event.target.value
+                                                    setListDrafts((current) => ({ ...current, [parameter.name]: nextDraft }))
+                                                    data.onParameterChange(parameter.name, parseListEditorDraft(nextDraft))
+                                                }}
                                             />
                                         ) : parameter.ui_control === 'toggle' ? (
                                             <input
                                                 className="workflow-node-toggle-input"
                                                 type="checkbox"
                                                 checked={Boolean(value)}
+                                                onKeyDown={stopKeyboardEventPropagation}
                                                 onChange={(event) => data.onParameterChange(parameter.name, parseValue(parameter, event.target.checked))}
                                             />
                                         ) : parameter.ui_control === 'select' && options.length > 0 ? (
@@ -1816,6 +1941,7 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
                                                 value={String(value ?? '')}
                                                 onPointerDown={preventNodeInteractionDrag}
                                                 onMouseDown={preventNodeInteractionDrag}
+                                                onKeyDown={stopKeyboardEventPropagation}
                                                 onChange={(event) => data.onParameterChange(parameter.name, parseValue(parameter, event.target.value))}
                                             >
                                                 {!String(value ?? '') && <option value="">Select...</option>}
@@ -1836,6 +1962,7 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
                                                     value={formatParameterValue(parameter, value)}
                                                     onPointerDown={preventNodeInteractionDrag}
                                                     onMouseDown={preventNodeInteractionDrag}
+                                                    onKeyDown={stopKeyboardEventPropagation}
                                                     onChange={(event) => data.onParameterChange(parameter.name, event.target.value)}
                                                 />
                                                 <div className="workflow-node-parameter-actions">
@@ -1873,6 +2000,7 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
                                                 value={formatParameterValue(parameter, value)}
                                                 onPointerDown={preventNodeInteractionDrag}
                                                 onMouseDown={preventNodeInteractionDrag}
+                                                onKeyDown={stopKeyboardEventPropagation}
                                                 min={parameter.ui_control === 'number' ? numberConstraints?.min : undefined}
                                                 max={parameter.ui_control === 'number' ? numberConstraints?.max : undefined}
                                                 step={parameter.ui_control === 'number' ? numberConstraints?.step : undefined}
@@ -1937,6 +2065,9 @@ function WorkflowEditor() {
     const [nodes, setNodes, onNodesChange] = useNodesState<Node<WorkflowNodeData>>([])
     const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([])
     const [isGridVisible, setIsGridVisible] = useState(true)
+    const [editorPanelHeight, setEditorPanelHeight] = useState(0)
+    const [editorTextDraft, setEditorTextDraft] = useState('')
+    const [isEditorResizing, setIsEditorResizing] = useState(false)
     const stopEventsRef = useRef<(() => void) | null>(null)
     const activePlanRef = useRef<CompiledExecutionPlan | null>(null)
     const saveNodeBrowseSelectionsRef = useRef<Record<string, SaveNodeBrowserSelection>>({})
@@ -1945,11 +2076,67 @@ function WorkflowEditor() {
     const copiedNodeRef = useRef<CopiedNodeSnapshot | null>(null)
     const pasteCountRef = useRef(0)
     const canvasPanelRef = useRef<HTMLDivElement | null>(null)
+    const canvasColumnRef = useRef<HTMLDivElement | null>(null)
+    const workflowShellRef = useRef<HTMLElement | null>(null)
+    const editorResizeOriginRef = useRef<{ startY: number; startHeight: number } | null>(null)
     const { fitView, getZoom, screenToFlowPosition, zoomIn, zoomTo } = useReactFlow<Node<WorkflowNodeData>, Edge>()
     const glowLevelByNodeId = useMemo(
         () => buildNodeGlowLevelMap(activeNodeId, glowTrailNodeIds),
         [activeNodeId, glowTrailNodeIds],
     )
+    const selectedCanvasNode = useMemo<EditorSelectionNode | null>(() => {
+        const selectedNodes = nodes.filter((node) => node.selected)
+        if (selectedNodes.length === 0) {
+            return null
+        }
+        const node = selectedNodes[selectedNodes.length - 1]
+        return {
+            id: node.id,
+            manifestId: node.data.manifest.id,
+            category: node.data.manifest.category,
+            parameters: node.data.parameters,
+            runtimeOutput: node.data.runtimeOutput,
+        }
+    }, [nodes])
+    const editorBinding = useMemo(
+        () => resolveWorkflowTextEditorBinding(selectedCanvasNode),
+        [selectedCanvasNode],
+    )
+
+    function getEditorPanelMaxHeight(): number {
+        const canvasColumnHeight = canvasColumnRef.current?.clientHeight ?? 0
+        if (canvasColumnHeight > 0) {
+            return Math.max(0, canvasColumnHeight - WORKFLOW_EDITOR_HANDLE_HEIGHT_PX)
+        }
+        const shellHeight = workflowShellRef.current?.clientHeight ?? 0
+        return Math.max(0, shellHeight - 220)
+    }
+
+    function clampEditorPanelHeight(nextHeight: number): number {
+        return Math.min(Math.max(nextHeight, 0), getEditorPanelMaxHeight())
+    }
+
+    function beginEditorResize(event: ReactPointerEvent<HTMLButtonElement>): void {
+        event.preventDefault()
+        event.stopPropagation()
+        editorResizeOriginRef.current = {
+            startY: event.clientY,
+            startHeight: editorPanelHeight,
+        }
+        setIsEditorResizing(true)
+    }
+
+    function handleBottomEditorChange(nextValue: string): void {
+        setEditorTextDraft(nextValue)
+        if (!editorBinding.editable || !editorBinding.nodeId || !editorBinding.parameterName) {
+            return
+        }
+        const node = nodes.find((item) => item.id === editorBinding.nodeId)
+        if (!node) {
+            return
+        }
+        node.data.onParameterChange(editorBinding.parameterName, nextValue)
+    }
 
     function updateExecutionHighlight(nodeId: string | null): void {
         setActiveNodeId(nodeId)
@@ -1980,6 +2167,49 @@ function WorkflowEditor() {
         return () => {
             stopEventsRef.current?.()
         }
+    }, [])
+
+    useEffect(() => {
+        setEditorTextDraft(editorBinding.text)
+    }, [editorBinding.nodeId, editorBinding.parameterName, editorBinding.text])
+
+    useEffect(() => {
+        if (!isEditorResizing) {
+            return
+        }
+
+        const handlePointerMove = (event: PointerEvent): void => {
+            const origin = editorResizeOriginRef.current
+            if (!origin) {
+                return
+            }
+            const delta = origin.startY - event.clientY
+            setEditorPanelHeight(clampEditorPanelHeight(origin.startHeight + delta))
+        }
+
+        const stopResize = (): void => {
+            editorResizeOriginRef.current = null
+            setIsEditorResizing(false)
+        }
+
+        window.addEventListener('pointermove', handlePointerMove)
+        window.addEventListener('pointerup', stopResize)
+        window.addEventListener('pointercancel', stopResize)
+
+        return () => {
+            window.removeEventListener('pointermove', handlePointerMove)
+            window.removeEventListener('pointerup', stopResize)
+            window.removeEventListener('pointercancel', stopResize)
+        }
+    }, [isEditorResizing])
+
+    useEffect(() => {
+        const handleResize = (): void => {
+            setEditorPanelHeight((current) => clampEditorPanelHeight(current))
+        }
+
+        window.addEventListener('resize', handleResize)
+        return () => window.removeEventListener('resize', handleResize)
     }, [])
 
     useEffect(() => {
@@ -3095,7 +3325,7 @@ function WorkflowEditor() {
     }
 
     return (
-        <section className="workflow-shell">
+        <section className="workflow-shell" ref={workflowShellRef}>
             <div className="workflow-toolbar" role="navigation" aria-label="Workflow actions">
                 <div className="workflow-toolbar-status">
                     <span className="workflow-toolbar-status-label">Status</span>
@@ -3266,7 +3496,8 @@ function WorkflowEditor() {
                     </aside>
                 )}
 
-                <div className="workflow-canvas-panel" ref={canvasPanelRef} onDragOver={handleCanvasDragOver} onDrop={handleCanvasDrop}>
+                <div className="workflow-canvas-column" ref={canvasColumnRef}>
+                    <div className="workflow-canvas-panel" ref={canvasPanelRef} onDragOver={handleCanvasDragOver} onDrop={handleCanvasDrop}>
                     {!isLibraryVisible && (
                         <button
                             type="button"
@@ -3412,6 +3643,44 @@ function WorkflowEditor() {
                     )}
                     {loading && <div className="workflow-loading">Loading node catalog...</div>}
                 </div>
+
+                <div className="workflow-bottom-editor-shell" data-expanded={editorPanelHeight > 0 || undefined}>
+                <button
+                    type="button"
+                    className="workflow-bottom-editor-handle"
+                    aria-label="Resize text editor"
+                    onPointerDown={beginEditorResize}
+                    onMouseDown={(event) => {
+                        event.preventDefault()
+                    }}
+                >
+                    <span className="workflow-bottom-editor-handle-grip" aria-hidden="true" />
+                </button>
+                <div
+                    className="workflow-bottom-editor-panel"
+                    style={{ height: `${editorPanelHeight}px` }}
+                >
+                    <div className="workflow-bottom-editor-header">
+                        <strong>Text Editor</strong>
+                        <span>{editorBinding.nodeId ? (editorBinding.editable ? 'Editable' : 'Read-only') : 'No selection'}</span>
+                    </div>
+                    {editorBinding.nodeId ? (
+                        editorBinding.editable ? (
+                            <textarea
+                                className="workflow-bottom-editor-textarea"
+                                value={editorTextDraft}
+                                onChange={(event) => handleBottomEditorChange(event.target.value)}
+                                onKeyDown={stopKeyboardEventPropagation}
+                            />
+                        ) : (
+                            <pre className="workflow-bottom-editor-readonly">{editorTextDraft}</pre>
+                        )
+                    ) : (
+                        <div className="workflow-bottom-editor-empty" />
+                    )}
+                </div>
+            </div>
+            </div>
             </div>
         </section>
     )
@@ -3430,6 +3699,31 @@ export default function WorkflowPage() {
         </ReactFlowProvider>
     )
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

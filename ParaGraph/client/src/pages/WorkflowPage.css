@@ -144,8 +144,18 @@
     padding-right: 10px;
 }
 
+.workflow-canvas-column {
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    overflow: hidden;
+}
+
 .workflow-canvas-panel {
     min-height: 0;
+    flex: 1;
     border: 1px solid rgba(64, 87, 118, 0.76);
     background:
         radial-gradient(circle at top right, rgba(91, 167, 255, 0.13), transparent 26%),
@@ -934,6 +944,88 @@
     background: linear-gradient(180deg, rgba(10, 16, 29, 0.98) 0%, rgba(12, 19, 36, 0.98) 100%);
 }
 
+.workflow-bottom-editor-shell {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid rgba(64, 87, 118, 0.76);
+    background: linear-gradient(180deg, rgba(7, 14, 24, 0.96) 0%, rgba(6, 11, 20, 0.96) 100%);
+    min-height: 12px;
+    overflow: hidden;
+}
+
+.workflow-bottom-editor-handle {
+    width: 100%;
+    height: 12px;
+    min-height: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    border-bottom: 1px solid rgba(74, 101, 133, 0.55);
+    background: rgba(9, 18, 30, 0.94);
+    cursor: ns-resize;
+}
+
+.workflow-bottom-editor-handle-grip {
+    width: 32px;
+    height: 2px;
+    border-radius: 999px;
+    background: rgba(154, 181, 216, 0.65);
+}
+
+.workflow-bottom-editor-panel {
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.workflow-bottom-editor-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 10px;
+    border-bottom: 1px solid rgba(74, 101, 133, 0.42);
+    color: #dcecff;
+    font-size: 0.78rem;
+}
+
+.workflow-bottom-editor-header strong {
+    font-size: 0.8rem;
+}
+
+.workflow-bottom-editor-textarea,
+.workflow-bottom-editor-readonly,
+.workflow-bottom-editor-empty {
+    flex: 1;
+    min-height: 0;
+    margin: 0;
+    width: 100%;
+    border: 0;
+    background: transparent;
+    color: #eef6ff;
+    font-family: 'Cascadia Mono', 'Consolas', 'Courier New', monospace;
+    font-size: 0.82rem;
+    line-height: 1.4;
+    overflow: auto;
+    padding: 10px 12px;
+}
+
+.workflow-bottom-editor-textarea {
+    resize: none;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.workflow-bottom-editor-readonly {
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.workflow-bottom-editor-empty {
+    padding: 0;
+}
 @media (max-width: 1120px) {
     .workflow-toolbar {
         align-items: flex-start;
@@ -1137,5 +1229,12 @@
     color: #ffe0e6;
     cursor: pointer;
 }
+
+
+
+
+
+
+
 
 

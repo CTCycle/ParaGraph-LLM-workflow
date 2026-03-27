@@ -12,6 +12,7 @@ from pydantic import ValidationError
 from ParaGraph.server.common.constants import RESOURCES_PATH
 from ParaGraph.server.common.security import ensure_path_within_root, is_cloud_deployment
 from ParaGraph.server.domain.node_handler_core import (
+    AssignNameParameters,
     ChatParameters,
     EmbeddingParameters,
     ImageInputParameters,
@@ -138,54 +139,56 @@ def _coerce_template_value(value: Any) -> str:
         return str(value)
 
 
-_PROMPT_TEMPLATE_PATTERN = re.compile(r"\{\{\s*([^{}]+?)\s*\}\}")
+_PROMPT_TEMPLATE_PATTERN = re.compile(r"\{([A-Za-z_][A-Za-z0-9_]*)\}")
 
 
-def _apply_prompt_template_cleanup(text: str, mode: str) -> str:
-    if mode == "none":
-        return text
-    if mode == "trim_lines":
-        return "\n".join(line.strip() for line in text.splitlines())
-    if mode == "drop_empty_lines":
-        return "\n".join(line for line in (entry.strip() for entry in text.splitlines()) if line)
-    if mode == "collapse_blank_lines":
-        normalized = "\n".join(line.rstrip() for line in text.splitlines())
-        return re.sub(r"\n{3,}", "\n\n", normalized)
-    return text
+def _collect_prompt_template_variable_maps(raw_variables: Any) -> list[dict[str, Any]]:
+    if raw_variables is None:
+        return []
+    if isinstance(raw_variables, list):
+        candidates = raw_variables
+    else:
+        candidates = [raw_variables]
+
+    variable_maps: list[dict[str, Any]] = []
+    for index, candidate in enumerate(candidates, start=1):
+        if candidate is None:
+            continue
+        if not isinstance(candidate, dict):
+            raise ValueError(f"PROMPT_TEMPLATE variables input #{index} must be an object")
+        variable_maps.append(candidate)
+    return variable_maps
 
 
 def _prompt_template_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
     parsed = PromptTemplateParameters.model_validate(parameters)
-    value_map: dict[str, str] = {}
-    for index in range(1, 9):
-        key = f"var_{index}"
-        if key in inputs and inputs.get(key) is not None:
-            value_map[key] = _coerce_template_value(inputs.get(key))
+    variable_maps = _collect_prompt_template_variable_maps(inputs.get("variables"))
+    merged_variables: dict[str, str] = {}
 
-    for index, alias in enumerate(parsed.variable_names, start=1):
-        source_key = f"var_{index}"
-        if source_key in value_map:
-            value_map[alias] = value_map[source_key]
+    for variable_map in variable_maps:
+        for key, raw_value in variable_map.items():
+            variable_name = str(key).strip()
+            if not variable_name:
+                raise ValueError("PROMPT_TEMPLATE variables must use non-empty keys")
+            if variable_name in merged_variables:
+                raise ValueError(f"PROMPT_TEMPLATE duplicate variable key: {variable_name}")
+            merged_variables[variable_name] = _coerce_template_value(raw_value)
 
-    missing_variables: set[str] = set()
+    referenced_variables = set(_PROMPT_TEMPLATE_PATTERN.findall(parsed.template))
+    missing_variables = sorted(name for name in referenced_variables if name not in merged_variables)
+    if missing_variables:
+        raise ValueError(f"PROMPT_TEMPLATE missing variable values for: {', '.join(missing_variables)}")
 
-    def replace_placeholder(match: re.Match[str]) -> str:
-        variable_name = match.group(1).strip()
-        if variable_name in value_map:
-            return value_map[variable_name]
-        missing_variables.add(variable_name)
-        if parsed.missing_variable == "empty":
-            return ""
-        if parsed.missing_variable == "keep_placeholder":
-            return match.group(0)
-        return match.group(0)
+    rendered = _PROMPT_TEMPLATE_PATTERN.sub(
+        lambda match: merged_variables[match.group(1)],
+        parsed.template,
+    )
+    return {"text": rendered}
 
-    rendered = _PROMPT_TEMPLATE_PATTERN.sub(replace_placeholder, parsed.template)
-    if missing_variables and parsed.missing_variable == "error":
-        missing_list = ", ".join(sorted(missing_variables))
-        raise ValueError(f"PROMPT_TEMPLATE missing variable values for: {missing_list}")
 
-    return {"text": _apply_prompt_template_cleanup(rendered, parsed.cleanup)}
+def _assign_name_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
+    parsed = AssignNameParameters.model_validate(parameters)
+    return {"variable": {parsed.name: inputs.get("value")}}
 
 # -----------------------------------------------------------------------------
 def _image_input_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
@@ -644,6 +647,7 @@ def _router_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict
 CORE_HANDLERS = {
     "prompt": NodeHandler(executor=_prompt_executor, parameter_model=PromptParameters),
     "prompt_template": NodeHandler(executor=_prompt_template_executor, parameter_model=PromptTemplateParameters),
+    "assign_name": NodeHandler(executor=_assign_name_executor, parameter_model=AssignNameParameters),
     "user_prompt": NodeHandler(executor=_prompt_executor, parameter_model=PromptParameters),
     "system_prompt": NodeHandler(executor=_prompt_executor, parameter_model=PromptParameters),
     "image_input": NodeHandler(executor=_image_input_executor, parameter_model=ImageInputParameters),
