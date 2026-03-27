@@ -1,6 +1,6 @@
 .models-page {
-    min-height: calc(100vh - 48px);
-    padding: 28px;
+    min-height: 100%;
+    padding: var(--page-padding);
     background:
         radial-gradient(circle at top right, rgba(74, 163, 255, 0.16), transparent 32%),
         linear-gradient(180deg, #040916 0%, #08111f 100%);
@@ -29,16 +29,16 @@
 .models-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 14px;
-    margin-top: 16px;
+    gap: var(--space-4);
+    margin-top: var(--space-4);
 }
 
 .models-column {
     border: 1px solid rgba(73, 95, 128, 0.72);
-    border-radius: 14px;
+    border-radius: var(--radius-lg);
     background: rgba(10, 17, 31, 0.82);
     backdrop-filter: blur(8px);
-    padding: 14px;
+    padding: var(--space-4);
     display: flex;
     flex-direction: column;
     min-height: 0;
@@ -70,7 +70,7 @@
 .models-footer button,
 .models-error button {
     border: 1px solid rgba(78, 102, 132, 0.84);
-    border-radius: 9px;
+    border-radius: var(--radius-sm);
     background: rgba(4, 10, 20, 0.96);
     color: #eef6ff;
     font: inherit;
@@ -84,15 +84,24 @@
     align-items: center;
     justify-content: center;
     gap: 6px;
-    padding: 7px 10px;
+    min-height: var(--control-height-md);
+    padding: 0 var(--space-3);
     cursor: pointer;
+    transition: background-color 140ms ease, border-color 140ms ease;
+}
+
+.models-column-header button:not(:disabled):hover,
+.models-icon-button:not(:disabled):hover,
+.models-footer button:not(:disabled):hover,
+.models-error button:not(:disabled):hover {
+    border-color: rgba(121, 170, 236, 0.88);
 }
 
 .models-toolbar {
-    margin-top: 12px;
+    margin-top: var(--space-3);
     display: grid;
     grid-template-columns: minmax(0, 1fr) 148px;
-    gap: 8px;
+    gap: var(--space-2);
 }
 
 .models-toolbar-hf {
@@ -103,18 +112,19 @@
     display: grid;
     grid-template-columns: 18px minmax(0, 1fr);
     align-items: center;
-    gap: 8px;
+    gap: var(--space-2);
     border: 1px solid rgba(78, 102, 132, 0.84);
-    border-radius: 9px;
+    border-radius: var(--radius-sm);
     background: rgba(4, 10, 20, 0.96);
-    padding: 0 8px;
+    padding: 0 var(--space-2);
 }
 
 .models-search input {
     border: 0;
     border-radius: 0;
     background: transparent;
-    padding: 7px 0;
+    min-height: var(--control-height-md);
+    padding: 0;
     min-width: 0;
     color: #eef6ff;
 }
@@ -127,7 +137,8 @@
 .models-toolbar select {
     width: 100%;
     min-width: 0;
-    padding: 7px 9px;
+    min-height: var(--control-height-md);
+    padding: 0 var(--space-3);
 }
 
 .models-note,
@@ -148,10 +159,10 @@
 .models-error {
     margin-top: 10px;
     border: 1px solid rgba(196, 112, 96, 0.72);
-    border-radius: 10px;
+    border-radius: var(--radius-sm);
     background: rgba(54, 18, 22, 0.45);
     color: #ffd8d1;
-    padding: 9px 10px;
+    padding: var(--space-2) var(--space-3);
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -163,7 +174,7 @@
     margin-top: 10px;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: var(--space-2);
     min-height: 0;
     max-height: calc(100vh - 316px);
     overflow-y: auto;
@@ -179,12 +190,12 @@
 
 .models-row {
     border: 1px solid rgba(60, 83, 110, 0.74);
-    border-radius: 12px;
+    border-radius: var(--radius-md);
     background: rgba(13, 22, 39, 0.92);
     display: flex;
     justify-content: space-between;
     gap: 12px;
-    padding: 10px 11px;
+    padding: var(--space-3);
 }
 
 .models-row-pulled {
@@ -233,7 +244,7 @@
     display: flex;
     align-items: flex-start;
     justify-content: flex-end;
-    gap: 8px;
+    gap: var(--space-2);
 }
 
 .models-row-actions-hf {
@@ -304,7 +315,8 @@
 
 .models-icon-button-compact {
     gap: 5px;
-    padding: 5px 8px;
+    min-height: var(--control-height-sm);
+    padding: 0 var(--space-2);
     font-size: 0.8rem;
 }
 
@@ -354,7 +366,7 @@
 
 .models-footer {
     margin-top: 10px;
-    min-height: 34px;
+    min-height: var(--control-height-md);
     display: flex;
     justify-content: flex-end;
 }
@@ -375,7 +387,7 @@
 }
 
 @media (max-width: 920px) {
-.models-toolbar,
+    .models-toolbar,
     .models-toolbar-hf {
         grid-template-columns: 1fr;
     }
@@ -394,6 +406,7 @@
     .models-row-actions-hf {
         align-items: flex-start;
     }
+
     .models-row-pills-hf {
         justify-content: flex-start;
     }
@@ -408,12 +421,8 @@
     }
 }
 
-
-
-
-
 @media (max-width: 760px) {
     .models-page {
-        padding: 16px;
+        padding: var(--space-4);
     }
 }

@@ -361,6 +361,7 @@ export default function ConfigurationsPage() {
                 ariaLabel="Load configuration"
                 title="Load configuration"
                 description="Choose one saved configuration profile."
+                onRequestClose={isLoadingProfile ? undefined : loadModal.close}
                 actions={(
                     <ModalActionButtons
                         cancelLabel="Cancel"
@@ -399,6 +400,7 @@ export default function ConfigurationsPage() {
                 ariaLabel="Save configuration"
                 title="Save configuration"
                 description="Name this configuration profile."
+                onRequestClose={isSavingProfile ? undefined : saveModal.close}
                 actions={(
                     <ModalActionButtons
                         cancelLabel="Cancel"
@@ -424,4 +426,5 @@ export default function ConfigurationsPage() {
         </section>
     )
 }
+
 

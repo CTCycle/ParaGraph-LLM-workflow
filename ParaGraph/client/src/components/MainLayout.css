@@ -4,21 +4,21 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    background: #020617;
+    background: var(--color-bg-app);
 }
 
 .topbar {
-    height: 48px;
+    height: var(--topbar-height);
     border-bottom: 1px solid #1e293b;
-    background: #0f172a;
+    background: var(--color-bg-surface);
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 0 12px;
+    gap: var(--space-3);
+    padding: 0 var(--space-3);
 }
 
 .topbar-brand {
-    font-size: 0.98rem;
+    font-size: 0.95rem;
     font-weight: 700;
     color: #f8fafc;
     letter-spacing: 0.01em;
@@ -27,9 +27,9 @@
 .topbar-nav {
     display: flex;
     align-items: stretch;
-    gap: 12px;
+    gap: var(--space-2);
     flex: 1;
-    padding-left: 8px;
+    padding-left: var(--space-2);
 }
 
 .topbar-link {
@@ -37,16 +37,19 @@
     color: #94a3b8;
     display: inline-flex;
     align-items: center;
-    padding: 0;
-    border-radius: 0;
+    min-height: 100%;
+    padding: 0 var(--space-2);
+    border-radius: var(--radius-sm) var(--radius-sm) 0 0;
     border-bottom: 2px solid transparent;
-    font-size: 0.84rem;
+    font-size: 0.86rem;
     font-weight: 500;
-    line-height: 1;
+    line-height: 1.1;
+    transition: color 140ms ease, background-color 140ms ease, border-color 140ms ease;
 }
 
 .topbar-link:hover {
     color: #e2e8f0;
+    background: rgba(51, 65, 85, 0.26);
     border-bottom-color: #334155;
 }
 
@@ -59,4 +62,5 @@
     flex: 1;
     min-height: 0;
     overflow: auto;
+    background: var(--color-bg-app);
 }

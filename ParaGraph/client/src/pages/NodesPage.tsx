@@ -1,4 +1,4 @@
-import { FormEvent, useMemo, useState } from 'react'
+import { FormEvent, useEffect, useMemo, useState } from 'react'
 import {
     ArrowDownToLine,
     ArrowUpToLine,
@@ -161,6 +161,8 @@ export default function NodesPage() {
     const [isImporting, setIsImporting] = useState(false)
     const [isImportModalOpen, setIsImportModalOpen] = useState(false)
     const getErrorMessage = useErrorMessage()
+    const importModalTitleId = 'nodes-import-modal-title'
+    const importModalDescriptionId = 'nodes-import-modal-description'
 
     const categoryCounts = useMemo(() => {
         return NODE_CATEGORY_ORDER.reduce<Record<NodeCategory, number>>((counts, category) => {
@@ -181,6 +183,23 @@ export default function NodesPage() {
             return `${node.name} ${node.description}`.toLowerCase().includes(normalized)
         })
     }, [catalog, search, selectedCategories])
+
+    useEffect(() => {
+        if (!isImportModalOpen || isImporting) {
+            return
+        }
+
+        const handleKeyDown = (event: KeyboardEvent): void => {
+            if (event.key !== 'Escape') {
+                return
+            }
+            event.preventDefault()
+            setIsImportModalOpen(false)
+        }
+
+        window.addEventListener('keydown', handleKeyDown)
+        return () => window.removeEventListener('keydown', handleKeyDown)
+    }, [isImportModalOpen, isImporting])
 
     function toggleCategory(category: NodeCategory): void {
         setSelectedCategories((current) =>
@@ -291,6 +310,7 @@ export default function NodesPage() {
                                         type="search"
                                         value={search}
                                         placeholder="Search nodes"
+                                        aria-label="Search nodes"
                                         onChange={(event) => setSearch(event.target.value)}
                                     />
                                     <button
@@ -350,11 +370,18 @@ export default function NodesPage() {
                         }
                     }}
                 >
-                    <div className="nodes-modal" role="dialog" aria-modal="true" aria-label="Custom node JSON import">
+                    <div
+                        className="nodes-modal"
+                        role="dialog"
+                        aria-modal="true"
+                        aria-label="Custom node JSON import"
+                        aria-labelledby={importModalTitleId}
+                        aria-describedby={importModalDescriptionId}
+                    >
                         <div className="nodes-modal-header">
                             <div className="nodes-section-heading">
-                                <h2>Custom node JSON</h2>
-                                <p>Start from the template, validate your manifest, then import it into the active catalog.</p>
+                                <h2 id={importModalTitleId}>Custom node JSON import</h2>
+                                <p id={importModalDescriptionId}>Start from the template, validate your manifest, then import it into the active catalog.</p>
                             </div>
                             <button
                                 type="button"
@@ -398,4 +425,10 @@ export default function NodesPage() {
         </>
     )
 }
+
+
+
+
+
+
 

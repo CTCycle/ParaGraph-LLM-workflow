@@ -1,6 +1,6 @@
 .nodes-page {
-    min-height: calc(100vh - 48px);
-    padding: 28px;
+    min-height: 100%;
+    padding: var(--page-padding);
     background:
         radial-gradient(circle at top right, rgba(74, 163, 255, 0.16), transparent 32%),
         linear-gradient(180deg, #040916 0%, #08111f 100%);
@@ -30,19 +30,20 @@
     margin-bottom: 16px;
     padding: 10px 14px;
     border: 1px solid rgba(73, 95, 128, 0.72);
-    border-radius: 12px;
+    border-radius: var(--radius-md);
     background: rgba(10, 17, 31, 0.88);
     color: #d7ecff;
 }
 
 .nodes-layout {
-    min-height: calc(100vh - 228px);
+    min-height: 0;
+    height: 100%;
 }
 
 .nodes-catalog-column {
     display: grid;
     grid-template-columns: minmax(210px, 240px) minmax(0, 1fr);
-    gap: 16px;
+    gap: var(--space-4);
     min-height: 0;
     align-items: stretch;
     height: 100%;
@@ -58,9 +59,9 @@
 .nodes-category-toolbar,
 .nodes-preview-shell {
     border: 1px solid rgba(73, 95, 128, 0.72);
-    border-radius: 14px;
+    border-radius: var(--radius-lg);
     background: rgba(10, 17, 31, 0.72);
-    padding: 15px;
+    padding: var(--space-4);
 }
 
 .nodes-section-heading h2 {
@@ -95,7 +96,7 @@
 .nodes-import-toolbar button,
 .nodes-import-actions button,
 .nodes-import-form textarea {
-    border-radius: 10px;
+    border-radius: var(--radius-sm);
     border: 1px solid rgba(72, 96, 126, 0.82);
     background: rgba(4, 10, 20, 0.96);
     color: #eef6ff;
@@ -107,14 +108,23 @@
 .nodes-modal-close,
 .nodes-import-toolbar button,
 .nodes-import-actions button {
-    padding: 8px 12px;
+    min-height: var(--control-height-md);
+    padding: 0 var(--space-3);
     cursor: pointer;
+    transition: border-color 140ms ease, background-color 140ms ease;
+}
+
+.nodes-category-actions button:not(:disabled):hover,
+.nodes-import-toolbar button:not(:disabled):hover,
+.nodes-import-actions button:not(:disabled):hover,
+.nodes-modal-close:not(:disabled):hover {
+    border-color: rgba(121, 170, 236, 0.88);
 }
 
 .nodes-category-list {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: var(--space-2);
     margin-top: 14px;
 }
 
@@ -123,9 +133,9 @@
     grid-template-columns: auto auto minmax(0, 1fr) auto;
     gap: 10px;
     align-items: center;
-    padding: 9px 10px;
+    padding: 10px var(--space-3);
     border: 1px solid rgba(57, 78, 104, 0.62);
-    border-radius: 10px;
+    border-radius: var(--radius-sm);
     background: rgba(12, 22, 39, 0.84);
     cursor: pointer;
 }
@@ -142,7 +152,7 @@
     justify-content: center;
     width: 28px;
     height: 28px;
-    border-radius: 8px;
+    border-radius: var(--radius-sm);
     color: #8fc3ff;
     background: rgba(41, 87, 147, 0.24);
 }
@@ -181,7 +191,8 @@
 .nodes-preview-header-controls input {
     width: 100%;
     min-width: 0;
-    padding: 8px 11px;
+    min-height: var(--control-height-md);
+    padding: 0 var(--space-3);
 }
 
 .nodes-preview-add-button,
@@ -189,8 +200,8 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-width: 38px;
-    min-height: 38px;
+    min-width: var(--control-height-md);
+    min-height: var(--control-height-md);
     padding: 0;
 }
 
@@ -205,7 +216,7 @@
     display: flex;
     flex-direction: column;
     gap: 10px;
-    padding-right: 4px;
+    padding-right: var(--space-1);
 }
 
 .nodes-preview-row {
@@ -213,9 +224,9 @@
     grid-template-columns: 40px minmax(0, 1fr);
     gap: 14px;
     align-items: start;
-    padding: 13px;
+    padding: var(--space-4);
     border: 1px solid rgba(57, 78, 104, 0.72);
-    border-radius: 14px;
+    border-radius: var(--radius-lg);
     background: rgba(13, 22, 39, 0.92);
 }
 
@@ -280,9 +291,9 @@
     max-height: calc(100vh - 40px);
     overflow: hidden;
     border: 1px solid rgba(73, 95, 128, 0.72);
-    border-radius: 14px;
+    border-radius: var(--radius-lg);
     background: rgba(10, 17, 31, 0.95);
-    padding: 16px;
+    padding: var(--space-4);
     display: flex;
     flex-direction: column;
 }
@@ -297,7 +308,7 @@
 
 .nodes-import-form {
     display: grid;
-    gap: 12px;
+    gap: var(--space-3);
     grid-template-rows: auto minmax(0, 1fr) auto;
     min-height: 0;
     flex: 1;
@@ -319,7 +330,7 @@
     height: 100%;
     overflow: auto;
     width: 100%;
-    padding: 12px;
+    padding: var(--space-3);
     line-height: 1.45;
     font-family: 'Consolas', 'Courier New', monospace;
 }
@@ -341,7 +352,7 @@
 
 @media (max-width: 760px) {
     .nodes-page {
-        padding: 16px;
+        padding: var(--space-4);
     }
 
     .nodes-preview-header,
@@ -359,7 +370,6 @@
     }
 
     .nodes-modal {
-        padding: 12px;
+        padding: var(--space-3);
     }
 }
-
