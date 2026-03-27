@@ -79,11 +79,13 @@ const NODE_CATEGORY_ICONS: Record<NodeCategory, LucideIcon> = {
     input: ArrowDownToLine,
     prompt: MessageSquare,
     model: BrainCircuit,
+    embeddings: BrainCircuit,
     processing: Cog,
     text_segmentation: Scissors,
     output: ArrowUpToLine,
     serialization: HardDrive,
     database: Database,
+    vector_storage: Database,
     control: GitBranch,
 }
 
@@ -91,11 +93,13 @@ const EMPTY_CATEGORY_COUNTS: Record<NodeCategory, number> = {
     input: 0,
     prompt: 0,
     model: 0,
+    embeddings: 0,
     processing: 0,
     text_segmentation: 0,
     output: 0,
     serialization: 0,
     database: 0,
+    vector_storage: 0,
     control: 0,
 }
 
@@ -425,10 +429,3 @@ export default function NodesPage() {
         </>
     )
 }
-
-
-
-
-
-
-

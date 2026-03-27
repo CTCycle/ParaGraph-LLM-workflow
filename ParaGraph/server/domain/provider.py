@@ -32,5 +32,6 @@ class ModelMetadata:
     model: str
     label: str
     supports_image: bool = False
+    supports_embeddings: bool = False
     supports_reasoning: bool = False
     supports_structured_output: bool = True

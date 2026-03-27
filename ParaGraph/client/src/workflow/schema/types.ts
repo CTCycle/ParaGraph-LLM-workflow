@@ -3,9 +3,11 @@ export type NodeCategory =
     | 'prompt'
     | 'model'
     | 'processing'
+    | 'embeddings'
     | 'text_segmentation'
     | 'output'
     | 'serialization'
+    | 'vector_storage'
     | 'database'
     | 'control'
 export type NodeDataType =
@@ -126,6 +128,7 @@ export interface VisualNodeState {
     width: number
     height: number
     collapsed: boolean
+    items_expanded?: boolean
     pinged?: boolean
     skipped?: boolean
 }
@@ -271,6 +274,7 @@ export interface ProviderModelDefinition {
     model: string
     label: string
     supports_image: boolean
+    supports_embeddings: boolean
     supports_reasoning: boolean
     supports_structured_output: boolean
     timeout_s?: number | null

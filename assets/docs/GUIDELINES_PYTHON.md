@@ -16,13 +16,13 @@ Standards for Python 3.14+ code in ParaGraph backend services.
 1. Use built-in generics (`list`, `dict`, `tuple`) and `|` unions.
 2. Type all public functions and non-trivial internal helpers.
 3. Prefer `collections.abc` imports for protocol types (`Callable`, `Iterable`, etc.).
-4. Keep Pydantic schemas in `ParaGraph/server/entities` as the API contract source.
+4. Keep Pydantic schemas in `ParaGraph/server/domain` as the API contract source.
 
 ---
 
 ## 3. Project Structure
 
-1. Keep HTTP concerns in `server/routes`.
+1. Keep HTTP concerns in `server/api`.
 2. Keep business/workflow logic in `server/services`.
 3. Keep data persistence logic in `server/repositories`.
 4. Keep app wiring in `server/app.py` only.
@@ -61,6 +61,8 @@ Standards for Python 3.14+ code in ParaGraph backend services.
 2. Prefer simple, explicit logic over premature abstractions.
 3. Add comments only when behavior is not self-evident.
 4. Keep logging structured and useful for debugging.
+- Leverage classes to group methods with similar scope
+- Enforce the use of cosmetic separators (series of # and - symbols) for class and functions
 
 ---
 

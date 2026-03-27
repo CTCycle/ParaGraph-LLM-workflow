@@ -207,6 +207,7 @@ class VisualNodeState(BaseModel):
     width: float = 280.0
     height: float = 180.0
     collapsed: bool = False
+    items_expanded: bool = False
     pinged: bool = False
     skipped: bool = False
 
