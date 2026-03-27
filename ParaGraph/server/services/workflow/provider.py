@@ -1045,7 +1045,7 @@ class ProviderService:
                 names = [fallback]
         return tuple(_infer_ollama_metadata(name) for name in names)
 
-    def _to_model_definition(self, metadata: ModelMetadata) -> ProviderModelDefinition:
+    def _to_model_definition(self, metadata: ModelMetadata, timeout_s: float | None = None) -> ProviderModelDefinition:
         return ProviderModelDefinition(
             provider=metadata.provider,
             model=metadata.model,
@@ -1053,15 +1053,20 @@ class ProviderService:
             supports_image=metadata.supports_image,
             supports_reasoning=metadata.supports_reasoning,
             supports_structured_output=metadata.supports_structured_output,
+            timeout_s=timeout_s,
         )
 
     def build_model_definition(
         self,
         provider: str,
         model: str,
+        timeout_s: float | None = None,
         session_name: str = DEFAULT_SESSION_NAME,
     ) -> ProviderModelDefinition:
-        return self._to_model_definition(self.get_model_metadata(provider, model, session_name))
+        return self._to_model_definition(
+            self.get_model_metadata(provider, model, session_name),
+            timeout_s=timeout_s,
+        )
 
     def get_model_metadata(
         self,
@@ -1124,10 +1129,15 @@ class ProviderService:
         messages: list[dict[str, Any]],
         response_format: str | None = None,
         options: dict[str, Any] | None = None,
+        timeout_s: float | None = None,
         session_name: str = DEFAULT_SESSION_NAME,
     ) -> str:
         normalized_provider = _normalize_provider(provider)
         kwargs: dict[str, Any] = {}
+        if timeout_s is not None:
+            if timeout_s <= 0:
+                raise ValueError("timeout_s must be greater than zero")
+            kwargs["timeout_s"] = timeout_s
         if normalized_provider == "ollama":
             kwargs["base_url"] = self._load_configuration(session_name).ollama.base_url
         elif normalized_provider in {"openai", "gemini", "claude"}:
@@ -1652,7 +1662,6 @@ class ProviderService:
         signature = inspect.signature(api.list_models)
         parameters = signature.parameters
         kwargs: dict[str, Any] = {}
-
         normalized_search = _coerce_optional_text(search)
         normalized_task = _coerce_optional_text(task)
         normalized_library = _coerce_optional_text(library)
@@ -1842,8 +1851,5 @@ class ProviderService:
 
 
 provider_service = ProviderService()
-
-
-
 
 

@@ -44,6 +44,17 @@
       },
       "ui_control": "select",
       "description": "Model identifier available for the selected provider."
+    },
+    {
+      "name": "timeout_seconds",
+      "data_type": "JSON",
+      "default": 120,
+      "constraints": {
+        "min": 1,
+        "step": 1
+      },
+      "ui_control": "number",
+      "description": "Request timeout in seconds applied to downstream LLM calls."
     }
   ],
   "ui": {

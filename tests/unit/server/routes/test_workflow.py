@@ -280,7 +280,7 @@ def test_compile_skipped_connection_is_excluded_from_required_input_resolution(c
     assert 'missing_required_input' in codes
     assert 'missing_source_node' not in codes
 
-def build_stub_model_definition(provider: str, model: str) -> ProviderModelDefinition:
+def build_stub_model_definition(provider: str, model: str, timeout_s: float | None = None) -> ProviderModelDefinition:
     return ProviderModelDefinition(
         provider=provider,
         model=model,
@@ -288,6 +288,7 @@ def build_stub_model_definition(provider: str, model: str) -> ProviderModelDefin
         supports_image=False,
         supports_reasoning=True,
         supports_structured_output=True,
+        timeout_s=timeout_s,
     )
 
 
@@ -307,7 +308,7 @@ def test_execute_returns_run_and_persists_output_payload(
     monkeypatch.setattr(
         node_module.provider_service,
         'build_model_definition',
-        lambda provider, model, session_name='default': build_stub_model_definition(provider, model),
+        lambda provider, model, timeout_s=None, session_name='default': build_stub_model_definition(provider, model, timeout_s=timeout_s),
     )
 
     compile_response = client.post('/executions/compile', json={'definition': build_provider_chat_definition()})
@@ -327,6 +328,7 @@ def test_execute_returns_run_and_persists_output_payload(
     assert status_response.json()['outputs'] == {'output_1': {'text': 'Hello back'}}
     assert captured['provider'] == 'ollama'
     assert captured['model'] == 'llama3.2'
+    assert captured['timeout_s'] == 120
     assert captured['messages'] == [
         {'role': 'system', 'content': 'Follow the rules'},
         {'role': 'user', 'content': 'Say hello'},
@@ -343,7 +345,7 @@ def test_execute_structured_node_rejects_invalid_output(
     monkeypatch.setattr(
         node_module.provider_service,
         'build_model_definition',
-        lambda provider, model, session_name='default': build_stub_model_definition(provider, model),
+        lambda provider, model, timeout_s=None, session_name='default': build_stub_model_definition(provider, model, timeout_s=timeout_s),
     )
 
     compile_response = client.post(
@@ -378,7 +380,7 @@ def test_execute_structured_node_emits_json_output_payload(
     monkeypatch.setattr(
         node_module.provider_service,
         'build_model_definition',
-        lambda provider, model, session_name='default': build_stub_model_definition(provider, model),
+        lambda provider, model, timeout_s=None, session_name='default': build_stub_model_definition(provider, model, timeout_s=timeout_s),
     )
 
     compile_response = client.post(

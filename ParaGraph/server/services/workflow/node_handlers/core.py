@@ -306,6 +306,7 @@ def _execute_model_node(
     parameters: dict[str, Any],
     inputs: dict[str, Any],
     structured_output: bool,
+    timeout_s: float | None,
 ) -> dict[str, Any]:
     schema = parameters.get("response_schema") if structured_output else None
     messages = _build_messages(parameters, inputs, structured_schema=schema)
@@ -346,6 +347,7 @@ def _execute_model_node(
             messages=messages,
             response_format="json" if structured_output else None,
             options=options,
+            timeout_s=timeout_s,
         )
 
     if structured_output:
@@ -359,13 +361,21 @@ def _execute_model_node(
 
 def _model_provider_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
     _ = inputs
-    provider = normalize_provider_name(parameters.get("provider"), default="ollama")
-    model_name = coerce_text(parameters.get("model_name")).strip()
+    parsed = ModelProviderParameters.model_validate(parameters)
+    provider = normalize_provider_name(parsed.provider, default="ollama")
+    model_name = coerce_text(parsed.model_name).strip()
+    timeout_seconds = float(parsed.timeout_seconds)
     if not model_name and provider == "ollama":
         model_name = coerce_text(configuration_service.load_configuration().ollama.chat_model).strip()
     if not model_name:
         raise ValueError("MODEL_PROVIDER requires a model_name")
-    return {"model": provider_service.build_model_definition(provider, model_name).model_dump(mode="json")}
+    return {
+        "model": provider_service.build_model_definition(
+            provider,
+            model_name,
+            timeout_s=timeout_seconds,
+        ).model_dump(mode="json")
+    }
 
 
 def _llm_chat_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
@@ -376,6 +386,7 @@ def _llm_chat_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> di
         parameters=parameters,
         inputs=inputs,
         structured_output=False,
+        timeout_s=selection.timeout_s,
     )
 
 
@@ -387,6 +398,7 @@ def _llm_structured_executor(parameters: dict[str, Any], inputs: dict[str, Any])
         parameters=parameters,
         inputs=inputs,
         structured_output=True,
+        timeout_s=selection.timeout_s,
     )
 
 

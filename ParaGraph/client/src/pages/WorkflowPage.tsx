@@ -125,6 +125,11 @@ type PersistedWorkflowEdge = {
     target_handle: string | null
 }
 
+type PersistedActiveExecution = {
+    run_id: string
+    poll_interval: number
+}
+
 type PersistedWorkflowState = {
     nodes: PersistedWorkflowNode[]
     edges: PersistedWorkflowEdge[]
@@ -132,6 +137,7 @@ type PersistedWorkflowState = {
     is_grid_visible: boolean
     search: string
     selected_manifest_key: string | null
+    active_run: PersistedActiveExecution | null
 }
 
 
@@ -910,6 +916,12 @@ function formatWorkflowExecutionError(error: unknown, runState: ExecutionRunStat
         .join('\n')
 }
 
+function isAbortError(error: unknown): boolean {
+    if (error instanceof DOMException && error.name === 'AbortError') {
+        return true
+    }
+    return error instanceof Error && error.name === 'AbortError'
+}
 const LEGACY_MANIFEST_ID_MAP: Record<string, string> = {
     OLLAMA_LLM_CHAT: 'LLM_CHAT',
     CLOUD_LLM_CHAT: 'LLM_CHAT',
@@ -1188,6 +1200,18 @@ function readPersistedWorkflowState(): PersistedWorkflowState | null {
                 })
                 .filter((value): value is PersistedWorkflowEdge => value !== null)
             : []
+
+        const activeRun = isRecord(parsed.active_run)
+            && typeof parsed.active_run.run_id === 'string'
+            && parsed.active_run.run_id.trim().length > 0
+            && isFiniteNumber(parsed.active_run.poll_interval)
+            && parsed.active_run.poll_interval > 0
+            ? {
+                run_id: parsed.active_run.run_id,
+                poll_interval: parsed.active_run.poll_interval,
+            }
+            : null
+
         return {
             nodes,
             edges,
@@ -1197,6 +1221,7 @@ function readPersistedWorkflowState(): PersistedWorkflowState | null {
             search: typeof parsed.search === 'string' ? parsed.search : '',
             selected_manifest_key:
                 typeof parsed.selected_manifest_key === 'string' ? parsed.selected_manifest_key : null,
+            active_run: activeRun,
         }
     } catch {
         return null
@@ -2054,6 +2079,8 @@ function WorkflowEditor() {
     const [statusText, setStatusText] = useState('Ready')
     const [executionErrorModal, setExecutionErrorModal] = useState<WorkflowExecutionErrorModal | null>(null)
     const [isRunning, setIsRunning] = useState(false)
+    const [activeRun, setActiveRun] = useState<PersistedActiveExecution | null>(null)
+    const [resumeRunSnapshot, setResumeRunSnapshot] = useState<PersistedActiveExecution | null>(null)
     const [search, setSearch] = useState('')
     const [isLibraryVisible, setIsLibraryVisible] = useState(false)
     const [selectedManifestKey, setSelectedManifestKey] = useState<string | null>(null)
@@ -2068,6 +2095,7 @@ function WorkflowEditor() {
     const [editorTextDraft, setEditorTextDraft] = useState('')
     const [isEditorResizing, setIsEditorResizing] = useState(false)
     const stopEventsRef = useRef<(() => void) | null>(null)
+    const pollingAbortRef = useRef<AbortController | null>(null)
     const activePlanRef = useRef<CompiledExecutionPlan | null>(null)
     const saveNodeBrowseSelectionsRef = useRef<Record<string, SaveNodeBrowserSelection>>({})
     const hasHydratedWorkflowRef = useRef(false)
@@ -2165,6 +2193,9 @@ function WorkflowEditor() {
     useEffect(() => {
         return () => {
             stopEventsRef.current?.()
+            stopEventsRef.current = null
+            pollingAbortRef.current?.abort()
+            pollingAbortRef.current = null
         }
     }, [])
 
@@ -2503,7 +2534,11 @@ function WorkflowEditor() {
         setIsGridVisible(persisted.is_grid_visible)
         setSearch(persisted.search)
         setSelectedManifestKey(persisted.selected_manifest_key)
-        if (restoredNodes.length > 0 || restoredEdges.length > 0) {
+        setActiveRun(persisted.active_run)
+        setResumeRunSnapshot(persisted.active_run)
+        if (persisted.active_run) {
+            setStatusText('Restored workflow state (resuming run...)')
+        } else if (restoredNodes.length > 0 || restoredEdges.length > 0) {
             setStatusText('Restored workflow state')
         }
     }, [catalog, providerModels, setEdges, setNodes])
@@ -2543,8 +2578,9 @@ function WorkflowEditor() {
             is_grid_visible: isGridVisible,
             search,
             selected_manifest_key: selectedManifestKey,
+            active_run: activeRun,
         })
-    }, [edges, isGridVisible, isLibraryVisible, nodes, search, selectedManifestKey])
+    }, [activeRun, edges, isGridVisible, isLibraryVisible, nodes, search, selectedManifestKey])
 
     const filteredCatalog = useMemo(() => {
         const normalized = search.trim().toLowerCase()
@@ -3243,11 +3279,127 @@ function WorkflowEditor() {
         setStatusText(`Added ${manifest.name}`)
     }
 
+    function subscribeToExecutionEvents(runId: string): void {
+        stopEventsRef.current?.()
+        stopEventsRef.current = subscribeExecutionEvents(runId, {
+            onEvent(event) {
+                if (event.event_type === 'execution.step.started') {
+                    const fromPayload = typeof event.payload.node_id === 'string' ? event.payload.node_id : null
+                    const fromPlan =
+                        event.step_id
+                            ? activePlanRef.current?.steps.find((step) => step.step_id === event.step_id)?.node_id ?? null
+                            : null
+                    updateExecutionHighlight(fromPayload || fromPlan)
+                    setStatusText(`Running ${event.step_id || 'step'}...`)
+                }
+            },
+            onError(streamError) {
+                setStatusText(streamError)
+            },
+        })
+    }
+
+    async function monitorExecutionRun(runId: string, pollInterval: number): Promise<ExecutionRunState | null> {
+        pollingAbortRef.current?.abort()
+        const pollingAbortController = new AbortController()
+        pollingAbortRef.current = pollingAbortController
+        subscribeToExecutionEvents(runId)
+
+        try {
+            return await pollExecution(
+                runId,
+                pollInterval,
+                (run) => {
+                    updateExecutionHighlight(resolveHighlightedNodeId(run, activePlanRef.current))
+                    setStatusText(`Run ${run.status} (${Math.round(run.progress)}%)`)
+                    if (run.outputs && Object.keys(run.outputs).length > 0) {
+                        applyRunOutputs(run.outputs)
+                    }
+                },
+                { signal: pollingAbortController.signal },
+            )
+        } catch (error) {
+            if (isAbortError(error)) {
+                return null
+            }
+            throw error
+        } finally {
+            if (pollingAbortRef.current === pollingAbortController) {
+                pollingAbortRef.current = null
+            }
+            stopEventsRef.current?.()
+            stopEventsRef.current = null
+        }
+    }
+
+    async function finalizeRunState(finalState: ExecutionRunState): Promise<void> {
+        clearExecutionHighlight()
+        applyRunOutputs(finalState.outputs)
+        if (finalState.status === 'completed') {
+            const localSaveStatus = await syncSaveNodeBrowserSelections(finalState)
+            setStatusText(localSaveStatus || 'Workflow completed')
+            return
+        }
+        if (finalState.status === 'failed') {
+            throw new Error(finalState.error || 'Workflow failed')
+        }
+        setStatusText(`Workflow ${finalState.status}`)
+    }
+
+    useEffect(() => {
+        if (!resumeRunSnapshot || isRunning) {
+            return
+        }
+
+        const snapshot = resumeRunSnapshot
+        setResumeRunSnapshot(null)
+        setExecutionErrorModal(null)
+        setIsRunning(true)
+        clearExecutionHighlight()
+        setGlowTrailNodeIds([])
+        setStatusText('Resuming workflow...')
+
+        let latestRunState: ExecutionRunState | null = null
+        let keepRunTracking = false
+
+        void (async () => {
+            try {
+                const finalState = await monitorExecutionRun(snapshot.run_id, snapshot.poll_interval)
+                if (!finalState) {
+                    keepRunTracking = true
+                    return
+                }
+                latestRunState = finalState
+                await finalizeRunState(finalState)
+                setActiveRun(null)
+            } catch (runError) {
+                if (isAbortError(runError)) {
+                    keepRunTracking = true
+                    return
+                }
+                clearExecutionHighlight()
+                const message = runError instanceof Error ? runError.message : 'Execution failed'
+                setStatusText(message)
+                setExecutionErrorModal({
+                    title: 'Workflow execution failed',
+                    message: formatWorkflowExecutionError(runError, latestRunState),
+                })
+                setActiveRun(null)
+            } finally {
+                if (!keepRunTracking) {
+                    setIsRunning(false)
+                    activePlanRef.current = null
+                }
+            }
+        })()
+    }, [isRunning, resumeRunSnapshot])
+
     async function runWorkflow(): Promise<void> {
         if (isRunning) {
             return
         }
         setExecutionErrorModal(null)
+        setResumeRunSnapshot(null)
         setIsRunning(true)
         clearExecutionHighlight()
         setGlowTrailNodeIds([])
@@ -3260,6 +3412,7 @@ function WorkflowEditor() {
         setStatusText('Compiling workflow...')
 
         let latestRunState: ExecutionRunState | null = null
+        let keepRunTracking = false
         try {
             const compileResponse = await compileWorkflow(buildDefinition())
             if (!compileResponse.valid || !compileResponse.plan) {
@@ -3268,45 +3421,27 @@ function WorkflowEditor() {
 
             activePlanRef.current = compileResponse.plan
             const execution = await startExecution(compileResponse.plan)
+            const runSnapshot: PersistedActiveExecution = {
+                run_id: execution.run_id,
+                poll_interval: execution.poll_interval,
+            }
+            setActiveRun(runSnapshot)
             setStatusText('Running workflow...')
-            stopEventsRef.current?.()
-            stopEventsRef.current = subscribeExecutionEvents(execution.run_id, {
-                onEvent(event) {
-                    if (event.event_type === 'execution.step.started') {
-                        const fromPayload = typeof event.payload.node_id === 'string' ? event.payload.node_id : null
-                        const fromPlan =
-                            event.step_id
-                                ? activePlanRef.current?.steps.find((step) => step.step_id === event.step_id)?.node_id ?? null
-                                : null
-                        updateExecutionHighlight(fromPayload || fromPlan)
-                        setStatusText(`Running ${event.step_id || 'step'}...`)
-                    }
-                },
-                onError(streamError) {
-                    setStatusText(streamError)
-                },
-            })
 
-            const finalState = await pollExecution(execution.run_id, execution.poll_interval, (run) => {
-                updateExecutionHighlight(resolveHighlightedNodeId(run, activePlanRef.current))
-                setStatusText(`Run ${run.status} (${Math.round(run.progress)}%)`)
-                if (run.outputs && Object.keys(run.outputs).length > 0) {
-                    applyRunOutputs(run.outputs)
-                }
-            })
+            const finalState = await monitorExecutionRun(runSnapshot.run_id, runSnapshot.poll_interval)
+            if (!finalState) {
+                keepRunTracking = true
+                return
+            }
 
             latestRunState = finalState
-            clearExecutionHighlight()
-            applyRunOutputs(finalState.outputs)
-            if (finalState.status === 'completed') {
-                const localSaveStatus = await syncSaveNodeBrowserSelections(finalState)
-                setStatusText(localSaveStatus || 'Workflow completed')
-            } else if (finalState.status === 'failed') {
-                throw new Error(finalState.error || 'Workflow failed')
-            } else {
-                setStatusText(`Workflow ${finalState.status}`)
-            }
+            await finalizeRunState(finalState)
+            setActiveRun(null)
         } catch (runError) {
+            if (isAbortError(runError)) {
+                keepRunTracking = true
+                return
+            }
             clearExecutionHighlight()
             const message = runError instanceof Error ? runError.message : 'Execution failed'
             setStatusText(message)
@@ -3314,12 +3449,13 @@ function WorkflowEditor() {
                 title: 'Workflow execution failed',
                 message: formatWorkflowExecutionError(runError, latestRunState),
             })
+            setActiveRun(null)
         } finally {
-            stopEventsRef.current?.()
-            stopEventsRef.current = null
-            clearExecutionHighlight()
-            setIsRunning(false)
-            activePlanRef.current = null
+            if (!keepRunTracking) {
+                clearExecutionHighlight()
+                setIsRunning(false)
+                activePlanRef.current = null
+            }
         }
     }
 
@@ -3698,5 +3834,4 @@ export default function WorkflowPage() {
         </ReactFlowProvider>
     )
 }
-
 

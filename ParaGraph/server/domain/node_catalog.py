@@ -135,6 +135,7 @@ class ProviderModelDefinition(BaseModel):
     supports_image: bool = False
     supports_reasoning: bool = False
     supports_structured_output: bool = True
+    timeout_s: float | None = Field(default=None, ge=1)
 
 
 class ProviderModelCatalogResponse(BaseModel):
