@@ -46,6 +46,7 @@ def test_nodes_catalog_exposes_registry(client: TestClient) -> None:
 
     ids = {node['id'] for node in payload['nodes']}
     assert ids == {
+        'ASSIGN_NAME',
         'BY_DELIMITER_CHUNKS',
         'BY_STRUCTURE_CHUNKS',
         'FIXED_SIZE_CHUNKS',
