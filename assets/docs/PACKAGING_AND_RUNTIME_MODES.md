@@ -2,12 +2,12 @@
 
 ## 1. Strategy
 
-ParaGraph uses one active runtime file: `ParaGraph/settings/.env`.
+ParaGraph uses one active runtime profile file: `ParaGraph/settings/.env`.
 
 - Local web app mode: run directly on the host via launcher.
 - Local packaged app mode: distribute the app as a packaged Tauri desktop build.
 - Mode switching: update/copy the active local `.env` profile when running the web app.
-- Backend code paths are environment-driven (`DB_EMBEDDED`, DB host settings, ports, provider keys).
+- Backend code paths are environment-driven (`DB_EMBEDDED`, DB settings, ports, provider keys, deployment mode).
 
 ## 2. Runtime Profiles
 
@@ -58,7 +58,7 @@ This mode is fully local.
   - virtual environment: `runtimes/.venv`
   - lockfile source of truth: `runtimes/uv.lock` (mirrored through root `uv.lock` during sync)
 - installs frontend deps and builds client when needed
-- starts backend (Uvicorn) and frontend preview server
+- starts backend (`uvicorn ParaGraph.server.app:app`) and frontend preview server
 
 ## 5. Local Packaged App Mode
 
@@ -71,6 +71,6 @@ ParaGraph also supports local desktop distribution as a packaged Tauri applicati
 ## 6. Deterministic Build Notes
 
 - Backend dependencies are lockfile-backed through `runtimes/uv.lock` and installed into `runtimes/.venv`.
-- Frontend dependencies are lockfile-backed via `ParaGraph/client/package-lock.json` and installed via `npm ci` fallbacking to `npm install`.
+- Frontend dependencies are lockfile-backed via `ParaGraph/client/package-lock.json` and installed via `npm ci` (fallback `npm install`).
 - Tauri packaging requires Rust tooling on the build host (`cargo` + a default `rustup` toolchain such as `stable`).
 

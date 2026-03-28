@@ -1,126 +1,89 @@
-# HOW TO TEST
+# Testing Guidelines
 
-This document describes the deterministic automated test architecture for ParaGraph.
+Deterministic local test strategy for ParaGraph.
 
-## Test Matrix
+## 1. Test Suites
 
-ParaGraph test coverage is split into four suites:
 - Backend unit/API/service tests (`pytest`)
 - Backend end-to-end API lifecycle tests (`pytest`)
 - Frontend unit/component/service tests (`Vitest + React Testing Library`)
-- Frontend browser E2E flows (`Playwright` with mocked backend + websocket stubs)
+- Frontend browser E2E (`Playwright`)
 
-All suites are designed for local deterministic execution:
-- no cloud providers
-- no model downloads/pulls during tests
-- no live external network dependencies
+Design goal: no required cloud/provider dependencies for default test runs.
 
-## Directory Layout
+## 2. Layout
 
 ```text
 tests/
-|-- conftest.py
-|-- run_tests.bat
-|-- unit/
-|   `-- server/
-|       |-- repositories/
-|       |-- routes/
-|       `-- services/
-`-- e2e/
-    `-- server/
+|- conftest.py
+|- run_tests.bat
+|- unit/server/...
+`- e2e/server/...
 
 ParaGraph/client/
-|-- vitest.config.ts
-|-- playwright.config.ts
-|-- src/**/*.test.ts[x]
-`-- tests/e2e/*.spec.ts
+|- vitest.config.ts
+|- playwright.config.ts
+|- src/**/*.test.ts[x]
+`- tests/e2e/*.spec.ts
 ```
 
-## Commands
+## 3. Commands
 
-### Backend
+Backend:
 
 ```cmd
 .\runtimes\.venv\Scripts\python.exe -m pytest tests/unit tests/e2e -v
 ```
 
-### Frontend unit
+Frontend unit:
 
 ```cmd
 cd ParaGraph\client
 npm run test:unit
 ```
 
-### Frontend browser E2E
+Frontend E2E:
 
 ```cmd
 cd ParaGraph\client
 npm run test:e2e
 ```
 
-### Combined runner
+Combined runner:
 
 ```cmd
 tests\run_tests.bat
 ```
 
-The runner auto-detects frontend scripts:
-- `test:unit`
-- `test:e2e`
+## 4. Combined Runner Behavior
 
-and executes all available phases cleanly.
+`tests/run_tests.bat`:
+- requires `runtimes/.venv` with `pytest`
+- auto-detects frontend scripts (`test:unit`, `test:e2e`)
+- can bootstrap frontend deps/build unless skipped by env flags
+- supports optional live-server mode for `tests/e2e` with:
+  - `PARAGRAPH_ENABLE_LIVE_E2E_SERVERS=true`
 
-## Shared Backend Fixtures
+## 5. Backend Fixture Expectations
 
-`tests/conftest.py` provides deterministic isolation primitives:
-- `isolated_job_manager` (autouse): clears job/thread state per test.
-- `isolated_runtime_state` (autouse): isolates workflow repository paths, execution run state, event bus history/subscribers, and provider caches.
-- `client`: FastAPI `TestClient`.
-- `job_state_factory`: registers synthetic running job state.
-- `wait_for_job`: polling helper for background job completion.
+`tests/conftest.py` provides isolation helpers for:
+- job manager state
+- execution/event runtime state
+- workflow/resource directories
+- provider caches
 
-## Backend Coverage Expectations
+Use these fixtures instead of creating ad-hoc global state hooks.
 
-Primary route/service areas under coverage:
-- `/executions/compile`, `/executions`, `/executions/{run_id}`, `/executions/{run_id}/events`
-- websocket `/executions/ws/runs/{run_id}` replay and live behavior
-- `/configurations`, `/configurations/profiles`, `/configurations/ollama/ping`
-- `/providers/*` error-to-HTTP mapping
-- `/workflows/{workflow_id}/versions` list + not-found behavior
-- compiler/executor edge cases and output redaction/event sequencing
+## 6. Coverage Priorities
 
-## Frontend Unit Coverage Expectations
+- `/workflows`, `/executions`, `/nodes`, `/providers`, `/configurations` routes
+- execution compile/start/poll/events/websocket flow
+- provider error-to-HTTP mapping and download polling behavior
+- workflow/node contract validation and execution safety checks
+- frontend service-layer API contract handling and deterministic UI flows
 
-Key targets:
-- `src/app/services/api.ts`
-- `src/app/services/workflowApi.ts`
-- `src/workflow/hooks/useNodeCatalog.ts`
-- `src/pages/NodesPage.tsx`
-- `src/pages/ConfigurationsPage.tsx`
-- `src/pages/ModelsPage.tsx`
+## 7. Troubleshooting
 
-Expected behavior assertions include:
-- request error extraction
-- polling loops
-- websocket payload validation
-- upload/download argument guards
-- deterministic modal/hook/component interaction flows
-- timer-driven model download transitions with mocked service responses
-
-## Frontend Browser E2E Expectations
-
-Playwright suite runs against the local Vite app in mocked-backend mode:
-- API route stubs for `/workflows`, `/executions`, `/nodes`, `/providers`, `/configurations`
-- deterministic websocket event stub for `/executions/ws/runs/{run_id}`
-- no dependency on real backend/cloud services
-
-Covered flows:
-- Workflow page: import JSON bundle, run workflow, verify status/output rendering
-- Nodes page: import modal validate + success/error import paths
-- Configurations/Models pages: smoke interactions with deterministic state transitions
-
-## Troubleshooting
-
-- If backend tests fail on environment setup, verify `.\runtimes\.venv` exists and includes `pytest`.
-- If frontend unit tests fail on missing dependencies, run `npm install` in `ParaGraph/client`.
-- If Playwright cannot launch browsers, run `npx playwright install chromium` in `ParaGraph/client`.
+- Missing backend deps: run `uv sync --extra test` in repo root.
+- Missing frontend deps: run `npm install` in `ParaGraph/client`.
+- Playwright browser missing: run `npx playwright install chromium` in `ParaGraph/client`.
