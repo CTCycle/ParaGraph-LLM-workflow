@@ -1,83 +1,59 @@
-# Engineering and Python Standards
+# Python Guidelines (ParaGraph Backend)
 
-Standards for Python 3.14+ code in ParaGraph backend services.
+Standards for Python code under `ParaGraph/server` and backend tests.
 
----
+## 1. Runtime Baseline
 
-## 1. Version and Scope
+- Python target: `>=3.14` (from `pyproject.toml`)
+- Use repository environment when available:
+  - `.\runtimes\.venv\Scripts\python.exe`
+- Manage deps with `uv` and lockfiles; avoid ad-hoc global installs.
 
-- Target Python `>=3.14`.
-- Applies to FastAPI routes, services, repositories, scripts, and tests.
+## 2. Layering and Ownership
 
----
+- `server/api`: HTTP/websocket transport only
+- `server/services`: business logic, orchestration, integrations
+- `server/repositories`: persistence and state access
+- `server/domain`: typed contracts/models
+- `server/app.py`: app composition and router registration only
 
-## 2. Typing and APIs
+## 3. FastAPI Rules
 
-1. Use built-in generics (`list`, `dict`, `tuple`) and `|` unions.
-2. Type all public functions and non-trivial internal helpers.
-3. Prefer `collections.abc` imports for protocol types (`Callable`, `Iterable`, etc.).
-4. Keep Pydantic schemas in `ParaGraph/server/domain` as the API contract source.
+- Define routes in dedicated router modules.
+- Keep handlers thin; delegate behavior to services.
+- Use typed request/response models.
+- Map expected client faults to explicit `HTTPException` status codes.
 
----
+## 4. Typing and Style
 
-## 3. Project Structure
+- Type public functions and non-trivial internal helpers.
+- Use modern typing (`|`, built-in generics).
+- Prefer explicit, readable control flow over meta-programming.
+- Keep logs actionable and structured.
+- Add comments only when behavior is not obvious from code.
 
-1. Keep HTTP concerns in `server/api`.
-2. Keep business/workflow logic in `server/services`.
-3. Keep data persistence logic in `server/repositories`.
-4. Keep app wiring in `server/app.py` only.
+## 5. Background Work
 
----
+- Do not block API handlers with long tasks.
+- Use `job_manager` for long-running tasks.
+- Implement cooperative cancellation with `job_manager.should_stop(job_id)`.
+- Keep job results JSON-serializable for polling consumers.
 
-## 4. FastAPI Rules
+## 6. Persistence and Configuration
 
-1. Split endpoints into routers and register them in `app.py`.
-2. Use Pydantic models for request/response bodies.
-3. Raise `HTTPException` with clear details for client errors.
-4. Keep endpoints thin; delegate logic to services.
+- Keep DB mode environment-driven (`DB_EMBEDDED` and DB settings).
+- Keep configuration load/coercion in configuration modules, not route handlers.
+- Keep repository interfaces deterministic and easy to test.
 
----
+## 7. Testing Expectations
 
-## 5. Background Jobs
+- Use `pytest`.
+- Use shared fixtures in `tests/conftest.py` for isolation.
+- Keep unit tests deterministic (no live provider/network calls).
+- For async/background flows, cover success, failure, and cancellation behavior where exposed.
 
-1. Do not block request handlers for long-running work.
-2. Use ParaGraph `JobManager` (`ParaGraph.server.services.jobs`).
-3. Design runners for cooperative cancellation via `job_manager.should_stop(job_id)`.
-4. Expose polling and cancellation endpoints for every long-running route.
+## 8. Quality Gates
 
----
-
-## 6. Persistence Rules
-
-1. Keep schema definitions under `repositories/schemas`.
-2. Keep backend-specific logic in `repositories/database/sqlite.py` and `postgres.py`.
-3. Keep database mode selection environment-driven (`DB_EMBEDDED`, DB settings).
-
----
-
-## 7. Code Style
-
-1. Follow PEP 8 and keep modules cohesive.
-2. Prefer simple, explicit logic over premature abstractions.
-3. Add comments only when behavior is not self-evident.
-4. Keep logging structured and useful for debugging.
-- Leverage classes to group methods with similar scope
-- Enforce the use of cosmetic separators (series of # and - symbols) for class and functions
-
----
-
-## 8. Testing
-
-1. Use pytest for backend coverage.
-2. Keep tests deterministic (no real LLM/network calls in unit tests).
-3. Reuse shared fixtures in `tests/conftest.py` for job-state isolation.
-4. Cover happy path, failure path, and cancellation path for job-backed services.
-
----
-
-## 9. Tooling Summary
-
-- Formatter: Black or Ruff formatter.
-- Linter: Ruff.
-- Type checker: mypy.
-- Test runner: pytest.
+- Lint: `ruff`
+- Type check: `mypy`
+- Tests: `pytest`

@@ -1,6 +1,6 @@
 # UI Standards (Frontend)
 
-Date: 2026-03-27  
+Date: 2026-03-28  
 Scope: `ParaGraph/client`
 
 ## Spacing Scale
@@ -14,6 +14,8 @@ Scope: `ParaGraph/client`
   - `--space-5`: 24px
 - Page container spacing:
   - `--page-padding`: `clamp(16px, 2vw, 28px)`
+- Top bar:
+  - `--topbar-height`: `56px`
 
 ## Typography Scale
 
@@ -37,6 +39,13 @@ Scope: `ParaGraph/client`
   - `--color-border-subtle`: `#334155`
   - `--focus-ring-color`: `rgba(96, 165, 250, 0.9)`
   - `--focus-ring-shadow`: `0 0 0 2px rgba(96, 165, 250, 0.45)`
+
+## Global Baseline Rules
+
+- Root font stack currently uses Inter-based fallback stack.
+- `color-scheme` is dark.
+- `:focus-visible` styles are required for `button`, `input`, `select`, `textarea`, and links.
+- Reduced-motion handling must be preserved via `prefers-reduced-motion`.
 
 ## Component Usage Rules
 

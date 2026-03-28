@@ -1,126 +1,100 @@
 # ParaGraph Architecture
 
-ParaGraph is a FastAPI + React application for authoring and executing manifest-driven workflow graphs.
+ParaGraph is a local-first workflow system with:
+- FastAPI backend (`ParaGraph/server`)
+- React + TypeScript frontend (`ParaGraph/client`)
+- Manifest-driven workflow compilation and execution
+- Polling + websocket execution observability
 
 ## 1. Repository Structure
 
 - `ParaGraph/server`
-  - `app.py`: FastAPI app wiring and router registration.
-  - `api/`: HTTP and websocket route modules (`workflows`, `executions`, `nodes`, `providers`, `configurations`, `ws`).
-  - `domain/`: Pydantic/dataclass contracts (workflow, execution, provider, configuration, node API payloads, node handler parameter schemas, runtime payload contracts).
-  - `services/workflow/`: compiler, execution orchestration, provider integration, node runtime logic, workflow CRUD.
-  - `services/runtime/events.py`: in-memory execution event history + pub/sub used by REST and websocket replay.
-  - `repositories/workflow/`: file-backed workflow persistence and run-state repository.
-  - `services/jobs.py`: in-process background job manager.
-
+  - `app.py`: FastAPI app bootstrap and router registration
+  - `api/`: route modules (`workflows`, `executions`, `nodes`, `providers`, `configurations`, `ws`)
+  - `domain/`: request/response and runtime contracts
+  - `services/workflow/`: compile/execute/provider/node services
+  - `services/runtime/events.py`: in-memory execution event history + pub/sub
+  - `services/jobs.py`: thread-based background job manager
+  - `repositories/workflow/`: workflow and run-state persistence
 - `ParaGraph/client`
-  - `src/pages/WorkflowPage.tsx`: workflow canvas, import/export, compile/run interactions.
-  - `src/pages/NodesPage.tsx`: node catalog and JSON manifest import modal.
-  - `src/pages/ModelsPage.tsx`: Ollama/Hugging Face catalog and download flows.
-  - `src/pages/ConfigurationsPage.tsx`: active configuration and profile load/save flows.
-  - `src/app/services/api.ts`: shared fetch wrapper.
-  - `src/app/services/workflowApi.ts`: typed frontend API surface.
-  - `src/workflow/schema/types.ts`: shared frontend contract types.
-
+  - `src/App.tsx`: route wiring
+  - `src/pages/WorkflowPage.tsx`: editor + compile/run UI
+  - `src/pages/NodesPage.tsx`: node catalog/import
+  - `src/pages/ModelsPage.tsx`: provider model browser/downloads
+  - `src/pages/ConfigurationsPage.tsx`: runtime configuration/profile management
+  - `src/app/services/api.ts`: shared fetch wrapper (`VITE_API_BASE_URL`)
+  - `src/app/services/workflowApi.ts`: typed API client
+  - `src/workflow/schema/types.ts`: shared client-side contracts
 - `ParaGraph/resources`
-  - `nodes/`: node manifests.
-  - `workflows/`: persisted workflows/version history.
-  - `models/`: local model artifacts.
-  - `artifacts/`: staged browser uploads and local runtime outputs.
+  - `nodes/`, `workflows/`, `models/`, `artifacts/`, `logs/`
 
-## 2. Active API Surface
+## 2. Active Backend API Surface
 
 ### Workflows
-- `/workflows`
-- `/workflows/{workflow_id}`
-- `/workflows/{workflow_id}/versions`
+- `GET /workflows`
+- `POST /workflows`
+- `GET /workflows/{workflow_id}`
+- `PUT /workflows/{workflow_id}`
+- `GET /workflows/{workflow_id}/versions`
 
 ### Executions
-- `/executions/compile`
-- `/executions`
-- `/executions/{run_id}`
-- `/executions/{run_id}/events`
-- websocket `/executions/ws/runs/{run_id}`
+- `POST /executions/compile`
+- `POST /executions`
+- `GET /executions/{run_id}`
+- `GET /executions/{run_id}/events`
+- `WS /executions/ws/runs/{run_id}`
 
 ### Nodes
-- `/nodes/catalog`
-- `/nodes/import`
-- `/nodes/uploads/directory`
-- `/nodes/check-database-connection`
+- `GET /nodes/catalog`
+- `POST /nodes/import`
+- `POST /nodes/uploads/directory`
+- `POST /nodes/check-database-connection`
 
 ### Providers
-- `/providers/models`
-- `/providers/ollama/library`
-- `/providers/ollama/pull`
-- `/providers/huggingface/models`
-- `/providers/huggingface/download`
-- `/providers/huggingface/download/{job_id}`
-- Hugging Face model catalog queries request expanded metadata (for example safetensors and siblings) so backend size estimation can be populated when available.
+- `GET /providers/catalog`
+- `GET /providers/models`
+- `GET /providers/ollama/library`
+- `POST /providers/ollama/pull`
+- `GET /providers/huggingface/models`
+- `POST /providers/huggingface/download`
+- `GET /providers/huggingface/download/{job_id}`
+- `DELETE /providers/huggingface/download/{job_id}`
 
 ### Configurations
-- `/configurations`
-- `/configurations/profiles`
-- `/configurations/profiles/{profile_name}`
-- `/configurations/ollama/ping`
+- `GET /configurations`
+- `PUT /configurations`
+- `GET /configurations/profiles`
+- `GET /configurations/profiles/{profile_name}`
+- `PUT /configurations/profiles/{profile_name}`
+- `POST /configurations/ollama/ping`
 
 ## 3. Runtime Flow
 
-1. Frontend builds a workflow definition and submits `/executions/compile`.
-2. Compiler validates graph topology, port/controller compatibility, multiplicity, and manifest/runtime constraints.
-3. Frontend starts execution via `/executions` using a compiled plan.
-4. Runtime emits step/run events to `execution_event_service`.
-5. Frontend consumes:
-   - polling (`/executions/{run_id}`)
-   - event history (`/executions/{run_id}/events`)
-   - websocket replay/live stream (`/executions/ws/runs/{run_id}`)
+1. UI builds workflow definition and calls `POST /executions/compile`.
+2. Compiler validates topology, node contracts, data/controller bindings, and constraints.
+3. UI starts execution via `POST /executions`.
+4. Execution runs in background job threads and updates run state.
+5. UI observes progress via:
+   - `GET /executions/{run_id}`
+   - `GET /executions/{run_id}/events`
+   - `WS /executions/ws/runs/{run_id}` (replay + live stream)
 
-## 4. Frontend Behavior Surfaces
+## 4. Frontend Routes
 
-- Workflow page:
-  - import/export workflow JSON bundles
-  - compile + run actions
-  - status updates from polling + websocket events
-  - active execution resume after navigation (run id + poll interval restored from localStorage)
-  - node runtime output rendering
+- `/` workflow editor
+- `/nodes` node library and manifest import
+- `/models` model/provider operations
+- `/config` configuration and profile management
 
-- Nodes page:
-  - category-filtered node catalog
-  - modal-driven JSON validate/import flow
+## 5. Persistence and Runtime State
 
-- Configurations page:
-  - active session configuration load
-  - named profile list/load/save modals
-  - Ollama ping action
+- Workflows and versions are stored under `ParaGraph/resources/workflows`.
+- Node manifests are loaded from `ParaGraph/resources/nodes`.
+- Uploaded browser files are staged under `ParaGraph/resources/artifacts`.
+- Model artifacts are stored under `ParaGraph/resources/models`.
+- Configuration defaults come from `ParaGraph/settings/configurations.json` plus `.env` overrides.
 
-- Models page:
-  - Ollama pull status and refresh
-  - Hugging Face query/filter/download/cancel/status polling
+## 6. Deployment Modes
 
-## 5. Test Architecture
-
-### Backend tests (`pytest`)
-- `tests/unit/server/...` for route/service/repository behavior.
-- `tests/e2e/server/...` for compile->start->poll->outputs->events->websocket lifecycle.
-- `tests/conftest.py` isolates job manager, workflow persistence roots, execution/event state, and provider caches.
-
-### Frontend unit tests (`Vitest + RTL`)
-- service-layer tests for `api.ts` and `workflowApi.ts`
-- hook tests for node catalog loading/reload behavior
-- page interaction tests for nodes/configurations/models deterministic flows
-
-### Frontend browser E2E (`Playwright`)
-- `ParaGraph/client/tests/e2e`
-- local mock-backend route stubs for API endpoints
-- deterministic websocket stub for execution event stream
-- no external service dependency
-
-## 6. Compatibility Notes
-
-- Current architecture and tests target `/workflows` + `/executions` + `/nodes` + `/providers` + `/configurations` route families.
-- Websocket execution streaming uses `/executions/ws/runs/{run_id}`.
-- Legacy `/workflow/*` compatibility endpoints are not the primary active surface for this repository.
-
-## 7. Database Initialization
-
-- On backend startup, ORM metadata is synchronized with the active database engine using `Base.metadata.create_all(...)`.
-- This is idempotent and ensures newly introduced tables (for example `configuration_profiles`) are created even when an older database file already exists.
+- `PARAGRAPH_DEPLOYMENT_MODE=local`: docs/openapi routes enabled.
+- `PARAGRAPH_DEPLOYMENT_MODE=cloud`: docs/openapi routes disabled; API expected behind relative gateway path (typically `/api`).

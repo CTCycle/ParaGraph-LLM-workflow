@@ -1,53 +1,52 @@
-## TypeScript Guidelines (ParaGraph Client)
+# TypeScript Guidelines (ParaGraph Client)
 
-Project stack baseline:
-- React 18 + TypeScript 5
+Stack baseline:
+- React 18
+- TypeScript 5
 - Vite 5
 - React Router 6
-- React Flow (`@xyflow/react`) for workflow canvas
+- `@xyflow/react` for workflow graph UI
 
-## 1. Type Safety Rules
+## 1. Types and Contracts
 
-- Keep `strict` mode enabled.
-- Prefer `unknown` over `any` for untrusted values.
-- Type all exported functions, component props, and service-layer responses.
-- Keep shared backend contracts in `src/types.ts`.
+- Keep strict typing enabled.
+- Prefer `unknown` over `any` for untrusted inputs.
+- Type all exported functions and component props.
+- Keep shared workflow/API contracts in `src/workflow/schema/types.ts`.
 
-## 2. React and State Management
+## 2. Project Structure
 
-- Keep page orchestration in `src/pages/` and reusable UI in `src/components/`.
-- Keep API I/O in `src/services/`.
-- Use `useMemo`/`useCallback` only when they reduce real rerender cost.
-- Persist only stable UI state (for example workflow graph state in localStorage).
+- Route/pages: `src/pages`
+- Shared UI/layout: `src/components`
+- API layer: `src/app/services`
+- Workflow schema/hooks: `src/workflow`
 
-## 3. API and Networking
+Do not move API logic into page components.
 
-- Route HTTP calls through service modules (for example `src/services/workflow.ts`).
-- Reuse the shared `requestJson` pattern for status handling and error extraction.
-- Treat backend responses as untrusted and fail with actionable error messages.
-- Keep URLs relative to `VITE_API_BASE_URL` (default `/api`).
+## 3. API Rules
 
-## 4. Workflow Builder UI Rules
+- Use `requestJson` from `src/app/services/api.ts` for HTTP calls.
+- Keep `VITE_API_BASE_URL` relative (default `/api`).
+- Surface backend errors with actionable UI messages.
+- Validate websocket/event payload assumptions before use.
 
-- Node parameters should stay catalog-driven (`WorkflowNodeDefinition.parameters`) so backend and frontend stay aligned.
-- Validate connection rules both client-side and server-side.
-- Keep node ids deterministic enough for debugging (prefix by node type).
-- Update output nodes only from job result payloads, not speculative client state.
+## 4. Workflow UI Rules
 
-## 5. Error Handling and UX
+- Node forms must stay manifest-driven (from `/nodes/catalog` contracts).
+- Keep connection validation deterministic and mirrored with backend constraints.
+- Use stable node identifiers and avoid random-only IDs that hinder debugging.
+- Output rendering should be based on execution results/events, not speculative local state.
 
-- Do not swallow async errors; surface them in page status/alert UI.
-- Keep progress reporting tied to backend polling state (`pending`, `running`, terminal states).
-- Keep cancel/poll logic in service helpers, not duplicated across components.
+## 5. Accessibility and UX
+
+- Keep keyboard access (`focus-visible`, dialog semantics, Escape handling where applicable).
+- Avoid color-only status communication.
+- Keep loading/progress states tied to backend status (`pending/running/completed/failed/cancelled`).
 
 ## 6. Quality Gates
 
-- Keep `npm run build` passing (`tsc && vite build`).
-- Keep `npm run lint` passing when lint config is active.
-- Prefer small modules and explicit names over broad abstractions.
-
-## 7. Testing Guidance (Current State)
-
-- The repository currently emphasizes backend pytest coverage.
-- For frontend changes, prioritize service-layer testability and deterministic behavior.
-- Add frontend automated tests when stable UI flows are introduced.
+- Required after frontend changes:
+  - `npm run build`
+- Prefer also running:
+  - `npm run test:unit`
+  - `npm run test:e2e` for affected flows

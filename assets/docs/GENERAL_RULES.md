@@ -1,50 +1,51 @@
-## WEB SEARCH
-Use web search to verify facts and stay current on tools, frameworks, and industry standards when it improves accuracy.
+# General Rules
 
-## REQUIRED DOCUMENTATION REVIEW
-Before any task, review the relevant files in `assets/docs`:
+This file is mandatory context for every task.
 
-Document index:
+## 1. Required Documentation Review
 
-- `GENERAL_RULES.md`, mandatory for every task
-- `GUIDELINES_PYTHON.md`, when using Python
-- `GUIDELINES_TYPESCRIPT.md`, when using TypeScript
-- `GUIDELINES_TESTS.md`, when writing tests
-- `ARCHITECTURE.md`, system structure and APIs
-- `NODES_LIBRARY.md`, available workflow nodes, parameters, and provider/model node contracts (mandatory when implementing or modifying nodes)
-- `BACKGROUND_JOBS.md`, background job management
-- `README_WRITING.md`, required README structure and standards
+Read the minimum relevant docs in `assets/docs` before coding:
 
-## SKILLS REFERENCE
-When task-specific reusable workflows or capabilities are needed, check skills and use the relevant skill guidance.
+- `GENERAL_RULES.md` (always)
+- `ARCHITECTURE.md` (system shape, API surface, data flow)
+- `NODES_LIBRARY.md` (mandatory when adding/modifying nodes)
+- `BACKGROUND_JOBS.md` (mandatory when touching async or polling flows)
+- `GUIDELINES_PYTHON.md` (Python backend work)
+- `GUIDELINES_TYPESCRIPT.md` (frontend/client work)
+- `GUIDELINES_TESTS.md` (test changes or verification runs)
+- `PACKAGING_AND_RUNTIME_MODES.md` (runtime/env/launcher behavior)
+- `UI_STANDARDS.md` and `UI_UX_AUDIT_REPORT.md` (UI changes)
+- `README_WRITING.md` (README changes)
 
-## DOCUMENTATION UPDATES
-If changes materially affect behavior, architecture, or usage, update the relevant `assets/docs` files and notify the user.
+## 2. Runtime and Command Rules
 
-## CROSS-LANGUAGE PRINCIPLES
+- Use PowerShell by default.
+- For Python commands, use `runtimes/.venv` when present:
+  - `.\runtimes\.venv\Scripts\python.exe ...`
+- Use local runtime toolchain from this repository (`runtimes/`) for launcher-driven flows.
+- Use `cmd /c` only for `.bat` scripts or CMD-specific syntax.
+- After frontend code changes, run from `ParaGraph/client`:
+  - `npm run build`
 
-### Code quality
-- Prefer consistent style, clear naming, and small single-purpose components.
-- Optimize for readability, testability, and low coupling.
+## 3. Documentation Policy
 
-### Testing and automation
-- Enforce CI checks: formatting, linting, type checks, tests, and security scans.
+- If behavior, architecture, runtime setup, tests, or APIs change, update the relevant `assets/docs` files in the same task.
+- Keep docs coherent with each other and with current code.
+- Remove legacy references instead of adding contradictory notes.
 
-### Security
-- Apply standard secure coding practices: input validation, correct auth handling, secret protection, minimal attack surface.
+## 4. Engineering Principles
 
-## EXECUTION RULES
-- Use PowerShell by default for terminal commands in this repository.
-- Use local machine runtimes for Node/npm commands.
-- For npm commands, prefer: `& "C:\Program Files\PowerShell\7\pwsh.exe" -NoProfile -Command "cmd /c npm <command>"`.
-- Use `cmd /c` only when invoking `.bat` scripts or CMD-specific syntax.
-- After any frontend change, run a frontend rebuild from `ParaGraph/client` using `npm run build` and fix build issues before finishing.
+- Prefer small, verifiable changes and deterministic behavior.
+- Keep code readable, typed, and testable.
+- Keep API handlers thin; push logic into services.
+- Apply secure defaults: input validation, secret protection, and least privilege.
 
+## 5. Frontend File Handling Rules
 
-## FRONTEND FILE PICKER RULES
-- Do not implement backend-native file/folder dialogs for workflow nodes (no Tkinter or server-side OS dialogs).
-- In local/browser mode, path selection and final file writes must be handled in the frontend via browser file APIs.
+- Do not add backend-native file/folder dialogs for workflow nodes (no Tkinter/server-side OS pickers).
+- In browser/local mode, selection and user-approved writes must be frontend-driven via browser file APIs.
 
-## FILE CHANGE NOTICE
-- Any significant change requires updating `assets/docs` and informing the user.
+## 6. Skills
+
+When a reusable skill matches the task, use it. Apply only the relevant skill(s), not everything.
 

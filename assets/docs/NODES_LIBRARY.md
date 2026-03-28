@@ -1,17 +1,14 @@
 # Nodes Library
 
-This document defines the currently available workflow nodes, their contracts, and their expected behavior.
+Source of truth for available workflow nodes is the manifest set in:
 
-## Conventions
+- `ParaGraph/resources/nodes/*.json`
 
-- **Versioning:** All nodes listed here are `v1`.
-- **Input/Output notation:** `name (TYPE)` and `name (TYPE, required)` indicate port contracts.
-- **Controller outputs:** Some nodes emit source/controller handles that must be wired into compatible downstream nodes.
-- **Terminal nodes:** Output nodes publish final execution results and do not produce downstream values.
+All currently shipped manifests are version `v1`.
 
-## Quick Index
+## 1. Current Node Inventory
 
-| Category | Nodes |
+| Category | Node IDs |
 | --- | --- |
 | `control` | `ASSIGN_NAME` |
 | `prompt` | `PROMPT`, `PROMPT_TEMPLATE` |
@@ -23,184 +20,51 @@ This document defines the currently available workflow nodes, their contracts, a
 | `vector_storage` | `LANCE_DB` |
 | `output` | `TEXT_OUTPUT`, `JSON_OUTPUT` |
 
-## Control
+## 2. Node Summary
 
-### `ASSIGN_NAME` (`v1`)
+- `ASSIGN_NAME`: wraps an upstream value into a named JSON map.
+- `PROMPT`: emits fixed prompt text.
+- `PROMPT_TEMPLATE`: renders prompt text from template + variables.
+- `MODEL_PROVIDER`: emits a typed model-controller handle.
+- `LLM_CHAT`: runs chat completion using model handle + prompt input.
+- `LLM_STRUCTURED`: runs structured generation using model handle + prompt input.
+- `TEXT_EMBEDDING`: produces vectors from text/doc/chunk inputs.
+- `LOAD_DOCUMENTS`: reads folder content as document records.
+- `LOAD_TEXT`: reads text from a local file path.
+- `SAVE_AS_FILE`: serializes text/docs/chunks into one output file.
+- `SAVE_AS_FOLDER`: serializes text/docs/chunks into output folder files.
+- `FIXED_SIZE_CHUNKS`: fixed-size segmentation.
+- `BY_DELIMITER_CHUNKS`: delimiter-based segmentation.
+- `BY_STRUCTURE_CHUNKS`: structure-aware segmentation (paragraph/heading style boundaries).
+- `RECURSIVE_SPLIT_CHUNKS`: recursive separator fallback segmentation.
+- `REGEX_SPLIT_CHUNKS`: regex-based segmentation.
+- `SENTENCE_WINDOW_CHUNKS`: sentence-window segmentation with overlap.
+- `MERGE_SMALL_CHUNKS`: merges small adjacent fragments.
+- `SQL_DATABASE`: creates SQL DB controller handle from connection parameters.
+- `SQL_FILE_DATABASE`: creates embedded SQL DB controller handle.
+- `LANCE_DB`: stores vector points in local LanceDB table.
+- `TEXT_OUTPUT`: terminal text output node.
+- `JSON_OUTPUT`: terminal JSON output node.
 
-- **Category:** `control`
-- **Inputs:** `value (ANY, required)`
-- **Output:** `variable (JSON)`
-- **Behavior:** Emits a single-key JSON object in the form `{ "<name>": value }`, where `<name>` comes from the required node parameter.
-- **Notes:** The upstream payload is preserved as-is and only wrapped into the named object.
+## 3. Contract Rules
 
-## Prompt
+- Node contract validation is manifest-driven (`id`, `version`, ports, parameters, runtime metadata).
+- Data connections and controller connections are distinct and must match the compiler/runtime contract.
+- `accepts_multiple` inputs/controllers require list aggregation behavior in execution.
+- Terminal output nodes publish final outputs and are not required to feed downstream nodes.
 
-### `PROMPT` (`v1`)
+## 4. Import and Catalog API
 
-- **Category:** `prompt`
-- **Inputs:** none
-- **Output:** `text (TEXT)`
-- **Behavior:** Emits `prompt_text` exactly as entered.
-- **Notes:** No templating or transformation is applied.
+- Catalog: `GET /nodes/catalog`
+- Manifest import: `POST /nodes/import`
 
-### `PROMPT_TEMPLATE` (`v1`)
+Imported manifests must validate against backend schema (`NodeManifest`) before registration.
 
-- **Category:** `prompt`
-- **Inputs:** `variables (ANY, accepts_multiple)`
-- **Output:** `text (TEXT)`
-- **Behavior:** Renders templates using `{variable}` placeholders.
-- **Validation rules:** Missing placeholders fail fast. Duplicate keys across incoming variable maps fail fast. Multiple incoming variable maps are merged into one dictionary before rendering.
+## 5. Change Management
 
-## Model
+When adding or modifying a node:
 
-### `MODEL_PROVIDER` (`v1`)
-
-- **Category:** `model`
-- **Inputs:** none
-- **Output:** `model controller (MODEL_HANDLE, source)`
-- **Behavior:** Publishes provider/model configuration for downstream model nodes.
-- **Notes:** Includes configurable request timeout in seconds (default: `120`).
-
-### `LLM_CHAT` (`v1`)
-
-- **Category:** `model`
-- **Inputs:** `user_prompt (TEXT)`, `system_prompt (TEXT)`, `image (IMAGE)`
-- **Output:** `response (TEXT)`
-- **Behavior:** Executes chat-style inference and returns text.
-- **Requirements:** Must receive a compatible `model` controller from `MODEL_PROVIDER`.
-
-### `LLM_STRUCTURED` (`v1`)
-
-- **Category:** `model`
-- **Inputs:** `user_prompt (TEXT)`, `system_prompt (TEXT)`, `image (IMAGE)`
-- **Output:** `result (JSON)`
-- **Behavior:** Executes structured inference and returns JSON.
-- **Requirements:** Must receive a compatible `model` controller from `MODEL_PROVIDER`.
-- **Validation:** Model output is validated against `response_schema`.
-
-## Serialization
-
-### `LOAD_DOCUMENTS` (`v1`)
-
-- **Category:** `serialization`
-- **Inputs:** none
-- **Output:** `documents (DOCUMENT_LIST)`
-- **Behavior:** Produces deferred document records from a selected folder.
-- **Notes:** Document content resolution can happen downstream when needed.
-
-### `LOAD_TEXT` (`v1`)
-
-- **Category:** `serialization`
-- **Inputs:** none
-- **Output:** `text (TEXT)`
-- **Behavior:** Loads text from a selected local file path.
-
-### `SAVE_AS_FILE` (`v1`)
-
-- **Category:** `serialization`
-- **Inputs:** `text (TEXT)`, `documents (DOCUMENT_LIST)`, `chunks (CHUNK_LIST)`
-- **Output:** `artifact (JSON)`
-- **Behavior:** Writes one file.
-- **Notes:** Multi-item input is concatenated in indexed order with a double-newline separator. Supports deferred document resolution. Supports client-side write mode metadata.
-
-### `SAVE_AS_FOLDER` (`v1`)
-
-- **Category:** `serialization`
-- **Inputs:** `text (TEXT)`, `documents (DOCUMENT_LIST)`, `chunks (CHUNK_LIST)`
-- **Output:** `artifact (JSON)`
-- **Behavior:** Writes one file per item with indexed filenames.
-- **Notes:** Supports deferred document resolution. Supports client-side write mode metadata.
-
-## Text Segmentation
-
-All segmentation nodes share the same port contract:
-
-- **Inputs:** `text (TEXT)`, `documents (DOCUMENT_LIST)`, `chunks (CHUNK_LIST)`
-- **Output:** `chunks (CHUNK_LIST)`
-
-### `FIXED_SIZE_CHUNKS` (`v1`)
-
-- **Category:** `text_segmentation`
-- **Behavior:** Splits input into fixed-size chunks using configured unit and overlap.
-
-### `BY_DELIMITER_CHUNKS` (`v1`)
-
-- **Category:** `text_segmentation`
-- **Behavior:** Splits by delimiter or preset separator sets, with overflow handling options.
-
-### `BY_STRUCTURE_CHUNKS` (`v1`)
-
-- **Category:** `text_segmentation`
-- **Behavior:** Splits on structural boundaries (for example paragraph, section, and heading/content boundaries).
-
-### `RECURSIVE_SPLIT_CHUNKS` (`v1`)
-
-- **Category:** `text_segmentation`
-- **Behavior:** Applies an ordered separator list recursively with fallback strategy.
-
-### `REGEX_SPLIT_CHUNKS` (`v1`)
-
-- **Category:** `text_segmentation`
-- **Behavior:** Splits text using a regex pattern.
-
-### `SENTENCE_WINDOW_CHUNKS` (`v1`)
-
-- **Category:** `text_segmentation`
-- **Behavior:** Builds overlapping windows of sentence-based chunks.
-
-### `MERGE_SMALL_CHUNKS` (`v1`)
-
-- **Category:** `text_segmentation`
-- **Behavior:** Merges small adjacent chunks toward configured target-size constraints.
-
-## Embeddings
-
-### `TEXT_EMBEDDING` (`v1`)
-
-- **Category:** `embeddings`
-- **Inputs:** `text (TEXT)`, `documents (DOCUMENT_LIST)`, `chunks (CHUNK_LIST)`
-- **Output:** `points (VECTOR_POINT_LIST)`
-- **Behavior:** Applies text embeddings and returns vector points with preserved text and source metadata.
-- **Notes:** Provider/model selection is built into the node. Supported providers are `cloud`, `huggingface`, and `ollama`.
-
-## Database
-
-### `SQL_DATABASE` (`v1`)
-
-- **Category:** `database`
-- **Inputs:** none
-- **Output:** `connection controller (DATABASE_CONNECTION, source)`
-- **Behavior:** Exposes an external database connection handle for SQL execution nodes.
-
-### `SQL_FILE_DATABASE` (`v1`)
-
-- **Category:** `database`
-- **Inputs:** none
-- **Output:** `connection controller (DATABASE_CONNECTION, source)`
-- **Behavior:** Exposes an embedded/SQLite database connection handle.
-
-## Vector Storage
-
-### `LANCE_DB` (`v1`)
-
-- **Category:** `vector_storage`
-- **Inputs:** `points (VECTOR_POINT_LIST, accepts_multiple)`
-- **Output:** `store (VECTOR_STORE_HANDLE)`
-- **Behavior:** Stores embeddings in a LanceDB table located under the configured storage path.
-- **Notes:** Supports `overwrite` and `append` write modes plus metric and vector-index configuration.
-
-## Output
-
-### `TEXT_OUTPUT` (`v1`)
-
-- **Category:** `output`
-- **Inputs:** `text (TEXT, required)`
-- **Output:** none (terminal node)
-- **Behavior:** Publishes final text results in execution outputs.
-
-### `JSON_OUTPUT` (`v1`)
-
-- **Category:** `output`
-- **Inputs:** `value (JSON, required)`
-- **Output:** none (terminal node)
-- **Behavior:** Publishes final JSON results in execution outputs.
+1. Update/create manifest JSON in `ParaGraph/resources/nodes`.
+2. Implement or map runtime executor behavior.
+3. Update compiler/runtime tests for new contract behavior.
+4. Update this file (inventory + summary) in the same change.
