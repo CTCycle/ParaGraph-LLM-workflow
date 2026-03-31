@@ -9,7 +9,7 @@ from ParaGraph.server.domain.nodes import (
     UploadedDirectoryResponse,
 )
 from ParaGraph.server.services.workflow import node_registry
-from ParaGraph.server.services.workflow.browser_uploads import save_uploaded_directory
+from ParaGraph.server.services.workflow.browser_uploads import browser_upload_service
 
 
 router = APIRouter(prefix="/nodes", tags=["nodes"])
@@ -31,7 +31,7 @@ def import_node_manifest(manifest: NodeManifest) -> NodeManifest:
 @router.post("/uploads/directory", response_model=UploadedDirectoryResponse)
 async def upload_directory(files: list[UploadFile] = File(...)) -> UploadedDirectoryResponse:
     try:
-        path, file_count, staged_files = await save_uploaded_directory(files)
+        path, file_count, staged_files = await browser_upload_service.save_uploaded_directory(files)
         return UploadedDirectoryResponse(path=path, file_count=file_count, files=staged_files)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
@@ -51,3 +51,4 @@ def check_database_connection(request: DatabaseConnectionCheckRequest) -> Databa
         return DatabaseConnectionCheckResponse(ok=False, message=str(exc) or "Database connection check failed.")
     except Exception:  # noqa: BLE001
         return DatabaseConnectionCheckResponse(ok=False, message="Database connection check failed.")
+

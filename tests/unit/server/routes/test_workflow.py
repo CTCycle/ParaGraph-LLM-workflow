@@ -4,6 +4,7 @@ from collections.abc import Callable
 
 from fastapi.testclient import TestClient
 
+from ParaGraph.server.domain.configuration import AccessKeyConfiguration
 from ParaGraph.server.domain.nodecatalog import ProviderModelDefinition
 from ParaGraph.server.services.workflow import nodes as node_module
 
@@ -279,6 +280,79 @@ def test_compile_skipped_connection_is_excluded_from_required_input_resolution(c
     codes = {item['code'] for item in payload['diagnostics']}
     assert 'missing_required_input' in codes
     assert 'missing_source_node' not in codes
+
+
+
+def build_huggingface_chat_definition(model_name: str) -> dict[str, object]:
+    return {
+        'schema_version': 2,
+        'nodes': [
+            {'node_id': 'user_1', 'node_type': 'PROMPT', 'node_version': 1, 'parameters': {'prompt_text': 'Say hello'}},
+            {
+                'node_id': 'provider_1',
+                'node_type': 'MODEL_PROVIDER',
+                'node_version': 1,
+                'parameters': {'provider': 'huggingface', 'model_name': model_name},
+            },
+            {
+                'node_id': 'chat_1',
+                'node_type': 'LLM_CHAT',
+                'node_version': 1,
+                'parameters': {'context_window': 0, 'max_tokens': 64, 'use_reasoning': False},
+            },
+        ],
+        'connections': [
+            {'from_node': 'provider_1', 'connection_type': 'controller', 'from_controller': 'model', 'to_node': 'chat_1', 'to_controller': 'model'},
+            {'from_node': 'user_1', 'from_output': 'text', 'to_node': 'chat_1', 'to_input': 'user_prompt'},
+        ],
+        'metadata': {},
+    }
+
+
+def test_compile_allows_tokenless_local_huggingface_model(client: TestClient, monkeypatch) -> None:
+    model_name = 'acme/local-model'
+    monkeypatch.setattr(node_module.provider_service, '_downloaded_huggingface_repo_ids', lambda: {model_name})
+    monkeypatch.setattr(node_module.provider_service, '_get_access_key', lambda provider, session_name='default': None)
+
+    response = client.post('/executions/compile', json={'definition': build_huggingface_chat_definition(model_name)})
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload['valid'] is True
+
+
+def test_compile_rejects_remote_huggingface_model_without_token(client: TestClient, monkeypatch) -> None:
+    model_name = 'acme/remote-model'
+    monkeypatch.setattr(node_module.provider_service, '_downloaded_huggingface_repo_ids', lambda: set())
+    monkeypatch.setattr(node_module.provider_service, '_get_access_key', lambda provider, session_name='default': None)
+
+    response = client.post('/executions/compile', json={'definition': build_huggingface_chat_definition(model_name)})
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload['valid'] is False
+    assert any(
+        item['code'] == 'provider_capability_error'
+        and 'requires an access key' in item['message']
+        and 'remote models' in item['message']
+        for item in payload['diagnostics']
+    )
+
+
+def test_compile_allows_remote_huggingface_model_with_token(client: TestClient, monkeypatch) -> None:
+    model_name = 'acme/remote-model'
+    monkeypatch.setattr(node_module.provider_service, '_downloaded_huggingface_repo_ids', lambda: set())
+    monkeypatch.setattr(
+        node_module.provider_service,
+        '_get_access_key',
+        lambda provider, session_name='default': AccessKeyConfiguration(provider='huggingface', api_key='hf_test', base_url=None, metadata={}),
+    )
+
+    response = client.post('/executions/compile', json={'definition': build_huggingface_chat_definition(model_name)})
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload['valid'] is True
 
 def build_stub_model_definition(provider: str, model: str, timeout_s: float | None = None) -> ProviderModelDefinition:
     return ProviderModelDefinition(

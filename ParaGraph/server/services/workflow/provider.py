@@ -1108,10 +1108,16 @@ class ProviderService:
         normalized_provider = _normalize_provider(provider)
         self.assert_capabilities(normalized_provider, structured_output=structured_output)
 
-        if normalized_provider in {"openai", "gemini", "claude", "huggingface"}:
+        if normalized_provider in {"openai", "gemini", "claude"}:
             access_key = self._get_access_key(normalized_provider, session_name)
             if access_key is None or not access_key.api_key:
                 raise ValueError(f"Provider '{normalized_provider}' requires an access key in Configurations")
+        elif normalized_provider == "huggingface":
+            is_local_model = model in self._downloaded_huggingface_repo_ids()
+            if not is_local_model:
+                access_key = self._get_access_key(normalized_provider, session_name)
+                if access_key is None or not access_key.api_key:
+                    raise ValueError("Provider 'huggingface' requires an access key in Configurations for remote models")
 
         metadata = self.get_model_metadata(normalized_provider, model, session_name)
         if requires_image and not metadata.supports_image:

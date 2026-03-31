@@ -2481,6 +2481,7 @@ function WorkflowEditor() {
     const [nodes, setNodes, onNodesChange] = useNodesState<Node<WorkflowNodeData>>([])
     const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([])
     const [isGridVisible, setIsGridVisible] = useState(true)
+    const [isConnecting, setIsConnecting] = useState(false)
     const [editorPanelHeight, setEditorPanelHeight] = useState(0)
     const [editorTextDraft, setEditorTextDraft] = useState('')
     const [isEditorResizing, setIsEditorResizing] = useState(false)
@@ -4149,7 +4150,7 @@ function WorkflowEditor() {
                 )}
 
                 <div className="workflow-canvas-column" ref={canvasColumnRef}>
-                    <div className="workflow-canvas-panel" ref={canvasPanelRef} onDragOver={handleCanvasDragOver} onDrop={handleCanvasDrop}>
+                    <div className={`workflow-canvas-panel ${isConnecting ? 'workflow-canvas-panel-connecting' : ''}`} ref={canvasPanelRef} onDragOver={handleCanvasDragOver} onDrop={handleCanvasDrop}>
                     {!isLibraryVisible && (
                         <button
                             type="button"
@@ -4165,6 +4166,8 @@ function WorkflowEditor() {
                         nodeTypes={nodeTypes}
                         onNodesChange={onNodesChange}
                         onEdgesChange={onEdgesChange}
+                        onConnectStart={() => setIsConnecting(true)}
+                        onConnectEnd={() => setIsConnecting(false)}
                         onConnect={(connection) => {
                             if (!isValidConnection(connection)) {
                                 setStatusText('Invalid connection')
