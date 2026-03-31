@@ -3,12 +3,12 @@ from __future__ import annotations
 from typing import Any
 
 from ParaGraph.server.services.workflow.node_handlers.base import NodeHandler
-from ParaGraph.server.services.workflow.node_handlers.common import coerce_text
+from ParaGraph.server.services.workflow.node_handlers.common import node_value_service
 
 
 def _text_output_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
     _ = parameters
-    return {"result": coerce_text(inputs.get("text") or "")}
+    return {"result": node_value_service.coerce_text(inputs.get("text") or "")}
 
 
 def _image_output_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
@@ -26,3 +26,4 @@ OUTPUT_HANDLERS = {
     "image_output": NodeHandler(executor=_image_output_executor),
     "json_output": NodeHandler(executor=_json_output_executor),
 }
+
