@@ -1,0 +1,92 @@
+{
+  "id": "FETCH_HTML",
+  "version": 1,
+  "name": "Fetch HTML",
+  "category": "web",
+  "description": "Fetch a webpage and emit raw HTML plus optional cleaned text.",
+  "inputs": [
+    {
+      "name": "url",
+      "data_type": "TEXT",
+      "required": false,
+      "description": "Optional URL override."
+    }
+  ],
+  "outputs": [
+    {
+      "name": "html",
+      "data_type": "TEXT",
+      "required": true
+    },
+    {
+      "name": "text",
+      "data_type": "TEXT",
+      "required": true
+    },
+    {
+      "name": "response",
+      "data_type": "JSON",
+      "required": true
+    }
+  ],
+  "parameters": [
+    {
+      "name": "url",
+      "data_type": "TEXT",
+      "default": "",
+      "constraints": {
+        "required": true
+      },
+      "ui_control": "text"
+    },
+    {
+      "name": "timeout_s",
+      "data_type": "TEXT",
+      "default": "15",
+      "ui_control": "number",
+      "constraints": {
+        "min": 0.1,
+        "max": 300
+      }
+    },
+    {
+      "name": "follow_redirects",
+      "data_type": "BOOLEAN",
+      "default": true,
+      "ui_control": "toggle"
+    },
+    {
+      "name": "headers",
+      "data_type": "JSON",
+      "default": {},
+      "ui_control": "json"
+    },
+    {
+      "name": "strip_scripts_and_styles",
+      "data_type": "BOOLEAN",
+      "default": true,
+      "ui_control": "toggle"
+    },
+    {
+      "name": "extract_text",
+      "data_type": "BOOLEAN",
+      "default": true,
+      "ui_control": "toggle"
+    }
+  ],
+  "ui": {
+    "default_width": 340,
+    "accent_color": "#29b6a6",
+    "collapsed_by_default": false
+  },
+  "runtime": {
+    "executor_key": "plugin",
+    "cacheable": false,
+    "deterministic": false,
+    "side_effecting": false,
+    "plugin": {
+      "script_path": "plugins/fetch_html_v1.py",
+      "entrypoint": "execute"
+    }
+  }
+}

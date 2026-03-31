@@ -4,6 +4,7 @@ export type NodeCategoryFilter = 'all' | NodeCategory
 
 export const NODE_CATEGORY_ORDER: NodeCategory[] = [
     'input',
+    'web',
     'prompt',
     'model',
     'processing',
@@ -19,6 +20,7 @@ export const NODE_CATEGORY_ORDER: NodeCategory[] = [
 
 export const NODE_CATEGORY_LABELS: Record<NodeCategory, string> = {
     input: 'Input',
+    web: 'Web',
     prompt: 'Prompt',
     model: 'Model',
     processing: 'Processing',
@@ -35,6 +37,7 @@ export const NODE_CATEGORY_LABELS: Record<NodeCategory, string> = {
 export function toNodeCategoryFilter(value: string): NodeCategoryFilter {
     if (
         value === 'input' ||
+        value === 'web' ||
         value === 'prompt' ||
         value === 'model' ||
         value === 'processing' ||

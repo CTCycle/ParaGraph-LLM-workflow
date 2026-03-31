@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field, field_validator
 
 NodeCategory = Literal[
     "input",
+    "web",
     "prompt",
     "model",
     "processing",

@@ -1,5 +1,6 @@
 export type NodeCategory =
     | 'input'
+    | 'web'
     | 'prompt'
     | 'model'
     | 'processing'
