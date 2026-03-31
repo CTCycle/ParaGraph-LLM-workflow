@@ -3,6 +3,7 @@ export type NodeCategory =
     | 'prompt'
     | 'model'
     | 'processing'
+    | 'retrieval'
     | 'embeddings'
     | 'text_segmentation'
     | 'output'
@@ -131,6 +132,7 @@ export interface VisualNodeState {
     items_expanded?: boolean
     pinged?: boolean
     skipped?: boolean
+    is_global?: boolean
 }
 
 export interface VisualGraph {

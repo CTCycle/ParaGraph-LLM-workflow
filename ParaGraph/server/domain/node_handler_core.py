@@ -147,6 +147,22 @@ class EmbeddingParameters(BaseModel):
     model_name: str = "nomic-embed-text"
 
 
+class SimilaritySearchParameters(BaseModel):
+    similarity_strategy: str = "cosine"
+    ann_search_depth: int = Field(default=100, ge=10, le=500)
+    top_k: int = Field(default=5, ge=1, le=100)
+    score_threshold: float = Field(default=0.0, ge=0.0, le=1.0)
+    include_metadata: bool = True
+
+    @field_validator("similarity_strategy")
+    @classmethod
+    def validate_similarity_strategy(cls, value: str) -> str:
+        normalized = str(value or "").strip().lower()
+        if normalized not in {"cosine", "euclidean", "dot"}:
+            raise ValueError("similarity_strategy must be one of: cosine, euclidean, dot")
+        return normalized
+
+
 class TextSplitParameters(BaseModel):
     delimiter: str = "\n"
 

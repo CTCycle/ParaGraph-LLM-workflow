@@ -10,6 +10,7 @@ import {
     Cog,
     Plus,
     Scissors,
+    Search,
     X,
     type LucideIcon,
 } from 'lucide-react'
@@ -79,6 +80,7 @@ const NODE_CATEGORY_ICONS: Record<NodeCategory, LucideIcon> = {
     input: ArrowDownToLine,
     prompt: MessageSquare,
     model: BrainCircuit,
+    retrieval: Search,
     embeddings: BrainCircuit,
     processing: Cog,
     text_segmentation: Scissors,
@@ -93,6 +95,7 @@ const EMPTY_CATEGORY_COUNTS: Record<NodeCategory, number> = {
     input: 0,
     prompt: 0,
     model: 0,
+    retrieval: 0,
     embeddings: 0,
     processing: 0,
     text_segmentation: 0,
@@ -429,3 +432,5 @@ export default function NodesPage() {
         </>
     )
 }
+
+

@@ -637,6 +637,7 @@
     color: #ffdcae;
 }
 
+.workflow-node-global,
 .workflow-node-ping,
 .workflow-node-toggle {
     width: 28px;
@@ -650,6 +651,7 @@
     line-height: 1;
 }
 
+.workflow-node-global:hover,
 .workflow-node-ping:hover,
 .workflow-node-toggle:hover {
     background: rgba(95, 174, 255, 0.18);
@@ -662,6 +664,19 @@
 .workflow-node[data-pinged='true'] .workflow-node-ping {
     color: #ffe7b4;
 }
+
+.workflow-node-global {
+    color: #9db7d8;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+}
+
+.workflow-node-global-active {
+    background: rgba(95, 174, 255, 0.2);
+    color: #e4f3ff;
+}
+
 
 .workflow-node-handle-controller {
     width: 11px !important;
@@ -1366,3 +1381,6 @@
 .workflow-node-items-empty {
     padding: 2px 0;
 }
+
+
+

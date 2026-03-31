@@ -172,6 +172,11 @@ class WorkflowDefinition(BaseModel):
                 normalized_connections.append(connection)
                 continue
 
+            from_output = connection.from_output or ""
+            source_type = node_types.get(connection.from_node, "")
+            if source_type == "TEXT_EMBEDDING" and from_output == "points":
+                from_output = "vectors"
+
             to_input = connection.to_input or ""
             target_type = node_types.get(connection.to_node, "")
             if target_type in MODEL_NODE_TYPES and to_input == "prompt":
@@ -182,7 +187,7 @@ class WorkflowDefinition(BaseModel):
                         from_node=connection.from_node,
                         to_node=connection.to_node,
                         connection_type="controller",
-                        from_controller=connection.from_output or "model",
+                        from_controller=from_output or "model",
                         to_controller="model",
                     )
                 )
@@ -192,7 +197,7 @@ class WorkflowDefinition(BaseModel):
                     from_node=connection.from_node,
                     to_node=connection.to_node,
                     connection_type="data",
-                    from_output=connection.from_output,
+                    from_output=from_output,
                     to_input=to_input,
                 )
             )
@@ -210,6 +215,7 @@ class VisualNodeState(BaseModel):
     items_expanded: bool = False
     pinged: bool = False
     skipped: bool = False
+    is_global: bool = False
 
 
 class VisualGraph(BaseModel):

@@ -15,15 +15,15 @@ dependencies = [
     "SQLAlchemy==2.0.46",
     "psycopg[binary]==3.3.1",
     "python-dotenv==1.2.1",
-    "python-multipart>=0.0.21",
+    "python-multipart==0.0.21",
     "httpx==0.28.1",
-    "huggingface_hub>=0.35.0",
-    "numpy>=2.2.0",
-    "beautifulsoup4>=4.12.3",
-    "pypdf>=5.4.0",
-    "python-docx>=1.1.2",
-    "faiss-cpu>=1.11.0",
-    "lancedb>=0.25.0",
+    "huggingface_hub==0.35.0",
+    "numpy==2.4.1",
+    "beautifulsoup4==4.12.3",
+    "pypdf==5.4.0",
+    "python-docx==1.1.2",
+    "faiss-cpu==1.11.0",
+    "lancedb==0.30.0",
 ]
 
 [project.optional-dependencies]

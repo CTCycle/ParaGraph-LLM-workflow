@@ -29,11 +29,21 @@
   ],
   "outputs": [
     {
-      "name": "points",
+      "name": "vectors",
       "data_type": "VECTOR_POINT_LIST",
       "required": true,
       "accepts_multiple": false,
-      "description": "Embedded vector points with source metadata."
+      "description": "Dense embedding vectors with source metadata for semantic similarity."
+    }
+  ],
+  "controllers": [
+    {
+      "name": "embedding",
+      "data_type": "JSON",
+      "required": false,
+      "accepts_multiple": false,
+      "description": "Embedding handle containing provider/model metadata and generated vectors for controller-driven vector storage or retrieval.",
+      "scope": "source"
     }
   ],
   "parameters": [
