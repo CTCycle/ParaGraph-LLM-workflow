@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
 import shutil
 from pathlib import Path
@@ -16,6 +17,7 @@ from ParaGraph.server.domain.workflow_payloads import RetrievalHit, VectorPoint,
 ARTIFACT_ROOT = Path(RESOURCES_PATH) / "artifacts"
 VECTORSTORE_ROOT = ARTIFACT_ROOT / "vectorstores"
 INDEX_NAME_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
+logger = logging.getLogger(__name__)
 
 def _resolve_vectorstore_root(storage_directory: str | None) -> Path:
     selected = str(storage_directory or "").strip()
@@ -342,6 +344,7 @@ class VectorStoreAdapter:
         score_threshold: float,
         filter_spec: dict[str, Any] | None,
         include_metadata: bool,
+        ann_search_depth: int = 100,
     ) -> list[RetrievalHit]:
         manifest, metadata, vectors, index = _load_store(store)
         if len(query_vector) != int(manifest.get("dimension", 0)):
@@ -365,7 +368,19 @@ class VectorStoreAdapter:
             order = np.argsort(raw_scores if metric == "l2" else -raw_scores)
             ranked = [(candidate_indexes[int(pos)], float(raw_scores[int(pos)])) for pos in order[:top_k]]
         else:
-            search_limit = min(max(top_k * 5, top_k), len(metadata))
+            normalized_depth = max(1, int(ann_search_depth))
+            if hasattr(index, "hnsw") and hasattr(index.hnsw, "efSearch"):
+                try:
+                    index.hnsw.efSearch = normalized_depth
+                except Exception as exc:  # noqa: BLE001
+                    logger.debug("Unable to apply HNSW efSearch=%s: %s", normalized_depth, exc)
+            if hasattr(index, "nprobe"):
+                try:
+                    index.nprobe = max(1, normalized_depth)
+                except Exception as exc:  # noqa: BLE001
+                    logger.debug("Unable to apply IVF nprobe=%s: %s", normalized_depth, exc)
+
+            search_limit = min(max(top_k * 5, top_k, normalized_depth), len(metadata))
             distances, indices = index.search(query, search_limit)
             ranked = [
                 (int(candidate_index), float(distance))
@@ -498,6 +513,7 @@ class LanceDbVectorStoreAdapter(VectorStoreAdapter):
         score_threshold: float,
         filter_spec: dict[str, Any] | None,
         include_metadata: bool,
+        ann_search_depth: int = 100,
     ) -> list[RetrievalHit]:
         lancedb = self._load_lancedb()
         store_metadata = _store_attr(store, "metadata") if isinstance(_store_attr(store, "metadata"), dict) else {}
@@ -507,7 +523,7 @@ class LanceDbVectorStoreAdapter(VectorStoreAdapter):
         if not table_name:
             raise VectorStoreError("LanceDB search requires a table name")
         table = db.open_table(table_name)
-        rows = table.search(query_vector).limit(max(1, top_k * 5)).to_list()
+        rows = table.search(query_vector).limit(max(1, top_k * 5, int(ann_search_depth))).to_list()
 
         results: list[RetrievalHit] = []
         for entry in rows:
@@ -541,3 +557,7 @@ def get_vector_store_adapter(backend: str) -> VectorStoreAdapter:
     if adapter is None:
         raise VectorStoreError(f"Unsupported vector store backend: {backend}")
     return adapter
+
+
+
+

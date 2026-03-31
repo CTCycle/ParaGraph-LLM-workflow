@@ -11,6 +11,11 @@ from ParaGraph.server.services.workflow.provider import provider_service
 
 MODEL_NODE_TYPES = {"LLM_CHAT", "LLM_STRUCTURED"}
 STRUCTURED_NODE_TYPES = {"LLM_STRUCTURED"}
+GLOBAL_CONTROLLER_KINDS: dict[str, str] = {
+    "MODEL_HANDLE": "model_provider",
+    "DATABASE_CONNECTION": "database_provider",
+    "VECTOR_STORE_HANDLE": "vector_store",
+}
 
 
 def _resolve_provider(parameters: dict[str, object], default: str = "ollama") -> str:
@@ -47,19 +52,20 @@ class CompilerService:
 
     def compile(self, definition: WorkflowDefinition) -> CompileWorkflowResponse:
         active_definition, skipped_node_ids = self._active_definition(definition)
+        effective_definition = self._inject_global_controller_connections(active_definition)
 
-        diagnostics, validated_parameters = self._collect_diagnostics(active_definition)
+        diagnostics, validated_parameters = self._collect_diagnostics(effective_definition)
         if diagnostics:
             return CompileWorkflowResponse(valid=False, diagnostics=diagnostics, plan=None)
 
-        ordered_node_ids = self._topological_order(active_definition)
+        ordered_node_ids = self._topological_order(effective_definition)
         incoming: dict[str, list[WorkflowConnection]] = defaultdict(list)
-        for connection in active_definition.connections:
+        for connection in effective_definition.connections:
             incoming[connection.to_node].append(connection)
 
         steps: list[ExecutionStepPlan] = []
         for node_id in ordered_node_ids:
-            node = next(item for item in active_definition.nodes if item.node_id == node_id)
+            node = next(item for item in effective_definition.nodes if item.node_id == node_id)
             manifest = node_registry.get(node.node_type, node.node_version)
             if manifest is None:
                 continue
@@ -113,6 +119,122 @@ class CompilerService:
                 metadata=plan_metadata,
             ),
         )
+
+    def _inject_global_controller_connections(self, definition: WorkflowDefinition) -> WorkflowDefinition:
+        if not definition.nodes:
+            return definition
+
+        node_by_id = {node.node_id: node for node in definition.nodes}
+        global_node_ids = self._read_global_node_ids(definition, node_by_id)
+        if not global_node_ids:
+            return definition
+
+        existing_keys: set[tuple[str, str, str, str, str]] = set()
+        inbound_controller_counts: dict[tuple[str, str], int] = defaultdict(int)
+        for connection in definition.connections:
+            if connection.connection_type != "controller":
+                continue
+            source_name = connection.from_controller or ""
+            target_name = connection.to_controller or ""
+            existing_keys.add((connection.connection_type, connection.from_node, source_name, connection.to_node, target_name))
+            inbound_controller_counts[(connection.to_node, target_name)] += 1
+
+        injected: list[WorkflowConnection] = []
+        for node in definition.nodes:
+            target_manifest = node_registry.get(node.node_type, node.node_version)
+            if target_manifest is None:
+                continue
+
+            for controller in target_manifest.controllers:
+                if self._controller_scope(controller.scope) == "source":
+                    continue
+                if inbound_controller_counts[(node.node_id, controller.name)] > 0:
+                    continue
+
+                global_kind = GLOBAL_CONTROLLER_KINDS.get(controller.data_type)
+                if not global_kind:
+                    continue
+                global_node_id = global_node_ids.get(global_kind)
+                if not global_node_id or global_node_id == node.node_id:
+                    continue
+
+                source_node = node_by_id.get(global_node_id)
+                if source_node is None:
+                    continue
+                source_manifest = node_registry.get(source_node.node_type, source_node.node_version)
+                if source_manifest is None:
+                    continue
+
+                source_controller_name = self._resolve_global_source_controller_name(source_manifest, controller.data_type)
+                if source_controller_name is None:
+                    continue
+
+                connection_key = ("controller", global_node_id, source_controller_name, node.node_id, controller.name)
+                if connection_key in existing_keys:
+                    continue
+                existing_keys.add(connection_key)
+                inbound_controller_counts[(node.node_id, controller.name)] += 1
+                injected.append(
+                    WorkflowConnection(
+                        from_node=global_node_id,
+                        to_node=node.node_id,
+                        connection_type="controller",
+                        from_controller=source_controller_name,
+                        to_controller=controller.name,
+                    )
+                )
+
+        if not injected:
+            return definition
+        return definition.model_copy(update={"connections": [*definition.connections, *injected]})
+
+    def _resolve_global_source_controller_name(self, source_manifest, target_data_type: str) -> str | None:
+        for controller in source_manifest.controllers:
+            scope = self._controller_scope(controller.scope)
+            if scope == "target":
+                continue
+            compatible = (
+                controller.data_type == target_data_type
+                or controller.data_type == "ANY"
+                or target_data_type == "ANY"
+            )
+            if compatible:
+                return controller.name
+        return None
+
+    def _read_global_node_ids(
+        self,
+        definition: WorkflowDefinition,
+        node_by_id: dict[str, object],
+    ) -> dict[str, str]:
+        metadata = definition.metadata if isinstance(definition.metadata, dict) else {}
+        raw_globals = metadata.get("global_nodes")
+        if not isinstance(raw_globals, dict):
+            return {}
+
+        normalized: dict[str, str] = {}
+        aliases = {
+            "model_provider": "model_provider",
+            "model": "model_provider",
+            "database_provider": "database_provider",
+            "database": "database_provider",
+            "vector_store": "vector_store",
+            "vector_storage": "vector_store",
+        }
+        for raw_key, raw_node_id in raw_globals.items():
+            key = aliases.get(str(raw_key).strip().lower())
+            if key is None or not isinstance(raw_node_id, str):
+                continue
+            node_id = raw_node_id.strip()
+            if node_id and node_id in node_by_id:
+                normalized[key] = node_id
+        return normalized
+
+    @staticmethod
+    def _controller_scope(scope: str | None) -> str:
+        if scope in {"source", "target", "both"}:
+            return scope
+        return "target"
 
     def _collect_diagnostics(self, definition: WorkflowDefinition) -> tuple[list[CompilerDiagnostic], dict[str, dict[str, object]]]:
         diagnostics: list[CompilerDiagnostic] = []
@@ -421,4 +543,3 @@ class CompilerService:
 
 
 compiler_service = CompilerService()
-

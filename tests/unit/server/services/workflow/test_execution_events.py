@@ -208,5 +208,6 @@ def test_execution_service_persists_compact_step_output_payload(job_state_factor
     run = execution_service.get_run('run-compact-output')
 
     assert run is not None
-    assert all(set(step.output.keys()) == {'ports'} for step in run.steps)
+    assert all(set(step.output.keys()) == {'inputs', 'ports'} for step in run.steps)
+
 

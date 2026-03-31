@@ -1,51 +1,73 @@
 # General Rules
 
-This file is mandatory context for every task.
+This is the mandatory entry document for every task.
 
-## 1. Required Documentation Review
+## 1. Reading Order and Precedence
 
-Read the minimum relevant docs in `assets/docs` before coding:
+1. Read this file (`GENERAL_RULES.md`) first.
+2. Read only the additional docs needed for the task scope.
+3. If two docs conflict:
+   - Task-specific requirements (user request + this task context) win.
+   - `GENERAL_RULES.md` defines shared baseline behavior.
+   - Specialized docs (Python/TypeScript/UI/tests/runtime) refine implementation details.
 
-- `GENERAL_RULES.md` (always)
-- `ARCHITECTURE.md` (system shape, API surface, data flow)
-- `NODES_LIBRARY.md` (mandatory when adding/modifying nodes)
-- `BACKGROUND_JOBS.md` (mandatory when touching async or polling flows)
-- `GUIDELINES_PYTHON.md` (Python backend work)
-- `GUIDELINES_TYPESCRIPT.md` (frontend/client work)
-- `GUIDELINES_TESTS.md` (test changes or verification runs)
-- `PACKAGING_AND_RUNTIME_MODES.md` (runtime/env/launcher behavior)
-- `UI_STANDARDS.md` and `UI_UX_AUDIT_REPORT.md` (UI changes)
-- `README_WRITING.md` (README changes)
+## 2. Canonical Docs Index (`assets/docs`)
 
-## 2. Runtime and Command Rules
+| Document | Purpose | Read When |
+| --- | --- | --- |
+| `GENERAL_RULES.md` | Global workflow and documentation policy. | Always. |
+| `ARCHITECTURE.md` | System structure, active API surface, runtime flow, persistence boundaries. | Any backend/frontend feature touching contracts or flow wiring. |
+| `NODES_LIBRARY.md` | Source-of-truth node inventory and node contract expectations. | Adding/modifying nodes, ports/controllers, categories, or node behavior. |
+| `BACKGROUND_JOBS.md` | Job manager, polling, cancellation, async execution patterns. | Touching long-running operations, job lifecycle, progress streams, or cancellation. |
+| `GUIDELINES_PYTHON.md` | Backend coding standards, layering, FastAPI practices, typing and runtime expectations. | Editing `ParaGraph/server` or backend tests. |
+| `GUIDELINES_TYPESCRIPT.md` | Client architecture, typing, API-layer usage, workflow UI constraints. | Editing `ParaGraph/client`. |
+| `GUIDELINES_TESTS.md` | Test layout, fixtures, commands, quality gates. | Adding/updating/running tests. |
+| `PACKAGING_AND_RUNTIME_MODES.md` | Runtime/deployment modes, path behavior, packaging constraints. | Changes affecting launch/config/runtime behavior or packaging. |
+| `UI_STANDARDS.md` | Design tokens, spacing/typography/color/focus/accessibility standards. | Any UI/CSS/component interaction change. |
+| `UI_UX_AUDIT_REPORT.md` | Known UX gaps and remediation priorities. | UI changes where consistency with existing audit guidance matters. |
+| `README_WRITING.md` | README style and structure requirements. | Creating/updating README docs. |
+
+## 3. Runtime and Command Rules
 
 - Use PowerShell by default.
+- Use repository runtime tools and environments.
 - For Python commands, use `runtimes/.venv` when present:
-  - `.\runtimes\.venv\Scripts\python.exe ...`
-- Use local runtime toolchain from this repository (`runtimes/`) for launcher-driven flows.
-- Use `cmd /c` only for `.bat` scripts or CMD-specific syntax.
-- After frontend code changes, run from `ParaGraph/client`:
+  - `./runtimes/.venv/Scripts/python.exe ...`
+- Use `cmd /c` only for `.bat` scripts or CMD-specific behavior.
+
+## 4. Verification Gates
+
+- After frontend code changes (from `ParaGraph/client`):
   - `npm run build`
+- For backend changes:
+  - Run relevant `pytest` suites (at minimum affected unit tests).
+- For cross-layer changes:
+  - Validate both frontend build and backend tests.
 
-## 3. Documentation Policy
+## 5. Documentation Update Policy
 
-- If behavior, architecture, runtime setup, tests, or APIs change, update the relevant `assets/docs` files in the same task.
-- Keep docs coherent with each other and with current code.
-- Remove legacy references instead of adding contradictory notes.
+Update docs in the same task when behavior/contracts change.
 
-## 4. Engineering Principles
+Required consistency checks:
+- Node/catalog/runtime changes -> update `NODES_LIBRARY.md`.
+- Architecture/API-flow changes -> update `ARCHITECTURE.md`.
+- Runtime/deployment/config changes -> update `PACKAGING_AND_RUNTIME_MODES.md`.
+- UI behavior/interaction changes -> align with `UI_STANDARDS.md` and review `UI_UX_AUDIT_REPORT.md`.
+- Test strategy/commands changed -> update `GUIDELINES_TESTS.md`.
 
-- Prefer small, verifiable changes and deterministic behavior.
-- Keep code readable, typed, and testable.
-- Keep API handlers thin; push logic into services.
-- Apply secure defaults: input validation, secret protection, and least privilege.
+## 6. Engineering Principles
 
-## 5. Frontend File Handling Rules
+- Prefer small, verifiable increments.
+- Keep behavior deterministic and contracts explicit.
+- Keep API handlers thin and move logic into services.
+- Preserve backward compatibility where required; migrate legacy contracts explicitly.
+- Use secure defaults: validation, path safety, least privilege.
 
-- Do not add backend-native file/folder dialogs for workflow nodes (no Tkinter/server-side OS pickers).
+## 7. Frontend File Handling Rules
+
+- Do not add backend-native OS pickers for workflow nodes.
 - In browser/local mode, selection and user-approved writes must be frontend-driven via browser file APIs.
 
-## 6. Skills
+## 8. Skills
 
-When a reusable skill matches the task, use it. Apply only the relevant skill(s), not everything.
-
+Use matching skills when relevant, but only those needed for the task.

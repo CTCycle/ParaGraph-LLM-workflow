@@ -7,6 +7,7 @@ export const NODE_CATEGORY_ORDER: NodeCategory[] = [
     'prompt',
     'model',
     'processing',
+    'retrieval',
     'embeddings',
     'text_segmentation',
     'output',
@@ -21,6 +22,7 @@ export const NODE_CATEGORY_LABELS: Record<NodeCategory, string> = {
     prompt: 'Prompt',
     model: 'Model',
     processing: 'Processing',
+    retrieval: 'Retrieval',
     embeddings: 'Embeddings',
     text_segmentation: 'Text Segmentation',
     output: 'Output',
@@ -36,6 +38,7 @@ export function toNodeCategoryFilter(value: string): NodeCategoryFilter {
         value === 'prompt' ||
         value === 'model' ||
         value === 'processing' ||
+        value === 'retrieval' ||
         value === 'embeddings' ||
         value === 'text_segmentation' ||
         value === 'output' ||

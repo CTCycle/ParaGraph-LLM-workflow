@@ -68,6 +68,7 @@ type WorkflowNodeData = {
     selectedItemKey: string | null
     pinged: boolean
     skipped: boolean
+    isGlobal: boolean
     isActive: boolean
     glowLevel: number
     runtimeOutput: Record<string, unknown> | null
@@ -79,6 +80,7 @@ type WorkflowNodeData = {
     onTogglePing: () => void
     onToggleCollapse: () => void
     onToggleItemsExpanded: () => void
+    onToggleGlobal: () => void
     onSelectItem: (itemKey: string | null) => void
 }
 
@@ -121,6 +123,7 @@ type PersistedWorkflowNode = {
     items_expanded?: boolean
     pinged: boolean
     skipped: boolean
+    is_global?: boolean
 }
 
 type PersistedWorkflowEdge = {
@@ -156,6 +159,7 @@ type CopiedNodeSnapshot = {
     collapsed: boolean
     pinged: boolean
     skipped: boolean
+    isGlobal: boolean
 }
 
 type SelectedWorkflowJson = {
@@ -200,6 +204,7 @@ const SAVE_AS_FILE_NODE_TYPE = 'SAVE_AS_FILE'
 const SAVE_AS_FOLDER_NODE_TYPE = 'SAVE_AS_FOLDER'
 const SAVE_AS_FILE_CHUNK_SEPARATOR = '/n/n'
 const SAVE_AS_FOLDER_INDEX_WIDTH = 6
+const INTERNAL_PREVIEW_ITEMS_PARAMETER = '__preview_items'
 const MAX_NODE_GLOW_TRAIL = 3
 const NODE_GLOW_CLEAR_DELAY_MS = 1200
 const TEXT_EMBEDDING_MODEL_OPTIONS: Record<string, ProviderModelDefinition[]> = {
@@ -295,6 +300,7 @@ const WORKFLOW_EDITOR_HANDLE_HEIGHT_PX = 22
 
 type HandleKind = 'input' | 'output' | 'controller'
 type ParsedHandle = { kind: HandleKind; name: string }
+type GlobalNodeKind = 'model_provider' | 'database_provider' | 'vector_store'
 
 type ControllerScope = 'source' | 'target' | 'both'
 
@@ -378,6 +384,62 @@ function pickWorkflowJsonFromBrowser(): Promise<SelectedWorkflowJson | null> {
 
 function formatParameterLabel(parameterName: string): string {
     return parameterName.replace(/_/g, ' ')
+}
+
+function basenameOnly(value: unknown): string {
+    const text = String(value ?? '').trim()
+    if (!text) {
+        return ''
+    }
+    const normalized = text.replace(/\\/g, '/')
+    const segments = normalized.split('/').filter(Boolean)
+    return segments.length > 0 ? segments[segments.length - 1] : normalized
+}
+
+function getGlobalNodeKind(manifest: NodeManifest): GlobalNodeKind | null {
+    if (manifest.id === 'MODEL_PROVIDER') {
+        return 'model_provider'
+    }
+    if (manifest.category === 'database') {
+        return 'database_provider'
+    }
+    if (manifest.category === 'vector_storage') {
+        return 'vector_store'
+    }
+    return null
+}
+
+function deriveGlobalNodeMetadata(nodes: Array<Node<WorkflowNodeData>>): Record<string, string> {
+    const globalNodes: Record<string, string> = {}
+    for (const node of nodes) {
+        if (!node.data.isGlobal) {
+            continue
+        }
+        const kind = getGlobalNodeKind(node.data.manifest)
+        if (!kind) {
+            continue
+        }
+        globalNodes[kind] = node.id
+    }
+    return globalNodes
+}
+
+function enforceSingleGlobalSelection(nodes: Array<Node<WorkflowNodeData>>): Array<Node<WorkflowNodeData>> {
+    const seen = new Set<GlobalNodeKind>()
+    return nodes.map((node) => {
+        const kind = getGlobalNodeKind(node.data.manifest)
+        if (!kind || !node.data.isGlobal) {
+            return node
+        }
+        if (seen.has(kind)) {
+            return {
+                ...node,
+                data: { ...node.data, isGlobal: false },
+            }
+        }
+        seen.add(kind)
+        return node
+    })
 }
 
 type BrowserDirectorySelection = {
@@ -759,7 +821,8 @@ function collectNodeItemsFromPayloadValue(value: unknown): NodeItemRecord[] {
             continue
         }
         const metadata = isRecord(document.metadata) ? document.metadata : {}
-        const label = coerceTextPayload(metadata.file_name) || coerceTextPayload(document.source_uri) || `Document ${index + 1}`
+        const rawLabel = coerceTextPayload(metadata.file_name) || coerceTextPayload(document.source_uri) || `Document ${index + 1}`
+        const label = basenameOnly(rawLabel) || rawLabel
         const key = coerceTextPayload(document.id) || `document:${index}`
         items.push({ key, label, preview: text })
     }
@@ -779,17 +842,20 @@ function collectNodeItemsFromPayloadValue(value: unknown): NodeItemRecord[] {
         items.push({ key, label, preview: text })
     }
 
-    const points = (Array.isArray(isRecord(value) ? value.points : undefined) ? (isRecord(value) ? value.points : []) : []) as unknown[]
-    for (const [index, point] of points.entries()) {
-        if (!isRecord(point)) {
+    const vectors = (Array.isArray(isRecord(value) ? value.vectors : undefined) ? (isRecord(value) ? value.vectors : []) : []) as unknown[]
+    const legacyPoints = (Array.isArray(isRecord(value) ? value.points : undefined) ? (isRecord(value) ? value.points : []) : []) as unknown[]
+    const vectorPoints = vectors.length > 0 ? vectors : legacyPoints
+    for (const [index, vectorPoint] of vectorPoints.entries()) {
+        if (!isRecord(vectorPoint)) {
             continue
         }
-        const text = coerceTextPayload(point.text)
+        const text = coerceTextPayload(vectorPoint.text)
         if (!text.trim()) {
             continue
         }
-        const label = coerceTextPayload(point.document_id) || `Embedding ${index + 1}`
-        const key = coerceTextPayload(point.id) || `point:${index}`
+        const rawLabel = coerceTextPayload(vectorPoint.source_uri) || coerceTextPayload(vectorPoint.document_id) || `Vector ${index + 1}`
+        const label = basenameOnly(rawLabel) || rawLabel
+        const key = coerceTextPayload(vectorPoint.id) || `vector:${index}`
         items.push({ key, label, preview: text })
     }
 
@@ -798,11 +864,28 @@ function collectNodeItemsFromPayloadValue(value: unknown): NodeItemRecord[] {
 
 function collectNodeItemsFromParameters(manifest: NodeManifest, parameters: Record<string, unknown>): NodeItemRecord[] {
     const items: NodeItemRecord[] = []
+    const previewItems = normalizeStringList(parameters[INTERNAL_PREVIEW_ITEMS_PARAMETER]).map(basenameOnly).filter(Boolean)
+    for (const [index, previewItem] of previewItems.entries()) {
+        items.push({
+            key: `${INTERNAL_PREVIEW_ITEMS_PARAMETER}:${index}`,
+            label: `Item ${index + 1}`,
+            preview: previewItem,
+        })
+    }
+
     for (const parameter of manifest.parameters) {
-        if (parameter.ui_control !== 'string-list' && parameter.ui_control !== 'file-list') {
+        let values: string[] = []
+        if (parameter.ui_control === 'string-list') {
+            values = normalizeStringList(parameters[parameter.name])
+        } else if (parameter.ui_control === 'file-list') {
+            values = normalizeStringList(parameters[parameter.name]).map(basenameOnly).filter(Boolean)
+        } else if (parameter.ui_control === 'file' || parameter.ui_control === 'directory') {
+            const single = basenameOnly(parameters[parameter.name])
+            values = single ? [single] : []
+        } else {
             continue
         }
-        const values = normalizeStringList(parameters[parameter.name])
+
         for (const [index, value] of values.entries()) {
             if (!value.trim()) {
                 continue
@@ -837,6 +920,14 @@ function isNodeItemExpandable(manifest: NodeManifest): boolean {
         port.data_type === 'DOCUMENT_LIST'
         || port.data_type === 'CHUNK_LIST'
         || port.data_type === 'VECTOR_POINT_LIST'
+    ))
+}
+
+function supportsPreRunItemPreview(manifest: NodeManifest): boolean {
+    return manifest.parameters.some((parameter) => (
+        parameter.ui_control === 'directory'
+        || parameter.ui_control === 'file'
+        || parameter.ui_control === 'file-list'
     ))
 }
 function toSafeFileStem(rawName: string, fallback: string): string {
@@ -1016,6 +1107,7 @@ function normalizeNodePathParameters(manifest: NodeManifest, parameters: Record<
     if (manifest.id === 'LOAD_DOCUMENTS') {
         normalizePathParameter(nextParameters, 'folder_path')
     }
+    delete nextParameters[INTERNAL_PREVIEW_ITEMS_PARAMETER]
     return nextParameters
 }
 function normalizeJsonParameterValue(value: unknown): string {
@@ -1377,8 +1469,10 @@ function readPersistedWorkflowState(): PersistedWorkflowState | null {
                         height: isFiniteNumber(value.height) ? value.height : undefined,
                         parameters: isRecord(value.parameters) ? value.parameters : {},
                         collapsed: Boolean(value.collapsed),
+                        items_expanded: Boolean(value.items_expanded),
                         pinged: Boolean(value.pinged),
                         skipped: Boolean(value.skipped),
+                        is_global: Boolean(value.is_global),
                     }
                 })
                 .filter((value): value is PersistedWorkflowNode => value !== null)
@@ -1724,9 +1818,14 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
     const runtimeOutputText = isJsonOutputNode ? formatJsonOutputRuntime(data.runtimeOutput) : formatRuntimeOutput(data.runtimeOutput)
     const shouldShowRuntimeOutput = Boolean(runtimeOutputText) || isJsonOutputNode
     const isItemExpandable = isNodeItemExpandable(data.manifest)
+    const globalNodeKind = getGlobalNodeKind(data.manifest)
     const nodeItems = collectNodeItems(data.manifest, data.parameters, data.runtimeStepOutput)
     const hasNodeItems = nodeItems.length > 0
-    const nodeItemsEmptyMessage = data.runtimeStepOutput ? 'No items available.' : 'Run the node to inspect items.'
+    const nodeItemsEmptyMessage = data.runtimeStepOutput
+        ? 'No items available.'
+        : supportsPreRunItemPreview(data.manifest)
+            ? 'Select a source to preview items.'
+            : 'Run the node to inspect items.'
 
     useEffect(() => {
         if (!data.selectedItemKey) {
@@ -1881,6 +1980,7 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
                     throw new Error('Folder upload succeeded but returned an empty path')
                 }
                 data.onParameterChange(parameter.name, stagedPath)
+                data.onParameterChange(INTERNAL_PREVIEW_ITEMS_PARAMETER, uploaded.files.map((value) => basenameOnly(value)).filter(Boolean))
                 const uploadedCountLabel = uploaded.file_count === 1 ? 'file' : 'files'
                 data.onStatusChange('Selected ' + browserSelection.folderName + ' (' + uploaded.file_count + ' ' + uploadedCountLabel + ')')
                 return
@@ -1902,6 +2002,7 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
                         throw new Error('File upload succeeded but returned no files')
                     }
                     data.onParameterChange(parameter.name, normalizedFiles)
+                    data.onParameterChange(INTERNAL_PREVIEW_ITEMS_PARAMETER, normalizedFiles.map((value) => basenameOnly(value)).filter(Boolean))
                     data.onStatusChange(`Selected ${normalizedFiles.length} file${normalizedFiles.length === 1 ? '' : 's'}`)
                     return
                 }
@@ -1911,9 +2012,12 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
                     throw new Error('File upload succeeded but returned no file path')
                 }
                 data.onParameterChange(parameter.name, firstPath)
-                data.onStatusChange(`Selected ${firstPath}`)
+                data.onParameterChange(INTERNAL_PREVIEW_ITEMS_PARAMETER, [basenameOnly(firstPath)].filter(Boolean))
+                data.onStatusChange(`Selected ${basenameOnly(firstPath) || firstPath}`)
                 return
             }
+
+
         } catch (error) {
             data.onStatusChange(error instanceof Error ? error.message : 'Unable to browse for a path')
         } finally {
@@ -1964,6 +2068,22 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
                             onClick={() => void handleConnectionCheck()}
                         >
                             {connectionCheckState === 'checking' ? '...' : 'DB'}
+                        </button>
+                    )}
+                    {globalNodeKind && (
+                        <button
+                            type="button"
+                            className={`workflow-node-global ${data.isGlobal ? 'workflow-node-global-active' : ''} nodrag nopan`}
+                            aria-label={data.isGlobal ? 'Unset global node' : 'Set node as global'}
+                            title={data.isGlobal ? 'Unset global node' : 'Set node as global'}
+                            onPointerDown={preventNodeInteractionDrag}
+                            onMouseDown={preventNodeInteractionDrag}
+                            onClick={(event) => {
+                                event.stopPropagation()
+                                data.onToggleGlobal()
+                            }}
+                        >
+                            G
                         </button>
                     )}
                     <button
@@ -2645,6 +2765,7 @@ function WorkflowEditor() {
                     collapsed: source.data.collapsed,
                     pinged: source.data.pinged,
                     skipped: source.data.skipped,
+                    isGlobal: source.data.isGlobal,
                 }
                 pasteCountRef.current = 0
                 setStatusText(`Copied ${source.data.manifest.name}`)
@@ -2673,6 +2794,7 @@ function WorkflowEditor() {
                     collapsed: copied.collapsed,
                     pinged: copied.pinged,
                     skipped: copied.skipped,
+                    isGlobal: false,
                     selected: true,
                 })
                 setNodes((current) => [
@@ -2759,8 +2881,10 @@ function WorkflowEditor() {
                     position: snapshot.position,
                     parameters: snapshot.parameters,
                     collapsed: snapshot.collapsed,
+                    itemsExpanded: snapshot.items_expanded ?? false,
                     pinged: snapshot.pinged,
                     skipped: snapshot.skipped,
+                    isGlobal: Boolean(snapshot.is_global),
                     width: snapshot.width,
                     height: snapshot.height,
                 }),
@@ -2798,7 +2922,7 @@ function WorkflowEditor() {
                 ]
             })
         saveNodeBrowseSelectionsRef.current = {}
-        setNodes(restoredNodes)
+        setNodes(enforceSingleGlobalSelection(restoredNodes))
         setEdges(restoredEdges)
         setIsLibraryVisible(false)
         setIsGridVisible(persisted.is_grid_visible)
@@ -2832,6 +2956,7 @@ function WorkflowEditor() {
                 items_expanded: node.data.itemsExpanded,
                 pinged: node.data.pinged,
                 skipped: node.data.skipped,
+                is_global: node.data.isGlobal,
             }
         })
         const persistedEdges: PersistedWorkflowEdge[] = edges.map((edge) => ({
@@ -2884,6 +3009,7 @@ function WorkflowEditor() {
         return nodes.find((node) => node.id === nodeContextMenu.nodeId) ?? null
     }, [nodeContextMenu, nodes])
     const contextMenuNodeIsExpandable = contextMenuNode ? isNodeItemExpandable(contextMenuNode.data.manifest) : false
+    const contextMenuNodeGlobalKind = contextMenuNode ? getGlobalNodeKind(contextMenuNode.data.manifest) : null
     function updateNode(nodeId: string, updater: (node: Node<WorkflowNodeData>) => Node<WorkflowNodeData>): void {
         setNodes((current) => current.map((node) => (node.id === nodeId ? updater(node) : node)))
     }
@@ -2909,6 +3035,7 @@ function WorkflowEditor() {
         itemsExpanded?: boolean
         pinged?: boolean
         skipped?: boolean
+        isGlobal?: boolean
         selected?: boolean
         width?: number
         height?: number
@@ -2943,6 +3070,7 @@ function WorkflowEditor() {
                 selectedItemKey: null,
                 pinged: isPinged,
                 skipped: input.skipped ?? false,
+                isGlobal: input.isGlobal ?? false,
                 isActive: nodeId === activeNodeId,
                 glowLevel: nodeId === activeNodeId ? 3 : 0,
                 runtimeOutput: null,
@@ -2950,6 +3078,18 @@ function WorkflowEditor() {
                 onParameterChange: (parameterName, value) => {
                     updateNode(nodeId, (current) => {
                         const nextParameters = { ...current.data.parameters, [parameterName]: value }
+                        const parameterDefinition = current.data.manifest.parameters.find((item) => item.name === parameterName)
+                        if (
+                            parameterName !== INTERNAL_PREVIEW_ITEMS_PARAMETER
+                            && parameterDefinition
+                            && (
+                                parameterDefinition.ui_control === 'directory'
+                                || parameterDefinition.ui_control === 'file'
+                                || parameterDefinition.ui_control === 'file-list'
+                            )
+                        ) {
+                            delete nextParameters[INTERNAL_PREVIEW_ITEMS_PARAMETER]
+                        }
                         if (
                             parameterName === 'output_path'
                             && (current.data.manifest.id === SAVE_AS_FILE_NODE_TYPE || current.data.manifest.id === SAVE_AS_FOLDER_NODE_TYPE)
@@ -2996,6 +3136,9 @@ function WorkflowEditor() {
                 },
                 onTogglePing: () => {
                     toggleNodePing(nodeId)
+                },
+                onToggleGlobal: () => {
+                    toggleNodeGlobal(nodeId)
                 },
                 onToggleCollapse: () => {
                     updateNode(nodeId, (current) => ({
@@ -3058,6 +3201,43 @@ function WorkflowEditor() {
         }
     }
 
+    function toggleNodeGlobal(nodeId: string): void {
+        let statusMessage: string | null = null
+        setNodes((current) => {
+            const selected = current.find((node) => node.id === nodeId)
+            if (!selected) {
+                return current
+            }
+
+            const selectedKind = getGlobalNodeKind(selected.data.manifest)
+            if (!selectedKind) {
+                return current
+            }
+
+            const nextIsGlobal = !selected.data.isGlobal
+            return current.map((node) => {
+                if (node.id === nodeId) {
+                    statusMessage = `${nextIsGlobal ? 'Set' : 'Unset'} global ${selected.data.manifest.name}`
+                    return {
+                        ...node,
+                        data: { ...node.data, isGlobal: nextIsGlobal },
+                    }
+                }
+
+                if (nextIsGlobal && node.data.isGlobal && getGlobalNodeKind(node.data.manifest) === selectedKind) {
+                    return {
+                        ...node,
+                        data: { ...node.data, isGlobal: false },
+                    }
+                }
+                return node
+            })
+        })
+
+        if (statusMessage) {
+            setStatusText(statusMessage)
+        }
+    }
     function toggleNodeSkipped(nodeId: string): void {
         const node = nodes.find((item) => item.id === nodeId)
         if (!node) {
@@ -3091,6 +3271,7 @@ function WorkflowEditor() {
             skipped: mode === 'clone' ? sourceNode.data.skipped : false,
             width: mode === 'clone' ? dimensions.width : undefined,
             height: mode === 'clone' ? dimensions.height : undefined,
+            isGlobal: false,
             selected: true,
         })
 
@@ -3258,7 +3439,7 @@ function WorkflowEditor() {
             schema_version: 2,
             nodes: definitionNodes,
             connections: definitionConnections,
-            metadata: {},
+            metadata: { global_nodes: deriveGlobalNodeMetadata(nodes) },
         }
     }
     function buildVisualGraph(): VisualGraph {
@@ -3276,6 +3457,7 @@ function WorkflowEditor() {
                     items_expanded: node.data.itemsExpanded,
                     pinged: node.data.pinged,
                     skipped: node.data.skipped,
+                    is_global: node.data.isGlobal,
                 }
             }),
             groups: [],
@@ -3313,6 +3495,16 @@ function WorkflowEditor() {
             }
         }
 
+        const importedGlobalNodeIds = new Set<string>()
+        const rawGlobalNodes = isRecord(payload.definition.metadata) ? payload.definition.metadata.global_nodes : null
+        if (isRecord(rawGlobalNodes)) {
+            for (const value of Object.values(rawGlobalNodes)) {
+                if (typeof value === 'string' && value.trim()) {
+                    importedGlobalNodeIds.add(value.trim())
+                }
+            }
+        }
+
         const definitionNodes: unknown[] = Array.isArray(payload.definition.nodes) ? payload.definition.nodes : []
         const restoredNodes: Node<WorkflowNodeData>[] = definitionNodes.map((rawNode, index) => {
             if (!isRecord(rawNode) || typeof rawNode.node_id !== 'string' || typeof rawNode.node_type !== 'string') {
@@ -3338,6 +3530,11 @@ function WorkflowEditor() {
             const itemsExpanded = visualNode ? Boolean(visualNode.items_expanded) : false
             const pinged = visualNode ? Boolean(visualNode.pinged) : false
             const skipped = typeof rawNode.skipped === 'boolean' ? rawNode.skipped : visualNode ? Boolean(visualNode.skipped) : false
+            const isGlobal = typeof rawNode.is_global === 'boolean'
+                ? rawNode.is_global
+                : visualNode
+                    ? Boolean(visualNode.is_global)
+                    : importedGlobalNodeIds.has(rawNode.node_id)
             const parameters = isRecord(rawNode.parameters) ? rawNode.parameters : {}
 
             return createWorkflowNode({
@@ -3349,6 +3546,7 @@ function WorkflowEditor() {
                 itemsExpanded,
                 pinged,
                 skipped,
+                isGlobal,
                 width,
                 height,
             })
@@ -3422,7 +3620,7 @@ function WorkflowEditor() {
                 ]
             })
         saveNodeBrowseSelectionsRef.current = {}
-        setNodes(restoredNodes)
+        setNodes(enforceSingleGlobalSelection(restoredNodes))
         setEdges(restoredEdges)
         setNodeContextMenu(null)
         clearExecutionHighlight()
@@ -4088,6 +4286,21 @@ function WorkflowEditor() {
                             </button>
                             <button
                                 type="button"
+                                className={`workflow-node-context-menu-item ${contextMenuNodeGlobalKind ? '' : 'workflow-node-context-menu-item-disabled'}`}
+                                role="menuitem"
+                                disabled={!contextMenuNodeGlobalKind}
+                                onClick={() => {
+                                    if (!contextMenuNodeGlobalKind) {
+                                        return
+                                    }
+                                    contextMenuNode.data.onToggleGlobal()
+                                    setNodeContextMenu(null)
+                                }}
+                            >
+                                {contextMenuNode.data.isGlobal ? 'Unset global' : 'Set as global'}
+                            </button>
+                            <button
+                                type="button"
                                 className="workflow-node-context-menu-item" role="menuitem"
                                 onClick={() => {
                                     toggleNodeSkipped(contextMenuNode.id)
@@ -4168,3 +4381,4 @@ export default function WorkflowPage() {
         </ReactFlowProvider>
     )
 }
+

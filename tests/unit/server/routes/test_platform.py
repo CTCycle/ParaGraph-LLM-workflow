@@ -57,6 +57,9 @@ def test_nodes_catalog_exposes_registry(client: TestClient) -> None:
         'LOAD_TEXT',
         'MERGE_SMALL_CHUNKS',
         'MODEL_PROVIDER',
+        'LANCE_DB',
+        'SIMILARITY_SEARCH',
+        'TEXT_EMBEDDING',
         'PROMPT',
         'PROMPT_TEMPLATE',
         'RECURSIVE_SPLIT_CHUNKS',
@@ -75,6 +78,7 @@ def test_nodes_catalog_exposes_registry(client: TestClient) -> None:
     assert 'fragmentation' not in categories
     assert 'text_segmentation' in categories
     assert 'prompt' in categories
+    assert 'retrieval' in categories
 
 
 def test_nodes_import_persists_manifest(client: TestClient, monkeypatch, tmp_path: Path) -> None:
@@ -481,6 +485,7 @@ def test_workflow_crud_and_versions(client: TestClient) -> None:
 
     assert update_response.status_code == 200
     assert update_response.json()['latest_version'] == 2
+
 
 
 

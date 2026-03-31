@@ -3,14 +3,21 @@
   "version": 1,
   "name": "LanceDB",
   "category": "vector_storage",
-  "description": "Persist embedding points to a LanceDB table stored in a selected local folder.",
+  "description": "Persist embedding vectors to a LanceDB table stored in a selected local folder.",
   "inputs": [
+    {
+      "name": "vectors",
+      "data_type": "VECTOR_POINT_LIST",
+      "required": false,
+      "accepts_multiple": true,
+      "description": "One or more embedded vector collections to store."
+    },
     {
       "name": "points",
       "data_type": "VECTOR_POINT_LIST",
-      "required": true,
+      "required": false,
       "accepts_multiple": true,
-      "description": "One or more embedded point collections to store."
+      "description": "Legacy alias for vectors input."
     }
   ],
   "outputs": [
@@ -20,6 +27,24 @@
       "required": true,
       "accepts_multiple": false,
       "description": "Stored LanceDB vector table handle."
+    }
+  ],
+  "controllers": [
+    {
+      "name": "embedding",
+      "data_type": "JSON",
+      "required": false,
+      "accepts_multiple": true,
+      "description": "Controller payload from TEXT_EMBEDDING to store generated vectors directly.",
+      "scope": "target"
+    },
+    {
+      "name": "store",
+      "data_type": "VECTOR_STORE_HANDLE",
+      "required": false,
+      "accepts_multiple": false,
+      "description": "Controller handle for downstream retrieval nodes.",
+      "scope": "source"
     }
   ],
   "parameters": [

@@ -10,6 +10,7 @@ NodeCategory = Literal[
     "prompt",
     "model",
     "processing",
+    "retrieval",
     "embeddings",
     "text_segmentation",
     "output",

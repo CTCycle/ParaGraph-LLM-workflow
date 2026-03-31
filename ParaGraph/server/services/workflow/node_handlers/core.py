@@ -26,12 +26,13 @@ from ParaGraph.server.domain.node_handler_core import (
     RouterParameters,
     SaveAsFileParameters,
     SaveAsFolderParameters,
+    SimilaritySearchParameters,
     StorageParameters,
     StructuredParameters,
     TextSplitParameters,
 )
 from ParaGraph.server.domain.nodecatalog import ProviderModelDefinition
-from ParaGraph.server.domain.workflow_payloads import VectorPoint
+from ParaGraph.server.domain.workflow_payloads import RetrievalResults, VectorPoint
 from ParaGraph.server.services.configuration import configuration_service
 from ParaGraph.server.services.workflow.node_handlers.base import NodeHandler
 from ParaGraph.server.services.workflow.node_handlers.common import (
@@ -601,7 +602,15 @@ def _embedding_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> d
     points = _collect_embedding_points(inputs=inputs, provider=provider, model_name=model_name)
     if not points:
         raise ValueError("TEXT_EMBEDDING requires at least one non-empty text, document, or chunk")
-    return {"points": [VectorPoint.model_validate(point).model_dump(mode="json") for point in points]}
+    vectors = [VectorPoint.model_validate(point).model_dump(mode="json") for point in points]
+    return {
+        "vectors": vectors,
+        "embedding": {
+            "provider": provider,
+            "model": model_name,
+            "vectors": vectors,
+        },
+    }
 
 
 def _flatten_vector_point_inputs(raw_points: Any) -> list[dict[str, Any]]:
@@ -618,11 +627,45 @@ def _flatten_vector_point_inputs(raw_points: Any) -> list[dict[str, Any]]:
     return []
 
 
+def _flatten_embedding_controller_inputs(raw_embedding_payload: Any) -> list[dict[str, Any]]:
+    values = raw_embedding_payload if isinstance(raw_embedding_payload, list) else [raw_embedding_payload]
+    points: list[dict[str, Any]] = []
+    for value in values:
+        if not isinstance(value, dict):
+            continue
+        vectors = value.get("vectors")
+        points.extend(_flatten_vector_point_inputs(vectors))
+    return points
+
+
+def _extract_embedding_source(payload: Any) -> tuple[str, str]:
+    if not isinstance(payload, dict):
+        raise ValueError("SIMILARITY_SEARCH requires an embedding controller payload")
+    provider = coerce_text(payload.get("provider") or "").strip().lower()
+    model_name = coerce_text(payload.get("model") or "").strip()
+    if not provider or not model_name:
+        raise ValueError("Embedding controller payload must include provider and model")
+    return provider, model_name
+
+
+def _canonical_similarity_metric(value: str) -> str:
+    normalized = value.strip().lower()
+    if normalized == "euclidean":
+        return "l2"
+    if normalized == "dot":
+        return "dot"
+    return normalized
+
+
 def _lance_db_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
     parsed = LanceDbParameters.model_validate(parameters)
-    points = _flatten_vector_point_inputs(inputs.get("points"))
+    points = [
+        *_flatten_vector_point_inputs(inputs.get("vectors")),
+        *_flatten_vector_point_inputs(inputs.get("points")),
+        *_flatten_embedding_controller_inputs(inputs.get("embedding")),
+    ]
     if not points:
-        raise ValueError("LANCE_DB requires at least one embeddings input")
+        raise ValueError("LANCE_DB requires at least one vectors input")
     adapter = get_vector_store_adapter("lancedb")
     store = adapter.write_points(
         index_name=parsed.table_name,
@@ -635,7 +678,47 @@ def _lance_db_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> di
         hnsw_m=16,
         create_vector_index=parsed.create_vector_index,
     )
-    return {"store": store.model_dump(mode="json")}
+    store_payload = store.model_dump(mode="json")
+    return {"store": store_payload}
+
+
+def _similarity_search_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
+    parsed = SimilaritySearchParameters.model_validate(parameters)
+    query = coerce_text(inputs.get("query") or "").strip()
+    if not query:
+        raise ValueError("SIMILARITY_SEARCH requires a query input")
+
+    embedding_payload = inputs.get("embedding")
+    provider, model_name = _extract_embedding_source(embedding_payload)
+    query_vector = _embed_text_for_text_embedding_node(provider=provider, model_name=model_name, text=query)
+
+    store_payload = inputs.get("store")
+    if not isinstance(store_payload, dict):
+        raise ValueError("SIMILARITY_SEARCH requires a vector store controller input")
+
+    requested_metric = _canonical_similarity_metric(parsed.similarity_strategy)
+    store_metric = _canonical_similarity_metric(coerce_text(store_payload.get("metric") or "cosine"))
+    if requested_metric != store_metric:
+        raise ValueError(
+            "SIMILARITY_SEARCH similarity_strategy must match the connected vector store metric "
+            f"({store_metric})."
+        )
+
+    backend = coerce_text(store_payload.get("backend") or "lancedb").strip().lower()
+    adapter = get_vector_store_adapter(backend)
+    hits = adapter.search(
+        store=store_payload,
+        query_vector=query_vector,
+        top_k=parsed.top_k,
+        score_threshold=float(parsed.score_threshold),
+        filter_spec=None,
+        include_metadata=bool(parsed.include_metadata),
+        ann_search_depth=parsed.ann_search_depth,
+    )
+
+    return {
+        "results": RetrievalResults(query=query, hits=hits).model_dump(mode="json"),
+    }
 
 
 def _tokenize_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
@@ -896,6 +979,7 @@ CORE_HANDLERS = {
     "embedding_model": NodeHandler(executor=_embedding_executor, parameter_model=EmbeddingParameters),
     "text_embedding": NodeHandler(executor=_embedding_executor, parameter_model=EmbeddingParameters),
     "lance_db": NodeHandler(executor=_lance_db_executor, parameter_model=LanceDbParameters),
+    "similarity_search": NodeHandler(executor=_similarity_search_executor, parameter_model=SimilaritySearchParameters),
     "tokenize": NodeHandler(executor=_tokenize_executor),
     "text_split": NodeHandler(executor=_text_split_executor, parameter_model=TextSplitParameters),
     "save_as_file": NodeHandler(executor=_save_as_file_executor, parameter_model=SaveAsFileParameters),
