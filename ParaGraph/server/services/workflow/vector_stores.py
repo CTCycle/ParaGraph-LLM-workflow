@@ -246,6 +246,33 @@ def _sanitize_metadata_entry(point: VectorPoint | dict[str, Any]) -> dict[str, A
     }
 
 
+def _materialize_lancedb_rows(payload: Any) -> list[dict[str, Any]]:
+    if hasattr(payload, "to_list"):
+        try:
+            rows = payload.to_list()
+            if isinstance(rows, list):
+                return [row for row in rows if isinstance(row, dict)]
+        except Exception:  # noqa: BLE001
+            pass
+
+    if hasattr(payload, "to_arrow"):
+        try:
+            rows = payload.to_arrow().to_pylist()
+            if isinstance(rows, list):
+                return [row for row in rows if isinstance(row, dict)]
+        except Exception:  # noqa: BLE001
+            pass
+
+    if hasattr(payload, "to_pandas"):
+        try:
+            frame = payload.to_pandas()
+            return frame.to_dict(orient="records")
+        except Exception:  # noqa: BLE001
+            pass
+
+    return []
+
+
 class VectorStoreAdapter:
     backend = "faiss"
 
@@ -459,7 +486,7 @@ class LanceDbVectorStoreAdapter(VectorStoreAdapter):
 
         if write_mode_normalized == "append" and normalized_index_name in table_names:
             table = db.open_table(normalized_index_name)
-            current_rows = table.to_list()
+            current_rows = _materialize_lancedb_rows(table)
             if current_rows:
                 existing_vector = current_rows[0].get("vector") if isinstance(current_rows[0], dict) else None
                 if not isinstance(existing_vector, list) or len(existing_vector) != dimension:
@@ -495,7 +522,7 @@ class LanceDbVectorStoreAdapter(VectorStoreAdapter):
             embedding_model=str(_point_attr(points[0], "embedding_model") or ""),
             metadata={
                 "index_type": index_type.lower().strip(),
-                "count": len(table.to_list()),
+                "count": len(_materialize_lancedb_rows(table)),
                 "storage_directory": str(root_path),
                 "table_name": normalized_index_name,
                 "create_vector_index": bool(create_vector_index),
@@ -523,7 +550,8 @@ class LanceDbVectorStoreAdapter(VectorStoreAdapter):
         if not table_name:
             raise VectorStoreError("LanceDB search requires a table name")
         table = db.open_table(table_name)
-        rows = table.search(query_vector).limit(max(1, top_k * 5, int(ann_search_depth))).to_list()
+        search_payload = table.search(query_vector).limit(max(1, top_k * 5, int(ann_search_depth)))
+        rows = _materialize_lancedb_rows(search_payload)
 
         results: list[RetrievalHit] = []
         for entry in rows:
