@@ -49,6 +49,7 @@ ParaGraph is a local-first workflow system with:
 - `POST /nodes/import`
 - `POST /nodes/uploads/directory`
 - `POST /nodes/check-database-connection`
+- `POST /nodes/check-vector-store-connection`
 
 ### Providers
 - `GET /providers/catalog`
@@ -98,3 +99,4 @@ ParaGraph is a local-first workflow system with:
 
 - `PARAGRAPH_DEPLOYMENT_MODE=local`: docs/openapi routes enabled.
 - `PARAGRAPH_DEPLOYMENT_MODE=cloud`: docs/openapi routes disabled; API expected behind relative gateway path (typically `/api`).
+

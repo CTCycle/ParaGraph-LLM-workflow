@@ -63,7 +63,7 @@ At a high level:
 
 - **Workflows**: `/workflows`, `/workflows/{workflow_id}`, `/workflows/{workflow_id}/versions`
 - **Executions**: `/executions/compile`, `/executions`, `/executions/{run_id}`, `/executions/{run_id}/events`, websocket `/executions/ws/runs/{run_id}`
-- **Nodes**: `/nodes/catalog`, `/nodes/import`, `/nodes/uploads/directory`, `/nodes/check-database-connection`
+- **Nodes**: `/nodes/catalog`, `/nodes/import`, `/nodes/uploads/directory`, `/nodes/check-database-connection, /nodes/check-vector-store-connection`
 - **Providers**: `/providers/models`, `/providers/ollama/library`, `/providers/ollama/pull`, `/providers/huggingface/models`, `/providers/huggingface/download`, `/providers/huggingface/download/{job_id}`
 - **Configurations**: `/configurations`, `/configurations/profiles`, `/configurations/profiles/{profile_name}`, `/configurations/ollama/ping`
 

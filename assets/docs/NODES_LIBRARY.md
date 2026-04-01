@@ -20,7 +20,7 @@ All currently shipped manifests are version `v1`.
 | `serialization` | `LOAD_DOCUMENTS`, `LOAD_TEXT`, `SAVE_AS_FILE`, `SAVE_AS_FOLDER` |
 | `text_segmentation` | `FIXED_SIZE_CHUNKS`, `BY_DELIMITER_CHUNKS`, `BY_STRUCTURE_CHUNKS`, `RECURSIVE_SPLIT_CHUNKS`, `REGEX_SPLIT_CHUNKS`, `SENTENCE_WINDOW_CHUNKS`, `MERGE_SMALL_CHUNKS` |
 | `database` | `SQL_DATABASE`, `SQL_FILE_DATABASE` |
-| `vector_storage` | `LANCE_DB` |
+| `vector_storage` | `VECTOR_STORE` |
 | `output` | `TEXT_OUTPUT`, `JSON_OUTPUT` |
 
 ## 2. Node Summary
@@ -47,7 +47,7 @@ All currently shipped manifests are version `v1`.
 - `MERGE_SMALL_CHUNKS`: merges small adjacent fragments.
 - `SQL_DATABASE`: creates SQL DB controller handle from connection parameters.
 - `SQL_FILE_DATABASE`: creates embedded SQL DB controller handle.
-- `LANCE_DB`: stores embedding vectors in a local LanceDB table.
+- `VECTOR_STORE`: stores embedding vectors in the selected vector-store provider.
 - `TEXT_OUTPUT`: terminal text output node.
 - `JSON_OUTPUT`: terminal JSON output node.
 
@@ -89,11 +89,11 @@ Migration compatibility:
 - Controller payload includes embedding provider/model context and generated vectors.
 - This allows direct controller wiring into vector stores for immediate persistence.
 
-### 6.2 `LANCE_DB`
+### 6.2 `VECTOR_STORE`
 
 - Accepts controller target handle (`embedding`) for controller-driven vector-save behavior.
 - Provides controller source handle (`store`) for downstream retrieval nodes.
-- Supports both direct data input (`vectors`) and controller-driven save flow (`TEXT_EMBEDDING -> LANCE_DB`).
+- Supports both direct data input (`vectors`) and controller-driven save flow (`TEXT_EMBEDDING -> VECTOR_STORE`).
 
 ### 6.3 `SIMILARITY_SEARCH`
 
@@ -149,7 +149,7 @@ Adapter behavior:
 
 Imported manifests must validate against backend schema (`NodeManifest`) before registration.
 
-## 10. Change Management
+Vector store parameters include provider selection and provider_config JSON for advanced backend-specific settings.`n`n## 10. Change Management
 
 When adding or modifying a node:
 
@@ -157,3 +157,4 @@ When adding or modifying a node:
 2. Implement or map runtime executor behavior.
 3. Update compiler/runtime tests for new contract behavior.
 4. Update this file (inventory + summary + contracts) in the same change.
+

@@ -4,6 +4,7 @@ import {
     CompileWorkflowResponse,
     CompiledExecutionPlan,
     DatabaseConnectionCheckResponse,
+    VectorStoreConnectionCheckResponse,
     ExecutionEventEnvelope,
     ExecutionRunState,
     HuggingFaceModelCatalogResponse,
@@ -93,6 +94,21 @@ export function checkDatabaseConnection(
     })
 }
 
+
+export function checkVectorStoreConnection(
+    nodeType: 'VECTOR_STORE',
+    nodeVersion: number,
+    parameters: Record<string, unknown>,
+): Promise<VectorStoreConnectionCheckResponse> {
+    return requestJson<VectorStoreConnectionCheckResponse>('/nodes/check-vector-store-connection', {
+        method: 'POST',
+        body: JSON.stringify({
+            node_type: nodeType,
+            node_version: nodeVersion,
+            parameters,
+        }),
+    })
+}
 export function fetchProviderModels(sessionName = 'default'): Promise<ProviderModelCatalogResponse> {
     const params = new URLSearchParams({ session_name: sessionName })
     return requestJson<ProviderModelCatalogResponse>(`/providers/models?${params.toString()}`)
@@ -371,4 +387,6 @@ export function subscribeExecutionEvents(
         ws.close()
     }
 }
+
+
 

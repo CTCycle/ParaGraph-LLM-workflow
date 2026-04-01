@@ -20,3 +20,14 @@ class DatabaseConnectionCheckRequest(BaseModel):
 class DatabaseConnectionCheckResponse(BaseModel):
     ok: bool
     message: str
+
+
+class VectorStoreConnectionCheckRequest(BaseModel):
+    node_type: Literal["VECTOR_STORE"]
+    node_version: int = Field(default=1, ge=1)
+    parameters: dict[str, Any] = Field(default_factory=dict)
+
+
+class VectorStoreConnectionCheckResponse(BaseModel):
+    ok: bool
+    message: str

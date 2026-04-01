@@ -34,6 +34,7 @@ import {
 import {
     uploadNodeDirectory,
     checkDatabaseConnection,
+    checkVectorStoreConnection,
     compileWorkflow,
     fetchProviderModels,
     importNodeManifest,
@@ -1202,6 +1203,9 @@ function isSqlConnectionNode(manifest: NodeManifest): manifest is NodeManifest &
     return manifest.id === 'SQL_DATABASE' || manifest.id === 'SQL_FILE_DATABASE'
 }
 
+function isVectorStoreConnectionNode(manifest: NodeManifest): manifest is NodeManifest & { id: 'VECTOR_STORE' } {
+    return manifest.id === 'VECTOR_STORE'
+}
 function formatWorkflowExecutionError(error: unknown, runState: ExecutionRunState | null): string {
     const reason = error instanceof Error ? error.message : 'Execution failed for an unknown reason.'
     const failedStep = runState?.steps.find((step) => step.status === 'failed')
@@ -1813,17 +1817,52 @@ function getParameterOptions(
         .map((option) => ({ value: option, label: formatWidgetOptionLabel(option) }))
 }
 
+
+function normalizeVisibleWhenValue(value: unknown): string {
+    if (typeof value === 'string') {
+        return value.trim().toLowerCase()
+    }
+    if (typeof value === 'number' || typeof value === 'boolean') {
+        return String(value).trim().toLowerCase()
+    }
+    return ''
+}
+
+function shouldShowParameter(parameter: NodeParameterDefinition, parameters: Record<string, unknown>): boolean {
+    const visibleWhen = parameter.constraints.visible_when
+    if (!visibleWhen || typeof visibleWhen !== 'object' || Array.isArray(visibleWhen)) {
+        return true
+    }
+
+    for (const [dependencyName, expectedRaw] of Object.entries(visibleWhen as Record<string, unknown>)) {
+        const currentValue = normalizeVisibleWhenValue(parameters[dependencyName])
+        const expectedValues = Array.isArray(expectedRaw) ? expectedRaw : [expectedRaw]
+        const normalizedExpected = expectedValues.map((item) => normalizeVisibleWhenValue(item)).filter(Boolean)
+        if (normalizedExpected.length === 0) {
+            continue
+        }
+        if (!normalizedExpected.includes(currentValue)) {
+            return false
+        }
+    }
+
+    return true
+}
 function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
     const nodeStyle: NodeAccentStyle = { '--node-accent': data.manifest.ui.accent_color }
     const structured = isStructuredNode(data.manifest)
     const isJsonOutputNode = data.manifest.id === 'JSON_OUTPUT'
     const sqlConnectionNode = isSqlConnectionNode(data.manifest)
+    const vectorStoreConnectionNode = isVectorStoreConnectionNode(data.manifest)
+    const supportsConnectionCheck = sqlConnectionNode || vectorStoreConnectionNode
     const [browseTarget, setBrowseTarget] = useState<string | null>(null)
     const [jsonDrafts, setJsonDrafts] = useState<Record<string, string>>({})
     const [listDrafts, setListDrafts] = useState<Record<string, string>>({})
     const [jsonValidationStates, setJsonValidationStates] = useState<Record<string, JsonValidationState>>({})
     const [runtimeJsonValidation, setRuntimeJsonValidation] = useState<JsonValidationState>('idle')
     const [connectionCheckState, setConnectionCheckState] = useState<'idle' | 'checking' | 'success' | 'error'>('idle')
+
+    const visibleParameters = data.manifest.parameters.filter((parameter) => shouldShowParameter(parameter, data.parameters))
 
     const runtimeOutputText = isJsonOutputNode ? formatJsonOutputRuntime(data.runtimeOutput) : formatRuntimeOutput(data.runtimeOutput)
     const shouldShowRuntimeOutput = Boolean(runtimeOutputText) || isJsonOutputNode
@@ -1925,12 +1964,14 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
     }
 
     async function handleConnectionCheck(): Promise<void> {
-        if (!sqlConnectionNode) {
+        if (!supportsConnectionCheck) {
             return
         }
         setConnectionCheckState('checking')
         try {
-            const response = await checkDatabaseConnection(data.manifest.id as 'SQL_DATABASE' | 'SQL_FILE_DATABASE', data.manifest.version, data.parameters)
+            const response = sqlConnectionNode
+                ? await checkDatabaseConnection(data.manifest.id as 'SQL_DATABASE' | 'SQL_FILE_DATABASE', data.manifest.version, data.parameters)
+                : await checkVectorStoreConnection('VECTOR_STORE', data.manifest.version, data.parameters)
             if (response.ok) {
                 setConnectionCheckState('success')
                 data.onStatusChange(response.message)
@@ -1940,7 +1981,7 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
             }
         } catch (error) {
             setConnectionCheckState('error')
-            data.onStatusChange(error instanceof Error ? error.message : 'Database connectivity check failed')
+            data.onStatusChange(error instanceof Error ? error.message : 'Connection check failed')
         }
     }
 
@@ -2067,17 +2108,17 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
                 <div className="workflow-node-header-actions">
                     {data.isActive && <span className="workflow-node-badge workflow-node-badge-running">Running</span>}
                     {data.skipped && <span className="workflow-node-badge workflow-node-badge-skipped">Skipped</span>}
-                    {sqlConnectionNode && (
+                    {supportsConnectionCheck && (
                         <button
                             type="button"
                             className={`workflow-node-db-check workflow-node-db-check-${connectionCheckState} nodrag nopan`}
-                            aria-label="Check database connection"
-                            title="Check database connection"
+                            aria-label={sqlConnectionNode ? "Check database connection" : "Check vector store connection"}
+                            title={sqlConnectionNode ? "Check database connection" : "Check vector store connection"}
                             onPointerDown={preventNodeInteractionDrag}
                             onMouseDown={preventNodeInteractionDrag}
                             onClick={() => void handleConnectionCheck()}
                         >
-                            {connectionCheckState === 'checking' ? '...' : 'DB'}
+                            {connectionCheckState === 'checking' ? '...' : sqlConnectionNode ? 'DB' : 'VS'}
                         </button>
                     )}
                     {globalNodeKind && (
@@ -2184,10 +2225,10 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
                 </div>
             </div>
 
-            {!data.collapsed && data.manifest.parameters.length > 0 && (
+            {!data.collapsed && visibleParameters.length > 0 && (
                 <div className="workflow-node-parameters">
                     <div className="workflow-node-parameters-grid">
-                        {data.manifest.parameters.map((parameter) => {
+                        {visibleParameters.map((parameter) => {
                             const value = data.parameters[parameter.name] ?? parameter.default ?? ''
                             const options = getParameterOptions(parameter, data.manifest, data.parameters, data.providerModels)
                             const multiline = isMultilineControl(parameter)
@@ -4428,4 +4469,12 @@ export default function WorkflowPage() {
         </ReactFlowProvider>
     )
 }
+
+
+
+
+
+
+
+
 
