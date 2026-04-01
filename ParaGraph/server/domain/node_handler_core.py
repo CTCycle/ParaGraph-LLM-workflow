@@ -101,18 +101,6 @@ class PromptTemplateParameters(BaseModel):
         return value
 
 
-class AssignNameParameters(BaseModel):
-    name: str = ""
-
-    @field_validator("name")
-    @classmethod
-    def validate_name(cls, value: str) -> str:
-        normalized = str(value or "").strip()
-        if not normalized:
-            raise ValueError("name is required")
-        return normalized
-
-
 class ImageInputParameters(BaseModel):
     file_path: str = ""
 

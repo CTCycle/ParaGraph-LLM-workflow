@@ -205,6 +205,7 @@ const SAVE_AS_FOLDER_NODE_TYPE = 'SAVE_AS_FOLDER'
 const SAVE_AS_FILE_CHUNK_SEPARATOR = '/n/n'
 const SAVE_AS_FOLDER_INDEX_WIDTH = 6
 const INTERNAL_PREVIEW_ITEMS_PARAMETER = '__preview_items'
+const NODE_OUTPUT_NAME_PARAMETER = '__output_name'
 const MAX_NODE_GLOW_TRAIL = 3
 const NODE_GLOW_CLEAR_DELAY_MS = 1200
 const TEXT_EMBEDDING_MODEL_OPTIONS: Record<string, ProviderModelDefinition[]> = {
@@ -1097,6 +1098,15 @@ function normalizePathParameter(parameters: Record<string, unknown>, canonicalNa
     if (typeof current === 'string') {
         parameters[canonicalName] = current.trim()
     }
+}
+
+function getNodeOutputName(parameters: Record<string, unknown>): string | null {
+    const value = parameters[NODE_OUTPUT_NAME_PARAMETER]
+    if (typeof value !== 'string') {
+        return null
+    }
+    const trimmed = value.trim()
+    return trimmed || null
 }
 
 function normalizeNodePathParameters(manifest: NodeManifest, parameters: Record<string, unknown>): Record<string, unknown> {
@@ -2456,6 +2466,9 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
 
             <div className="workflow-node-footer">
                 <span>{NODE_CATEGORY_LABELS[data.manifest.category]}</span>
+                {getNodeOutputName(data.parameters) && (
+                    <span className="workflow-node-output-name">{getNodeOutputName(data.parameters)}</span>
+                )}
             </div>
         </div>
     )
@@ -4311,6 +4324,37 @@ function WorkflowEditor() {
                                 }}
                             >
                                 {contextMenuNode.data.skipped ? 'Unskip' : 'Skip'}
+                            </button>
+                            <button
+                                type="button"
+                                className={`workflow-node-context-menu-item ${contextMenuNode.data.manifest.outputs.length > 0 ? '' : 'workflow-node-context-menu-item-disabled'}`}
+                                role="menuitem"
+                                disabled={contextMenuNode.data.manifest.outputs.length === 0}
+                                onClick={() => {
+                                    if (contextMenuNode.data.manifest.outputs.length === 0) {
+                                        return
+                                    }
+                                    const currentName = getNodeOutputName(contextMenuNode.data.parameters) ?? ''
+                                    const nextName = window.prompt('Rename output', currentName)
+                                    if (nextName === null) {
+                                        return
+                                    }
+                                    const trimmed = nextName.trim()
+                                    updateNode(contextMenuNode.id, (current) => ({
+                                        ...current,
+                                        data: {
+                                            ...current.data,
+                                            parameters: {
+                                                ...current.data.parameters,
+                                                [NODE_OUTPUT_NAME_PARAMETER]: trimmed,
+                                            },
+                                        },
+                                    }))
+                                    setStatusText(trimmed ? `Output renamed to ${trimmed}` : 'Output name cleared')
+                                    setNodeContextMenu(null)
+                                }}
+                            >
+                                Rename output
                             </button>
                             <div className="workflow-node-context-menu-separator" role="separator" />
                             <button

@@ -46,9 +46,10 @@ def test_nodes_catalog_exposes_registry(client: TestClient) -> None:
 
     ids = {node['id'] for node in payload['nodes']}
     assert ids == {
-        'ASSIGN_NAME',
+        'API_CALL',
         'BY_DELIMITER_CHUNKS',
         'BY_STRUCTURE_CHUNKS',
+        'FETCH_HTML',
         'FIXED_SIZE_CHUNKS',
         'JSON_OUTPUT',
         'LLM_CHAT',
@@ -86,6 +87,12 @@ def test_nodes_import_persists_manifest(client: TestClient, monkeypatch, tmp_pat
     node_dir.mkdir(parents=True, exist_ok=True)
     for manifest in Path('ParaGraph/resources/nodes').glob('*.json'):
         (node_dir / manifest.name).write_text(manifest.read_text(encoding='utf-8'), encoding='utf-8')
+    plugins_src = Path('ParaGraph/resources/nodes/plugins')
+    if plugins_src.exists():
+        plugins_target = node_dir / 'plugins'
+        plugins_target.mkdir(parents=True, exist_ok=True)
+        for plugin_file in plugins_src.glob('*.py'):
+            (plugins_target / plugin_file.name).write_text(plugin_file.read_text(encoding='utf-8'), encoding='utf-8')
 
     monkeypatch.setattr(node_module, 'NODE_ROOT', node_dir)
     node_module.node_registry.reload()

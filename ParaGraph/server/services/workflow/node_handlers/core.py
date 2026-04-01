@@ -15,7 +15,6 @@ from pydantic import ValidationError
 from ParaGraph.server.common.constants import RESOURCES_PATH
 from ParaGraph.server.common.security import ensure_path_within_root, is_cloud_deployment
 from ParaGraph.server.domain.node_handler_core import (
-    AssignNameParameters,
     ChatParameters,
     EmbeddingParameters,
     ImageInputParameters,
@@ -217,11 +216,6 @@ def _prompt_template_executor(parameters: dict[str, Any], inputs: dict[str, Any]
     return {"text": rendered}
 
 
-def _assign_name_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
-    parsed = AssignNameParameters.model_validate(parameters)
-    return {"variable": {parsed.name: inputs.get("value")}}
-
-# -----------------------------------------------------------------------------
 def _image_input_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
     _ = inputs
     return {"image": {"path": coerce_text(parameters.get("file_path", "")).strip()}}
@@ -969,7 +963,6 @@ def _router_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict
 CORE_HANDLERS = {
     "prompt": NodeHandler(executor=_prompt_executor, parameter_model=PromptParameters),
     "prompt_template": NodeHandler(executor=_prompt_template_executor, parameter_model=PromptTemplateParameters),
-    "assign_name": NodeHandler(executor=_assign_name_executor, parameter_model=AssignNameParameters),
     "user_prompt": NodeHandler(executor=_prompt_executor, parameter_model=PromptParameters),
     "system_prompt": NodeHandler(executor=_prompt_executor, parameter_model=PromptParameters),
     "image_input": NodeHandler(executor=_image_input_executor, parameter_model=ImageInputParameters),
