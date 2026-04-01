@@ -616,6 +616,13 @@
     font-size: 0.7rem;
 }
 
+.workflow-node-output-name {
+    margin-left: auto;
+    color: #bfe4ff;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+}
+
 .workflow-node-subtitle {
     margin: 1px 0 0;
     line-height: 1.3;

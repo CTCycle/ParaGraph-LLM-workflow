@@ -14,6 +14,8 @@ from ParaGraph.server.services.workflow.nodes import node_registry
 
 
 class ExecutionService:
+    OUTPUT_NAME_PARAMETER = "__output_name"
+
     def start_execution(self, plan: CompiledExecutionPlan, workflow_id: str | None = None) -> str:
         return job_manager.start_job(
             job_type="workflow",
@@ -63,7 +65,7 @@ class ExecutionService:
             )
 
             try:
-                resolved_inputs, resolved_controllers = self._resolve_inputs(step, outputs_by_step)
+                resolved_inputs, resolved_controllers = self._resolve_inputs(step, outputs_by_step, step_lookup)
                 cache_key = self._build_cache_key(step, resolved_inputs, resolved_controllers) if step.cacheable else None
                 if cache_key is not None and cache_key in cache:
                     port_outputs = cache[cache_key]
@@ -131,7 +133,12 @@ class ExecutionService:
         execution_event_service.publish(run_id=job_id, event_type="execution.completed", payload={"outputs": output_payload})
         return {"outputs": output_payload}
 
-    def _resolve_inputs(self, step, outputs_by_step: dict[str, dict[str, Any]]) -> tuple[dict[str, Any], dict[str, Any]]:
+    def _resolve_inputs(
+        self,
+        step,
+        outputs_by_step: dict[str, dict[str, Any]],
+        step_lookup: dict[str, Any],
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
         manifest = node_registry.get(step.node_type, step.node_version)
         manifests_by_input = {port.name: port for port in (manifest.inputs if manifest else [])}
         manifests_by_controller = {port.name: port for port in (manifest.controllers if manifest else [])}
@@ -142,6 +149,10 @@ class ExecutionService:
             source_ports = outputs_by_step.get(binding.source_node_id, {})
             value = source_ports.get(binding.source_output)
             binding_is_controller = binding.binding_type == "controller"
+            source_step = step_lookup.get(binding.source_node_id)
+            output_name = self._resolve_output_name(source_step.parameters if source_step is not None else {})
+            if not binding_is_controller and output_name:
+                value = {output_name: value}
             target_manifest_map = manifests_by_controller if binding_is_controller else manifests_by_input
             target_values = resolved_controllers if binding_is_controller else resolved_inputs
 
@@ -160,6 +171,13 @@ class ExecutionService:
                 target_values[binding.input_name] = value
 
         return resolved_inputs, resolved_controllers
+
+    def _resolve_output_name(self, parameters: dict[str, Any]) -> str | None:
+        raw_value = parameters.get(self.OUTPUT_NAME_PARAMETER)
+        if not isinstance(raw_value, str):
+            return None
+        normalized = raw_value.strip()
+        return normalized or None
 
     def _json_safe(self, value: Any) -> Any:
         return json.loads(json.dumps(value, default=str))

@@ -211,3 +211,65 @@ def test_execution_service_persists_compact_step_output_payload(job_state_factor
     assert all(set(step.output.keys()) == {'inputs', 'ports'} for step in run.steps)
 
 
+
+
+def test_execution_service_uses_named_output_as_prompt_template_variable(job_state_factory) -> None:
+    plan = CompiledExecutionPlan(
+        plan_id='plan-renamed-output',
+        step_order=['prompt_1', 'template_1', 'output_1'],
+        steps=[
+            ExecutionStepPlan(
+                step_id='prompt_1',
+                node_id='prompt_1',
+                node_type='PROMPT',
+                node_version=1,
+                category='prompt',
+                executor_key='prompt',
+                parameters={'prompt_text': 'hello', '__output_name': 'greeting'},
+                bindings=[],
+                cacheable=False,
+            ),
+            ExecutionStepPlan(
+                step_id='template_1',
+                node_id='template_1',
+                node_type='PROMPT_TEMPLATE',
+                node_version=1,
+                category='prompt',
+                executor_key='prompt_template',
+                parameters={'template': '{greeting}'},
+                bindings=[
+                    ExecutionBinding(
+                        binding_type='input',
+                        input_name='variables',
+                        source_node_id='prompt_1',
+                        source_output='text',
+                    )
+                ],
+                cacheable=False,
+            ),
+            ExecutionStepPlan(
+                step_id='output_1',
+                node_id='output_1',
+                node_type='TEXT_OUTPUT',
+                node_version=1,
+                category='output',
+                executor_key='text_output',
+                parameters={},
+                bindings=[
+                    ExecutionBinding(
+                        binding_type='input',
+                        input_name='text',
+                        source_node_id='template_1',
+                        source_output='text',
+                    )
+                ],
+                cacheable=False,
+            ),
+        ],
+        metadata={},
+    )
+
+    job_state_factory('run-renamed-output', 'workflow')
+    result = execution_service.execute_plan_job(plan=plan, workflow_id=None, job_id='run-renamed-output')
+
+    assert result == {'outputs': {'output_1': {'text': 'hello'}}}

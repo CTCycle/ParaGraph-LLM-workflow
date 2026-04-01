@@ -12,7 +12,7 @@ All currently shipped manifests are version `v1`.
 | --- | --- |
 | `input` | |
 | `web` | `API_CALL`, `FETCH_HTML` |
-| `control` | `ASSIGN_NAME` |
+| `control` | |
 | `prompt` | `PROMPT`, `PROMPT_TEMPLATE` |
 | `model` | `MODEL_PROVIDER`, `LLM_CHAT`, `LLM_STRUCTURED` |
 | `embeddings` | `TEXT_EMBEDDING` |
@@ -25,7 +25,6 @@ All currently shipped manifests are version `v1`.
 
 ## 2. Node Summary
 
-- `ASSIGN_NAME`: wraps an upstream value into a named JSON map.
 - `API_CALL`: calls a REST JSON/text endpoint (GET/POST) and emits text/json plus normalized response metadata.
 - `FETCH_HTML`: fetches webpage HTML and emits raw html, cleaned text, and response metadata.
 - `PROMPT`: emits fixed prompt text.

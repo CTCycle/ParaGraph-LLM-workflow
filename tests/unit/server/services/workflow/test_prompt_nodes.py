@@ -46,29 +46,3 @@ def test_prompt_template_merges_multiple_input_maps() -> None:
 
     assert payload['text'] == 'A B C'
 
-
-def test_assign_name_emits_exact_text_value_under_configured_key() -> None:
-    payload = node_registry.execute(
-        'ASSIGN_NAME',
-        1,
-        {'name': 'name'},
-        {'value': 'Ada'},
-    )
-
-    assert payload == {'variable': {'name': 'Ada'}}
-
-
-def test_assign_name_emits_exact_structured_value_under_configured_key() -> None:
-    input_value = {
-        'document': {'id': 'doc-1', 'tags': ['alpha', 'beta']},
-        'score': 0.91,
-        'enabled': True,
-    }
-    payload = node_registry.execute(
-        'ASSIGN_NAME',
-        1,
-        {'name': 'payload'},
-        {'value': input_value},
-    )
-
-    assert payload == {'variable': {'payload': input_value}}
