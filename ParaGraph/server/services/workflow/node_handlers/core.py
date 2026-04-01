@@ -18,7 +18,6 @@ from ParaGraph.server.domain.node_handler_core import (
     ChatParameters,
     EmbeddingParameters,
     ImageInputParameters,
-    LanceDbParameters,
     ModelProviderParameters,
     PromptParameters,
     PromptTemplateParameters,
@@ -29,6 +28,7 @@ from ParaGraph.server.domain.node_handler_core import (
     StorageParameters,
     StructuredParameters,
     TextSplitParameters,
+    VectorStoreParameters,
 )
 from ParaGraph.server.domain.nodecatalog import ProviderModelDefinition
 from ParaGraph.server.domain.workflow_payloads import RetrievalResults, VectorPoint
@@ -651,26 +651,28 @@ def _canonical_similarity_metric(value: str) -> str:
     return normalized
 
 
-def _lance_db_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
-    parsed = LanceDbParameters.model_validate(parameters)
+def _vector_store_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
+    parsed = VectorStoreParameters.model_validate(parameters)
     points = [
         *_flatten_vector_point_inputs(inputs.get("vectors")),
         *_flatten_vector_point_inputs(inputs.get("points")),
         *_flatten_embedding_controller_inputs(inputs.get("embedding")),
     ]
     if not points:
-        raise ValueError("LANCE_DB requires at least one vectors input")
-    adapter = get_vector_store_adapter("lancedb")
+        raise ValueError("VECTOR_STORE requires at least one vectors input")
+    adapter = get_vector_store_adapter(parsed.provider)
     store = adapter.write_points(
-        index_name=parsed.table_name,
+        index_name=parsed.index_name,
         storage_directory=parsed.storage_path,
         metric=parsed.distance_metric,
-        index_type="ivf_pq",
         write_mode=parsed.write_mode,
+        namespace=parsed.namespace,
+        endpoint_url=parsed.endpoint_url,
+        api_key=parsed.api_key,
+        collection_name=parsed.collection_name,
+        database_name=parsed.database_name,
+        provider_config=parsed.provider_config,
         points=points,
-        nlist=parsed.num_partitions,
-        hnsw_m=16,
-        create_vector_index=parsed.create_vector_index,
     )
     store_payload = store.model_dump(mode="json")
     return {"store": store_payload}
@@ -700,14 +702,19 @@ def _similarity_search_executor(parameters: dict[str, Any], inputs: dict[str, An
 
     backend = coerce_text(store_payload.get("backend") or "lancedb").strip().lower()
     adapter = get_vector_store_adapter(backend)
+    raw_filter_spec = parsed.metadata_filter if isinstance(parsed.metadata_filter, dict) else None
     hits = adapter.search(
         store=store_payload,
         query_vector=query_vector,
         top_k=parsed.top_k,
         score_threshold=float(parsed.score_threshold),
-        filter_spec=None,
+        filter_spec=raw_filter_spec,
         include_metadata=bool(parsed.include_metadata),
         ann_search_depth=parsed.ann_search_depth,
+        search_mode=parsed.search_mode,
+        keyword_query=coerce_text(parsed.keyword_query).strip() or None,
+        vector_weight=float(parsed.vector_weight),
+        keyword_weight=float(parsed.keyword_weight),
     )
 
     return {
@@ -971,7 +978,8 @@ CORE_HANDLERS = {
     "llm_structured": NodeHandler(executor=_llm_structured_executor, parameter_model=StructuredParameters),
     "embedding_model": NodeHandler(executor=_embedding_executor, parameter_model=EmbeddingParameters),
     "text_embedding": NodeHandler(executor=_embedding_executor, parameter_model=EmbeddingParameters),
-    "lance_db": NodeHandler(executor=_lance_db_executor, parameter_model=LanceDbParameters),
+    "vector_store": NodeHandler(executor=_vector_store_executor, parameter_model=VectorStoreParameters),
+    "lance_db": NodeHandler(executor=_vector_store_executor, parameter_model=VectorStoreParameters),
     "similarity_search": NodeHandler(executor=_similarity_search_executor, parameter_model=SimilaritySearchParameters),
     "tokenize": NodeHandler(executor=_tokenize_executor),
     "text_split": NodeHandler(executor=_text_split_executor, parameter_model=TextSplitParameters),

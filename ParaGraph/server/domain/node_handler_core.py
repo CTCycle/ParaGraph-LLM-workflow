@@ -137,10 +137,15 @@ class EmbeddingParameters(BaseModel):
 
 class SimilaritySearchParameters(BaseModel):
     similarity_strategy: str = "cosine"
+    search_mode: str = "vector"
+    metadata_filter: dict[str, Any] | None = None
     ann_search_depth: int = Field(default=100, ge=10, le=500)
     top_k: int = Field(default=5, ge=1, le=100)
     score_threshold: float = Field(default=0.0, ge=0.0, le=1.0)
     include_metadata: bool = True
+    keyword_query: str = ""
+    vector_weight: float = Field(default=0.5, ge=0.0, le=1.0)
+    keyword_weight: float = Field(default=0.5, ge=0.0, le=1.0)
 
     @field_validator("similarity_strategy")
     @classmethod
@@ -150,34 +155,49 @@ class SimilaritySearchParameters(BaseModel):
             raise ValueError("similarity_strategy must be one of: cosine, euclidean, dot")
         return normalized
 
+    @field_validator("search_mode")
+    @classmethod
+    def validate_search_mode(cls, value: str) -> str:
+        normalized = str(value or "").strip().lower()
+        if normalized not in {"vector", "hybrid"}:
+            raise ValueError("search_mode must be one of: vector, hybrid")
+        return normalized
+
+    @field_validator("metadata_filter", mode="before")
+    @classmethod
+    def validate_metadata_filter(cls, value: Any) -> dict[str, Any] | None:
+        if value is None:
+            return None
+        parsed = _parse_json_value(value, "metadata_filter")
+        if not isinstance(parsed, dict):
+            raise ValueError("metadata_filter must be a JSON object")
+        return parsed
+
+    @model_validator(mode="after")
+    def validate_hybrid_weights(self) -> "SimilaritySearchParameters":
+        if self.search_mode == "hybrid":
+            total_weight = float(self.vector_weight) + float(self.keyword_weight)
+            if total_weight <= 0:
+                raise ValueError("Hybrid search requires vector_weight + keyword_weight > 0")
+        return self
+
 
 class TextSplitParameters(BaseModel):
     delimiter: str = "\n"
 
 
-class LanceDbParameters(BaseModel):
+class VectorStoreParameters(BaseModel):
+    provider: str = "lancedb"
+    index_name: str = "documents"
+    namespace: str = ""
     storage_path: str = ""
-    table_name: str = "embeddings"
+    endpoint_url: str = ""
+    api_key: str = ""
+    collection_name: str = ""
+    database_name: str = ""
+    provider_config: dict[str, Any] = Field(default_factory=dict)
     write_mode: str = "overwrite"
     distance_metric: str = "cosine"
-    create_vector_index: bool = True
-    num_partitions: int = Field(default=256, ge=1)
-
-    @field_validator("storage_path")
-    @classmethod
-    def validate_storage_path(cls, value: str) -> str:
-        normalized = value.strip()
-        if not normalized:
-            raise ValueError("storage_path is required. Select a local path.")
-        return normalized
-
-    @field_validator("table_name")
-    @classmethod
-    def validate_table_name(cls, value: str) -> str:
-        normalized = str(value or "").strip()
-        if not normalized:
-            raise ValueError("table_name is required")
-        return normalized
 
     @field_validator("write_mode")
     @classmethod
@@ -194,6 +214,33 @@ class LanceDbParameters(BaseModel):
         if normalized not in {"l2", "cosine", "dot"}:
             raise ValueError("distance_metric must be one of: l2, cosine, dot")
         return normalized
+
+    @field_validator("provider")
+    @classmethod
+    def validate_provider(cls, value: str) -> str:
+        normalized = str(value or "").strip().lower()
+        allowed = {"lancedb", "qdrant", "pinecone", "weaviate", "milvus", "chroma", "faiss"}
+        if normalized not in allowed:
+            raise ValueError("provider must be one of: lancedb, qdrant, pinecone, weaviate, milvus, chroma, faiss")
+        return normalized
+
+    @field_validator("index_name")
+    @classmethod
+    def validate_index_name(cls, value: str) -> str:
+        normalized = str(value or "").strip()
+        if not normalized:
+            raise ValueError("index_name is required")
+        return normalized
+
+    @field_validator("provider_config", mode="before")
+    @classmethod
+    def validate_provider_config(cls, value: Any) -> dict[str, Any]:
+        if value is None:
+            return {}
+        parsed = _parse_json_value(value, "provider_config")
+        if not isinstance(parsed, dict):
+            raise ValueError("provider_config must be a JSON object")
+        return parsed
 
 
 class _SaveNodeParameters(BaseModel):

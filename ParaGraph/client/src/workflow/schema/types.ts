@@ -467,3 +467,9 @@ export interface DatabaseConnectionCheckResponse {
     message: string
 }
 
+
+export interface VectorStoreConnectionCheckResponse {
+    ok: boolean
+    message: string
+}
+
