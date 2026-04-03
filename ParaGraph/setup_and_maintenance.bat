@@ -17,12 +17,12 @@ set "uv_dir=%runtimes_dir%\uv"
 set "uv_exe=%uv_dir%\uv.exe"
 set "uv_zip_path=%uv_dir%\uv.zip"
 set "UV_CACHE_DIR=%runtimes_dir%\.uv-cache"
-set "UV_CACHE_DIR_LEGACY=%runtimes_dir%\uv_cache"
+set "uv_lock=%runtimes_dir%\uv.lock"
+set "uv_lock_file=%root_folder%uv.lock"
 
 set "pyproject=%root_folder%pyproject.toml"
 set "update_script=%project_folder%tools\update_project.py"
 set "log_path=%project_folder%resources\logs"
-set "runtime_uv_lock=%runtimes_dir%\uv.lock"
 set "venv_dir=%runtimes_dir%\.venv"
 set "UV_PROJECT_ENVIRONMENT=%venv_dir%"
 set "client_dir=%project_folder%client"
@@ -41,16 +41,16 @@ cls
 echo ==========================================================================
 echo                         Setup and Maintenance
 echo ==========================================================================
-echo 1. Remove logs
-echo 2. Uninstall app
-echo 3. Initialize database
+echo 1. Initialize database
+echo 2. Remove logs
+echo 3. Uninstall app
 echo 4. Exit
 echo.
 set /p sub_choice="Select an option (1-4): "
 
-if "%sub_choice%"=="1" goto :logs
-if "%sub_choice%"=="2" goto :uninstall
-if "%sub_choice%"=="3" goto :run_init_db
+if "%sub_choice%"=="1" goto :run_init_db
+if "%sub_choice%"=="2" goto :logs
+if "%sub_choice%"=="3" goto :uninstall
 if "%sub_choice%"=="4" goto :exit
 echo Invalid option, try again.
 pause
@@ -77,10 +77,8 @@ goto :setup_menu
 
 :uninstall
 echo --------------------------------------------------------------------------
-echo This operation will remove runtime-local assets under "%runtimes_dir%":
-echo   - runtimes\uv.lock, runtimes\.venv, runtimes\.uv-cache
-echo   - runtimes\uv, runtimes\python, runtimes\nodejs
-echo It also removes frontend build/dependency folders.
+echo This operation will remove runtime-local uv artifacts, caches, lockfile,
+echo embedded Python, portable Node.js, and runtimes\.venv.
 echo.
 set /p confirm="Type YES to continue: "
 if /i not "%confirm%"=="YES" (
@@ -88,11 +86,11 @@ if /i not "%confirm%"=="YES" (
   pause
   goto :setup_menu
 ) 
-if exist "%runtime_uv_lock%" (
-  del /q "%runtime_uv_lock%"
-  echo [INFO] Removed runtime lockfile "%runtime_uv_lock%".
+if exist "%uv_lock%" (
+  del /q "%uv_lock%"
+  echo [INFO] Removed runtime lockfile "%uv_lock%".
 ) else (
-  echo [INFO] No runtime lockfile found at "%runtime_uv_lock%".
+  echo [INFO] No runtime lockfile found to remove at "%uv_lock%".
 )
 if exist "%uv_dir%" (
   rd /s /q "%uv_dir%"
@@ -106,10 +104,6 @@ if exist "%UV_CACHE_DIR%" (
 ) else (
   echo [INFO] No uv cache directory found to remove.
 )
-if exist "%UV_CACHE_DIR_LEGACY%" (
-  rd /s /q "%UV_CACHE_DIR_LEGACY%"
-  echo [INFO] Removed legacy uv cache "%UV_CACHE_DIR_LEGACY%".
-)
 if exist "%python_dir%" (
   rd /s /q "%python_dir%"
   echo [INFO] Removed python directory "%python_dir%".
@@ -120,7 +114,7 @@ if exist "%venv_dir%" (
   rd /s /q "%venv_dir%"
   echo [INFO] Removed virtual environment "%venv_dir%".
 ) else (
-  echo [INFO] No runtime virtual environment found at "%venv_dir%".
+  echo [INFO] No runtime virtual environment found to remove at "%venv_dir%".
 )
 if exist "%client_dir%\node_modules" (
   rd /s /q "%client_dir%\node_modules"
@@ -192,6 +186,28 @@ if not exist "%script_path%" (
   set "run_script_ec=1"
   goto :run_server_script_end
 )
+if not exist "%uv_lock%" (
+  if exist "%uv_lock_file%" (
+    copy /y "%uv_lock_file%" "%uv_lock%" >nul
+    if errorlevel 1 (
+      echo [ERROR] Runtime lockfile not found at "%uv_lock%" and seeding from "%uv_lock_file%" failed.
+      set "run_script_ec=1"
+      goto :run_server_script_end
+    )
+    echo [INFO] Seeded runtime lockfile from workspace lockfile: "%uv_lock%".
+  ) else (
+    echo [ERROR] Runtime lockfile not found at "%uv_lock%".
+    echo [INFO] Expected lockfile at runtimes\uv.lock or workspace uv.lock.
+    set "run_script_ec=1"
+    goto :run_server_script_end
+  )
+)
+copy /y "%uv_lock%" "%uv_lock_file%" >nul
+if errorlevel 1 (
+  echo [WARN] Failed to copy runtime lockfile to "%uv_lock_file%".
+  set "run_script_ec=1"
+  goto :run_server_script_end
+)
 echo [RUN] !script_label!
 pushd "%root_folder%" >nul
 if "%script_module%"=="" (
@@ -201,6 +217,10 @@ if "%script_module%"=="" (
 )
 set "run_script_ec=!ERRORLEVEL!"
 popd >nul
+if exist "%uv_lock_file%" (
+  copy /y "%uv_lock_file%" "%uv_lock%" >nul
+  if errorlevel 1 echo [WARN] Failed to update runtime lockfile "%uv_lock%".
+)
 if "!run_script_ec!"=="0" (
   echo [SUCCESS] !script_label! completed successfully.
 ) else (
