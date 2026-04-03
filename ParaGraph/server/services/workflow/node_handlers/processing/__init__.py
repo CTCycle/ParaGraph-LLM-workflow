@@ -16,7 +16,7 @@ from ParaGraph.server.domain.node_handler_processing import (
     SentenceWindowChunksParameters,
 )
 from ParaGraph.server.services.workflow.node_handlers.base import NodeHandler
-from ParaGraph.server.services.workflow.node_handlers.ingestion import _load_file_text, _resolve_local_path
+from ParaGraph.server.services.workflow.node_handlers.ingestion.files import load_file_text, resolve_local_path
 
 
 _SENTENCE_BOUNDARY_PATTERN = re.compile(r"(?<=[.!?])\s+")
@@ -48,14 +48,14 @@ def _hydrate_document_text(document: dict[str, Any]) -> tuple[str, dict[str, Any
         return text, metadata
 
     try:
-        path = _resolve_local_path(path_candidate)
+        path = resolve_local_path(path_candidate)
     except Exception:  # noqa: BLE001
         return text, metadata
     if not path.exists() or not path.is_file():
         return text, metadata
 
     try:
-        loaded_text, _mime_type = _load_file_text(path)
+        loaded_text, _mime_type = load_file_text(path)
     except Exception as exc:  # noqa: BLE001
         metadata["deferred_load_error"] = str(exc)
         return text, metadata
@@ -866,3 +866,4 @@ PROCESSING_HANDLERS = {
     "sentence_window_chunks": NodeHandler(executor=_sentence_window_chunks_executor, parameter_model=SentenceWindowChunksParameters),
     "merge_small_chunks": NodeHandler(executor=_merge_small_chunks_executor, parameter_model=MergeSmallChunksParameters),
 }
+

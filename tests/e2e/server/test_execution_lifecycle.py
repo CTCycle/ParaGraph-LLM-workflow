@@ -5,7 +5,7 @@ from threading import Thread
 
 from fastapi.testclient import TestClient
 
-from ParaGraph.server.domain.nodecatalog import ProviderModelDefinition
+from ParaGraph.server.domain.node_catalog import ProviderModelDefinition
 from ParaGraph.server.services.runtime.events import execution_event_service
 from ParaGraph.server.services.workflow import nodes as node_module
 

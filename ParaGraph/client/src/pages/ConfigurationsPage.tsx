@@ -9,7 +9,7 @@ import {
     loadConfigurationProfile,
     pingOllama,
     saveConfigurationProfile,
-} from '../app/services/workflowApi'
+} from '../app/services/configurationsApi'
 import ModalActionButtons from '../components/ModalActionButtons'
 import ModalDialog from '../components/ModalDialog'
 import { AccessKeyConfiguration, AppConfigurationPayload, ConfigurationProfileSummary } from '../workflow/schema/types'
@@ -50,9 +50,6 @@ function normalizeText(value: string | null | undefined): string {
 function toCloudProvider(value: string): CloudProvider {
     if (value === 'openai' || value === 'gemini' || value === 'claude') {
         return value
-    }
-    if (value === 'anthropic') {
-        return 'claude'
     }
     return 'openai'
 }
@@ -426,5 +423,6 @@ export default function ConfigurationsPage() {
         </section>
     )
 }
+
 
 

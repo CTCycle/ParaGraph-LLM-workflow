@@ -4,7 +4,7 @@ from collections import defaultdict, deque
 from uuid import uuid4
 
 from ParaGraph.server.domain.execution import CompiledExecutionPlan, ExecutionBinding, ExecutionStepPlan
-from ParaGraph.server.domain.workflowmodel import CompilerDiagnostic, CompileWorkflowResponse, WorkflowConnection, WorkflowDefinition
+from ParaGraph.server.domain.workflow_model import CompilerDiagnostic, CompileWorkflowResponse, WorkflowConnection, WorkflowDefinition
 from ParaGraph.server.services.workflow.nodes import node_registry
 from ParaGraph.server.services.workflow.provider import provider_service
 

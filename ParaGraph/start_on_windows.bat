@@ -160,7 +160,6 @@ set "FASTAPI_PORT=8000"
 set "UI_HOST=127.0.0.1"
 set "UI_PORT=8001"
 set "RELOAD=true"
-set "OPTIONAL_DEPENDENCIES=false"
 
 if exist "%DOTENV%" (
   for /f "usebackq tokens=* delims=" %%L in ("%DOTENV%") do (
@@ -181,9 +180,6 @@ if exist "%DOTENV%" (
 ) else (
   echo [INFO] No .env overrides found at "%DOTENV%". Using defaults.
 )
-
-set "INSTALL_EXTRAS=false"
-if /i "!OPTIONAL_DEPENDENCIES!"=="true" set "INSTALL_EXTRAS=true"
 
 echo [INFO] FASTAPI_HOST=!FASTAPI_HOST! FASTAPI_PORT=!FASTAPI_PORT! UI_HOST=!UI_HOST! UI_PORT=!UI_PORT! RELOAD=!RELOAD!
 set "UI_URL=http://!UI_HOST!:!UI_PORT!"
@@ -216,13 +212,11 @@ if exist "%runtime_uv_lock%" (
 ) else (
   echo [INFO] Runtime lockfile not found at "%runtime_uv_lock%". uv sync will use the current root lockfile state.
 )
-set "uv_extras_flag="
-if /i "%INSTALL_EXTRAS%"=="true" set "uv_extras_flag=--all-extras"
-"%uv_exe%" sync --python "%python_exe%" %uv_extras_flag%
+"%uv_exe%" sync --python "%python_exe%" --all-extras
 set "sync_ec=%ERRORLEVEL%"
 if not "%sync_ec%"=="0" (
   echo [WARN] uv sync with embeddable Python failed, code %sync_ec%. Falling back to uv-managed Python
-  "%uv_exe%" sync %uv_extras_flag%
+  "%uv_exe%" sync --all-extras
   set "sync_ec=%ERRORLEVEL%"
 )
 if "%sync_ec%"=="0" (

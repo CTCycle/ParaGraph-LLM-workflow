@@ -19,7 +19,7 @@ import {
 import { useErrorMessage } from '../app/hooks/useErrorMessage'
 import { usePageMetadata } from '../app/hooks/usePageMetadata'
 import StatusBanner from '../components/StatusBanner'
-import { importNodeManifest } from '../app/services/workflowApi'
+import { importNodeManifest } from '../app/services/nodesApi'
 import { useNodeCatalog } from '../workflow/hooks/useNodeCatalog'
 import { NODE_CATEGORY_LABELS, NODE_CATEGORY_ORDER } from '../workflow/schema/nodeCategory'
 import { NodeCategory, NodeManifest } from '../workflow/schema/types'
@@ -435,6 +435,7 @@ export default function NodesPage() {
         </>
     )
 }
+
 
 
 

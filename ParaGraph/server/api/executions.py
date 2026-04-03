@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException, Path, status
 
 from ParaGraph.server.configurations.server import server_settings
 from ParaGraph.server.domain.execution import EventHistoryResponse, ExecutionRunState, StartExecutionRequest, StartExecutionResponse
-from ParaGraph.server.domain.workflowmodel import CompileWorkflowRequest, CompileWorkflowResponse
+from ParaGraph.server.domain.workflow_model import CompileWorkflowRequest, CompileWorkflowResponse
 from ParaGraph.server.services.runtime.events import execution_event_service
 from ParaGraph.server.services.workflow import compiler_service, execution_service
 

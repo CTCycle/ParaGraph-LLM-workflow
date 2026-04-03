@@ -6,7 +6,7 @@ from pathlib import Path
 
 from starlette.datastructures import UploadFile
 
-from ParaGraph.server.domain.workflowmodel import WorkflowDefinition
+from ParaGraph.server.domain.workflow_model import WorkflowDefinition
 from ParaGraph.server.services.workflow.browser_uploads import save_uploaded_directory
 from ParaGraph.server.services.workflow.compiler import compiler_service
 from ParaGraph.server.services.workflow.execution import execution_service

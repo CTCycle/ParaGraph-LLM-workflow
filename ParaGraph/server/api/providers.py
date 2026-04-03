@@ -3,7 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException, Path, Query
 
 from ParaGraph.server.domain.configuration import DEFAULT_SESSION_NAME
-from ParaGraph.server.domain.nodecatalog import (
+from ParaGraph.server.domain.node_catalog import (
     HuggingFaceModelCatalogResponse,
     HuggingFaceModelDownloadCancelResponse,
     HuggingFaceModelDownloadRequest,

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, File, HTTPException, UploadFile, status
 
-from ParaGraph.server.domain.nodecatalog import NodeCatalogResponse, NodeManifest
+from ParaGraph.server.domain.node_catalog import NodeCatalogResponse, NodeManifest
 from ParaGraph.server.domain.nodes import (
     DatabaseConnectionCheckRequest,
     DatabaseConnectionCheckResponse,

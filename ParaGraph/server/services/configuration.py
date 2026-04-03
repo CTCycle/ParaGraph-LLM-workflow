@@ -5,7 +5,7 @@ from ParaGraph.server.domain.configuration import (
     ConfigurationProfileListResponse,
     OllamaStatusResponse,
 )
-from ParaGraph.server.domain.nodecatalog import NodeManifest
+from ParaGraph.server.domain.node_catalog import NodeManifest
 from ParaGraph.server.repositories.configuration import configuration_repository
 from ParaGraph.server.services.llm.providers import OllamaClient, OllamaError
 

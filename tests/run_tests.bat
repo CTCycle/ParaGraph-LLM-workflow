@@ -27,7 +27,6 @@ set "FASTAPI_HOST=127.0.0.1"
 set "FASTAPI_PORT=8000"
 set "UI_HOST=127.0.0.1"
 set "UI_PORT=7861"
-set "OPTIONAL_DEPENDENCIES=false"
 
 set "PARAGRAPH_SKIP_BACKEND=%PARAGRAPH_SKIP_BACKEND%"
 set "PARAGRAPH_SKIP_FRONTEND=%PARAGRAPH_SKIP_FRONTEND%"
@@ -65,7 +64,6 @@ if exist "%DOTENV%" (
                     if "!v:~0,1!"=="'" set "v=!v:~1,-1!"
                 )
 
-                if /i "!k!"=="OPTIONAL_DEPENDENCIES" set "OPTIONAL_DEPENDENCIES=!v!"
                 if /i "!k!"=="FASTAPI_HOST" set "FASTAPI_HOST=!v!"
                 if /i "!k!"=="FASTAPI_PORT" set "FASTAPI_PORT=!v!"
                 if /i "!k!"=="UI_HOST" set "UI_HOST=!v!"
@@ -124,15 +122,6 @@ if %ERRORLEVEL% neq 0 (
     echo [ERROR] pytest is not installed in runtimes\.venv.
     echo [ERROR] Sync test dependencies first: uv sync --extra test
     exit /b 1
-)
-
-if /i "%OPTIONAL_DEPENDENCIES%"=="true" (
-    "%PYTHON_CMD%" -c "import psutil" >nul 2>&1
-    if %ERRORLEVEL% neq 0 (
-        echo [ERROR] psutil is not installed in runtimes\.venv.
-        echo [ERROR] Sync test dependencies first: uv sync --extra test
-        exit /b 1
-    )
 )
 
 echo [INFO] Prerequisites verified.
