@@ -35,13 +35,11 @@ import {
     uploadNodeDirectory,
     checkDatabaseConnection,
     checkVectorStoreConnection,
-    compileWorkflow,
-    fetchProviderModels,
     importNodeManifest,
-    pollExecution,
-    startExecution,
-    subscribeExecutionEvents,
-} from '../app/services/workflowApi'
+} from '../app/services/nodesApi'
+import { compileWorkflow } from '../app/services/workflowsApi'
+import { fetchProviderModels } from '../app/services/providersApi'
+import { pollExecution, startExecution, subscribeExecutionEvents } from '../app/services/executionsApi'
 import { usePageMetadata } from '../app/hooks/usePageMetadata'
 import { useNodeCatalog } from '../workflow/hooks/useNodeCatalog'
 import { NODE_CATEGORY_LABELS, NODE_CATEGORY_ORDER } from '../workflow/schema/nodeCategory'
@@ -845,9 +843,7 @@ function collectNodeItemsFromPayloadValue(value: unknown): NodeItemRecord[] {
     }
 
     const vectors = (Array.isArray(isRecord(value) ? value.vectors : undefined) ? (isRecord(value) ? value.vectors : []) : []) as unknown[]
-    const legacyPoints = (Array.isArray(isRecord(value) ? value.points : undefined) ? (isRecord(value) ? value.points : []) : []) as unknown[]
-    const vectorPoints = vectors.length > 0 ? vectors : legacyPoints
-    for (const [index, vectorPoint] of vectorPoints.entries()) {
+    for (const [index, vectorPoint] of vectors.entries()) {
         if (!isRecord(vectorPoint)) {
             continue
         }
@@ -1094,13 +1090,6 @@ function defaultParameters(manifest: NodeManifest): Record<string, unknown> {
     return Object.fromEntries(manifest.parameters.map((parameter) => [parameter.name, parameter.default ?? '']))
 }
 
-function normalizePathParameter(parameters: Record<string, unknown>, canonicalName: 'storage_path' | 'folder_path'): void {
-    const current = parameters[canonicalName]
-    if (typeof current === 'string') {
-        parameters[canonicalName] = current.trim()
-    }
-}
-
 function getNodeOutputName(parameters: Record<string, unknown>): string | null {
     const value = parameters[NODE_OUTPUT_NAME_PARAMETER]
     if (typeof value !== 'string') {
@@ -1110,14 +1099,8 @@ function getNodeOutputName(parameters: Record<string, unknown>): string | null {
     return trimmed || null
 }
 
-function normalizeNodePathParameters(manifest: NodeManifest, parameters: Record<string, unknown>): Record<string, unknown> {
+function normalizeNodePathParameters(_manifest: NodeManifest, parameters: Record<string, unknown>): Record<string, unknown> {
     const nextParameters = cloneNodeParameters(parameters)
-    if (manifest.id === 'LOAD_TEXT') {
-        normalizePathParameter(nextParameters, 'storage_path')
-    }
-    if (manifest.id === 'LOAD_DOCUMENTS') {
-        normalizePathParameter(nextParameters, 'folder_path')
-    }
     delete nextParameters[INTERNAL_PREVIEW_ITEMS_PARAMETER]
     return nextParameters
 }
@@ -1133,8 +1116,7 @@ function normalizeJsonParameterValue(value: unknown): string {
 }
 
 function normalizeProvider(value: unknown): string {
-    const text = String(value ?? '').trim().toLowerCase()
-    return text === 'anthropic' ? 'claude' : text
+    return String(value ?? '').trim().toLowerCase()
 }
 
 function readNumericConstraint(constraints: Record<string, unknown>, key: string): number | undefined {
@@ -1234,21 +1216,12 @@ function isAbortError(error: unknown): boolean {
     }
     return error instanceof Error && error.name === 'AbortError'
 }
-const LEGACY_MANIFEST_ID_MAP: Record<string, string> = {
-    OLLAMA_LLM_CHAT: 'LLM_CHAT',
-    CLOUD_LLM_CHAT: 'LLM_CHAT',
-    HUGGINGFACE_LLM_CHAT: 'LLM_CHAT',
-    OLLAMA_STRUCTURED_RESPONSE: 'LLM_STRUCTURED',
-    CLOUD_STRUCTURED_RESPONSE: 'LLM_STRUCTURED',
-    HUGGINGFACE_STRUCTURED_RESPONSE: 'LLM_STRUCTURED',
-}
-
 function manifestKey(manifest: NodeManifest): string {
     return `${manifest.id}:${manifest.version}`
 }
 
 function resolveManifestId(manifestId: string): string {
-    return LEGACY_MANIFEST_ID_MAP[manifestId] ?? manifestId
+    return manifestId
 }
 
 function createDefaultExpandedCategoriesState(): CategoryExpansionState {

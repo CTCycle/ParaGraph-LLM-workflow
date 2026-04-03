@@ -76,11 +76,6 @@ For nodes that inspect or load items:
 - Output type: `VECTOR_POINT_LIST`
 - Meaning: dense numeric embedding arrays (`vector`) with source identifiers and metadata used for semantic similarity search/storage.
 
-Migration compatibility:
-
-- Legacy `points` references may be accepted by compatibility paths during transition.
-- New manifests and new workflows must use `vectors`.
-
 ## 6. Controller Connector Contracts
 
 ### 6.1 `TEXT_EMBEDDING`

@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import * as workflowApi from '../app/services/workflowApi'
+import * as workflowApi from '../app/services/providersApi'
 import ModelsPage from './ModelsPage'
 import {
     createHuggingFaceCatalog,
@@ -9,7 +9,7 @@ import {
     createOllamaCatalog,
 } from '../test/fixtures'
 
-vi.mock('../app/services/workflowApi', () => ({
+vi.mock('../app/services/providersApi', () => ({
     fetchOllamaLibraryModels: vi.fn(),
     pullOllamaModel: vi.fn(),
     fetchHuggingFaceModels: vi.fn(),

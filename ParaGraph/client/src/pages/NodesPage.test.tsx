@@ -2,11 +2,11 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 
-import * as workflowApi from '../app/services/workflowApi'
+import * as workflowApi from '../app/services/nodesApi'
 import NodesPage from './NodesPage'
 import { createNodeManifest } from '../test/fixtures'
 
-vi.mock('../app/services/workflowApi', () => ({
+vi.mock('../app/services/nodesApi', () => ({
     fetchNodeCatalog: vi.fn(),
     importNodeManifest: vi.fn(),
 }))
@@ -82,4 +82,5 @@ describe('NodesPage import modal', () => {
         expect(screen.getByRole('checkbox', { name: /Text Segmentation/i })).toBeInTheDocument()
     })
 })
+
 

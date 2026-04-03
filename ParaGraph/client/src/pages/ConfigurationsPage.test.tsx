@@ -2,11 +2,11 @@ import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 
-import * as workflowApi from '../app/services/workflowApi'
+import * as workflowApi from '../app/services/configurationsApi'
 import ConfigurationsPage from './ConfigurationsPage'
 import { createConfigurationPayload } from '../test/fixtures'
 
-vi.mock('../app/services/workflowApi', () => ({
+vi.mock('../app/services/configurationsApi', () => ({
     fetchConfigurations: vi.fn(),
     listConfigurationProfiles: vi.fn(),
     loadConfigurationProfile: vi.fn(),

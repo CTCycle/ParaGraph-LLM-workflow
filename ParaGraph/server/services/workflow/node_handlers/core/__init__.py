@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import importlib
 import json
 import re
 import shutil
@@ -30,10 +29,19 @@ from ParaGraph.server.domain.node_handler_core import (
     TextSplitParameters,
     VectorStoreParameters,
 )
-from ParaGraph.server.domain.nodecatalog import ProviderModelDefinition
+from ParaGraph.server.domain.node_catalog import ProviderModelDefinition
 from ParaGraph.server.domain.workflow_payloads import RetrievalResults, VectorPoint
 from ParaGraph.server.services.configuration import configuration_service
 from ParaGraph.server.services.workflow.node_handlers.base import NodeHandler
+from ParaGraph.server.services.workflow.node_handlers.core.constants import (
+    SAVE_AS_FILE_CHUNK_SEPARATOR,
+    SAVE_AS_FOLDER_INDEX_WIDTH,
+    TEXT_EMBEDDING_CLOUD_PROVIDERS,
+)
+from ParaGraph.server.services.workflow.node_handlers.core.huggingface_runtime import (
+    load_huggingface_embedding_modules,
+    load_huggingface_modules,
+)
 from ParaGraph.server.services.workflow.node_handlers.common import (
     coerce_bool,
     coerce_int,
@@ -44,46 +52,21 @@ from ParaGraph.server.services.workflow.node_handlers.common import (
     validate_schema_definition,
 )
 from ParaGraph.server.services.workflow.provider import provider_service
-from ParaGraph.server.services.workflow.node_handlers.ingestion import _load_file_text, _resolve_local_path
+from ParaGraph.server.services.workflow.node_handlers.ingestion.files import load_file_text, resolve_local_path
 from ParaGraph.server.services.workflow.vector_stores import get_vector_store_adapter
 
 
 ARTIFACT_ROOT = Path(RESOURCES_PATH) / "artifacts"
 _HF_MODEL_CACHE: dict[str, tuple[Any, Any]] = {}
 _HF_EMBEDDING_CACHE: dict[str, tuple[Any, Any, Any]] = {}
-TEXT_EMBEDDING_CLOUD_PROVIDERS = ("openai", "gemini")
-SAVE_AS_FILE_CHUNK_SEPARATOR = "/n/n"
-SAVE_AS_FOLDER_INDEX_WIDTH = 6
 
 # -----------------------------------------------------------------------------
 def _load_huggingface_modules() -> tuple[Any, Any, Any]:
-    try:
-        torch_module = importlib.import_module("torch")
-        transformers_module = importlib.import_module("transformers")
-    except ModuleNotFoundError as exc:
-        raise ValueError("Hugging Face support requires installing torch and transformers") from exc
-
-    auto_model_for_causal_lm = getattr(transformers_module, "AutoModelForCausalLM", None)
-    auto_tokenizer = getattr(transformers_module, "AutoTokenizer", None)
-    if auto_model_for_causal_lm is None or auto_tokenizer is None:
-        raise ValueError("Hugging Face support requires transformers AutoModelForCausalLM and AutoTokenizer")
-
-    return torch_module, auto_model_for_causal_lm, auto_tokenizer
+    return load_huggingface_modules()
 
 
 def _load_huggingface_embedding_modules() -> tuple[Any, Any, Any]:
-    try:
-        torch_module = importlib.import_module("torch")
-        transformers_module = importlib.import_module("transformers")
-    except ModuleNotFoundError as exc:
-        raise ValueError("Hugging Face embeddings require installing torch and transformers") from exc
-
-    auto_model = getattr(transformers_module, "AutoModel", None)
-    auto_tokenizer = getattr(transformers_module, "AutoTokenizer", None)
-    if auto_model is None or auto_tokenizer is None:
-        raise ValueError("Hugging Face embeddings require transformers AutoModel and AutoTokenizer")
-
-    return torch_module, auto_model, auto_tokenizer
+    return load_huggingface_embedding_modules()
 
 
 def _normalize_embedding_vector(vector: list[float]) -> list[float]:
@@ -434,9 +417,9 @@ def _load_document_text_content(document: dict[str, Any], *, fallback_index: int
     if not text_content.strip():
         path_candidate = coerce_text(metadata.get("file_path") or source_uri).strip()
         if path_candidate:
-            path = _resolve_local_path(path_candidate)
+            path = resolve_local_path(path_candidate)
             if path.exists() and path.is_file():
-                text_content, _mime_type = _load_file_text(path)
+                text_content, _mime_type = load_file_text(path)
     return text_content.strip(), source_uri, metadata
 
 
@@ -655,7 +638,6 @@ def _vector_store_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -
     parsed = VectorStoreParameters.model_validate(parameters)
     points = [
         *_flatten_vector_point_inputs(inputs.get("vectors")),
-        *_flatten_vector_point_inputs(inputs.get("points")),
         *_flatten_embedding_controller_inputs(inputs.get("embedding")),
     ]
     if not points:
@@ -781,9 +763,9 @@ def _collect_save_items(inputs: dict[str, Any]) -> list[dict[str, str]]:
         if not text_content.strip():
             path_candidate = coerce_text(metadata.get("file_path") or document.get("source_uri") or "").strip()
             if path_candidate:
-                path = _resolve_local_path(path_candidate)
+                path = resolve_local_path(path_candidate)
                 if path.exists() and path.is_file():
-                    text_content, _mime_type = _load_file_text(path)
+                    text_content, _mime_type = load_file_text(path)
         if not text_content.strip():
             continue
         file_name = coerce_text(metadata.get("file_name") or "")
@@ -950,7 +932,7 @@ def _load_text_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> d
         raise ValueError(f"Text file not found: {source}")
     if not source.is_file():
         raise ValueError(f"storage_path must point to a file: {source}")
-    text_content, _mime_type = _load_file_text(source)
+    text_content, _mime_type = load_file_text(source)
     return {"text": text_content}
 
 # -----------------------------------------------------------------------------
@@ -989,4 +971,5 @@ CORE_HANDLERS = {
     "if": NodeHandler(executor=_if_executor),
     "router": NodeHandler(executor=_router_executor, parameter_model=RouterParameters),
 }
+
 

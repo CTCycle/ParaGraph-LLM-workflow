@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-import { fetchNodeCatalog } from '../../app/services/workflowApi'
+import { fetchNodeCatalog } from '../../app/services/nodesApi'
 import { NodeManifest } from '../schema/types'
 
 type UseNodeCatalogResult = {
@@ -54,3 +54,4 @@ export function useNodeCatalog(): UseNodeCatalogResult {
         reload,
     }
 }
+

@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import Integer, String, create_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
-from ParaGraph.server.domain.nodecatalog import (
+from ParaGraph.server.domain.node_catalog import (
     HuggingFaceModelCatalogResponse,
     HuggingFaceModelDefinition,
     HuggingFaceModelDownloadCancelResponse,

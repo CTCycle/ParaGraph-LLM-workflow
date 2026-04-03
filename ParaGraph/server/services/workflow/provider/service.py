@@ -3,7 +3,6 @@ from __future__ import annotations
 from datetime import datetime, timezone
 import json
 import hashlib
-import inspect
 from pathlib import Path
 import re
 import shutil
@@ -16,10 +15,9 @@ from bs4 import BeautifulSoup
 from huggingface_hub import HfApi, hf_hub_url
 import httpx
 
-from ParaGraph.server.common.constants import MODELS_PATH
 from ParaGraph.server.configurations.server import server_settings
 from ParaGraph.server.domain.configuration import DEFAULT_SESSION_NAME
-from ParaGraph.server.domain.nodecatalog import (
+from ParaGraph.server.domain.node_catalog import (
     HuggingFaceModelCatalogResponse,
     HuggingFaceModelDownloadCancelResponse,
     HuggingFaceModelDownloadResponse,
@@ -44,64 +42,26 @@ from ParaGraph.server.domain.provider import (
 from ParaGraph.server.services.jobs import job_manager
 from ParaGraph.server.services.configuration import configuration_service
 from ParaGraph.server.services.llm.providers import LLMError, OllamaClient, OllamaError, select_llm_provider
-
-
-OLLAMA_LIBRARY_URL = "https://ollama.com/library"
-OLLAMA_LIBRARY_CACHE_TTL_SECONDS = 300.0
-HUGGINGFACE_CACHE_TTL_SECONDS = 45.0
-HUGGINGFACE_FILTER_TAGS_CACHE_TTL_SECONDS = 3600.0
-HUGGINGFACE_MAX_FETCH_LIMIT = 500
-HUGGINGFACE_MAX_PAGE_SIZE = 50
-HUGGINGFACE_LOCAL_MODELS_ROOT = Path(MODELS_PATH) / "huggingface"
-HUGGINGFACE_LOCAL_MODEL_METADATA_FILE = ".paragraph-model.json"
-HUGGINGFACE_REPO_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*/[A-Za-z0-9][A-Za-z0-9._-]*$")
-HUGGINGFACE_DOWNLOAD_JOB_TYPE = "huggingface_download"
-
-HUGGINGFACE_SORT_FIELD_MAP: dict[HuggingFaceSortBy, str | None] = {
-    "relevance": None,
-    "downloads": "downloads",
-    "likes": "likes",
-    "updated": "lastModified",
-}
-
-HUGGINGFACE_MODEL_LIST_EXPAND_FIELDS: tuple[str, ...] = (
-    "author",
-    "downloads",
-    "gated",
-    "lastModified",
-    "library_name",
-    "likes",
-    "pipeline_tag",
-    "private",
-    "safetensors",
-    "siblings",
-    "tags",
+from ParaGraph.server.services.workflow.provider.constants import (
+    HUGGINGFACE_CACHE_TTL_SECONDS,
+    HUGGINGFACE_DOWNLOAD_JOB_TYPE,
+    HUGGINGFACE_FALLBACK_LIBRARIES,
+    HUGGINGFACE_FALLBACK_TASKS,
+    HUGGINGFACE_FILTER_TAGS_CACHE_TTL_SECONDS,
+    HUGGINGFACE_LOCAL_MODEL_METADATA_FILE,
+    HUGGINGFACE_LOCAL_MODELS_ROOT,
+    HUGGINGFACE_MAX_FETCH_LIMIT,
+    HUGGINGFACE_MAX_PAGE_SIZE,
+    HUGGINGFACE_MODEL_LIST_EXPAND_FIELDS,
+    HUGGINGFACE_REPO_ID_PATTERN,
+    HUGGINGFACE_SORT_FIELD_MAP,
+    OLLAMA_LIBRARY_CACHE_TTL_SECONDS,
+    OLLAMA_LIBRARY_URL,
 )
-HUGGINGFACE_FALLBACK_TASKS: tuple[str, ...] = (
-    "text-generation",
-    "text-classification",
-    "feature-extraction",
-    "question-answering",
-    "sentence-similarity",
-    "token-classification",
-    "summarization",
-    "translation",
-)
-
-HUGGINGFACE_FALLBACK_LIBRARIES: tuple[str, ...] = (
-    "transformers",
-    "diffusers",
-    "sentence-transformers",
-    "gguf",
-    "peft",
-)
-
-
-class ProviderApiError(RuntimeError):
-    def __init__(self, message: str, *, status_code: int) -> None:
-        super().__init__(message)
-        self.status_code = status_code
-
+from ParaGraph.server.services.workflow.provider.errors import ProviderApiError
+from ParaGraph.server.services.workflow.provider.huggingface_catalog import HuggingFaceCatalogService
+from ParaGraph.server.services.workflow.provider.huggingface_downloads import HuggingFaceDownloadService
+from ParaGraph.server.services.workflow.provider.ollama import OllamaLibraryService
 
 
 def _safe_int(value: Any) -> int | None:
@@ -379,6 +339,9 @@ class ProviderService:
         self._ollama_library_cache: CachedValue | None = None
         self._huggingface_cache: dict[str, CachedValue] = {}
         self._huggingface_filter_tags_cache: dict[str, CachedValue] = {}
+        self.ollama_library = OllamaLibraryService(self)
+        self.huggingface_catalog = HuggingFaceCatalogService(self)
+        self.huggingface_downloads = HuggingFaceDownloadService(self)
 
     def _load_configuration(self, session_name: str = DEFAULT_SESSION_NAME):
         return configuration_service.load_configuration(session_name=session_name)
@@ -454,6 +417,68 @@ class ProviderService:
         search: str | None = None,
         refresh: bool = False,
     ) -> OllamaLibraryCatalogResponse:
+        return self.ollama_library.list_models(
+            session_name=session_name,
+            search=search,
+            refresh=refresh,
+        )
+
+    def pull_ollama_model(
+        self,
+        *,
+        model: str,
+        session_name: str = DEFAULT_SESSION_NAME,
+    ) -> OllamaModelPullResponse:
+        return self.ollama_library.pull_model(model=model, session_name=session_name)
+
+    def list_huggingface_models(
+        self,
+        *,
+        session_name: str = DEFAULT_SESSION_NAME,
+        search: str | None = None,
+        task: str | None = None,
+        library: str | None = None,
+        author: str | None = None,
+        visibility: ModelVisibilityFilter = "all",
+        sort: HuggingFaceSortBy = "relevance",
+        page: int = 1,
+        page_size: int = 20,
+        refresh: bool = False,
+    ) -> HuggingFaceModelCatalogResponse:
+        return self.huggingface_catalog.list_models(
+            session_name=session_name,
+            search=search,
+            task=task,
+            library=library,
+            author=author,
+            visibility=visibility,
+            sort=sort,
+            page=page,
+            page_size=page_size,
+            refresh=refresh,
+        )
+
+    def download_huggingface_model(
+        self,
+        *,
+        repo_id: str,
+        session_name: str = DEFAULT_SESSION_NAME,
+    ) -> HuggingFaceModelDownloadResponse:
+        return self.huggingface_downloads.download_model(repo_id=repo_id, session_name=session_name)
+
+    def get_huggingface_download_status(self, *, job_id: str) -> HuggingFaceModelDownloadStatusResponse:
+        return self.huggingface_downloads.get_download_status(job_id=job_id)
+
+    def cancel_huggingface_download(self, *, job_id: str) -> HuggingFaceModelDownloadCancelResponse:
+        return self.huggingface_downloads.cancel_download(job_id=job_id)
+
+    def _list_ollama_library_models_impl(
+        self,
+        *,
+        session_name: str = DEFAULT_SESSION_NAME,
+        search: str | None = None,
+        refresh: bool = False,
+    ) -> OllamaLibraryCatalogResponse:
         catalog = self._load_ollama_library_catalog(refresh=refresh)
         pulled_models = self._get_pulled_ollama_model_names(session_name)
         search_term = (search or "").strip().lower()
@@ -482,7 +507,7 @@ class ProviderService:
             refreshed_at=catalog.refreshed_at,
         )
 
-    def pull_ollama_model(
+    def _pull_ollama_model_impl(
         self,
         *,
         model: str,
@@ -512,7 +537,7 @@ class ProviderService:
             message=f"Model '{normalized_model}' is available in Ollama.",
         )
 
-    def download_huggingface_model(
+    def _download_huggingface_model_impl(
         self,
         *,
         repo_id: str,
@@ -599,7 +624,7 @@ class ProviderService:
             poll_interval=server_settings.jobs.polling_interval,
         )
 
-    def get_huggingface_download_status(self, *, job_id: str) -> HuggingFaceModelDownloadStatusResponse:
+    def _get_huggingface_download_status_impl(self, *, job_id: str) -> HuggingFaceModelDownloadStatusResponse:
         payload = job_manager.get_job_status(job_id)
         if payload is None:
             raise ProviderApiError(f"Download job not found: {job_id}", status_code=404)
@@ -646,7 +671,7 @@ class ProviderService:
             error=error,
         )
 
-    def cancel_huggingface_download(self, *, job_id: str) -> HuggingFaceModelDownloadCancelResponse:
+    def _cancel_huggingface_download_impl(self, *, job_id: str) -> HuggingFaceModelDownloadCancelResponse:
         status = self.get_huggingface_download_status(job_id=job_id)
         success = job_manager.cancel_job(job_id)
         if not success:
@@ -662,7 +687,7 @@ class ProviderService:
             message=f"Cancellation requested for '{status.repo_id}'.",
         )
 
-    def list_huggingface_models(
+    def _list_huggingface_models_impl(
         self,
         *,
         session_name: str = DEFAULT_SESSION_NAME,
@@ -714,11 +739,8 @@ class ProviderService:
 
     def _build_huggingface_download_manifest(self, *, repo_id: str, session_name: str) -> dict[str, Any]:
         api, token = self._resolve_huggingface_api(session_name)
-        signature = inspect.signature(api.model_info)
-        model_info_kwargs: dict[str, Any] = {}
-        if "files_metadata" in signature.parameters:
-            model_info_kwargs["files_metadata"] = True
-        if token and "token" in signature.parameters:
+        model_info_kwargs: dict[str, Any] = {"files_metadata": True}
+        if token:
             model_info_kwargs["token"] = token
 
         try:
@@ -1665,51 +1687,35 @@ class ProviderService:
         sort: HuggingFaceSortBy,
         limit: int,
     ) -> dict[str, Any]:
-        signature = inspect.signature(api.list_models)
-        parameters = signature.parameters
+        _ = api
         kwargs: dict[str, Any] = {}
         normalized_search = _coerce_optional_text(search)
         normalized_task = _coerce_optional_text(task)
         normalized_library = _coerce_optional_text(library)
         normalized_author = _coerce_optional_text(author)
 
-        if normalized_search and "search" in parameters:
+        if normalized_search:
             kwargs["search"] = normalized_search
-        if normalized_author and "author" in parameters:
+        if normalized_author:
             kwargs["author"] = normalized_author
 
-        fallback_filters: list[str] = []
         if normalized_task:
-            if "pipeline_tag" in parameters:
-                kwargs["pipeline_tag"] = normalized_task
-            else:
-                fallback_filters.append(normalized_task)
+            kwargs["pipeline_tag"] = normalized_task
 
         if normalized_library:
-            if "library" in parameters:
-                kwargs["library"] = normalized_library
-            else:
-                fallback_filters.append(normalized_library)
-
-        if fallback_filters and "filter" in parameters:
-            kwargs["filter"] = fallback_filters if len(fallback_filters) > 1 else fallback_filters[0]
+            kwargs["library"] = normalized_library
 
         sort_field = HUGGINGFACE_SORT_FIELD_MAP.get(sort)
-        if sort_field and "sort" in parameters:
+        if sort_field:
             kwargs["sort"] = sort_field
-            if "direction" in parameters:
-                kwargs["direction"] = -1
+            kwargs["direction"] = -1
 
-        if visibility in {"gated", "public"} and "gated" in parameters:
+        if visibility in {"gated", "public"}:
             kwargs["gated"] = visibility == "gated"
 
-        if "expand" in parameters:
-            kwargs["expand"] = list(HUGGINGFACE_MODEL_LIST_EXPAND_FIELDS)
-        elif "full" in parameters:
-            kwargs["full"] = True
-        if "limit" in parameters:
-            kwargs["limit"] = limit
-        if token and "token" in parameters:
+        kwargs["expand"] = list(HUGGINGFACE_MODEL_LIST_EXPAND_FIELDS)
+        kwargs["limit"] = limit
+        if token:
             kwargs["token"] = token
 
         return kwargs
@@ -1792,14 +1798,11 @@ class ProviderService:
         if not candidate or " " in candidate or "/" not in candidate:
             return None
 
-        signature = inspect.signature(api.model_info)
-        parameters = signature.parameters
-        kwargs: dict[str, Any] = {}
-        if token and "token" in parameters:
-            kwargs["token"] = token
-
         try:
-            api.model_info(candidate, **kwargs)
+            if token:
+                api.model_info(candidate, token=token)
+            else:
+                api.model_info(candidate)
             return None
         except Exception as exc:  # noqa: BLE001
             status_code = self._extract_status_code(exc)
@@ -1857,5 +1860,6 @@ class ProviderService:
 
 
 provider_service = ProviderService()
+
 
 

@@ -23,7 +23,7 @@ import {
     getHuggingFaceDownloadStatus,
     pullOllamaModel,
     type HuggingFaceModelQueryOptions,
-} from '../app/services/workflowApi'
+} from '../app/services/providersApi'
 import {
     HuggingFaceDownloadJobStatus,
     HuggingFaceModelCatalogResponse,
@@ -832,6 +832,7 @@ export default function ModelsPage() {
         </section>
     )
 }
+
 
 
 

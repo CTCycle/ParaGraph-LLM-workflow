@@ -35,3 +35,31 @@ class ModelMetadata:
     supports_embeddings: bool = False
     supports_reasoning: bool = False
     supports_structured_output: bool = True
+
+
+@dataclass(frozen=True)
+class HuggingFaceDownloadManifest:
+    repo_id: str
+    destination_path: str
+    session_name: str
+
+
+@dataclass(frozen=True)
+class HuggingFaceDownloadProgress:
+    status: str
+    progress: float
+    downloaded_bytes: int
+    total_bytes: int | None
+    message: str | None = None
+
+
+@dataclass(frozen=True)
+class HuggingFaceCatalogFilters:
+    tasks: tuple[str, ...]
+    libraries: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class HuggingFaceCatalogCachePayload:
+    cache_key: str
+    using_token: bool

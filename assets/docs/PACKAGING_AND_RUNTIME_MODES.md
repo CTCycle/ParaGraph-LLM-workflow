@@ -24,7 +24,6 @@ ParaGraph uses one active runtime profile file: `ParaGraph/settings/.env`.
 | `VITE_API_BASE_URL` | Frontend API base path (default `/api`). |
 | `PARAGRAPH_DEPLOYMENT_MODE` | Deployment mode switch (`local` or `cloud`). Cloud mode disables public docs/openapi routes and enforces tighter filesystem guards for workflow artifacts. |
 | `RELOAD` | Enables Uvicorn reload in launcher flow when `true`. |
-| `OPTIONAL_DEPENDENCIES` | Controls optional dependency sync behavior in launcher/test flows. |
 | `DB_EMBEDDED` | `true` for SQLite, `false` for PostgreSQL settings. |
 | `DB_ENGINE`, `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` | External DB settings used when `DB_EMBEDDED=false`. |
 | `DB_SSL`, `DB_SSL_CA`, `DB_CONNECT_TIMEOUT`, `DB_INSERT_BATCH_SIZE` | PostgreSQL TLS/connect/write tuning. |
@@ -54,7 +53,7 @@ This mode is fully local.
 
 `start_on_windows.bat` currently:
 - installs portable Python 3.14, `uv`, and Node.js under `runtimes/` at repository root
-- syncs backend deps from `pyproject.toml` using runtime-local state:
+- syncs backend deps from `pyproject.toml` using runtime-local state and installs all declared dependencies unconditionally:
   - virtual environment: `runtimes/.venv`
   - lockfile source of truth: `runtimes/uv.lock` (mirrored through root `uv.lock` during sync)
 - installs frontend deps and builds client when needed

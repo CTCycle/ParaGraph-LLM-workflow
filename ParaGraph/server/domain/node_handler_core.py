@@ -248,16 +248,6 @@ class _SaveNodeParameters(BaseModel):
     extension: str = ".txt"
     client_side_write: bool = False
 
-    @model_validator(mode="before")
-    @classmethod
-    def migrate_legacy_storage_path(cls, value: Any) -> Any:
-        if not isinstance(value, dict):
-            return value
-        payload = dict(value)
-        if "output_path" not in payload and "storage_path" in payload:
-            payload["output_path"] = payload["storage_path"]
-        return payload
-
     @field_validator("extension")
     @classmethod
     def validate_extension(cls, value: str) -> str:
