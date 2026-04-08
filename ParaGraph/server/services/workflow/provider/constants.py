@@ -18,6 +18,7 @@ HUGGINGFACE_LOCAL_MODELS_ROOT: Final[Path] = Path(MODELS_PATH) / "huggingface"
 HUGGINGFACE_LOCAL_MODEL_METADATA_FILE: Final[str] = ".paragraph-model.json"
 HUGGINGFACE_REPO_ID_PATTERN: Final[re.Pattern[str]] = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*/[A-Za-z0-9][A-Za-z0-9._-]*$")
 HUGGINGFACE_DOWNLOAD_JOB_TYPE: Final[str] = "huggingface_download"
+HUGGINGFACE_DOWNLOAD_TIMEOUT_SECONDS: Final[float] = 60.0
 
 HUGGINGFACE_SORT_FIELD_MAP: Final[dict[HuggingFaceSortBy, str | None]] = {
     "relevance": None,
@@ -58,4 +59,3 @@ HUGGINGFACE_FALLBACK_LIBRARIES: Final[tuple[str, ...]] = (
     "gguf",
     "peft",
 )
-
