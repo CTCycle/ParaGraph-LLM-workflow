@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import pytest
+
+from ParaGraph.server.domain.node_handler_core import VectorStoreParameters
 from ParaGraph.server.services.workflow.vector_stores import (
     MilvusVectorStoreAdapter,
     PineconeVectorStoreAdapter,
@@ -89,3 +92,29 @@ def test_milvus_filter_expression_combines_groups() -> None:
     assert 'not (chunk_id == "chunk-9")' in expression
     assert 'source_uri == "a"' in expression
     assert 'source_uri == "b"' in expression
+
+
+@pytest.mark.parametrize("provider", ["lancedb", "chroma", "faiss"])
+def test_vector_store_parameters_require_storage_path_for_local_providers(provider: str) -> None:
+    with pytest.raises(ValueError, match="storage_path is required"):
+        VectorStoreParameters.model_validate(
+            {
+                "provider": provider,
+                "index_name": "docs",
+                "storage_path": "",
+                "endpoint_url": "",
+            }
+        )
+
+
+@pytest.mark.parametrize("provider", ["qdrant", "pinecone", "weaviate", "milvus"])
+def test_vector_store_parameters_require_endpoint_for_remote_providers(provider: str) -> None:
+    with pytest.raises(ValueError, match="endpoint_url is required"):
+        VectorStoreParameters.model_validate(
+            {
+                "provider": provider,
+                "index_name": "docs",
+                "storage_path": "",
+                "endpoint_url": "",
+            }
+        )

@@ -53,7 +53,8 @@
           "pinecone",
           "weaviate",
           "milvus",
-          "chroma"
+          "chroma",
+          "faiss"
         ]
       },
       "ui_control": "select",
@@ -116,7 +117,8 @@
         "visible_when": {
           "provider": [
             "lancedb",
-            "chroma"
+            "chroma",
+            "faiss"
           ]
         }
       }

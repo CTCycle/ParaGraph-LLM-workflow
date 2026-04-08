@@ -1,0 +1,136 @@
+{
+  "id": "RERANK_RESULTS",
+  "version": 1,
+  "name": "Rerank Results",
+  "category": "retrieval",
+  "description": "Deterministically rerank retrieval hits using lexical and metadata scoring strategies.",
+  "inputs": [
+    {
+      "name": "results",
+      "data_type": "RETRIEVAL_RESULTS",
+      "required": true,
+      "accepts_multiple": false,
+      "description": "Retrieval results to rerank."
+    },
+    {
+      "name": "query",
+      "data_type": "TEXT",
+      "required": false,
+      "accepts_multiple": false,
+      "description": "Optional query override. Falls back to results.query when empty."
+    }
+  ],
+  "outputs": [
+    {
+      "name": "results",
+      "data_type": "RETRIEVAL_RESULTS",
+      "required": true,
+      "accepts_multiple": false,
+      "description": "Reranked retrieval results."
+    }
+  ],
+  "controllers": [],
+  "parameters": [
+    {
+      "name": "strategy",
+      "data_type": "TEXT",
+      "default": "original_score",
+      "constraints": {
+        "required": true,
+        "options": [
+          "original_score",
+          "term_overlap",
+          "exact_phrase",
+          "metadata_match",
+          "weighted_composite"
+        ]
+      },
+      "ui_control": "select",
+      "description": "Reranking strategy."
+    },
+    {
+      "name": "score_mode",
+      "data_type": "TEXT",
+      "default": "replace",
+      "constraints": {
+        "required": true,
+        "options": [
+          "replace",
+          "boost"
+        ]
+      },
+      "ui_control": "select",
+      "description": "Replace score with rerank score or boost original score."
+    },
+    {
+      "name": "metadata_field",
+      "data_type": "TEXT",
+      "default": "",
+      "constraints": {},
+      "ui_control": "text",
+      "description": "Metadata field used by metadata_match and weighted_composite."
+    },
+    {
+      "name": "metadata_value",
+      "data_type": "TEXT",
+      "default": "",
+      "constraints": {},
+      "ui_control": "text",
+      "description": "Metadata value used by metadata_match and weighted_composite."
+    },
+    {
+      "name": "original_score_weight",
+      "data_type": "JSON",
+      "default": 1.0,
+      "constraints": {},
+      "ui_control": "number",
+      "description": "Original score coefficient for weighted_composite."
+    },
+    {
+      "name": "term_overlap_weight",
+      "data_type": "JSON",
+      "default": 1.0,
+      "constraints": {},
+      "ui_control": "number",
+      "description": "Term overlap coefficient for weighted_composite."
+    },
+    {
+      "name": "phrase_boost",
+      "data_type": "JSON",
+      "default": 1.0,
+      "constraints": {},
+      "ui_control": "number",
+      "description": "Exact phrase coefficient for weighted_composite."
+    },
+    {
+      "name": "metadata_boost",
+      "data_type": "JSON",
+      "default": 1.0,
+      "constraints": {},
+      "ui_control": "number",
+      "description": "Metadata match coefficient for weighted_composite."
+    },
+    {
+      "name": "top_k",
+      "data_type": "JSON",
+      "default": 0,
+      "constraints": {
+        "min": 0,
+        "step": 1
+      },
+      "ui_control": "number",
+      "description": "Number of reranked hits to keep. 0 keeps all hits."
+    }
+  ],
+  "ui": {
+    "default_width": 380,
+    "accent_color": "#5fc5ff",
+    "collapsed_by_default": false
+  },
+  "runtime": {
+    "executor_key": "rerank_results",
+    "cacheable": false,
+    "deterministic": true,
+    "side_effecting": false
+  }
+}

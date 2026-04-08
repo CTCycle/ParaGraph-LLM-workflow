@@ -271,11 +271,18 @@ PROVIDER_CAPABILITIES = {
 
 
 CURATED_MODELS: dict[str, tuple[ModelMetadata, ...]] = {
+    "ollama": (
+        ModelMetadata(provider="ollama", model="nomic-embed-text", label="nomic-embed-text", supports_embeddings=True),
+        ModelMetadata(provider="ollama", model="mxbai-embed-large", label="mxbai-embed-large", supports_embeddings=True),
+        ModelMetadata(provider="ollama", model="bge-m3", label="bge-m3", supports_embeddings=True),
+    ),
     "openai": (
         ModelMetadata(provider="openai", model="gpt-5.4", label="GPT-5.4", supports_image=True, supports_reasoning=True),
         ModelMetadata(provider="openai", model="gpt-5-mini", label="GPT-5 mini", supports_image=True, supports_reasoning=True),
         ModelMetadata(provider="openai", model="gpt-5-nano", label="GPT-5 nano", supports_image=True, supports_reasoning=True),
         ModelMetadata(provider="openai", model="gpt-4.1", label="GPT-4.1", supports_image=True),
+        ModelMetadata(provider="openai", model="text-embedding-3-small", label="Text Embedding 3 Small", supports_embeddings=True),
+        ModelMetadata(provider="openai", model="text-embedding-3-large", label="Text Embedding 3 Large", supports_embeddings=True),
     ),
     "gemini": (
         ModelMetadata(provider="gemini", model="gemini-3-pro-preview", label="Gemini 3 Pro Preview", supports_image=True, supports_reasoning=True),
@@ -283,6 +290,7 @@ CURATED_MODELS: dict[str, tuple[ModelMetadata, ...]] = {
         ModelMetadata(provider="gemini", model="gemini-2.5-pro", label="Gemini 2.5 Pro", supports_image=True, supports_reasoning=True),
         ModelMetadata(provider="gemini", model="gemini-2.5-flash", label="Gemini 2.5 Flash", supports_image=True, supports_reasoning=True),
         ModelMetadata(provider="gemini", model="gemini-2.5-flash-lite", label="Gemini 2.5 Flash-Lite", supports_image=True, supports_reasoning=True),
+        ModelMetadata(provider="gemini", model="gemini-embedding-001", label="Gemini Embedding 001", supports_embeddings=True),
     ),
     "claude": (
         ModelMetadata(provider="claude", model="claude-opus-4-1-20250805", label="Claude Opus 4.1", supports_image=True, supports_reasoning=True),
@@ -294,6 +302,14 @@ CURATED_MODELS: dict[str, tuple[ModelMetadata, ...]] = {
         ModelMetadata(provider="huggingface", model="meta-llama/Llama-3.2-3B-Instruct", label="Llama 3.2 3B Instruct"),
         ModelMetadata(provider="huggingface", model="Qwen/Qwen2.5-7B-Instruct", label="Qwen 2.5 7B Instruct"),
         ModelMetadata(provider="huggingface", model="deepseek-ai/DeepSeek-R1-Distill-Qwen-7B", label="DeepSeek R1 Distill Qwen 7B", supports_reasoning=True),
+        ModelMetadata(
+            provider="huggingface",
+            model="sentence-transformers/all-MiniLM-L6-v2",
+            label="all-MiniLM-L6-v2",
+            supports_embeddings=True,
+        ),
+        ModelMetadata(provider="huggingface", model="intfloat/e5-base-v2", label="E5 Base v2", supports_embeddings=True),
+        ModelMetadata(provider="huggingface", model="BAAI/bge-small-en-v1.5", label="BGE Small EN v1.5", supports_embeddings=True),
     ),
 }
 
@@ -393,6 +409,7 @@ class ProviderService:
     def list_models(self, session_name: str = DEFAULT_SESSION_NAME) -> ProviderModelCatalogResponse:
         metadata_rows: list[ModelMetadata] = []
         metadata_rows.extend(self._ollama_models(session_name))
+        metadata_rows.extend(CURATED_MODELS.get("ollama", ()))
 
         for provider in ("openai", "gemini", "claude"):
             metadata_rows.extend(CURATED_MODELS.get(provider, ()))
@@ -1073,6 +1090,7 @@ class ProviderService:
             model=metadata.model,
             label=metadata.label,
             supports_image=metadata.supports_image,
+            supports_embeddings=metadata.supports_embeddings,
             supports_reasoning=metadata.supports_reasoning,
             supports_structured_output=metadata.supports_structured_output,
             timeout_s=timeout_s,
@@ -1135,6 +1153,8 @@ class ProviderService:
             if access_key is None or not access_key.api_key:
                 raise ValueError(f"Provider '{normalized_provider}' requires an access key in Configurations")
         elif normalized_provider == "huggingface":
+            if requires_image:
+                raise ValueError("Provider 'huggingface' does not support image input in the current local runtime path")
             is_local_model = model in self._downloaded_huggingface_repo_ids()
             if not is_local_model:
                 access_key = self._get_access_key(normalized_provider, session_name)
