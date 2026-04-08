@@ -50,17 +50,18 @@
     {
       "name": "provider",
       "data_type": "TEXT",
-      "default": "cloud",
+      "default": "openai",
       "constraints": {
         "required": true,
         "options": [
-          "cloud",
+          "openai",
+          "gemini",
           "huggingface",
           "ollama"
         ]
       },
       "ui_control": "select",
-      "description": "Embedding provider bucket."
+      "description": "Embedding provider."
     },
     {
       "name": "model_name",

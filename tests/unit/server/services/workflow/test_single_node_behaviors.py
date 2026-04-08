@@ -7,7 +7,7 @@ from pathlib import Path
 from starlette.datastructures import UploadFile
 
 from ParaGraph.server.domain.workflow_model import WorkflowDefinition
-from ParaGraph.server.services.workflow.browser_uploads import save_uploaded_directory
+from ParaGraph.server.services.workflow.browser_uploads import BrowserUploadService
 from ParaGraph.server.services.workflow.compiler import compiler_service
 from ParaGraph.server.services.workflow.execution import execution_service
 from ParaGraph.server.services.workflow import browser_uploads as browser_uploads_module
@@ -74,8 +74,9 @@ def test_execution_service_handles_single_non_output_step(job_state_factory) -> 
 def test_save_uploaded_directory_supports_single_uploaded_file(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setattr(browser_uploads_module, "UPLOAD_ROOT", tmp_path / "browser_uploads")
     upload = UploadFile(filename="single/readme.txt", file=BytesIO(b"hello"))
+    service = BrowserUploadService(browser_uploads_module.UPLOAD_ROOT)
 
-    staged_root, file_count, files = asyncio.run(save_uploaded_directory([upload]))
+    staged_root, file_count, files = asyncio.run(service.save_uploaded_directory([upload]))
 
     assert file_count == 1
     assert len(files) == 1

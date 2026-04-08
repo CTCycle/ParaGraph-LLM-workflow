@@ -1,4 +1,5 @@
 # Python Guidelines (ParaGraph Backend)
+Last updated: 2026-04-08
 
 Standards for Python code under `ParaGraph/server` and backend tests.
 

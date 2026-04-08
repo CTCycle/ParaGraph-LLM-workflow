@@ -131,8 +131,17 @@ class StructuredParameters(ChatParameters):
 
 
 class EmbeddingParameters(BaseModel):
-    provider: str = "cloud"
+    provider: str = "openai"
     model_name: str = "nomic-embed-text"
+
+    @field_validator("provider")
+    @classmethod
+    def validate_provider(cls, value: str) -> str:
+        normalized = str(value or "").strip().lower()
+        allowed = {"openai", "gemini", "huggingface", "ollama"}
+        if normalized not in allowed:
+            raise ValueError("provider must be one of: openai, gemini, huggingface, ollama")
+        return normalized
 
 
 class SimilaritySearchParameters(BaseModel):
@@ -241,6 +250,51 @@ class VectorStoreParameters(BaseModel):
         if not isinstance(parsed, dict):
             raise ValueError("provider_config must be a JSON object")
         return parsed
+
+    @model_validator(mode="after")
+    def validate_provider_requirements(self) -> "VectorStoreParameters":
+        local_storage_providers = {"lancedb", "chroma", "faiss"}
+        remote_endpoint_providers = {"qdrant", "pinecone", "weaviate", "milvus"}
+
+        storage_path = str(self.storage_path or "").strip()
+        endpoint_url = str(self.endpoint_url or "").strip()
+
+        if self.provider in local_storage_providers and not storage_path:
+            raise ValueError(f"storage_path is required for provider '{self.provider}'")
+        if self.provider in remote_endpoint_providers and not endpoint_url:
+            raise ValueError(f"endpoint_url is required for provider '{self.provider}'")
+        return self
+
+
+class RerankParameters(BaseModel):
+    strategy: str = "original_score"
+    score_mode: str = "replace"
+    metadata_field: str = ""
+    metadata_value: str = ""
+    original_score_weight: float = 1.0
+    term_overlap_weight: float = 1.0
+    phrase_boost: float = 1.0
+    metadata_boost: float = 1.0
+    top_k: int = Field(default=0, ge=0)
+
+    @field_validator("strategy")
+    @classmethod
+    def validate_strategy(cls, value: str) -> str:
+        normalized = str(value or "").strip().lower()
+        allowed = {"original_score", "term_overlap", "exact_phrase", "metadata_match", "weighted_composite"}
+        if normalized not in allowed:
+            raise ValueError(
+                "strategy must be one of: original_score, term_overlap, exact_phrase, metadata_match, weighted_composite"
+            )
+        return normalized
+
+    @field_validator("score_mode")
+    @classmethod
+    def validate_score_mode(cls, value: str) -> str:
+        normalized = str(value or "").strip().lower()
+        if normalized not in {"replace", "boost"}:
+            raise ValueError("score_mode must be one of: replace, boost")
+        return normalized
 
 
 class _SaveNodeParameters(BaseModel):

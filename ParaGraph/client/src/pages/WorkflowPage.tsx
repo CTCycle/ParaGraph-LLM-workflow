@@ -207,95 +207,6 @@ const INTERNAL_PREVIEW_ITEMS_PARAMETER = '__preview_items'
 const NODE_OUTPUT_NAME_PARAMETER = '__output_name'
 const MAX_NODE_GLOW_TRAIL = 3
 const NODE_GLOW_CLEAR_DELAY_MS = 1200
-const TEXT_EMBEDDING_MODEL_OPTIONS: Record<string, ProviderModelDefinition[]> = {
-    cloud: [
-        {
-            provider: 'openai',
-            model: 'text-embedding-3-small',
-            label: 'Text Embedding 3 Small',
-            supports_image: false,
-            supports_embeddings: true,
-            supports_reasoning: false,
-            supports_structured_output: false,
-        },
-        {
-            provider: 'openai',
-            model: 'text-embedding-3-large',
-            label: 'Text Embedding 3 Large',
-            supports_image: false,
-            supports_embeddings: true,
-            supports_reasoning: false,
-            supports_structured_output: false,
-        },
-        {
-            provider: 'gemini',
-            model: 'gemini-embedding-001',
-            label: 'Gemini Embedding 001',
-            supports_image: false,
-            supports_embeddings: true,
-            supports_reasoning: false,
-            supports_structured_output: false,
-        },
-    ],
-    huggingface: [
-        {
-            provider: 'huggingface',
-            model: 'sentence-transformers/all-MiniLM-L6-v2',
-            label: 'all-MiniLM-L6-v2',
-            supports_image: false,
-            supports_embeddings: true,
-            supports_reasoning: false,
-            supports_structured_output: false,
-        },
-        {
-            provider: 'huggingface',
-            model: 'intfloat/e5-base-v2',
-            label: 'E5 Base v2',
-            supports_image: false,
-            supports_embeddings: true,
-            supports_reasoning: false,
-            supports_structured_output: false,
-        },
-        {
-            provider: 'huggingface',
-            model: 'BAAI/bge-small-en-v1.5',
-            label: 'BGE Small EN v1.5',
-            supports_image: false,
-            supports_embeddings: true,
-            supports_reasoning: false,
-            supports_structured_output: false,
-        },
-    ],
-    ollama: [
-        {
-            provider: 'ollama',
-            model: 'nomic-embed-text',
-            label: 'nomic-embed-text',
-            supports_image: false,
-            supports_embeddings: true,
-            supports_reasoning: false,
-            supports_structured_output: false,
-        },
-        {
-            provider: 'ollama',
-            model: 'mxbai-embed-large',
-            label: 'mxbai-embed-large',
-            supports_image: false,
-            supports_embeddings: true,
-            supports_reasoning: false,
-            supports_structured_output: false,
-        },
-        {
-            provider: 'ollama',
-            model: 'bge-m3',
-            label: 'bge-m3',
-            supports_image: false,
-            supports_embeddings: true,
-            supports_reasoning: false,
-            supports_structured_output: false,
-        },
-    ],
-}
 const WORKFLOW_EDITOR_HANDLE_HEIGHT_PX = 22
 
 type HandleKind = 'input' | 'output' | 'controller'
@@ -1724,7 +1635,7 @@ function isEditableEventTarget(target: EventTarget | null): boolean {
     return Boolean(target.closest('input, textarea, select, [contenteditable="true"]'))
 }
 
-function getDynamicModelOptions(
+export function getDynamicModelOptions(
     manifest: NodeManifest,
     parameters: Record<string, unknown>,
     providerModels: ProviderModelDefinition[],
@@ -1734,8 +1645,8 @@ function getDynamicModelOptions(
         return providerModels.filter((item) => item.provider === provider)
     }
     if (manifest.id === 'TEXT_EMBEDDING') {
-        const provider = normalizeProvider(parameters.provider ?? 'cloud') || 'cloud'
-        return TEXT_EMBEDDING_MODEL_OPTIONS[provider] ?? []
+        const provider = normalizeProvider(parameters.provider ?? 'openai') || 'openai'
+        return providerModels.filter((item) => item.provider === provider && item.supports_embeddings)
     }
     return []
 }

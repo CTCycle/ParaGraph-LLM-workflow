@@ -20,6 +20,7 @@ from ParaGraph.server.domain.node_handler_core import (
     ModelProviderParameters,
     PromptParameters,
     PromptTemplateParameters,
+    RerankParameters,
     RouterParameters,
     SaveAsFileParameters,
     SaveAsFolderParameters,
@@ -36,7 +37,6 @@ from ParaGraph.server.services.workflow.node_handlers.base import NodeHandler
 from ParaGraph.server.services.workflow.node_handlers.core.constants import (
     SAVE_AS_FILE_CHUNK_SEPARATOR,
     SAVE_AS_FOLDER_INDEX_WIDTH,
-    TEXT_EMBEDDING_CLOUD_PROVIDERS,
 )
 from ParaGraph.server.services.workflow.node_handlers.core.huggingface_runtime import (
     load_huggingface_embedding_modules,
@@ -423,15 +423,6 @@ def _load_document_text_content(document: dict[str, Any], *, fallback_index: int
     return text_content.strip(), source_uri, metadata
 
 
-def _resolve_text_embedding_provider(provider_bucket: str, model_name: str) -> str:
-    normalized_bucket = normalize_provider_name(provider_bucket, default="cloud")
-    if normalized_bucket != "cloud":
-        return normalized_bucket
-    if model_name.lower().startswith("gemini-"):
-        return "gemini"
-    return "openai"
-
-
 def _embed_text_with_gemini(*, model_name: str, text: str) -> list[float]:
     config = configuration_service.load_configuration()
     access_key = next((item for item in config.access_keys if normalize_provider_name(item.provider, default="") == "gemini"), None)
@@ -575,7 +566,7 @@ def _embedding_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> d
     model_name = coerce_text(parsed.model_name).strip()
     if not model_name:
         raise ValueError("TEXT_EMBEDDING requires a model_name")
-    provider = _resolve_text_embedding_provider(parsed.provider, model_name)
+    provider = normalize_provider_name(parsed.provider, default="openai")
     points = _collect_embedding_points(inputs=inputs, provider=provider, model_name=model_name)
     if not points:
         raise ValueError("TEXT_EMBEDDING requires at least one non-empty text, document, or chunk")
@@ -701,6 +692,97 @@ def _similarity_search_executor(parameters: dict[str, Any], inputs: dict[str, An
 
     return {
         "results": RetrievalResults(query=query, hits=hits).model_dump(mode="json"),
+    }
+
+
+def _normalize_rerank_tokens(value: str) -> list[str]:
+    return [token for token in re.split(r"[^a-z0-9]+", value.lower()) if token]
+
+
+def _normalize_rerank_text(value: str) -> str:
+    return " ".join(_normalize_rerank_tokens(value))
+
+
+def _term_overlap_score(query_tokens: set[str], text_tokens: set[str]) -> float:
+    if not query_tokens:
+        return 0.0
+    return float(len(query_tokens.intersection(text_tokens)) / len(query_tokens))
+
+
+def _metadata_match_score(
+    *,
+    metadata: dict[str, Any],
+    metadata_field: str,
+    metadata_value: str,
+) -> float:
+    field_name = metadata_field.strip()
+    if not field_name:
+        return 0.0
+    if field_name not in metadata:
+        return 0.0
+    actual = str(metadata.get(field_name, "")).strip().lower()
+    expected = metadata_value.strip().lower()
+    return 1.0 if actual == expected else 0.0
+
+
+def _rerank_results_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
+    parsed = RerankParameters.model_validate(parameters)
+    raw_results = inputs.get("results")
+    if not isinstance(raw_results, dict):
+        raise ValueError("RERANK_RESULTS requires a RETRIEVAL_RESULTS input")
+
+    retrieval_results = RetrievalResults.model_validate(raw_results)
+    query_input = coerce_text(inputs.get("query") or "").strip()
+    effective_query = query_input or retrieval_results.query
+    normalized_query = _normalize_rerank_text(effective_query)
+    query_tokens = set(_normalize_rerank_tokens(effective_query))
+
+    scored_hits: list[tuple[float, dict[str, Any]]] = []
+    for hit in retrieval_results.hits:
+        hit_payload = hit.model_dump(mode="json")
+        original_score = float(hit.score)
+        text_tokens = set(_normalize_rerank_tokens(hit.text))
+        normalized_text = _normalize_rerank_text(hit.text)
+        metadata = hit.metadata if isinstance(hit.metadata, dict) else {}
+
+        term_overlap = _term_overlap_score(query_tokens, text_tokens)
+        exact_phrase = 1.0 if normalized_query and normalized_query in normalized_text else 0.0
+        metadata_match = _metadata_match_score(
+            metadata=metadata,
+            metadata_field=parsed.metadata_field,
+            metadata_value=parsed.metadata_value,
+        )
+
+        if parsed.strategy == "original_score":
+            rerank_score = original_score
+        elif parsed.strategy == "term_overlap":
+            rerank_score = term_overlap
+        elif parsed.strategy == "exact_phrase":
+            rerank_score = exact_phrase
+        elif parsed.strategy == "metadata_match":
+            rerank_score = metadata_match
+        else:
+            rerank_score = (
+                (float(parsed.original_score_weight) * original_score)
+                + (float(parsed.term_overlap_weight) * term_overlap)
+                + (float(parsed.phrase_boost) * exact_phrase)
+                + (float(parsed.metadata_boost) * metadata_match)
+            )
+
+        if parsed.score_mode == "boost":
+            final_score = original_score + rerank_score
+        else:
+            final_score = rerank_score
+
+        hit_payload["score"] = float(final_score)
+        scored_hits.append((float(final_score), hit_payload))
+
+    reranked_hits = [payload for _, payload in sorted(scored_hits, key=lambda item: item[0], reverse=True)]
+    if parsed.top_k > 0:
+        reranked_hits = reranked_hits[: parsed.top_k]
+
+    return {
+        "results": RetrievalResults(query=retrieval_results.query, hits=reranked_hits).model_dump(mode="json"),
     }
 
 
@@ -963,6 +1045,7 @@ CORE_HANDLERS = {
     "vector_store": NodeHandler(executor=_vector_store_executor, parameter_model=VectorStoreParameters),
     "lance_db": NodeHandler(executor=_vector_store_executor, parameter_model=VectorStoreParameters),
     "similarity_search": NodeHandler(executor=_similarity_search_executor, parameter_model=SimilaritySearchParameters),
+    "rerank_results": NodeHandler(executor=_rerank_results_executor, parameter_model=RerankParameters),
     "tokenize": NodeHandler(executor=_tokenize_executor),
     "text_split": NodeHandler(executor=_text_split_executor, parameter_model=TextSplitParameters),
     "save_as_file": NodeHandler(executor=_save_as_file_executor, parameter_model=SaveAsFileParameters),

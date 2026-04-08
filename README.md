@@ -14,8 +14,13 @@ Primary capabilities include:
 - **Compiling and running workflows** through backend execution APIs.
 - **Tracking execution events and outputs** in near real time.
 - **Managing node catalogs, model providers, and runtime profiles** from the UI.
+- **Building RAG pipelines** with embedding, vector storage, retrieval, reranking, and answer synthesis stages.
 
 > **Work in Progress**: ParaGraph is under active development. Behavior and available features may evolve.
+
+## User Documentation
+
+- [User Manual](assets/docs/USER_MANUAL.md)
 
 ## 2. Installation
 
@@ -59,13 +64,17 @@ At a high level:
 4. Monitor status via polling/websocket events.
 5. Inspect generated outputs and execution history.
 
-### 3.3 Active API Families
+### 3.3 Typical RAG Path
 
-- **Workflows**: `/workflows`, `/workflows/{workflow_id}`, `/workflows/{workflow_id}/versions`
-- **Executions**: `/executions/compile`, `/executions`, `/executions/{run_id}`, `/executions/{run_id}/events`, websocket `/executions/ws/runs/{run_id}`
-- **Nodes**: `/nodes/catalog`, `/nodes/import`, `/nodes/uploads/directory`, `/nodes/check-database-connection, /nodes/check-vector-store-connection`
-- **Providers**: `/providers/models`, `/providers/ollama/library`, `/providers/ollama/pull`, `/providers/huggingface/models`, `/providers/huggingface/download`, `/providers/huggingface/download/{job_id}`
-- **Configurations**: `/configurations`, `/configurations/profiles`, `/configurations/profiles/{profile_name}`, `/configurations/ollama/ping`
+1. `LOAD_DOCUMENTS`
+2. Chunking node(s)
+3. `TEXT_EMBEDDING`
+4. `VECTOR_STORE`
+5. `PROMPT_TEMPLATE` for retrieval query rendering
+6. `SIMILARITY_SEARCH`
+7. `RERANK_RESULTS`
+8. `PROMPT_TEMPLATE` for final answer prompt
+9. `LLM_CHAT` or `LLM_STRUCTURED`
 
 ## 4. Testing
 
@@ -120,14 +129,7 @@ Provider-specific credentials and runtime keys are also sourced from the active 
 ## 6. Resources and Storage
 
 Runtime artifacts are stored under `ParaGraph/resources`.
-
-Current resource entries include:
-- `artifacts` (generated execution outputs and artifacts)
-- `logs` (runtime and process logs)
-- `models` (downloaded/managed model assets)
-- `nodes` (node-related persisted assets/imports)
-- `workflows` (workflow persistence)
-- `database.db` (local project database)
+This includes generated artifacts, logs, model assets, node assets, workflow persistence, and local database files used by runtime execution.
 
 ## 7. Maintenance Scripts
 
