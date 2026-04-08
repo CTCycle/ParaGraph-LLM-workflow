@@ -15,6 +15,7 @@ from bs4 import BeautifulSoup
 from huggingface_hub import HfApi, hf_hub_url
 import httpx
 
+from ParaGraph.server.common.utils.logger import logger
 from ParaGraph.server.configurations.server import server_settings
 from ParaGraph.server.domain.configuration import DEFAULT_SESSION_NAME
 from ParaGraph.server.domain.node_catalog import (
@@ -45,6 +46,7 @@ from ParaGraph.server.services.llm.providers import LLMError, OllamaClient, Olla
 from ParaGraph.server.services.workflow.provider.constants import (
     HUGGINGFACE_CACHE_TTL_SECONDS,
     HUGGINGFACE_DOWNLOAD_JOB_TYPE,
+    HUGGINGFACE_DOWNLOAD_TIMEOUT_SECONDS,
     HUGGINGFACE_FALLBACK_LIBRARIES,
     HUGGINGFACE_FALLBACK_TASKS,
     HUGGINGFACE_FILTER_TAGS_CACHE_TTL_SECONDS,
@@ -865,7 +867,14 @@ class ProviderService:
             last_emit_at = 0.0
 
             try:
-                with httpx.stream("GET", download_url, headers=request_headers, follow_redirects=True, timeout=None) as response:
+                download_timeout = httpx.Timeout(HUGGINGFACE_DOWNLOAD_TIMEOUT_SECONDS)
+                with httpx.stream(
+                    "GET",
+                    download_url,
+                    headers=request_headers,
+                    follow_redirects=True,
+                    timeout=download_timeout,
+                ) as response:
                     response.raise_for_status()
                     if file_total_bytes is None:
                         file_total_bytes = _safe_int(response.headers.get("Content-Length"))
@@ -1682,9 +1691,13 @@ class ProviderService:
                     tasks = extracted_tasks
                 if extracted_libraries:
                     libraries = extracted_libraries
-        except Exception:
-            # Keep deterministic fallback options if tag discovery fails.
-            pass
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(
+                "Hugging Face tag discovery failed; using fallback tags (error_type=%s, request_id=%s).",
+                type(exc).__name__,
+                cache_key,
+                exc_info=True,
+            )
 
         with self._cache_lock:
             self._huggingface_filter_tags_cache[cache_key] = CachedValue(
