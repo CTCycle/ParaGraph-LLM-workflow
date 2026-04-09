@@ -76,9 +76,9 @@ class ParaGraphDatabase:
         backend = BACKEND_FACTORIES[normalized_name](self.settings)
         if normalized_name == "sqlite" and not sqlite_database_exists:
             logger.info("SQLite database file missing at startup (%s). Initializing tables.", sqlite_db_path)
+            Base.metadata.create_all(backend.engine)
         else:
-            logger.info("Ensuring application tables exist for %s backend.", normalized_name)
-        Base.metadata.create_all(backend.engine)
+            logger.info("Skipping startup database initialization for %s backend.", normalized_name)
         return backend
 
     # -------------------------------------------------------------------------

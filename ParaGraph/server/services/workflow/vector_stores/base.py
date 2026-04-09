@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import importlib
 import logging
 import re
 import shutil
@@ -18,6 +19,51 @@ ARTIFACT_ROOT = Path(RESOURCES_PATH) / "artifacts"
 VECTORSTORE_ROOT = ARTIFACT_ROOT / "vectorstores"
 INDEX_NAME_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
 logger = logging.getLogger(__name__)
+
+
+def _import_module_or_error(module_name: str, package_hint: str) -> Any:
+    try:
+        return importlib.import_module(module_name)
+    except ModuleNotFoundError as exc:
+        raise VectorStoreError(f"{package_hint} support requires installing the '{module_name}' package") from exc
+
+
+def _import_pinecone_client() -> tuple[Any, Any]:
+    pinecone_module = _import_module_or_error("pinecone", "Pinecone")
+    pinecone_client = getattr(pinecone_module, "Pinecone", None)
+    serverless_spec = getattr(pinecone_module, "ServerlessSpec", None)
+    if pinecone_client is None or serverless_spec is None:
+        raise VectorStoreError("Installed pinecone package does not expose Pinecone client APIs")
+    return pinecone_client, serverless_spec
+
+
+def _import_milvus_client() -> Any:
+    milvus_module = _import_module_or_error("pymilvus", "Milvus")
+    milvus_client = getattr(milvus_module, "MilvusClient", None)
+    if milvus_client is None:
+        raise VectorStoreError("Installed pymilvus package does not expose MilvusClient")
+    return milvus_client
+
+
+def _import_qdrant_clients() -> tuple[Any, Any]:
+    qdrant_module = _import_module_or_error("qdrant_client", "Qdrant")
+    qdrant_client = getattr(qdrant_module, "QdrantClient", None)
+    qdrant_models = getattr(qdrant_module, "models", None)
+    if qdrant_client is None or qdrant_models is None:
+        raise VectorStoreError("Installed qdrant-client package does not expose required client APIs")
+    return qdrant_client, qdrant_models
+
+
+def _import_weaviate_module() -> Any:
+    return _import_module_or_error("weaviate", "Weaviate")
+
+
+def _import_chromadb_module() -> Any:
+    return _import_module_or_error("chromadb", "Chroma")
+
+
+def _import_lancedb_module() -> Any:
+    return _import_module_or_error("lancedb", "LanceDB")
 
 def _resolve_vectorstore_root(storage_directory: str | None) -> Path:
     selected = str(storage_directory or "").strip()
@@ -251,6 +297,84 @@ def _extract_provider_config(
     endpoint = str(config.get("endpoint_url") or endpoint_url or "").strip()
     token = str(config.get("api_key") or api_key or "").strip()
     return config, endpoint, token
+
+
+def _qdrant_condition(clause: dict[str, Any], qm: Any) -> Any:
+    field = str(clause.get("field") or "").strip()
+    op = str(clause.get("op") or "eq").strip().lower()
+    value = clause.get("value")
+    if not field:
+        return None
+    if op == "eq":
+        return qm.FieldCondition(key=field, match=qm.MatchValue(value=value))
+    if op == "in" and isinstance(value, list):
+        return qm.FieldCondition(key=field, match=qm.MatchAny(any=value))
+    if op in {"gt", "gte", "lt", "lte"}:
+        kwargs: dict[str, Any] = {}
+        if op == "gt":
+            kwargs["gt"] = value
+        elif op == "gte":
+            kwargs["gte"] = value
+        elif op == "lt":
+            kwargs["lt"] = value
+        elif op == "lte":
+            kwargs["lte"] = value
+        return qm.FieldCondition(key=field, range=qm.Range(**kwargs))
+    return None
+
+
+def _pinecone_clause(clause: dict[str, Any]) -> dict[str, Any] | None:
+    field = str(clause.get("field") or "").strip()
+    op = str(clause.get("op") or "eq").strip().lower()
+    value = clause.get("value")
+    if not field:
+        return None
+    key = f"metadata.{field}"
+    if op == "eq":
+        return {key: {"$eq": value}}
+    if op == "in" and isinstance(value, list):
+        return {key: {"$in": value}}
+    if op == "gt":
+        return {key: {"$gt": value}}
+    if op == "gte":
+        return {key: {"$gte": value}}
+    if op == "lt":
+        return {key: {"$lt": value}}
+    if op == "lte":
+        return {key: {"$lte": value}}
+    return None
+
+
+def _milvus_format_value(value: Any) -> str:
+    if isinstance(value, str):
+        return '"' + value.replace('"', '\"') + '"'
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if value is None:
+        return "null"
+    return str(value)
+
+
+def _milvus_clause_expression(clause: dict[str, Any]) -> str:
+    field = str(clause.get("field") or "").strip()
+    op = str(clause.get("op") or "eq").strip().lower()
+    value = clause.get("value")
+    if not field:
+        return ""
+    if op == "eq":
+        return f"{field} == {_milvus_format_value(value)}"
+    if op == "gt":
+        return f"{field} > {_milvus_format_value(value)}"
+    if op == "gte":
+        return f"{field} >= {_milvus_format_value(value)}"
+    if op == "lt":
+        return f"{field} < {_milvus_format_value(value)}"
+    if op == "lte":
+        return f"{field} <= {_milvus_format_value(value)}"
+    if op == "in" and isinstance(value, list):
+        values = ", ".join(_milvus_format_value(item) for item in value)
+        return f"{field} in [{values}]"
+    return ""
 def _sanitize_metadata_entry(point: VectorPoint | dict[str, Any]) -> dict[str, Any]:
     return {
         "id": _point_attr(point, "id"),
@@ -498,11 +622,7 @@ class LanceDbVectorStoreAdapter(VectorStoreAdapter):
     backend = "lancedb"
 
     def _load_lancedb(self):
-        try:
-            import lancedb  # type: ignore[import-not-found]
-        except ModuleNotFoundError as exc:
-            raise VectorStoreError("LanceDB support requires installing the 'lancedb' package") from exc
-        return lancedb
+        return _import_lancedb_module()
 
     def write_points(
         self,
@@ -653,12 +773,7 @@ class QdrantVectorStoreAdapter(VectorStoreAdapter):
     backend = "qdrant"
 
     def _load_client(self):
-        try:
-            from qdrant_client import QdrantClient  # type: ignore[import-not-found]
-            from qdrant_client import models as qm  # type: ignore[import-not-found]
-        except ModuleNotFoundError as exc:
-            raise VectorStoreError("Qdrant support requires installing the 'qdrant-client' package") from exc
-        return QdrantClient, qm
+        return _import_qdrant_clients()
 
     def _build_client(self, *, storage_directory: str, endpoint_url: str, api_key: str):
         QdrantClient, _ = self._load_client()
@@ -783,33 +898,9 @@ class QdrantVectorStoreAdapter(VectorStoreAdapter):
     def _map_filter(self, filter_spec: dict[str, Any] | None, qm: Any) -> Any:
         if not filter_spec:
             return None
-
-        def _condition(clause: dict[str, Any]) -> Any:
-            field = str(clause.get("field") or "").strip()
-            op = str(clause.get("op") or "eq").strip().lower()
-            value = clause.get("value")
-            if not field:
-                return None
-            if op == "eq":
-                return qm.FieldCondition(key=field, match=qm.MatchValue(value=value))
-            if op == "in" and isinstance(value, list):
-                return qm.FieldCondition(key=field, match=qm.MatchAny(any=value))
-            if op in {"gt", "gte", "lt", "lte"}:
-                kwargs: dict[str, Any] = {}
-                if op == "gt":
-                    kwargs["gt"] = value
-                elif op == "gte":
-                    kwargs["gte"] = value
-                elif op == "lt":
-                    kwargs["lt"] = value
-                elif op == "lte":
-                    kwargs["lte"] = value
-                return qm.FieldCondition(key=field, range=qm.Range(**kwargs))
-            return None
-
-        must = [_condition(clause) for clause in filter_spec.get("must", []) if isinstance(clause, dict)]
-        should = [_condition(clause) for clause in filter_spec.get("should", []) if isinstance(clause, dict)]
-        must_not = [_condition(clause) for clause in filter_spec.get("must_not", []) if isinstance(clause, dict)]
+        must = [_qdrant_condition(clause, qm) for clause in filter_spec.get("must", []) if isinstance(clause, dict)]
+        should = [_qdrant_condition(clause, qm) for clause in filter_spec.get("should", []) if isinstance(clause, dict)]
+        must_not = [_qdrant_condition(clause, qm) for clause in filter_spec.get("must_not", []) if isinstance(clause, dict)]
         must = [item for item in must if item is not None]
         should = [item for item in should if item is not None]
         must_not = [item for item in must_not if item is not None]
@@ -899,11 +990,7 @@ class PineconeVectorStoreAdapter(VectorStoreAdapter):
     backend = "pinecone"
 
     def _load_client(self):
-        try:
-            from pinecone import Pinecone, ServerlessSpec  # type: ignore[import-not-found]
-        except ModuleNotFoundError as exc:
-            raise VectorStoreError("Pinecone support requires installing the 'pinecone' package") from exc
-        return Pinecone, ServerlessSpec
+        return _import_pinecone_client()
 
     def _map_filter(self, filter_spec: dict[str, Any] | None) -> dict[str, Any] | None:
         if not filter_spec:
@@ -913,43 +1000,22 @@ class PineconeVectorStoreAdapter(VectorStoreAdapter):
         should: list[dict[str, Any]] = []
         minimum_should_match = int(filter_spec.get("minimum_should_match", 1))
 
-        def _translate_clause(clause: dict[str, Any]) -> dict[str, Any] | None:
-            field = str(clause.get("field") or "").strip()
-            op = str(clause.get("op") or "eq").strip().lower()
-            value = clause.get("value")
-            if not field:
-                return None
-            key = f"metadata.{field}"
-            if op == "eq":
-                return {key: {"$eq": value}}
-            if op == "in" and isinstance(value, list):
-                return {key: {"$in": value}}
-            if op == "gt":
-                return {key: {"$gt": value}}
-            if op == "gte":
-                return {key: {"$gte": value}}
-            if op == "lt":
-                return {key: {"$lt": value}}
-            if op == "lte":
-                return {key: {"$lte": value}}
-            return None
-
         for clause in filter_spec.get("must", []):
             if not isinstance(clause, dict):
                 continue
-            translated = _translate_clause(clause)
+            translated = _pinecone_clause(clause)
             if translated:
                 clauses.append(translated)
         for clause in filter_spec.get("must_not", []):
             if not isinstance(clause, dict):
                 continue
-            translated = _translate_clause(clause)
+            translated = _pinecone_clause(clause)
             if translated:
                 must_not.append(translated)
         for clause in filter_spec.get("should", []):
             if not isinstance(clause, dict):
                 continue
-            translated = _translate_clause(clause)
+            translated = _pinecone_clause(clause)
             if translated:
                 should.append(translated)
 
@@ -1147,11 +1213,7 @@ class WeaviateVectorStoreAdapter(VectorStoreAdapter):
     backend = "weaviate"
 
     def _load_client(self):
-        try:
-            import weaviate  # type: ignore[import-not-found]
-        except ModuleNotFoundError as exc:
-            raise VectorStoreError("Weaviate support requires installing the 'weaviate-client' package") from exc
-        return weaviate
+        return _import_weaviate_module()
 
     def _connect(self, *, endpoint_url: str, api_key: str):
         weaviate = self._load_client()
@@ -1343,11 +1405,7 @@ class MilvusVectorStoreAdapter(VectorStoreAdapter):
     backend = "milvus"
 
     def _load_client(self):
-        try:
-            from pymilvus import MilvusClient  # type: ignore[import-not-found]
-        except ModuleNotFoundError as exc:
-            raise VectorStoreError("Milvus support requires installing the 'pymilvus' package") from exc
-        return MilvusClient
+        return _import_milvus_client()
 
     def _build_client(self, *, endpoint_url: str, api_key: str, database_name: str):
         MilvusClient = self._load_client()
@@ -1362,40 +1420,9 @@ class MilvusVectorStoreAdapter(VectorStoreAdapter):
     def _milvus_filter(self, filter_spec: dict[str, Any] | None) -> str:
         if not filter_spec:
             return ""
-
-        def _fmt_value(value: Any) -> str:
-            if isinstance(value, str):
-                return '"' + value.replace('"', '\"') + '"'
-            if isinstance(value, bool):
-                return "true" if value else "false"
-            if value is None:
-                return "null"
-            return str(value)
-
-        def _clause_expr(clause: dict[str, Any]) -> str:
-            field = str(clause.get("field") or "").strip()
-            op = str(clause.get("op") or "eq").strip().lower()
-            value = clause.get("value")
-            if not field:
-                return ""
-            if op == "eq":
-                return f"{field} == {_fmt_value(value)}"
-            if op == "gt":
-                return f"{field} > {_fmt_value(value)}"
-            if op == "gte":
-                return f"{field} >= {_fmt_value(value)}"
-            if op == "lt":
-                return f"{field} < {_fmt_value(value)}"
-            if op == "lte":
-                return f"{field} <= {_fmt_value(value)}"
-            if op == "in" and isinstance(value, list):
-                values = ", ".join(_fmt_value(item) for item in value)
-                return f"{field} in [{values}]"
-            return ""
-
-        must = [_clause_expr(item) for item in filter_spec.get("must", []) if isinstance(item, dict)]
-        must_not = [_clause_expr(item) for item in filter_spec.get("must_not", []) if isinstance(item, dict)]
-        should = [_clause_expr(item) for item in filter_spec.get("should", []) if isinstance(item, dict)]
+        must = [_milvus_clause_expression(item) for item in filter_spec.get("must", []) if isinstance(item, dict)]
+        must_not = [_milvus_clause_expression(item) for item in filter_spec.get("must_not", []) if isinstance(item, dict)]
+        should = [_milvus_clause_expression(item) for item in filter_spec.get("should", []) if isinstance(item, dict)]
         must = [item for item in must if item]
         must_not = [item for item in must_not if item]
         should = [item for item in should if item]
@@ -1604,11 +1631,7 @@ class ChromaVectorStoreAdapter(VectorStoreAdapter):
     backend = "chroma"
 
     def _load_client(self):
-        try:
-            import chromadb  # type: ignore[import-not-found]
-        except ModuleNotFoundError as exc:
-            raise VectorStoreError("Chroma support requires installing the 'chromadb' package") from exc
-        return chromadb
+        return _import_chromadb_module()
 
     def _build_client(self, *, storage_directory: str, endpoint_url: str):
         chromadb = self._load_client()
