@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useState } from 'react'
+import { FormEvent, useMemo, useState } from 'react'
 import {
     ArrowDownToLine,
     ArrowUpToLine,
@@ -17,7 +17,9 @@ import {
 } from 'lucide-react'
 
 import { useErrorMessage } from '../app/hooks/useErrorMessage'
+import { useEscapeToClose } from '../app/hooks/useEscapeToClose'
 import { usePageMetadata } from '../app/hooks/usePageMetadata'
+import SectionHeading from '../components/SectionHeading'
 import StatusBanner from '../components/StatusBanner'
 import { importNodeManifest } from '../app/services/nodesApi'
 import { useNodeCatalog } from '../workflow/hooks/useNodeCatalog'
@@ -194,22 +196,10 @@ export default function NodesPage() {
         })
     }, [catalog, search, selectedCategories])
 
-    useEffect(() => {
-        if (!isImportModalOpen || isImporting) {
-            return
-        }
-
-        const handleKeyDown = (event: KeyboardEvent): void => {
-            if (event.key !== 'Escape') {
-                return
-            }
-            event.preventDefault()
-            setIsImportModalOpen(false)
-        }
-
-        window.addEventListener('keydown', handleKeyDown)
-        return () => window.removeEventListener('keydown', handleKeyDown)
-    }, [isImportModalOpen, isImporting])
+    useEscapeToClose({
+        enabled: isImportModalOpen && !isImporting,
+        onClose: () => setIsImportModalOpen(false),
+    })
 
     function toggleCategory(category: NodeCategory): void {
         setSelectedCategories((current) =>
@@ -276,10 +266,11 @@ export default function NodesPage() {
                 <div className="nodes-layout">
                     <section className="nodes-catalog-column">
                         <aside className="nodes-category-toolbar" aria-label="Category filters">
-                            <div className="nodes-section-heading">
-                                <h2>Categories</h2>
-                                <p>Select the groups you want to keep in the preview list.</p>
-                            </div>
+                            <SectionHeading
+                                className="nodes-section-heading"
+                                title="Categories"
+                                description="Select the groups you want to keep in the preview list."
+                            />
                             <div className="nodes-category-actions">
                                 <button type="button" onClick={() => setSelectedCategories([...NODE_CATEGORY_ORDER])}>
                                     Select all
@@ -311,10 +302,11 @@ export default function NodesPage() {
 
                         <div className="nodes-preview-shell">
                             <div className="nodes-preview-header">
-                                <div className="nodes-section-heading">
-                                    <h2>Node preview</h2>
-                                    <p>{filteredCatalog.length} nodes match the current filters.</p>
-                                </div>
+                                <SectionHeading
+                                    className="nodes-section-heading"
+                                    title="Node preview"
+                                    description={`${filteredCatalog.length} nodes match the current filters.`}
+                                />
                                 <div className="nodes-preview-header-controls">
                                     <input
                                         type="search"
@@ -389,10 +381,13 @@ export default function NodesPage() {
                         aria-describedby={importModalDescriptionId}
                     >
                         <div className="nodes-modal-header">
-                            <div className="nodes-section-heading">
-                                <h2 id={importModalTitleId}>Custom node JSON import</h2>
-                                <p id={importModalDescriptionId}>Start from the template, validate your manifest, then import it into the active catalog.</p>
-                            </div>
+                            <SectionHeading
+                                className="nodes-section-heading"
+                                title="Custom node JSON import"
+                                titleId={importModalTitleId}
+                                descriptionId={importModalDescriptionId}
+                                description="Start from the template, validate your manifest, then import it into the active catalog."
+                            />
                             <button
                                 type="button"
                                 className="nodes-modal-close"
