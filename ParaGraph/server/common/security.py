@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-import os
 from pathlib import Path
 from typing import Any
+
+from ParaGraph.server.configurations.server import get_app_settings
 
 
 _TRUE_VALUES = {"1", "true", "yes", "on"}
@@ -18,10 +19,11 @@ _SENSITIVE_KEY_TOKENS = (
 
 
 def is_cloud_deployment() -> bool:
-    mode = str(os.getenv("PARAGRAPH_DEPLOYMENT_MODE") or "").strip().lower()
+    settings = get_app_settings()
+    mode = str(settings.paragraph_deployment_mode or "").strip().lower()
     if mode in _CLOUD_MODES:
         return True
-    cloud_flag = str(os.getenv("PARAGRAPH_CLOUD_MODE") or "").strip().lower()
+    cloud_flag = str(settings.paragraph_cloud_mode or "").strip().lower()
     return cloud_flag in _TRUE_VALUES
 
 

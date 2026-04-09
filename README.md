@@ -122,9 +122,10 @@ Runtime variables commonly used in local execution:
 | `UI_HOST` | Frontend host binding. |
 | `UI_PORT` | Frontend port binding. |
 | `VITE_API_BASE_URL` | Frontend API base URL (typically relative, e.g. `/api`). |
-| `DB_EMBEDDED` | Selects embedded/local database runtime mode. |
+| `DB_ENGINE`, `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` | External database connection settings when JSON config uses external DB mode. |
+| `DB_SSL`, `DB_SSL_CA`, `DB_CONNECT_TIMEOUT`, `DB_INSERT_BATCH_SIZE` | External DB TLS/connection/write tuning values. |
 
-Provider-specific credentials and runtime keys are also sourced from the active `.env` profile when required.
+Provider-specific credentials and runtime endpoints are managed in-app under **Configurations** (session settings), not via `.env`.
 
 ## 6. Resources and Storage
 

@@ -8,7 +8,10 @@ ParaGraph uses one active runtime profile file: `ParaGraph/settings/.env`.
 - Local web app mode: run directly on the host via launcher.
 - Local packaged app mode: distribute the app as a packaged Tauri desktop build.
 - Mode switching: update/copy the active local `.env` profile when running the web app.
-- Backend code paths are environment-driven (`DB_EMBEDDED`, DB settings, ports, provider keys, deployment mode).
+- Backend code paths are split by ownership:
+  - `settings/configurations.json`: technical defaults (`database.embedded_database`, `global`, `jobs`)
+  - `.env`: runtime environment values (ports, deployment mode, external DB connection/tuning)
+  - UI Configurations: provider credentials/endpoints and Ollama session defaults
 
 ## 2. Runtime Profiles
 
@@ -25,13 +28,11 @@ ParaGraph uses one active runtime profile file: `ParaGraph/settings/.env`.
 | `VITE_API_BASE_URL` | Frontend API base path (default `/api`). |
 | `PARAGRAPH_DEPLOYMENT_MODE` | Deployment mode switch (`local` or `cloud`). Cloud mode disables public docs/openapi routes and enforces tighter filesystem guards for workflow artifacts. |
 | `RELOAD` | Enables Uvicorn reload in launcher flow when `true`. |
-| `DB_EMBEDDED` | `true` for SQLite, `false` for PostgreSQL settings. |
-| `DB_ENGINE`, `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` | External DB settings used when `DB_EMBEDDED=false`. |
+| `DB_ENGINE`, `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` | External DB settings used when `settings/configurations.json` sets `database.embedded_database=false`. |
 | `DB_SSL`, `DB_SSL_CA`, `DB_CONNECT_TIMEOUT`, `DB_INSERT_BATCH_SIZE` | PostgreSQL TLS/connect/write tuning. |
-| `OLLAMA_BASE_URL` | Base URL for local Ollama provider. |
-| `OPENAI_API_KEY`, `OPENAI_BASE_URL` | OpenAI provider credentials and endpoint. |
-| `GEMINI_API_KEY`, `GEMINI_BASE_URL` | Gemini provider credentials and endpoint. |
 | `LLM_TIMEOUT_S` | Timeout used by LLM HTTP clients. |
+
+Provider credentials/endpoints (`ollama`, `openai`, `gemini`, `claude`, `huggingface`) are managed in the UI Configurations flow and stored in the application session database.
 
 ## 4. Local Web App Mode (Windows)
 

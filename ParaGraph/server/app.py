@@ -9,7 +9,6 @@ from fastapi.responses import JSONResponse, RedirectResponse
 
 from ParaGraph.server.common.constants import FASTAPI_DESCRIPTION, FASTAPI_TITLE, FASTAPI_VERSION
 from ParaGraph.server.common.security import is_cloud_deployment
-from ParaGraph.server.common.utils.variables import env_variables  # noqa: F401
 from ParaGraph.server.api.configurations import router as configurations_router
 from ParaGraph.server.api.executions import router as executions_router
 from ParaGraph.server.api.nodes import router as nodes_router

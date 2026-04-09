@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import base64
 import mimetypes
-import os
 from enum import Enum
 from pathlib import Path
 from typing import Any, Protocol
 
 import httpx
 
+from ParaGraph.server.configurations.server import get_app_settings
 
 ###############################################################################
 class OllamaError(RuntimeError):
@@ -52,10 +52,7 @@ class CloudProvider(str, Enum):
 def _get_timeout(timeout_s: float | None) -> float:
     if timeout_s is not None:
         return timeout_s
-    try:
-        return float(os.getenv("LLM_TIMEOUT_S", "30"))
-    except ValueError:
-        return 30.0
+    return get_app_settings().llm_timeout_s
 
 
 # -----------------------------------------------------------------------------
@@ -209,7 +206,7 @@ def _to_claude_blocks(value: Any) -> list[dict[str, Any]]:
 ###############################################################################
 class OllamaClient:
     def __init__(self, base_url: str | None = None, timeout_s: float | None = None) -> None:
-        self.base_url = (base_url or os.getenv("OLLAMA_BASE_URL") or "http://127.0.0.1:11434").rstrip("/")
+        self.base_url = (base_url or "http://127.0.0.1:11434").rstrip("/")
         self.timeout = _get_timeout(timeout_s)
 
     # -------------------------------------------------------------------------
@@ -325,18 +322,13 @@ class CloudLLMClient:
         self.timeout = _get_timeout(timeout_s)
 
         default_base_url = {
-            CloudProvider.OPENAI: os.getenv("OPENAI_BASE_URL") or "https://api.openai.com/v1",
-            CloudProvider.GEMINI: os.getenv("GEMINI_BASE_URL") or "https://generativelanguage.googleapis.com/v1beta",
-            CloudProvider.CLAUDE: os.getenv("ANTHROPIC_BASE_URL") or "https://api.anthropic.com/v1",
-        }
-        default_api_key = {
-            CloudProvider.OPENAI: os.getenv("OPENAI_API_KEY"),
-            CloudProvider.GEMINI: os.getenv("GEMINI_API_KEY"),
-            CloudProvider.CLAUDE: os.getenv("ANTHROPIC_API_KEY"),
+            CloudProvider.OPENAI: "https://api.openai.com/v1",
+            CloudProvider.GEMINI: "https://generativelanguage.googleapis.com/v1beta",
+            CloudProvider.CLAUDE: "https://api.anthropic.com/v1",
         }
 
         self.base_url = (base_url or default_base_url[self.provider]).rstrip("/")
-        self.api_key = api_key or default_api_key[self.provider]
+        self.api_key = api_key
 
     # -------------------------------------------------------------------------
     def _request(
@@ -369,7 +361,7 @@ class CloudLLMClient:
         options: dict[str, Any] | None,
     ) -> str:
         if not self.api_key:
-            raise LLMError("OpenAI provider is not configured. Set OPENAI_API_KEY.")
+            raise LLMError("OpenAI provider is not configured. Add an API key in Configurations.")
 
         payload: dict[str, Any] = {
             "model": model,
@@ -418,7 +410,7 @@ class CloudLLMClient:
         options: dict[str, Any] | None,
     ) -> str:
         if not self.api_key:
-            raise LLMError("Gemini provider is not configured. Set GEMINI_API_KEY.")
+            raise LLMError("Gemini provider is not configured. Add an API key in Configurations.")
 
         contents: list[dict[str, Any]] = []
         system_parts: list[dict[str, Any]] = []
@@ -482,7 +474,7 @@ class CloudLLMClient:
         options: dict[str, Any] | None,
     ) -> str:
         if not self.api_key:
-            raise LLMError("Claude provider is not configured. Set ANTHROPIC_API_KEY.")
+            raise LLMError("Claude provider is not configured. Add an API key in Configurations.")
 
         system_texts: list[str] = []
         api_messages: list[dict[str, Any]] = []
@@ -568,3 +560,4 @@ def select_llm_provider(provider: str, **kwargs: Any) -> SupportsChat:
         )
 
     raise LLMError(f"Unsupported provider: {provider}")
+
