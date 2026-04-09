@@ -42,7 +42,7 @@ Standards for Python code under `ParaGraph/server` and backend tests.
 
 ## 6. Persistence and Configuration
 
-- Keep DB mode environment-driven (`DB_EMBEDDED` and DB settings).
+- Keep DB mode configuration-file-driven (`settings/configurations.json` for embedded/external mode) and DB connection/tuning environment-driven.
 - Keep configuration load/coercion in configuration modules, not route handlers.
 - Keep repository interfaces deterministic and easy to test.
 
