@@ -368,7 +368,7 @@ def test_save_as_folder_rejects_relative_path_traversal() -> None:
 
 
 def test_save_as_file_rejects_absolute_paths_in_cloud_mode(monkeypatch, tmp_path: Path) -> None:
-    monkeypatch.setenv('PARAGRAPH_DEPLOYMENT_MODE', 'cloud')
+    monkeypatch.setenv('PARAGRAPH_CLOUD_MODE', 'true')
     reload_settings_for_tests()
     destination = tmp_path / 'exports' / 'saved.txt'
     with pytest.raises(ValueError, match='must resolve inside'):
@@ -382,7 +382,7 @@ def test_save_as_file_rejects_absolute_paths_in_cloud_mode(monkeypatch, tmp_path
 
 
 def test_save_as_folder_rejects_absolute_paths_in_cloud_mode(monkeypatch, tmp_path: Path) -> None:
-    monkeypatch.setenv('PARAGRAPH_DEPLOYMENT_MODE', 'cloud')
+    monkeypatch.setenv('PARAGRAPH_CLOUD_MODE', 'true')
     reload_settings_for_tests()
     destination = tmp_path / 'exports' / 'saved'
     with pytest.raises(ValueError, match='must resolve inside'):

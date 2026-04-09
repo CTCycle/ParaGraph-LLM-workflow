@@ -17,6 +17,48 @@ from ParaGraph.server.domain.settings import DatabaseSettings, GlobalSettings, J
 ###############################################################################
 class JsonDatabaseSettings(BaseModel):
     embedded_database: bool = True
+    engine: str = "postgres"
+    host: str | None = None
+    port: int = Field(default=5432, ge=1, le=65535)
+    name: str | None = None
+    user: str | None = None
+    password: str | None = None
+    ssl: bool = False
+    ssl_ca: str | None = None
+    connect_timeout: int = Field(default=30, ge=1)
+    insert_batch_size: int = Field(default=1000, ge=1)
+
+    @field_validator("host", "name", "user", "password", "ssl_ca", mode="before")
+    @classmethod
+    def normalize_optional_strings(cls, value: Any) -> str | None:
+        if value is None:
+            return None
+        text = str(value).strip()
+        return text or None
+
+    @field_validator("engine", mode="before")
+    @classmethod
+    def normalize_engine(cls, value: Any) -> str:
+        text = str(value).strip() if value is not None else ""
+        return text or "postgres"
+
+    @model_validator(mode="after")
+    def validate_external_database_requirements(self) -> "JsonDatabaseSettings":
+        if self.embedded_database:
+            return self
+
+        missing: list[str] = []
+        if not self.host:
+            missing.append("database.host")
+        if not self.name:
+            missing.append("database.name")
+        if not self.user:
+            missing.append("database.user")
+
+        if missing:
+            joined = ", ".join(missing)
+            raise ValueError(f"External database mode requires configuration keys: {joined}")
+        return self
 
 
 ###############################################################################
@@ -79,20 +121,8 @@ class AppSettings(BaseSettings):
     ui_host: str = "127.0.0.1"
     ui_port: int = Field(default=8001, ge=1, le=65535)
     vite_api_base_url: str = "/api"
-    paragraph_deployment_mode: str = "local"
     paragraph_cloud_mode: str | None = None
     reload: bool = True
-
-    db_engine: str = "postgres"
-    db_host: str | None = None
-    db_port: int = Field(default=5432, ge=1, le=65535)
-    db_name: str | None = None
-    db_user: str | None = None
-    db_password: str | None = None
-    db_ssl: bool = False
-    db_ssl_ca: str | None = None
-    db_connect_timeout: int = Field(default=10, ge=1)
-    db_insert_batch_size: int = Field(default=1000, ge=1)
 
     llm_timeout_s: float = Field(default=30.0, gt=0)
 
@@ -100,14 +130,7 @@ class AppSettings(BaseSettings):
         "fastapi_host",
         "ui_host",
         "vite_api_base_url",
-        "paragraph_deployment_mode",
         "paragraph_cloud_mode",
-        "db_engine",
-        "db_host",
-        "db_name",
-        "db_user",
-        "db_password",
-        "db_ssl_ca",
         mode="before",
     )
     @classmethod
@@ -116,24 +139,6 @@ class AppSettings(BaseSettings):
             return None
         text = str(value).strip()
         return text or None
-
-    @model_validator(mode="after")
-    def validate_external_database_requirements(self) -> "AppSettings":
-        if self.database.embedded_database:
-            return self
-
-        missing: list[str] = []
-        if not self.db_host:
-            missing.append("DB_HOST")
-        if not self.db_name:
-            missing.append("DB_NAME")
-        if not self.db_user:
-            missing.append("DB_USER")
-
-        if missing:
-            joined = ", ".join(missing)
-            raise ValueError(f"External database mode requires environment keys: {joined}")
-        return self
 
     @classmethod
     def settings_customise_sources(
@@ -154,6 +159,7 @@ class AppSettings(BaseSettings):
 
     # -------------------------------------------------------------------------
     def to_server_settings(self) -> ServerSettings:
+        db = self.database
         if self.database.embedded_database:
             database_settings = DatabaseSettings(
                 embedded_database=True,
@@ -165,23 +171,23 @@ class AppSettings(BaseSettings):
                 password=None,
                 ssl=False,
                 ssl_ca=None,
-                connect_timeout=10,
-                insert_batch_size=self.db_insert_batch_size,
+                connect_timeout=db.connect_timeout,
+                insert_batch_size=db.insert_batch_size,
             )
         else:
-            normalized_engine = (self.db_engine or "postgres").strip().lower()
+            normalized_engine = db.engine.strip().lower()
             database_settings = DatabaseSettings(
                 embedded_database=False,
                 engine=normalized_engine,
-                host=self.db_host,
-                port=self.db_port,
-                database_name=self.db_name,
-                username=self.db_user,
-                password=self.db_password,
-                ssl=self.db_ssl,
-                ssl_ca=self.db_ssl_ca,
-                connect_timeout=self.db_connect_timeout,
-                insert_batch_size=self.db_insert_batch_size,
+                host=db.host,
+                port=db.port,
+                database_name=db.name,
+                username=db.user,
+                password=db.password,
+                ssl=db.ssl,
+                ssl_ca=db.ssl_ca,
+                connect_timeout=db.connect_timeout,
+                insert_batch_size=db.insert_batch_size,
             )
 
         return ServerSettings(
