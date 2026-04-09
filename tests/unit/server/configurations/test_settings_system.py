@@ -35,43 +35,43 @@ def _write_env(path: Path, lines: list[str]) -> None:
 # -----------------------------------------------------------------------------
 def test_bootstrap_environment_overrides_existing_process_values(tmp_path: Path, monkeypatch) -> None:
     env_path = tmp_path / ".env"
-    _write_env(env_path, ["DB_HOST=from_dotenv"])
+    _write_env(env_path, ["FASTAPI_HOST=from_dotenv"])
 
     monkeypatch.setattr(bootstrap, "ENV_FILE_PATH", str(env_path))
-    monkeypatch.setenv("DB_HOST", "from_process")
+    monkeypatch.setenv("FASTAPI_HOST", "from_process")
 
     bootstrap.ensure_environment_loaded()
 
-    assert os.getenv("DB_HOST") == "from_dotenv"
+    assert os.getenv("FASTAPI_HOST") == "from_dotenv"
 
 
 # -----------------------------------------------------------------------------
 def test_bootstrap_is_idempotent_without_force(tmp_path: Path, monkeypatch) -> None:
     env_path = tmp_path / ".env"
-    _write_env(env_path, ["DB_HOST=first"])
+    _write_env(env_path, ["FASTAPI_HOST=first"])
 
     monkeypatch.setattr(bootstrap, "ENV_FILE_PATH", str(env_path))
 
     bootstrap.ensure_environment_loaded()
-    _write_env(env_path, ["DB_HOST=second"])
+    _write_env(env_path, ["FASTAPI_HOST=second"])
     bootstrap.ensure_environment_loaded()
 
-    assert os.getenv("DB_HOST") == "first"
+    assert os.getenv("FASTAPI_HOST") == "first"
 
 
 # -----------------------------------------------------------------------------
 def test_server_package_import_bootstraps_env_early(tmp_path: Path, monkeypatch) -> None:
     env_path = tmp_path / ".env"
-    _write_env(env_path, ["PARAGRAPH_DEPLOYMENT_MODE=cloud"])
+    _write_env(env_path, ["PARAGRAPH_CLOUD_MODE=true"])
 
     monkeypatch.setattr(bootstrap, "ENV_FILE_PATH", str(env_path))
-    monkeypatch.setenv("PARAGRAPH_DEPLOYMENT_MODE", "local")
+    monkeypatch.setenv("PARAGRAPH_CLOUD_MODE", "false")
 
     import ParaGraph.server as server_package
 
     importlib.reload(server_package)
 
-    assert os.getenv("PARAGRAPH_DEPLOYMENT_MODE") == "cloud"
+    assert os.getenv("PARAGRAPH_CLOUD_MODE") == "true"
 
 
 # -----------------------------------------------------------------------------
@@ -120,21 +120,18 @@ def test_external_database_requires_host_name_and_user(tmp_path: Path, monkeypat
     )
 
     env_path = tmp_path / ".env"
-    _write_env(env_path, ["DB_ENGINE=postgres"])
+    _write_env(env_path, ["FASTAPI_HOST=127.0.0.1"])
 
     monkeypatch.setattr(bootstrap, "ENV_FILE_PATH", str(env_path))
-    monkeypatch.delenv("DB_HOST", raising=False)
-    monkeypatch.delenv("DB_NAME", raising=False)
-    monkeypatch.delenv("DB_USER", raising=False)
 
-    with pytest.raises(RuntimeError, match="DB_HOST, DB_NAME, DB_USER"):
+    with pytest.raises(RuntimeError, match="database.host, database.name, database.user"):
         _ = get_server_settings(config_path=str(config_path))
 
 
 # -----------------------------------------------------------------------------
 def test_missing_configuration_file_fails_fast(tmp_path: Path, monkeypatch) -> None:
     env_path = tmp_path / ".env"
-    _write_env(env_path, ["DB_ENGINE=postgres"])
+    _write_env(env_path, ["FASTAPI_HOST=127.0.0.1"])
     monkeypatch.setattr(bootstrap, "ENV_FILE_PATH", str(env_path))
 
     with pytest.raises(RuntimeError, match="Configuration file not found"):
@@ -147,7 +144,7 @@ def test_invalid_configuration_file_fails_fast(tmp_path: Path, monkeypatch) -> N
     config_path.write_text("{not-json", encoding="utf-8")
 
     env_path = tmp_path / ".env"
-    _write_env(env_path, ["DB_ENGINE=postgres"])
+    _write_env(env_path, ["FASTAPI_HOST=127.0.0.1"])
     monkeypatch.setattr(bootstrap, "ENV_FILE_PATH", str(env_path))
 
     with pytest.raises(RuntimeError, match="Unable to load configuration"):

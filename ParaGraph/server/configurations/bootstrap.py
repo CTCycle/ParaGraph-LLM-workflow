@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from dataclasses import dataclass, field
+from functools import lru_cache
 from pathlib import Path
 from threading import Lock
 
@@ -9,17 +11,25 @@ from ParaGraph.server.common.constants import ENV_FILE_PATH
 from ParaGraph.server.common.utils.logger import logger
 
 
-_BOOTSTRAP_LOCK = Lock()
-_BOOTSTRAPPED = False
+@dataclass
+class EnvironmentBootstrapState:
+    lock: Lock = field(default_factory=Lock)
+    bootstrapped: bool = False
+
+
+# -----------------------------------------------------------------------------
+@lru_cache(maxsize=1)
+def _bootstrap_state() -> EnvironmentBootstrapState:
+    return EnvironmentBootstrapState()
 
 
 ###############################################################################
 def ensure_environment_loaded(*, force: bool = False) -> Path | None:
-    global _BOOTSTRAPPED
+    state = _bootstrap_state()
 
-    with _BOOTSTRAP_LOCK:
+    with state.lock:
         env_path = Path(ENV_FILE_PATH)
-        if _BOOTSTRAPPED and not force:
+        if state.bootstrapped and not force:
             return env_path if env_path.exists() else None
 
         if env_path.exists():
@@ -27,12 +37,12 @@ def ensure_environment_loaded(*, force: bool = False) -> Path | None:
         else:
             logger.warning(".env file not found at: %s", env_path)
 
-        _BOOTSTRAPPED = True
+        state.bootstrapped = True
         return env_path if env_path.exists() else None
 
 
 ###############################################################################
 def reset_environment_bootstrap_for_tests() -> None:
-    global _BOOTSTRAPPED
-    with _BOOTSTRAP_LOCK:
-        _BOOTSTRAPPED = False
+    state = _bootstrap_state()
+    with state.lock:
+        state.bootstrapped = False

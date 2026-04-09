@@ -9,15 +9,15 @@ ParaGraph uses one active runtime profile file: `ParaGraph/settings/.env`.
 - Local packaged app mode: distribute the app as a packaged Tauri desktop build.
 - Mode switching: update/copy the active local `.env` profile when running the web app.
 - Backend code paths are split by ownership:
-  - `settings/configurations.json`: technical defaults (`database.embedded_database`, `global`, `jobs`)
-  - `.env`: runtime environment values (ports, deployment mode, external DB connection/tuning)
+  - `settings/configurations.json`: technical defaults (`database`, `global`, `jobs`)
+  - `.env`: runtime environment values (ports, deployment mode, reload, runtime toggles)
   - UI Configurations: provider credentials/endpoints and Ollama session defaults
 
 ## 2. Runtime Profiles
 
 - `ParaGraph/settings/.env.local.example`: local defaults (loopback hosts, embedded SQLite).
 - `ParaGraph/settings/.env`: active profile used by the launcher and tests.
-- `ParaGraph/settings/configurations.json`: non-secret defaults (`global`, `jobs`, base DB mode).
+- `ParaGraph/settings/configurations.json`: non-secret defaults (`database`, `global`, `jobs`).
 
 ## 3. Required Environment Keys
 
@@ -26,13 +26,13 @@ ParaGraph uses one active runtime profile file: `ParaGraph/settings/.env`.
 | `FASTAPI_HOST`, `FASTAPI_PORT` | Backend bind host/port. |
 | `UI_HOST`, `UI_PORT` | Frontend host/port for local preview. |
 | `VITE_API_BASE_URL` | Frontend API base path (default `/api`). |
-| `PARAGRAPH_DEPLOYMENT_MODE` | Deployment mode switch (`local` or `cloud`). Cloud mode disables public docs/openapi routes and enforces tighter filesystem guards for workflow artifacts. |
+| `PARAGRAPH_CLOUD_MODE` | Cloud mode flag (`true` enables cloud restrictions). Cloud mode disables public docs/openapi routes and enforces tighter filesystem guards for workflow artifacts. |
 | `RELOAD` | Enables Uvicorn reload in launcher flow when `true`. |
-| `DB_ENGINE`, `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` | External DB settings used when `settings/configurations.json` sets `database.embedded_database=false`. |
-| `DB_SSL`, `DB_SSL_CA`, `DB_CONNECT_TIMEOUT`, `DB_INSERT_BATCH_SIZE` | PostgreSQL TLS/connect/write tuning. |
 | `LLM_TIMEOUT_S` | Timeout used by LLM HTTP clients. |
 
 Provider credentials/endpoints (`ollama`, `openai`, `gemini`, `claude`, `huggingface`) are managed in the UI Configurations flow and stored in the application session database.
+
+Database mode and connection/tuning values are loaded from `settings/configurations.json`.
 
 ## 4. Local Web App Mode (Windows)
 
@@ -47,7 +47,7 @@ This mode is fully local.
 
 ### Cloud deployment note
 
-- Set `PARAGRAPH_DEPLOYMENT_MODE=cloud` for gateway-backed deployments.
+- Set `PARAGRAPH_CLOUD_MODE=true` for gateway-backed deployments.
 - In this mode, frontend API access is expected through the configured relative gateway path (`VITE_API_BASE_URL`, typically `/api`).
 - Backend docs/OpenAPI UI routes are disabled by default in cloud mode.
 

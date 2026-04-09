@@ -7,7 +7,6 @@ from ParaGraph.server.configurations.server import get_app_settings
 
 
 _TRUE_VALUES = {"1", "true", "yes", "on"}
-_CLOUD_MODES = {"cloud", "production", "prod"}
 _SENSITIVE_KEY_TOKENS = (
     "api_key",
     "apikey",
@@ -20,9 +19,6 @@ _SENSITIVE_KEY_TOKENS = (
 
 def is_cloud_deployment() -> bool:
     settings = get_app_settings()
-    mode = str(settings.paragraph_deployment_mode or "").strip().lower()
-    if mode in _CLOUD_MODES:
-        return True
     cloud_flag = str(settings.paragraph_cloud_mode or "").strip().lower()
     return cloud_flag in _TRUE_VALUES
 
