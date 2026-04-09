@@ -11,7 +11,7 @@ from ParaGraph.server.configurations.server import (
     get_server_settings,
     reload_settings_for_tests,
 )
-from ParaGraph.server.configurations.settings import AppSettings
+from ParaGraph.server.domain.settings import AppSettings
 
 
 ensure_environment_loaded()
