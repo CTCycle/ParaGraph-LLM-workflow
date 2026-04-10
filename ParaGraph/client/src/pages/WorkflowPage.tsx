@@ -250,7 +250,7 @@ function pickWorkflowJsonFromBrowser(): Promise<SelectedWorkflowJson | null> {
                 return
             }
             settled = true
-            window.removeEventListener('focus', handleWindowFocus)
+            globalThis.removeEventListener('focus', handleWindowFocus)
             resolve(value)
         }
 
@@ -259,12 +259,12 @@ function pickWorkflowJsonFromBrowser(): Promise<SelectedWorkflowJson | null> {
                 return
             }
             settled = true
-            window.removeEventListener('focus', handleWindowFocus)
+            globalThis.removeEventListener('focus', handleWindowFocus)
             reject(error)
         }
 
         const handleWindowFocus = (): void => {
-            window.setTimeout(() => {
+            globalThis.setTimeout(() => {
                 if (!settled && !changeHandled && !input.files?.length) {
                     settle(null)
                 }
@@ -288,7 +288,7 @@ function pickWorkflowJsonFromBrowser(): Promise<SelectedWorkflowJson | null> {
                 })
         })
 
-        window.addEventListener('focus', handleWindowFocus, { once: true })
+        globalThis.addEventListener('focus', handleWindowFocus, { once: true })
         input.click()
     })
 }
@@ -298,7 +298,7 @@ function formatParameterLabel(parameterName: string): string {
 }
 
 function basenameOnly(value: unknown): string {
-    const text = String(value ?? '').trim()
+    const text = coerceTextPayload(value).trim()
     if (!text) {
         return ''
     }
@@ -400,19 +400,19 @@ function registerPickerCancelHandler(
     }
 
     const handleWindowFocus = (): void => {
-        window.setTimeout(() => {
+        globalThis.setTimeout(() => {
             if (!wasChangeHandled() && !input.files?.length) {
                 settleAsCancelled()
             }
         }, BROWSER_PICKER_CANCEL_GUARD_MS)
     }
-    window.addEventListener('focus', handleWindowFocus, { once: true })
-    return () => window.removeEventListener('focus', handleWindowFocus)
+    globalThis.addEventListener('focus', handleWindowFocus, { once: true })
+    return () => globalThis.removeEventListener('focus', handleWindowFocus)
 }
 
 function inferSelectedFolderName(files: File[]): string {
     const firstRelativePath = files[0]?.webkitRelativePath || files[0]?.name || ''
-    const [root] = firstRelativePath.split('/').filter(Boolean)
+    const root = firstRelativePath.split('/').find(Boolean)
     return root || 'selected folder'
 }
 
@@ -488,10 +488,10 @@ function pickFilesFromBrowser(options: { multiple: boolean }): Promise<BrowserFi
 }
 
 async function pickDirectoryHandleFromBrowser(): Promise<BrowserDirectoryHandleSelection | null> {
-    const browserWindow = window as WindowWithDirectoryPicker
+    const browserWindow = globalThis.window as WindowWithDirectoryPicker
     const picker = browserWindow.showDirectoryPicker
     if (typeof picker !== 'function') {
-        throw new Error('Directory picker is not supported in this browser')
+        throw new TypeError('Directory picker is not supported in this browser')
     }
     try {
         const handle = await picker()
@@ -532,10 +532,10 @@ function readBaseFileNameFromPath(pathValue: string): string {
 }
 
 async function pickSaveFileFromBrowser(options: SaveFilePickerOptions): Promise<SaveFileSelection | null> {
-    const browserWindow = window as WindowWithSaveFilePicker
+    const browserWindow = globalThis.window as WindowWithSaveFilePicker
     const picker = browserWindow.showSaveFilePicker
     if (typeof picker !== 'function') {
-        throw new Error('Save As is not supported in this browser')
+        throw new TypeError('Save As is not supported in this browser')
     }
     const extension = normalizeFileExtension(options.extension)
     try {
@@ -571,8 +571,8 @@ function isSaveAsFolderOutputPathParameter(manifest: NodeManifest, parameter: No
 }
 
 function getSaveAsFileOutputPathBrowseLabel(pathValue: unknown, extensionValue: unknown): string {
-    const normalizedPath = String(pathValue ?? '').trim()
-    const normalizedExtension = normalizeFileExtension(String(extensionValue ?? '.txt'))
+    const normalizedPath = coerceTextPayload(pathValue).trim()
+    const normalizedExtension = normalizeFileExtension(coerceTextPayload(extensionValue) || '.txt')
     const currentFileName = readBaseFileNameFromPath(normalizedPath)
     if (!currentFileName) {
         return `output${normalizedExtension}`
@@ -589,7 +589,7 @@ function stripExtensionFromName(fileName: string): string {
 }
 
 function getSaveAsFolderOutputLabel(pathValue: unknown, fallbackFolderName = 'output'): string {
-    const normalizedPath = String(pathValue ?? '').trim()
+    const normalizedPath = coerceTextPayload(pathValue).trim()
     const currentFileName = readBaseFileNameFromPath(normalizedPath)
     if (!currentFileName) {
         return fallbackFolderName
@@ -606,7 +606,7 @@ function shouldPreserveSaveNodeBrowseSelection(
     if (!selection) {
         return false
     }
-    const normalizedOutputPath = String(outputPathValue ?? '').trim()
+    const normalizedOutputPath = coerceTextPayload(outputPathValue).trim()
     if (!normalizedOutputPath) {
         return false
     }
@@ -615,7 +615,7 @@ function shouldPreserveSaveNodeBrowseSelection(
         if (selection.kind !== 'file') {
             return false
         }
-        const normalizedExtension = normalizeFileExtension(String(extensionValue ?? '.txt'))
+        const normalizedExtension = normalizeFileExtension(coerceTextPayload(extensionValue) || '.txt')
         const selectedFileName = ensureFileNameHasExtension(selection.fileHandle.name, normalizedExtension)
         return selectedFileName === normalizedOutputPath
     }
@@ -1022,12 +1022,12 @@ function normalizeJsonParameterValue(value: unknown): string {
     try {
         return JSON.stringify(value ?? {}, null, 2)
     } catch {
-        return String(value ?? '')
+        return coerceTextPayload(value)
     }
 }
 
 function normalizeProvider(value: unknown): string {
-    return String(value ?? '').trim().toLowerCase()
+    return coerceTextPayload(value).trim().toLowerCase()
 }
 
 function readNumericConstraint(constraints: Record<string, unknown>, key: string): number | undefined {
@@ -1144,12 +1144,12 @@ function createDefaultExpandedCategoriesState(): CategoryExpansionState {
 
 function createExpandedCategoriesState(): CategoryExpansionState {
     const fallback = createDefaultExpandedCategoriesState()
-    if (typeof window === 'undefined') {
+    if (typeof globalThis.window === 'undefined') {
         return fallback
     }
 
     try {
-        const raw = window.localStorage.getItem(WORKFLOW_TREE_STATE_STORAGE_KEY)
+        const raw = globalThis.localStorage.getItem(WORKFLOW_TREE_STATE_STORAGE_KEY)
         if (!raw) {
             return fallback
         }
@@ -1329,12 +1329,12 @@ function readImportedWorkflowPayload(value: unknown): ImportedWorkflowPayload {
 }
 
 function readPersistedWorkflowState(): PersistedWorkflowState | null {
-    if (typeof window === 'undefined') {
+    if (typeof globalThis.window === 'undefined') {
         return null
     }
 
     try {
-        const raw = window.localStorage.getItem(WORKFLOW_STATE_STORAGE_KEY)
+        const raw = globalThis.localStorage.getItem(WORKFLOW_STATE_STORAGE_KEY)
         if (!raw) {
             return null
         }
@@ -1389,7 +1389,7 @@ function readPersistedWorkflowState(): PersistedWorkflowState | null {
                         id:
                             typeof value.id === 'string' && value.id.trim()
                                 ? value.id
-                                : `${value.source}-${String(sourceHandle ?? '')}-${value.target}-${String(targetHandle ?? '')}`,
+                                : `${value.source}-${coerceTextPayload(sourceHandle)}-${value.target}-${coerceTextPayload(targetHandle)}`,
                         source: value.source,
                         target: value.target,
                         source_handle: typeof sourceHandle === 'string' ? sourceHandle : null,
@@ -1427,10 +1427,10 @@ function readPersistedWorkflowState(): PersistedWorkflowState | null {
 }
 
 function persistWorkflowState(state: PersistedWorkflowState): void {
-    if (typeof window === 'undefined') {
+    if (typeof globalThis.window === 'undefined') {
         return
     }
-    window.localStorage.setItem(WORKFLOW_STATE_STORAGE_KEY, JSON.stringify(state))
+    globalThis.localStorage.setItem(WORKFLOW_STATE_STORAGE_KEY, JSON.stringify(state))
 }
 
 function buildNodeSummary(manifest: NodeManifest): string {
@@ -1459,13 +1459,13 @@ function formatParameterValue(parameter: NodeParameterDefinition, value: unknown
         try {
             return JSON.stringify(value ?? {}, null, 2)
         } catch {
-            return String(value ?? '')
+            return coerceTextPayload(value)
         }
     }
     if (parameter.ui_control === 'string-list') {
         return formatPathListValue(value)
     }
-    return String(value ?? '')
+    return coerceTextPayload(value)
 }
 
 function formatRuntimeOutput(value: Record<string, unknown> | null): string {
@@ -1569,7 +1569,7 @@ export function resolveWorkflowTextEditorBinding(selectedNode: EditorSelectionNo
     if (selectedNode.manifestId === 'PROMPT') {
         return {
             nodeId: selectedNode.id,
-            text: String(selectedNode.parameters.prompt_text ?? ''),
+            text: coerceTextPayload(selectedNode.parameters.prompt_text),
             editable: true,
             parameterName: 'prompt_text',
         }
@@ -1578,7 +1578,7 @@ export function resolveWorkflowTextEditorBinding(selectedNode: EditorSelectionNo
     if (selectedNode.manifestId === 'PROMPT_TEMPLATE') {
         return {
             nodeId: selectedNode.id,
-            text: String(selectedNode.parameters.template ?? ''),
+            text: coerceTextPayload(selectedNode.parameters.template),
             editable: true,
             parameterName: 'template',
         }
@@ -1662,7 +1662,7 @@ function buildInitialNodeParameters(
     }
     const normalizedParameters = normalizeNodePathParameters(manifest, initialParameters)
     const initialModels = getDynamicModelOptions(manifest, normalizedParameters, providerModels)
-    if ((manifest.id === 'MODEL_PROVIDER' || manifest.id === 'TEXT_EMBEDDING') && initialModels.length > 0 && !String(normalizedParameters.model_name ?? '').trim()) {
+    if ((manifest.id === 'MODEL_PROVIDER' || manifest.id === 'TEXT_EMBEDDING') && initialModels.length > 0 && !coerceTextPayload(normalizedParameters.model_name).trim()) {
         normalizedParameters.model_name = initialModels[0].model
     }
     for (const parameter of manifest.parameters) {
@@ -1873,7 +1873,7 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
         setBrowseTarget(parameter.name)
         try {
             if (isSaveAsFileOutputPathParameter(data.manifest, parameter)) {
-                const extension = String(data.parameters.extension ?? '.txt')
+                const extension = coerceTextPayload(data.parameters.extension) || '.txt'
                 const currentPath = data.parameters[parameter.name]
                 const suggestedName = getSaveAsFileOutputPathBrowseLabel(currentPath, extension)
                 const saveSelection = await pickSaveFileFromBrowser({
@@ -1910,7 +1910,7 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
                 }
 
                 const uploaded = await uploadNodeDirectory(browserSelection.files)
-                const stagedPath = String(uploaded.path ?? '').trim()
+                const stagedPath = coerceTextPayload(uploaded.path).trim()
                 if (!stagedPath) {
                     throw new Error('Folder upload succeeded but returned an empty path')
                 }
@@ -1931,7 +1931,7 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
                 const uploaded = await uploadNodeDirectory(browserSelection.files)
                 const normalizedFiles = uploaded.files
                     .map((pathValue) => String(pathValue).trim())
-                    .filter((pathValue) => Boolean(pathValue))
+                    .filter(Boolean)
                 if (parameter.ui_control === 'file-list') {
                     if (normalizedFiles.length === 0) {
                         throw new Error('File upload succeeded but returned no files')
@@ -2255,13 +2255,13 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
                                         ) : parameter.ui_control === 'select' && options.length > 0 ? (
                                             <select
                                                 className="nodrag nopan"
-                                                value={String(value ?? '')}
+                                                value={coerceTextPayload(value)}
                                                 onPointerDown={preventNodeInteractionDrag}
                                                 onMouseDown={preventNodeInteractionDrag}
                                                 onKeyDown={stopKeyboardEventPropagation}
                                                 onChange={(event) => data.onParameterChange(parameter.name, parseValue(parameter, event.target.value))}
                                             >
-                                                {!String(value ?? '') && <option value="">Select...</option>}
+                                                {!coerceTextPayload(value) && <option value="">Select...</option>}
                                                 {options.map((option) => (
                                                     <option key={option.value} value={option.value}>
                                                         {option.label}
@@ -2291,7 +2291,7 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
                                                     >
                                                         {isBrowsing ? '...' : 'Browse'}
                                                     </button>
-                                                    {String(value ?? '').trim() && (
+                                                    {coerceTextPayload(value).trim() && (
                                                         <button
                                                             type="button"
                                                             className="workflow-node-picker-clear"
@@ -2510,12 +2510,12 @@ function WorkflowEditor() {
             return
         }
 
-        const clearTimer = window.setTimeout(() => {
+        const clearTimer = globalThis.setTimeout(() => {
             setGlowTrailNodeIds([])
         }, NODE_GLOW_CLEAR_DELAY_MS)
 
         return () => {
-            window.clearTimeout(clearTimer)
+            globalThis.clearTimeout(clearTimer)
         }
     }, [activeNodeId, glowTrailNodeIds])
 
@@ -2551,14 +2551,14 @@ function WorkflowEditor() {
             setIsEditorResizing(false)
         }
 
-        window.addEventListener('pointermove', handlePointerMove)
-        window.addEventListener('pointerup', stopResize)
-        window.addEventListener('pointercancel', stopResize)
+        globalThis.addEventListener('pointermove', handlePointerMove)
+        globalThis.addEventListener('pointerup', stopResize)
+        globalThis.addEventListener('pointercancel', stopResize)
 
         return () => {
-            window.removeEventListener('pointermove', handlePointerMove)
-            window.removeEventListener('pointerup', stopResize)
-            window.removeEventListener('pointercancel', stopResize)
+            globalThis.removeEventListener('pointermove', handlePointerMove)
+            globalThis.removeEventListener('pointerup', stopResize)
+            globalThis.removeEventListener('pointercancel', stopResize)
         }
     }, [isEditorResizing])
 
@@ -2567,8 +2567,8 @@ function WorkflowEditor() {
             setEditorPanelHeight((current) => clampEditorPanelHeight(current))
         }
 
-        window.addEventListener('resize', handleResize)
-        return () => window.removeEventListener('resize', handleResize)
+        globalThis.addEventListener('resize', handleResize)
+        return () => globalThis.removeEventListener('resize', handleResize)
     }, [])
 
     useEffect(() => {
@@ -2617,7 +2617,7 @@ function WorkflowEditor() {
                     return node
                 }
                 const options = getDynamicModelOptions(node.data.manifest, node.data.parameters, providerModels)
-                const currentValue = String(node.data.parameters.model_name ?? '').trim()
+                const currentValue = coerceTextPayload(node.data.parameters.model_name).trim()
                 if (currentValue || options.length === 0) {
                     return {
                         ...node,
@@ -2654,11 +2654,11 @@ function WorkflowEditor() {
             }
         }
 
-        window.addEventListener('pointerdown', closeNodeContextMenu)
-        window.addEventListener('keydown', handleEscape)
+        globalThis.addEventListener('pointerdown', closeNodeContextMenu)
+        globalThis.addEventListener('keydown', handleEscape)
         return () => {
-            window.removeEventListener('pointerdown', closeNodeContextMenu)
-            window.removeEventListener('keydown', handleEscape)
+            globalThis.removeEventListener('pointerdown', closeNodeContextMenu)
+            globalThis.removeEventListener('keydown', handleEscape)
         }
     }, [nodeContextMenu])
 
@@ -2675,8 +2675,8 @@ function WorkflowEditor() {
             setExecutionErrorModal(null)
         }
 
-        window.addEventListener('keydown', handleEscape)
-        return () => window.removeEventListener('keydown', handleEscape)
+        globalThis.addEventListener('keydown', handleEscape)
+        return () => globalThis.removeEventListener('keydown', handleEscape)
     }, [executionErrorModal])
     useEffect(() => {
         function handleKeyboardShortcuts(event: KeyboardEvent): void {
@@ -2782,15 +2782,15 @@ function WorkflowEditor() {
             }
         }
 
-        window.addEventListener('keydown', handleKeyboardShortcuts)
+        globalThis.addEventListener('keydown', handleKeyboardShortcuts)
         return () => {
-            window.removeEventListener('keydown', handleKeyboardShortcuts)
+            globalThis.removeEventListener('keydown', handleKeyboardShortcuts)
         }
     }, [edges, nodes, setEdges, setNodes])
 
     useEffect(() => {
         try {
-            window.localStorage.setItem(WORKFLOW_TREE_STATE_STORAGE_KEY, JSON.stringify(expandedCategories))
+            globalThis.localStorage.setItem(WORKFLOW_TREE_STATE_STORAGE_KEY, JSON.stringify(expandedCategories))
         } catch {
             // Ignore local storage persistence errors.
         }
@@ -3302,7 +3302,7 @@ function WorkflowEditor() {
                 continue
             }
 
-            const extension = normalizeFileExtension(String(node.data.parameters.extension ?? '.txt'))
+                const extension = normalizeFileExtension(coerceTextPayload(node.data.parameters.extension) || '.txt')
             if (step.node_type === SAVE_AS_FILE_NODE_TYPE && selection.kind === 'file') {
                 await writeTextToFileHandle(selection.fileHandle, items.join(SAVE_AS_FILE_CHUNK_SEPARATOR))
                 savedFiles += 1
@@ -4271,7 +4271,7 @@ function WorkflowEditor() {
                                         return
                                     }
                                     const currentName = getNodeOutputName(contextMenuNode.data.parameters) ?? ''
-                                    const nextName = window.prompt('Rename output', currentName)
+                                    const nextName = globalThis.prompt('Rename output', currentName)
                                     if (nextName === null) {
                                         return
                                     }
