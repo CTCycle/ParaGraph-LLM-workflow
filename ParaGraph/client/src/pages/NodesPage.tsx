@@ -175,6 +175,7 @@ export default function NodesPage() {
     const getErrorMessage = useErrorMessage()
     const importModalTitleId = 'nodes-import-modal-title'
     const importModalDescriptionId = 'nodes-import-modal-description'
+    const pageBannerMessage = error || (!isImportModalOpen ? importStatus : null)
 
     const categoryCounts = useMemo(() => {
         return NODE_CATEGORY_ORDER.reduce<Record<NodeCategory, number>>((counts, category) => {
@@ -261,7 +262,7 @@ export default function NodesPage() {
                     </p>
                 </header>
 
-                <StatusBanner className="nodes-banner" message={error || importStatus} />
+                <StatusBanner className="nodes-banner" message={pageBannerMessage} />
 
                 <div className="nodes-layout">
                     <section className="nodes-catalog-column">
@@ -406,6 +407,14 @@ export default function NodesPage() {
                                     Use template
                                 </button>
                             </div>
+                            {importStatus && (
+                                <StatusBanner
+                                    className="nodes-banner nodes-import-status"
+                                    message={importStatus}
+                                    role="alert"
+                                    ariaLive="assertive"
+                                />
+                            )}
                             <textarea
                                 value={jsonText}
                                 onChange={(event) => setJsonText(event.target.value)}

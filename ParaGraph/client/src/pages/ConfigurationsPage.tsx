@@ -275,7 +275,12 @@ export default function ConfigurationsPage() {
                         </div>
                     </div>
 
-                    <div className="config-panel-fields">
+                    <form
+                        className="config-panel-fields"
+                        onSubmit={(event) => {
+                            event.preventDefault()
+                        }}
+                    >
                         <label>
                             <span>Base URL</span>
                             <input
@@ -285,7 +290,7 @@ export default function ConfigurationsPage() {
                                 placeholder="http://127.0.0.1:11434"
                             />
                         </label>
-                    </div>
+                    </form>
 
                     {ollamaStatus && <p className="config-panel-note">{ollamaStatus}</p>}
                 </section>
@@ -313,7 +318,19 @@ export default function ConfigurationsPage() {
                         </div>
                     </div>
 
-                    <div className="config-panel-fields">
+                    <form
+                        className="config-panel-fields"
+                        onSubmit={(event) => {
+                            event.preventDefault()
+                        }}
+                    >
+                        <input
+                            type="text"
+                            className="config-hidden-username"
+                            autoComplete="username"
+                            tabIndex={-1}
+                            aria-hidden="true"
+                        />
                         <label>
                             <span>Cloud Provider</span>
                             <select
@@ -334,6 +351,7 @@ export default function ConfigurationsPage() {
                                 type="password"
                                 value={currentCloudCredentials.apiKey}
                                 placeholder="sk-..."
+                                autoComplete="current-password"
                                 onChange={(event) => updateCurrentCloudCredential('apiKey', event.target.value)}
                             />
                         </label>
@@ -344,10 +362,11 @@ export default function ConfigurationsPage() {
                                 type="password"
                                 value={huggingFaceKey}
                                 placeholder="hf_..."
+                                autoComplete="current-password"
                                 onChange={(event) => setHuggingFaceKey(event.target.value)}
                             />
                         </label>
-                    </div>
+                    </form>
 
                     {statusMessage && <p className="config-panel-note">{statusMessage}</p>}
                 </section>

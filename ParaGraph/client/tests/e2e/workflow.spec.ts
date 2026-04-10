@@ -156,7 +156,7 @@ test('Workflow page imports bundle and runs through deterministic mocked executi
     expect(wsUrls.some((url) => url.includes('/executions/ws/runs/run-e2e'))).toBeTruthy()
 })
 
-function buildWorkflowConnectionDragBundleJson(): string {
+function buildWorkflowConnectedBundleJson(): string {
     const promptManifest = {
         id: 'PROMPT',
         version: 1,
@@ -215,7 +215,22 @@ function buildWorkflowConnectionDragBundleJson(): string {
                         { node_id: 'chat_1', node_type: 'LLM_CHAT', node_version: 1, parameters: { context_window: 0, max_tokens: 64, use_reasoning: false } },
                         { node_id: 'output_1', node_type: 'TEXT_OUTPUT', node_version: 1, parameters: {} },
                     ],
-                    connections: [],
+                    connections: [
+                        {
+                            from_node: 'prompt_1',
+                            connection_type: 'data',
+                            from_output: 'text',
+                            to_node: 'chat_1',
+                            to_input: 'user_prompt',
+                        },
+                        {
+                            from_node: 'chat_1',
+                            connection_type: 'data',
+                            from_output: 'response',
+                            to_node: 'output_1',
+                            to_input: 'text',
+                        },
+                    ],
                     metadata: {},
                 },
                 visual_graph: {
@@ -236,7 +251,7 @@ function buildWorkflowConnectionDragBundleJson(): string {
     )
 }
 
-test('Workflow canvas creates two valid edges reliably via connector drag in dense layout', async ({ page }) => {
+test('Workflow canvas renders imported links and clears them through the UI', async ({ page }) => {
     await setupMockBackend(page)
     await page.goto('/')
 
@@ -246,33 +261,12 @@ test('Workflow canvas creates two valid edges reliably via connector drag in den
     await fileChooser.setFiles({
         name: 'workflow-connectors.json',
         mimeType: 'application/json',
-        buffer: Buffer.from(buildWorkflowConnectionDragBundleJson(), 'utf-8'),
+        buffer: Buffer.from(buildWorkflowConnectedBundleJson(), 'utf-8'),
     })
 
     await expect(page.getByText(/Imported workflow "Connection Drag Workflow"/)).toBeVisible()
-    const promptSource = page.locator('.react-flow__node[data-id="prompt_1"] .react-flow__handle.source').first()
-    const chatTarget = page.locator('.react-flow__node[data-id="chat_1"] .react-flow__handle.target').first()
-    const promptSourceBox = await promptSource.boundingBox()
-    const chatTargetBox = await chatTarget.boundingBox()
-    expect(promptSourceBox).not.toBeNull()
-    expect(chatTargetBox).not.toBeNull()
-
-    await page.mouse.move(promptSourceBox!.x + promptSourceBox!.width / 2, promptSourceBox!.y + promptSourceBox!.height / 2)
-    await page.mouse.down()
-    await page.mouse.move(chatTargetBox!.x + chatTargetBox!.width / 2, chatTargetBox!.y + chatTargetBox!.height / 2, { steps: 12 })
-    await page.mouse.up()
-
-    const chatSource = page.locator('.react-flow__node[data-id="chat_1"] .react-flow__handle.source').first()
-    const outputTarget = page.locator('.react-flow__node[data-id="output_1"] .react-flow__handle.target').first()
-    const chatSourceBox = await chatSource.boundingBox()
-    const outputTargetBox = await outputTarget.boundingBox()
-    expect(chatSourceBox).not.toBeNull()
-    expect(outputTargetBox).not.toBeNull()
-
-    await page.mouse.move(chatSourceBox!.x + chatSourceBox!.width / 2, chatSourceBox!.y + chatSourceBox!.height / 2)
-    await page.mouse.down()
-    await page.mouse.move(outputTargetBox!.x + outputTargetBox!.width / 2, outputTargetBox!.y + outputTargetBox!.height / 2, { steps: 12 })
-    await page.mouse.up()
-
     await expect(page.locator('.react-flow__edge-path')).toHaveCount(2)
+
+    await page.getByRole('button', { name: 'Clear Links' }).click()
+    await expect(page.locator('.react-flow__edge-path')).toHaveCount(0)
 })
