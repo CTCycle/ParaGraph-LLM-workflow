@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import os
 import warnings
+from pathlib import Path
 
 warnings.filterwarnings("ignore", category=FutureWarning)
 
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
 
 from ParaGraph.server.common.constants import FASTAPI_DESCRIPTION, FASTAPI_TITLE, FASTAPI_VERSION
 from ParaGraph.server.common.security import is_cloud_deployment
@@ -18,6 +21,8 @@ from ParaGraph.server.api.ws import router as ws_router
 
 
 cloud_mode = is_cloud_deployment()
+tauri_mode = os.getenv("PARAGRAPH_TAURI_MODE", "").strip().lower() in {"1", "true", "yes", "on"}
+frontend_dist = Path(__file__).resolve().parents[1] / "client" / "dist"
 
 app = FastAPI(
     title=FASTAPI_TITLE,
@@ -35,9 +40,11 @@ app.include_router(providers_router)
 app.include_router(configurations_router)
 app.include_router(ws_router)
 
-
-@app.get("/")
-def redirect_to_docs():
-    if cloud_mode:
-        return JSONResponse({"status": "ok"})
-    return RedirectResponse(url="/docs")
+if tauri_mode and frontend_dist.exists():
+    app.mount("/", StaticFiles(directory=str(frontend_dist), html=True), name="paragraph-ui")
+else:
+    @app.get("/")
+    def redirect_to_docs():
+        if cloud_mode:
+            return JSONResponse({"status": "ok"})
+        return RedirectResponse(url="/docs")

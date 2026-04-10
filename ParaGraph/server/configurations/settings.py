@@ -8,7 +8,7 @@ from pydantic import ValidationError
 from ParaGraph.server.configurations.bootstrap import ensure_environment_loaded
 from ParaGraph.server.domain.settings import AppSettings, ServerSettings
 
-
+###############################################################################
 def _build_path_scoped_settings_class(config_path: str) -> type[AppSettings]:
     class PathScopedAppSettings(AppSettings):
         _configuration_file: ClassVar[str] = config_path
@@ -16,7 +16,7 @@ def _build_path_scoped_settings_class(config_path: str) -> type[AppSettings]:
     return PathScopedAppSettings
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def _load_app_settings(settings_cls: type[AppSettings]) -> AppSettings:
     ensure_environment_loaded()
     try:
@@ -31,7 +31,7 @@ def get_app_settings() -> AppSettings:
     return _load_app_settings(AppSettings)
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def get_server_settings(config_path: str | None = None) -> ServerSettings:
     if config_path:
         scoped_class = _build_path_scoped_settings_class(config_path=config_path)
@@ -39,7 +39,7 @@ def get_server_settings(config_path: str | None = None) -> ServerSettings:
     return get_app_settings().to_server_settings()
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def reload_settings_for_tests() -> AppSettings:
     get_app_settings.cache_clear()
     return get_app_settings()

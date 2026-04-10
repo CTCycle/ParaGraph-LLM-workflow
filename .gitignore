@@ -6,9 +6,12 @@ ParaGraph/client/node_modules/
 ParaGraph/client/dist/
 ParaGraph/client/dist-ssr/
 ParaGraph/client/logs/
+ParaGraph/client/src-tauri/target/
+ParaGraph/client/src-tauri/r/
 ParaGraph/resources/tokenizers/**
 ParaGraph/client/*.local
 runtimes/**
+release/windows/
 
 # Python
 __pycache__/
