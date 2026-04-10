@@ -9,6 +9,7 @@ import {
     useRef,
     useState,
 } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import {
     addEdge,
     Background,
@@ -55,7 +56,10 @@ import {
     WorkflowConnection,
     WorkflowDefinition,
     WorkflowNodeInstance,
+    WorkflowNavigationState,
+    WorkflowOpenIntent,
     WorkflowShareBundle,
+    WorkflowTemplate,
 } from '../workflow/schema/types'
 import './WorkflowPage.css'
 
@@ -1283,6 +1287,36 @@ function isVisualGraphPayload(value: unknown): value is VisualGraph {
     )
 }
 
+function isWorkflowTemplatePayload(value: unknown): value is WorkflowTemplate {
+    if (!isRecord(value) || !Array.isArray(value.tags) || !Array.isArray(value.required_nodes)) {
+        return false
+    }
+
+    return (
+        typeof value.id === 'string' &&
+        typeof value.name === 'string' &&
+        typeof value.description === 'string' &&
+        value.tags.every((item) => typeof item === 'string') &&
+        value.required_nodes.every(isNodeManifestPayload) &&
+        isWorkflowDefinitionPayload(value.definition) &&
+        isVisualGraphPayload(value.visual_graph) &&
+        isRecord(value.metadata)
+    )
+}
+
+function isWorkflowOpenIntentPayload(value: unknown): value is WorkflowOpenIntent {
+    if (!isRecord(value) || typeof value.type !== 'string') {
+        return false
+    }
+    if (value.type === 'add-node') {
+        return typeof value.node_id === 'string' && isFiniteNumber(value.node_version)
+    }
+    if (value.type === 'load-template') {
+        return isWorkflowTemplatePayload(value.template)
+    }
+    return false
+}
+
 function isWorkflowShareBundlePayload(value: unknown): value is WorkflowShareBundle {
     if (!isRecord(value) || !isRecord(value.workflow)) {
         return false
@@ -2403,6 +2437,8 @@ const nodeTypes = { manifest: ManifestNode }
 
 function WorkflowEditor() {
     const { catalog, loading, error, reload } = useNodeCatalog()
+    const location = useLocation()
+    const navigate = useNavigate()
     const [providerModels, setProviderModels] = useState<ProviderModelDefinition[]>([])
     const [statusText, setStatusText] = useState('Ready')
     const [executionErrorModal, setExecutionErrorModal] = useState<WorkflowExecutionErrorModal | null>(null)
@@ -2950,6 +2986,75 @@ function WorkflowEditor() {
     }, [nodeContextMenu, nodes])
     const contextMenuNodeIsExpandable = contextMenuNode ? isNodeItemExpandable(contextMenuNode.data.manifest) : false
     const contextMenuNodeGlobalKind = contextMenuNode ? getGlobalNodeKind(contextMenuNode.data.manifest) : null
+
+    useEffect(() => {
+        const navigationState = location.state as WorkflowNavigationState | null
+        const rawIntent = navigationState?.workflow_intent
+        if (!isWorkflowOpenIntentPayload(rawIntent)) {
+            return
+        }
+        if (loading) {
+            return
+        }
+
+        const clearIntentState = (): void => {
+            navigate(location.pathname, { replace: true, state: null })
+        }
+
+        if (rawIntent.type === 'add-node') {
+            const manifest =
+                catalog.find(
+                    (item) => item.id === rawIntent.node_id && item.version === rawIntent.node_version,
+                ) ?? null
+            if (!manifest) {
+                setStatusText(`Node not found in catalog: ${rawIntent.node_id} v${rawIntent.node_version}`)
+                clearIntentState()
+                return
+            }
+
+            const panelBounds = canvasPanelRef.current?.getBoundingClientRect()
+            const centerPosition = panelBounds
+                ? screenToFlowPosition({
+                    x: panelBounds.left + panelBounds.width * 0.5,
+                    y: panelBounds.top + panelBounds.height * 0.5,
+                })
+                : undefined
+            addManifestNode(manifest, centerPosition, { select: true })
+            setSelectedManifestKey(manifestKey(manifest))
+            setStatusText(`Added ${manifest.name} to canvas`)
+            clearIntentState()
+            return
+        }
+
+        const template = rawIntent.template
+        const requiredManifestKeys = new Set(template.required_nodes.map((manifest) => manifestKey(manifest)))
+        const manifestsForHydration = catalog.filter((manifest) => requiredManifestKeys.has(manifestKey(manifest)))
+        const missing = template.required_nodes.filter(
+            (requiredNode) => !manifestsForHydration.some((manifest) => manifest.id === requiredNode.id && manifest.version === requiredNode.version),
+        )
+        if (missing.length > 0) {
+            setStatusText(
+                `Template "${template.name}" requires missing node manifests: ${missing
+                    .map((manifest) => `${manifest.id} v${manifest.version}`)
+                    .join(', ')}`,
+            )
+            clearIntentState()
+            return
+        }
+
+        hydrateWorkflowFromPayload(
+            {
+                name: template.name,
+                definition: template.definition,
+                visualGraph: template.visual_graph,
+                requiredNodes: template.required_nodes,
+            },
+            manifestsForHydration,
+        )
+        setStatusText(`Loaded template "${template.name}"`)
+        clearIntentState()
+    }, [catalog, loading, location.pathname, location.state, navigate, screenToFlowPosition])
+
     function updateNode(nodeId: string, updater: (node: Node<WorkflowNodeData>) => Node<WorkflowNodeData>): void {
         setNodes((current) => current.map((node) => (node.id === nodeId ? updater(node) : node)))
     }
@@ -3933,12 +4038,6 @@ function WorkflowEditor() {
                     <strong title={statusText}>{statusText}</strong>
                 </div>
                 <div className="workflow-toolbar-actions">
-                    <button type="button" onClick={() => void fitView({ padding: 0.2, duration: 180 })}>
-                        Fit View
-                    </button>
-                    <button type="button" onClick={() => setIsGridVisible((visible) => !visible)}>
-                        {isGridVisible ? 'Hide Grid' : 'Show Grid'}
-                    </button>
                     <button type="button" onClick={() => void exportWorkflowBundle()}>
                         Export JSON
                     </button>
@@ -4166,6 +4265,20 @@ function WorkflowEditor() {
                             <ControlButton title="Zoom in" aria-label="Zoom in" onClick={() => void zoomIn({ duration: 110 })}>
                                 +
                             </ControlButton>
+                            <ControlButton
+                                title="Fit view"
+                                aria-label="Fit view"
+                                onClick={() => void fitView({ padding: 0.2, duration: 180 })}
+                            >
+                                []
+                            </ControlButton>
+                            <ControlButton
+                                title={isGridVisible ? 'Hide grid' : 'Show grid'}
+                                aria-label={isGridVisible ? 'Hide grid' : 'Show grid'}
+                                onClick={() => setIsGridVisible((visible) => !visible)}
+                            >
+                                {isGridVisible ? '##' : '..'}
+                            </ControlButton>
                         </Controls>
                         {isGridVisible && (
                             <Background variant={BackgroundVariant.Lines} gap={24} size={1} color="rgba(87, 112, 152, 0.42)" />
@@ -4364,6 +4477,7 @@ export default function WorkflowPage() {
         </ReactFlowProvider>
     )
 }
+
 
 
 
