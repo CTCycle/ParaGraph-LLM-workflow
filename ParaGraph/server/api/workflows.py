@@ -9,7 +9,8 @@ from ParaGraph.server.domain.workflow_model import (
     WorkflowListResponse,
     WorkflowVersionListResponse,
 )
-from ParaGraph.server.services.workflow import workflow_service
+from ParaGraph.server.domain.workflow_templates import WorkflowTemplateListResponse
+from ParaGraph.server.services.workflow import workflow_service, workflow_template_service
 
 
 router = APIRouter(prefix="/workflows", tags=["workflows"])
@@ -23,6 +24,14 @@ def list_workflows() -> WorkflowListResponse:
 @router.post("", response_model=WorkflowDocument, status_code=status.HTTP_201_CREATED)
 def create_workflow(request: CreateWorkflowRequest) -> WorkflowDocument:
     return workflow_service.create_workflow(request)
+
+
+@router.get("/templates", response_model=WorkflowTemplateListResponse)
+def list_workflow_templates() -> WorkflowTemplateListResponse:
+    try:
+        return workflow_template_service.list_templates()
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)) from exc
 
 
 @router.get("/{workflow_id}", response_model=WorkflowDocument)

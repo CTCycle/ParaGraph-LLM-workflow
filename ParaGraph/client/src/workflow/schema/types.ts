@@ -165,6 +165,38 @@ export interface WorkflowShareBundle {
     required_nodes: NodeManifest[]
 }
 
+export interface WorkflowTemplate {
+    id: string
+    name: string
+    description: string
+    tags: string[]
+    definition: WorkflowDefinition
+    visual_graph: VisualGraph
+    required_nodes: NodeManifest[]
+    metadata: Record<string, unknown>
+}
+
+export interface WorkflowTemplateListResponse {
+    templates: WorkflowTemplate[]
+}
+
+export interface WorkflowOpenIntentAddNode {
+    type: 'add-node'
+    node_id: string
+    node_version: number
+}
+
+export interface WorkflowOpenIntentLoadTemplate {
+    type: 'load-template'
+    template: WorkflowTemplate
+}
+
+export type WorkflowOpenIntent = WorkflowOpenIntentAddNode | WorkflowOpenIntentLoadTemplate
+
+export interface WorkflowNavigationState {
+    workflow_intent?: WorkflowOpenIntent
+}
+
 export interface ExecutionBinding {
     binding_type?: 'input' | 'controller'
     input_name: string

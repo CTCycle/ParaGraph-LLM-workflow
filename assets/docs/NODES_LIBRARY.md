@@ -105,3 +105,23 @@ Important:
 - Hugging Face structured output remains best-effort generation + JSON validation.
 - Hugging Face metadata indicates no streaming/tool-calling support.
 - Claude embeddings are unsupported by provider capabilities.
+
+## 9. Workflow Templates
+
+Workflow templates are manifest-driven and loaded from:
+- `ParaGraph/resources/workflow_templates/*.json`
+
+Templates are validated at load time against:
+- typed template schema
+- node catalog manifest availability (`required_nodes`)
+- compiler validity (`definition` + `visual_graph`)
+
+Shipped templates:
+- `system_user_llm_structured_output_v1`
+- `system_user_llm_chat_output_v1`
+- `load_documents_chunk_embed_store_v1`
+
+## 10. Node Catalog Scope For This Release
+
+- No new node IDs were introduced.
+- Existing node contracts and execution handlers remain the source of truth.

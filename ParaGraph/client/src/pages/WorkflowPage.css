@@ -441,20 +441,23 @@
     overflow: hidden;
     box-shadow: 0 8px 18px rgba(0, 0, 0, 0.32);
     background: rgba(5, 11, 22, 0.95);
+    display: inline-flex;
+    flex-direction: row;
+    align-items: center;
 }
 
 .workflow-canvas-panel .react-flow__controls-button {
     width: 30px;
     height: 30px;
     border: 0;
-    border-bottom: 1px solid rgba(72, 96, 126, 0.72);
+    border-right: 1px solid rgba(72, 96, 126, 0.72);
     background: transparent;
     color: #eef6ff;
     font-size: 0.92rem;
 }
 
 .workflow-canvas-panel .react-flow__controls-button:last-child {
-    border-bottom: 0;
+    border-right: 0;
 }
 
 .workflow-reactflow-credit {

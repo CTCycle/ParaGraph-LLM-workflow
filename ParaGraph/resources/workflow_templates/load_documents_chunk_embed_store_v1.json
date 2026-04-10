@@ -1,0 +1,564 @@
+{
+  "id": "load_documents_chunk_embed_store_v1",
+  "name": "Simple Load Documents + Chunking + Embedding + Vector Storage",
+  "description": "RAG ingestion starter template that loads documents, chunks text, creates embeddings, and stores vectors.",
+  "tags": [
+    "rag",
+    "ingestion",
+    "vector-store"
+  ],
+  "definition": {
+    "schema_version": 2,
+    "nodes": [
+      {
+        "node_id": "load_documents_1",
+        "node_type": "LOAD_DOCUMENTS",
+        "node_version": 1,
+        "parameters": {
+          "folder_path": "artifacts/documents",
+          "recursive": true
+        }
+      },
+      {
+        "node_id": "fixed_size_chunks_1",
+        "node_type": "FIXED_SIZE_CHUNKS",
+        "node_version": 1,
+        "parameters": {
+          "chunk_size": 800,
+          "chunk_overlap": 80,
+          "unit": "words"
+        }
+      },
+      {
+        "node_id": "text_embedding_1",
+        "node_type": "TEXT_EMBEDDING",
+        "node_version": 1,
+        "parameters": {
+          "provider": "openai",
+          "model_name": "text-embedding-3-small"
+        }
+      },
+      {
+        "node_id": "vector_store_1",
+        "node_type": "VECTOR_STORE",
+        "node_version": 1,
+        "parameters": {
+          "provider": "lancedb",
+          "index_name": "documents",
+          "namespace": "",
+          "distance_metric": "cosine",
+          "write_mode": "overwrite",
+          "storage_path": "artifacts/vector_store",
+          "endpoint_url": "",
+          "api_key": "",
+          "collection_name": "",
+          "database_name": "",
+          "provider_config": {}
+        }
+      }
+    ],
+    "connections": [
+      {
+        "from_node": "load_documents_1",
+        "to_node": "fixed_size_chunks_1",
+        "connection_type": "data",
+        "from_output": "documents",
+        "to_input": "documents"
+      },
+      {
+        "from_node": "fixed_size_chunks_1",
+        "to_node": "text_embedding_1",
+        "connection_type": "data",
+        "from_output": "chunks",
+        "to_input": "chunks"
+      },
+      {
+        "from_node": "text_embedding_1",
+        "to_node": "vector_store_1",
+        "connection_type": "data",
+        "from_output": "vectors",
+        "to_input": "vectors"
+      }
+    ],
+    "metadata": {}
+  },
+  "visual_graph": {
+    "schema_version": 2,
+    "nodes": [
+      {
+        "node_id": "load_documents_1",
+        "x": 80,
+        "y": 200,
+        "width": 360,
+        "height": 180,
+        "collapsed": false
+      },
+      {
+        "node_id": "fixed_size_chunks_1",
+        "x": 500,
+        "y": 200,
+        "width": 360,
+        "height": 220,
+        "collapsed": false
+      },
+      {
+        "node_id": "text_embedding_1",
+        "x": 940,
+        "y": 200,
+        "width": 360,
+        "height": 200,
+        "collapsed": false
+      },
+      {
+        "node_id": "vector_store_1",
+        "x": 1380,
+        "y": 200,
+        "width": 380,
+        "height": 280,
+        "collapsed": false
+      }
+    ],
+    "groups": [],
+    "comments": []
+  },
+  "required_nodes": [
+    {
+      "id": "LOAD_DOCUMENTS",
+      "version": 1,
+      "name": "Load Documents",
+      "category": "serialization",
+      "description": "Scan a folder and emit a deferred document collection as file-path references for downstream processing.",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "documents",
+          "data_type": "DOCUMENT_LIST",
+          "required": true
+        }
+      ],
+      "parameters": [
+        {
+          "name": "folder_path",
+          "data_type": "TEXT",
+          "default": "",
+          "constraints": {
+            "required": true
+          },
+          "ui_control": "directory",
+          "description": "Folder path to scan for supported document files."
+        },
+        {
+          "name": "recursive",
+          "data_type": "BOOLEAN",
+          "default": true,
+          "ui_control": "toggle",
+          "description": "Include files from nested subfolders."
+        }
+      ],
+      "ui": {
+        "default_width": 360,
+        "accent_color": "#7c8cff",
+        "collapsed_by_default": false
+      },
+      "runtime": {
+        "executor_key": "load_documents",
+        "cacheable": false,
+        "deterministic": true,
+        "side_effecting": false
+      }
+    },
+    {
+      "id": "FIXED_SIZE_CHUNKS",
+      "version": 1,
+      "name": "Fixed Size Chunks",
+      "category": "text_segmentation",
+      "description": "Split documents or incoming chunks into fixed-size chunks for chained text segmentation pipelines.",
+      "inputs": [
+        {
+          "name": "text",
+          "data_type": "TEXT",
+          "required": false,
+          "accepts_multiple": false,
+          "description": "Raw text input to fragment."
+        },
+        {
+          "name": "documents",
+          "data_type": "DOCUMENT_LIST",
+          "required": false,
+          "accepts_multiple": false,
+          "description": "Document collection to fragment."
+        },
+        {
+          "name": "chunks",
+          "data_type": "CHUNK_LIST",
+          "required": false,
+          "accepts_multiple": false,
+          "description": "Optional upstream chunks for chained text segmentation."
+        }
+      ],
+      "outputs": [
+        {
+          "name": "chunks",
+          "data_type": "CHUNK_LIST",
+          "required": true,
+          "accepts_multiple": false,
+          "description": "Generated fixed-size chunks."
+        }
+      ],
+      "parameters": [
+        {
+          "name": "chunk_size",
+          "data_type": "JSON",
+          "default": 800,
+          "constraints": {
+            "required": true,
+            "min": 1,
+            "max": 100000
+          },
+          "ui_control": "number",
+          "description": "Maximum number of words or characters per chunk, depending on unit."
+        },
+        {
+          "name": "chunk_overlap",
+          "data_type": "JSON",
+          "default": 80,
+          "constraints": {
+            "required": true,
+            "min": 0,
+            "max": 99999
+          },
+          "ui_control": "number",
+          "description": "Number of overlapping words or characters between adjacent chunks."
+        },
+        {
+          "name": "unit",
+          "data_type": "TEXT",
+          "default": "words",
+          "constraints": {
+            "required": true,
+            "options": [
+              "words",
+              "characters"
+            ]
+          },
+          "ui_control": "select",
+          "description": "Counting unit used by chunk_size and chunk_overlap."
+        }
+      ],
+      "ui": {
+        "default_width": 360,
+        "accent_color": "#d99128",
+        "collapsed_by_default": false
+      },
+      "runtime": {
+        "executor_key": "fixed_size_chunks",
+        "cacheable": false,
+        "deterministic": true,
+        "side_effecting": false
+      }
+    },
+    {
+      "id": "TEXT_EMBEDDING",
+      "version": 1,
+      "name": "Text Embedding",
+      "category": "embeddings",
+      "description": "Generate embedding vectors from text, documents, or chunks using an embedded provider selection.",
+      "inputs": [
+        {
+          "name": "text",
+          "data_type": "TEXT",
+          "required": false,
+          "accepts_multiple": false,
+          "description": "Single text payload to embed."
+        },
+        {
+          "name": "documents",
+          "data_type": "DOCUMENT_LIST",
+          "required": false,
+          "accepts_multiple": false,
+          "description": "Document collection to embed."
+        },
+        {
+          "name": "chunks",
+          "data_type": "CHUNK_LIST",
+          "required": false,
+          "accepts_multiple": false,
+          "description": "Chunk collection to embed."
+        }
+      ],
+      "outputs": [
+        {
+          "name": "vectors",
+          "data_type": "VECTOR_POINT_LIST",
+          "required": true,
+          "accepts_multiple": false,
+          "description": "Dense embedding vectors with source metadata for semantic similarity."
+        }
+      ],
+      "controllers": [
+        {
+          "name": "embedding",
+          "data_type": "JSON",
+          "required": false,
+          "accepts_multiple": false,
+          "description": "Embedding handle containing provider/model metadata and generated vectors for controller-driven vector storage or retrieval.",
+          "scope": "source"
+        }
+      ],
+      "parameters": [
+        {
+          "name": "provider",
+          "data_type": "TEXT",
+          "default": "openai",
+          "constraints": {
+            "required": true,
+            "options": [
+              "openai",
+              "gemini",
+              "huggingface",
+              "ollama"
+            ]
+          },
+          "ui_control": "select",
+          "description": "Embedding provider."
+        },
+        {
+          "name": "model_name",
+          "data_type": "TEXT",
+          "default": "",
+          "constraints": {
+            "required": true,
+            "provider_source": "provider"
+          },
+          "ui_control": "select",
+          "description": "Embedding model available for the selected provider."
+        }
+      ],
+      "ui": {
+        "default_width": 360,
+        "accent_color": "#41c6a8",
+        "collapsed_by_default": false
+      },
+      "runtime": {
+        "executor_key": "text_embedding",
+        "cacheable": false,
+        "deterministic": true,
+        "side_effecting": false
+      }
+    },
+    {
+      "id": "VECTOR_STORE",
+      "version": 1,
+      "name": "Vector Store",
+      "category": "vector_storage",
+      "description": "Persist embedding vectors using the selected vector store provider.",
+      "inputs": [
+        {
+          "name": "vectors",
+          "data_type": "VECTOR_POINT_LIST",
+          "required": false,
+          "accepts_multiple": true,
+          "description": "One or more embedded vector collections to store."
+        }
+      ],
+      "outputs": [
+        {
+          "name": "store",
+          "data_type": "VECTOR_STORE_HANDLE",
+          "required": true,
+          "accepts_multiple": false,
+          "description": "Stored vector index handle."
+        }
+      ],
+      "controllers": [
+        {
+          "name": "embedding",
+          "data_type": "JSON",
+          "required": false,
+          "accepts_multiple": true,
+          "description": "Controller payload from TEXT_EMBEDDING to store generated vectors directly.",
+          "scope": "target"
+        },
+        {
+          "name": "store",
+          "data_type": "VECTOR_STORE_HANDLE",
+          "required": false,
+          "accepts_multiple": false,
+          "description": "Controller handle for downstream retrieval nodes.",
+          "scope": "source"
+        }
+      ],
+      "parameters": [
+        {
+          "name": "provider",
+          "data_type": "TEXT",
+          "default": "lancedb",
+          "constraints": {
+            "required": true,
+            "options": [
+              "lancedb",
+              "qdrant",
+              "pinecone",
+              "weaviate",
+              "milvus",
+              "chroma",
+              "faiss"
+            ]
+          },
+          "ui_control": "select",
+          "description": "Vector store backend provider."
+        },
+        {
+          "name": "index_name",
+          "data_type": "TEXT",
+          "default": "documents",
+          "constraints": {
+            "required": true
+          },
+          "ui_control": "text",
+          "description": "Index or table name used by the selected provider."
+        },
+        {
+          "name": "namespace",
+          "data_type": "TEXT",
+          "default": "",
+          "ui_control": "text",
+          "description": "Optional namespace or tenant scope.",
+          "constraints": {}
+        },
+        {
+          "name": "distance_metric",
+          "data_type": "TEXT",
+          "default": "cosine",
+          "constraints": {
+            "required": true,
+            "options": [
+              "cosine",
+              "l2",
+              "dot"
+            ]
+          },
+          "ui_control": "select",
+          "description": "Distance metric used for vector indexing and search."
+        },
+        {
+          "name": "write_mode",
+          "data_type": "TEXT",
+          "default": "overwrite",
+          "constraints": {
+            "required": true,
+            "options": [
+              "overwrite",
+              "append"
+            ]
+          },
+          "ui_control": "select",
+          "description": "Whether to overwrite the index or append to it."
+        },
+        {
+          "name": "storage_path",
+          "data_type": "TEXT",
+          "default": "",
+          "ui_control": "directory",
+          "description": "Local storage path used by local providers.",
+          "constraints": {
+            "visible_when": {
+              "provider": [
+                "lancedb",
+                "chroma",
+                "faiss"
+              ]
+            }
+          }
+        },
+        {
+          "name": "endpoint_url",
+          "data_type": "TEXT",
+          "default": "",
+          "ui_control": "text",
+          "description": "Provider endpoint URL for remote vector stores.",
+          "constraints": {
+            "visible_when": {
+              "provider": [
+                "qdrant",
+                "pinecone",
+                "weaviate",
+                "milvus"
+              ]
+            }
+          }
+        },
+        {
+          "name": "api_key",
+          "data_type": "TEXT",
+          "default": "",
+          "ui_control": "password",
+          "description": "Provider API key when required.",
+          "constraints": {
+            "visible_when": {
+              "provider": [
+                "qdrant",
+                "pinecone",
+                "weaviate",
+                "milvus"
+              ]
+            }
+          }
+        },
+        {
+          "name": "collection_name",
+          "data_type": "TEXT",
+          "default": "",
+          "ui_control": "text",
+          "description": "Optional provider-specific collection name.",
+          "constraints": {
+            "visible_when": {
+              "provider": [
+                "qdrant",
+                "chroma"
+              ]
+            }
+          }
+        },
+        {
+          "name": "database_name",
+          "data_type": "TEXT",
+          "default": "",
+          "ui_control": "text",
+          "description": "Optional provider-specific database name.",
+          "constraints": {
+            "visible_when": {
+              "provider": [
+                "milvus",
+                "weaviate"
+              ]
+            }
+          }
+        },
+        {
+          "name": "provider_config",
+          "data_type": "JSON",
+          "default": {},
+          "ui_control": "json",
+          "description": "Advanced provider-specific configuration options as JSON.",
+          "constraints": {}
+        }
+      ],
+      "ui": {
+        "default_width": 380,
+        "accent_color": "#59a6ff",
+        "collapsed_by_default": false
+      },
+      "runtime": {
+        "executor_key": "vector_store",
+        "cacheable": false,
+        "deterministic": false,
+        "side_effecting": true
+      }
+    }
+  ],
+  "metadata": {
+    "created_by": "paragraph",
+    "template_version": 1
+  }
+}

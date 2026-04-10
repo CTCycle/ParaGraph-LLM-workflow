@@ -2,6 +2,7 @@ import {
   CompileWorkflowResponse,
   CompiledExecutionPlan,
   WorkflowDefinition,
+  WorkflowTemplateListResponse,
 } from '../../workflow/schema/types'
 import { requestJson } from './api'
 
@@ -25,6 +26,10 @@ export interface WorkflowListResponse {
 
 export function listWorkflows(): Promise<WorkflowListResponse> {
   return requestJson<WorkflowListResponse>('/workflows')
+}
+
+export function fetchWorkflowTemplates(): Promise<WorkflowTemplateListResponse> {
+  return requestJson<WorkflowTemplateListResponse>('/workflows/templates')
 }
 
 export function createWorkflow(payload: {
