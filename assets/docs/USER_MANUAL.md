@@ -1,5 +1,5 @@
 # ParaGraph User Manual
-Last updated: 2026-04-08
+Last updated: 2026-04-10
 
 ## 1. What ParaGraph Is
 
@@ -25,6 +25,10 @@ Core experience:
 - Backend serves API routes using `FASTAPI_HOST` and `FASTAPI_PORT`.
 
 If this is the first run, setup can take longer due to dependency/runtime bootstrap.
+
+### 2.3 Desktop packaged mode (Tauri)
+
+ParaGraph desktop packaging is available via Tauri. See `assets/docs/PACKAGING_AND_RUNTIME_MODES.md` for the full build/runtime contract.
 
 ## 3. Main User Journeys
 
@@ -66,6 +70,12 @@ If this is the first run, setup can take longer due to dependency/runtime bootst
   - `ParaGraph\start_on_windows.bat`
 - Optional maintenance:
   - `ParaGraph\setup_and_maintenance.bat`
+- Switch runtime profile to local mode:
+  - `copy /Y ParaGraph\settings\.env.local.example ParaGraph\settings\.env`
+- Switch runtime profile to local Tauri mode:
+  - `copy /Y ParaGraph\settings\.env.local.tauri.example ParaGraph\settings\.env`
+- Build desktop artifacts (Windows):
+  - `release\tauri\build_with_tauri.bat`
 
 ### 4.2 Testing commands
 
@@ -130,3 +140,4 @@ If this is the first run, setup can take longer due to dependency/runtime bootst
 - Keep workflows modular and test incrementally.
 - Use profiles for different provider/runtime setups.
 - Prefer explicit connections over implicit assumptions for reproducibility.
+- For packaged desktop mode, always re-run `ParaGraph\start_on_windows.bat` before `release\tauri\build_with_tauri.bat` if runtimes were updated.
