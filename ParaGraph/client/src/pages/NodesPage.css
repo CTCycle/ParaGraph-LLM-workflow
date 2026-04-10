@@ -324,6 +324,13 @@
     line-height: 1.35;
 }
 
+.nodes-import-status {
+    margin: 0;
+    margin-top: 2px;
+    border-color: rgba(108, 160, 233, 0.82);
+    background: rgba(9, 18, 33, 0.94);
+}
+
 .nodes-import-form textarea {
     resize: none;
     min-height: 0;

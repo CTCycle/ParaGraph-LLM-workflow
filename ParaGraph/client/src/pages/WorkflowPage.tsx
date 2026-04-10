@@ -2929,6 +2929,7 @@ function WorkflowEditor() {
             nodes: filteredCatalog.filter((manifest) => manifest.category === category),
         })).filter((group) => group.nodes.length > 0)
     }, [filteredCatalog])
+    const hasRunnableNodes = useMemo(() => nodes.some((node) => !node.data.skipped), [nodes])
 
     const selectedManifest = useMemo(() => {
         if (selectedManifestKey) {
@@ -3849,6 +3850,10 @@ function WorkflowEditor() {
         if (isRunning) {
             return
         }
+        if (!hasRunnableNodes) {
+            setStatusText('Add at least one active node before running the workflow')
+            return
+        }
         setExecutionErrorModal(null)
         setResumeRunSnapshot(null)
         setIsRunning(true)
@@ -3870,7 +3875,12 @@ function WorkflowEditor() {
         let latestRunState: ExecutionRunState | null = null
         let keepRunTracking = false
         try {
-            const compileResponse = await compileWorkflow(buildDefinition())
+            const definition = buildDefinition()
+            if (!definition.nodes.some((node) => !node.skipped)) {
+                throw new Error('Add at least one active node before running the workflow')
+            }
+
+            const compileResponse = await compileWorkflow(definition)
             if (!compileResponse.valid || !compileResponse.plan) {
                 throw new Error(compileResponse.diagnostics.map((item) => item.message).join('; ') || 'Compilation failed')
             }
@@ -3951,7 +3961,7 @@ function WorkflowEditor() {
                     <button type="button" onClick={() => setEdges([])}>
                         Clear Links
                     </button>
-                    <button type="button" className="workflow-run" onClick={() => void runWorkflow()} disabled={isRunning}>
+                    <button type="button" className="workflow-run" onClick={() => void runWorkflow()} disabled={isRunning || !hasRunnableNodes}>
                         {isRunning ? 'Running...' : 'Run Workflow'}
                     </button>
                 </div>
@@ -4126,7 +4136,8 @@ function WorkflowEditor() {
                         snapToGrid={isGridVisible}
                         snapGrid={[24, 24]}
                         fitView
-                        fitViewOptions={{ padding: 0.18 }}
+                        fitViewOptions={{ padding: 0.18, minZoom: 0.42 }}
+                        connectionRadius={22}
                         minZoom={0.05}
                         maxZoom={1.8}
                         multiSelectionKeyCode={['Control', 'Meta']}

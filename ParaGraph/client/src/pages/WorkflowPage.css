@@ -156,6 +156,8 @@
 .workflow-canvas-panel {
     min-height: 0;
     flex: 1;
+    display: flex;
+    flex-direction: column;
     border: 1px solid rgba(64, 87, 118, 0.76);
     background:
         radial-gradient(circle at top right, rgba(91, 167, 255, 0.13), transparent 26%),
@@ -404,6 +406,8 @@
 }
 
 .workflow-canvas-panel .react-flow {
+    flex: 1 1 auto;
+    min-height: 0;
     width: 100%;
     height: 100%;
 }
@@ -416,9 +420,18 @@
     pointer-events: none;
 }
 
+.workflow-canvas-panel-connecting .react-flow__node {
+    pointer-events: none;
+}
+
+.workflow-canvas-panel-connecting .workflow-node-port {
+    pointer-events: all;
+    z-index: 5;
+}
+
 .workflow-canvas-panel-connecting .workflow-node-port .react-flow__handle {
     pointer-events: all;
-    z-index: 4;
+    z-index: 6;
 }
 
 .workflow-canvas-panel .react-flow__controls {
@@ -747,19 +760,30 @@
 }
 
 .workflow-node-port-input .react-flow__handle {
-    left: -4px;
+    left: -12px;
 }
 
 .workflow-node-port-output .react-flow__handle {
-    right: -4px;
+    right: -12px;
 }
 
 .workflow-node-port .react-flow__handle {
     top: 50%;
-    width: 9px;
-    height: 9px;
+    width: 24px;
+    height: 24px;
     border: none;
+    background: transparent;
+    box-shadow: none;
+    position: absolute;
+}
+
+.workflow-node-port .react-flow__handle::after {
+    content: '';
+    position: absolute;
+    inset: 5px;
+    border-radius: 999px;
     background: var(--node-accent);
+    box-shadow: 0 0 0 2px rgba(6, 13, 24, 0.9);
 }
 .workflow-node-parameters,
 .workflow-node-runtime {
@@ -1094,6 +1118,11 @@
 }
 
 @media (max-width: 760px) {
+    .workflow-shell {
+        padding-left: var(--space-1);
+        padding-right: var(--space-1);
+    }
+
     .workflow-toolbar button {
         min-height: var(--control-height-sm);
         padding: 0 9px;
