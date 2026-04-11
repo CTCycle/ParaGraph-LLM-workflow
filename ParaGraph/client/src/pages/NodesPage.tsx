@@ -149,15 +149,33 @@ function formatPortSummary(names: string[]): string {
     return `${names.slice(0, 3).join(', ')} +${names.length - 3}`
 }
 
-function buildNodeExplanation(node: NodeManifest): string {
-    const description = node.description.trim()
-    const inputCount = node.inputs.length
-    const outputCount = node.outputs.length
-    const ioSummary = `${inputCount} input${inputCount === 1 ? '' : 's'} -> ${outputCount} output${outputCount === 1 ? '' : 's'}`
-    if (!description) {
-        return `Node details: ${ioSummary}.`
+function summarizeText(value: string, maxLength: number): string {
+    const normalized = value.trim().replace(/\s+/g, ' ')
+    if (normalized.length <= maxLength) {
+        return normalized
     }
-    return `${description} (${ioSummary})`
+
+    const clipped = normalized.slice(0, maxLength - 1)
+    const lastSpace = clipped.lastIndexOf(' ')
+    const truncated = lastSpace > maxLength * 0.6 ? clipped.slice(0, lastSpace) : clipped
+    return `${truncated.trimEnd()}…`
+}
+
+function buildNodeExplanation(node: NodeManifest): string {
+    const description = summarizeText(node.description, 150)
+    return description || 'No description provided.'
+}
+
+function buildNodeDetails(node: NodeManifest): Array<{ label: string; value: string }> {
+    const controllerNames = getNodeControllers(node)
+    const parameterNames = node.parameters.map((parameter) => parameter.name)
+
+    return [
+        { label: 'Inputs', value: formatPortSummary(node.inputs.map((port) => port.name)) },
+        { label: 'Outputs', value: formatPortSummary(node.outputs.map((port) => port.name)) },
+        { label: 'Controllers', value: formatPortSummary(controllerNames) },
+        ...(parameterNames.length > 0 ? [{ label: 'Parameters', value: formatPortSummary(parameterNames) }] : []),
+    ]
 }
 
 function getNodeControllers(node: NodeManifest): string[] {
@@ -166,7 +184,14 @@ function getNodeControllers(node: NodeManifest): string[] {
 
 function buildTemplateFlowPreview(template: WorkflowTemplate): string[] {
     const nameByNodeType = new Map(template.required_nodes.map((manifest) => [manifest.id, manifest.name]))
-    return template.definition.nodes.map((node) => nameByNodeType.get(node.node_type) ?? node.node_type)
+    const previewSteps = template.definition.nodes.slice(0, 5).map((node) => nameByNodeType.get(node.node_type) ?? node.node_type)
+    const remaining = template.definition.nodes.length - previewSteps.length
+
+    if (remaining <= 0) {
+        return previewSteps
+    }
+
+    return [...previewSteps, `+${remaining} more`]
 }
 
 export default function NodesPage() {
@@ -396,15 +421,17 @@ export default function NodesPage() {
                                 {!loading &&
                                     filteredCatalog.map((node) => {
                                         const Icon = NODE_CATEGORY_ICONS[node.category]
+                                        const detailItems = buildNodeDetails(node)
                                         return (
                                             <article key={`${node.id}-${node.version}`} className="nodes-preview-row" role="listitem">
-                                                <div className="nodes-preview-icon">
-                                                    <Icon size={18} strokeWidth={1.8} />
-                                                </div>
-                                                <div className="nodes-preview-body">
-                                                    <div className="nodes-preview-title-row">
-                                                        <div className="nodes-preview-title-left">
+                                                <div className="nodes-preview-row-header">
+                                                    <div className="nodes-preview-icon">
+                                                        <Icon size={17} strokeWidth={1.8} />
+                                                    </div>
+                                                    <div className="nodes-preview-title-group">
+                                                        <div className="nodes-preview-title-row">
                                                             <h3>{node.name}</h3>
+                                                            <span>{NODE_CATEGORY_LABELS[node.category]}</span>
                                                             <button
                                                                 type="button"
                                                                 className="nodes-node-add-button"
@@ -421,43 +448,17 @@ export default function NodesPage() {
                                                                 <Plus size={14} strokeWidth={2.1} />
                                                             </button>
                                                         </div>
-                                                        <span>{NODE_CATEGORY_LABELS[node.category]}</span>
-                                                    </div>
-                                                    <div className="nodes-preview-content-grid">
-                                                        <div className="nodes-preview-content-left">
-                                                            <p>{buildNodeExplanation(node)}</p>
-                                                            <div className="nodes-preview-parameters">
-                                                                <strong>Parameters</strong>
-                                                                {node.parameters.length === 0 ? (
-                                                                    <p>No exposed parameters.</p>
-                                                                ) : (
-                                                                    <ul>
-                                                                        {node.parameters.map((parameter) => (
-                                                                            <li key={parameter.name}>
-                                                                                <strong>{parameter.name}</strong>
-                                                                                <span>{parameter.description || 'No description provided.'}</span>
-                                                                            </li>
-                                                                        ))}
-                                                                    </ul>
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                        <div className="nodes-preview-content-right">
-                                                            <div className="nodes-preview-io-group">
-                                                                <strong>Inputs</strong>
-                                                                <span>{formatPortSummary(node.inputs.map((port) => port.name))}</span>
-                                                            </div>
-                                                            <div className="nodes-preview-io-group">
-                                                                <strong>Outputs</strong>
-                                                                <span>{formatPortSummary(node.outputs.map((port) => port.name))}</span>
-                                                            </div>
-                                                            <div className="nodes-preview-io-group">
-                                                                <strong>Controllers</strong>
-                                                                <span>{formatPortSummary(getNodeControllers(node))}</span>
-                                                            </div>
-                                                        </div>
                                                     </div>
                                                 </div>
+                                                <p className="nodes-preview-summary">{buildNodeExplanation(node)}</p>
+                                                <dl className="nodes-preview-meta" aria-label={`${node.name} metadata`}>
+                                                    {detailItems.map((item) => (
+                                                        <div key={`${node.id}-${item.label}`} className="nodes-preview-meta-item">
+                                                            <dt>{item.label}</dt>
+                                                            <dd>{item.value}</dd>
+                                                        </div>
+                                                    ))}
+                                                </dl>
                                             </article>
                                         )
                                     })}
@@ -509,14 +510,9 @@ export default function NodesPage() {
                                                 </button>
                                             </div>
                                             <p>{template.description}</p>
-                                            <div className="nodes-template-flow" aria-label={`${template.name} flow preview`}>
-                                                {buildTemplateFlowPreview(template).map((step, index, all) => (
-                                                    <span key={`${template.id}-step-${index}`}>
-                                                        {step}
-                                                        {index < all.length - 1 ? ' -> ' : ''}
-                                                    </span>
-                                                ))}
-                                            </div>
+                                            <p className="nodes-template-flow" aria-label={`${template.name} flow preview`}>
+                                                {buildTemplateFlowPreview(template).join(' -> ')}
+                                            </p>
                                         </article>
                                     ))}
                             </div>
