@@ -8,7 +8,7 @@ from typing import Any, Protocol
 
 import httpx
 
-from ParaGraph.server.configurations.server import get_app_settings
+from ParaGraph.server.configurations.startup import get_llm_timeout_seconds
 
 ###############################################################################
 class OllamaError(RuntimeError):
@@ -52,7 +52,7 @@ class CloudProvider(str, Enum):
 def _get_timeout(timeout_s: float | None) -> float:
     if timeout_s is not None:
         return timeout_s
-    return get_app_settings().llm_timeout_s
+    return get_llm_timeout_seconds()
 
 
 # -----------------------------------------------------------------------------

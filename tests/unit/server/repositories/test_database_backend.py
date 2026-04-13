@@ -42,7 +42,7 @@ def _build_postgres_settings() -> DatabaseSettings:
 def test_build_backend_initializes_sqlite_only_when_database_file_missing(tmp_path: Path, monkeypatch) -> None:
     settings = _build_sqlite_settings()
     monkeypatch.setattr(backend_module, 'RESOURCES_PATH', str(tmp_path))
-    monkeypatch.setattr(backend_module, 'server_settings', SimpleNamespace(database=settings))
+    monkeypatch.setattr(backend_module, 'get_server_settings', lambda: SimpleNamespace(database=settings))
 
     create_all_calls: list[object] = []
 
@@ -83,7 +83,7 @@ def test_build_backend_never_initializes_postgres_on_startup(monkeypatch) -> Non
         lambda _settings: SimpleNamespace(engine=object(), db_path=None),
     )
     monkeypatch.setitem(backend_module.BACKEND_FACTORIES, 'postgres', backend_module.build_postgres_backend)
-    monkeypatch.setattr(backend_module, 'server_settings', SimpleNamespace(database=settings))
+    monkeypatch.setattr(backend_module, 'get_server_settings', lambda: SimpleNamespace(database=settings))
 
     database = backend_module.ParaGraphDatabase()
 
