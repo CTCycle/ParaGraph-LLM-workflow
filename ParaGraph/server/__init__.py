@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from ParaGraph.server.configurations.bootstrap import ensure_environment_loaded
+from ParaGraph.server.configurations.startup import initialize_configurations
 
 
-ensure_environment_loaded()
+initialize_configurations()

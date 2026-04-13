@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from ParaGraph.server.configurations.bootstrap import ensure_environment_loaded
+from ParaGraph.server.configurations.environment import ensure_environment_loaded
 
 
 # [LOAD ENVIRONMENT VARIABLES]

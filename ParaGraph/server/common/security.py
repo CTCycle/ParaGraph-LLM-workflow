@@ -3,10 +3,9 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from ParaGraph.server.configurations.server import get_app_settings
+from ParaGraph.server.configurations.startup import get_cloud_mode_enabled
 
 
-_TRUE_VALUES = {"1", "true", "yes", "on"}
 _SENSITIVE_KEY_TOKENS = (
     "api_key",
     "apikey",
@@ -18,9 +17,7 @@ _SENSITIVE_KEY_TOKENS = (
 
 
 def is_cloud_deployment() -> bool:
-    settings = get_app_settings()
-    cloud_flag = str(settings.paragraph_cloud_mode or "").strip().lower()
-    return cloud_flag in _TRUE_VALUES
+    return get_cloud_mode_enabled()
 
 
 def ensure_path_within_root(path: Path, root: Path, *, label: str) -> Path:

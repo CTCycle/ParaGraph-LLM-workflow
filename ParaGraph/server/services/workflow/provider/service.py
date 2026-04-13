@@ -16,7 +16,7 @@ from huggingface_hub import HfApi, hf_hub_url
 import httpx
 
 from ParaGraph.server.common.utils.logger import logger
-from ParaGraph.server.configurations.server import server_settings
+from ParaGraph.server.configurations.startup import get_server_settings
 from ParaGraph.server.domain.configuration import DEFAULT_SESSION_NAME
 from ParaGraph.server.domain.node_catalog import (
     HuggingFaceModelCatalogResponse,
@@ -582,7 +582,7 @@ class ProviderService:
                 progress=100.0,
                 downloaded_bytes=downloaded_bytes,
                 total_bytes=resolved_total,
-                poll_interval=server_settings.jobs.polling_interval,
+                poll_interval=get_server_settings().jobs.polling_interval,
             )
 
         manifest = self._build_huggingface_download_manifest(repo_id=normalized_repo_id, session_name=session_name)
@@ -640,7 +640,7 @@ class ProviderService:
             progress=0.0,
             downloaded_bytes=0,
             total_bytes=manifest_total_bytes,
-            poll_interval=server_settings.jobs.polling_interval,
+                poll_interval=get_server_settings().jobs.polling_interval,
         )
 
     def _get_huggingface_download_status_impl(self, *, job_id: str) -> HuggingFaceModelDownloadStatusResponse:

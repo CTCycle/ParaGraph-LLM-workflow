@@ -4,13 +4,14 @@ from dataclasses import asdict
 import json
 import time
 
-from ParaGraph.server.configurations import server_settings
+from ParaGraph.server.configurations.startup import get_server_settings
 from ParaGraph.server.repositories.database.initializer import initialize_database
 from ParaGraph.server.common.utils.logger import logger
 
 
 ###############################################################################
 if __name__ == "__main__":
+    server_settings = get_server_settings()
     start = time.perf_counter()
     logger.info("Starting database initialization")
     logger.info(

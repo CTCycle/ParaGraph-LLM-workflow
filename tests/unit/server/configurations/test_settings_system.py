@@ -7,19 +7,19 @@ from pathlib import Path
 
 import pytest
 
-from ParaGraph.server.configurations import bootstrap
-from ParaGraph.server.configurations.server import get_app_settings, get_server_settings
+from ParaGraph.server.configurations import environment
+from ParaGraph.server.configurations.startup import get_server_settings, reset_configuration_runtime_for_tests
 from ParaGraph.server.services.llm.providers import CloudLLMClient
 
 
 ###############################################################################
 @pytest.fixture(autouse=True)
 def reset_configuration_state() -> None:
-    get_app_settings.cache_clear()
-    bootstrap.reset_environment_bootstrap_for_tests()
+    reset_configuration_runtime_for_tests()
+    environment.reset_environment_loader_for_tests()
     yield
-    get_app_settings.cache_clear()
-    bootstrap.reset_environment_bootstrap_for_tests()
+    reset_configuration_runtime_for_tests()
+    environment.reset_environment_loader_for_tests()
 
 
 # -----------------------------------------------------------------------------
@@ -37,10 +37,10 @@ def test_bootstrap_environment_overrides_existing_process_values(tmp_path: Path,
     env_path = tmp_path / ".env"
     _write_env(env_path, ["FASTAPI_HOST=from_dotenv"])
 
-    monkeypatch.setattr(bootstrap, "ENV_FILE_PATH", str(env_path))
+    monkeypatch.setattr(environment, "ENV_FILE_PATH", str(env_path))
     monkeypatch.setenv("FASTAPI_HOST", "from_process")
 
-    bootstrap.ensure_environment_loaded()
+    environment.ensure_environment_loaded()
 
     assert os.getenv("FASTAPI_HOST") == "from_dotenv"
 
@@ -50,11 +50,11 @@ def test_bootstrap_is_idempotent_without_force(tmp_path: Path, monkeypatch) -> N
     env_path = tmp_path / ".env"
     _write_env(env_path, ["FASTAPI_HOST=first"])
 
-    monkeypatch.setattr(bootstrap, "ENV_FILE_PATH", str(env_path))
+    monkeypatch.setattr(environment, "ENV_FILE_PATH", str(env_path))
 
-    bootstrap.ensure_environment_loaded()
+    environment.ensure_environment_loaded()
     _write_env(env_path, ["FASTAPI_HOST=second"])
-    bootstrap.ensure_environment_loaded()
+    environment.ensure_environment_loaded()
 
     assert os.getenv("FASTAPI_HOST") == "first"
 
@@ -64,7 +64,7 @@ def test_server_package_import_bootstraps_env_early(tmp_path: Path, monkeypatch)
     env_path = tmp_path / ".env"
     _write_env(env_path, ["PARAGRAPH_CLOUD_MODE=true"])
 
-    monkeypatch.setattr(bootstrap, "ENV_FILE_PATH", str(env_path))
+    monkeypatch.setattr(environment, "ENV_FILE_PATH", str(env_path))
     monkeypatch.setenv("PARAGRAPH_CLOUD_MODE", "false")
 
     import ParaGraph.server as server_package
@@ -98,7 +98,7 @@ def test_json_owned_db_embedded_ignores_environment_overlap(tmp_path: Path, monk
         ],
     )
 
-    monkeypatch.setattr(bootstrap, "ENV_FILE_PATH", str(env_path))
+    monkeypatch.setattr(environment, "ENV_FILE_PATH", str(env_path))
 
     settings = get_server_settings(config_path=str(config_path))
 
@@ -122,7 +122,7 @@ def test_external_database_requires_host_name_and_user(tmp_path: Path, monkeypat
     env_path = tmp_path / ".env"
     _write_env(env_path, ["FASTAPI_HOST=127.0.0.1"])
 
-    monkeypatch.setattr(bootstrap, "ENV_FILE_PATH", str(env_path))
+    monkeypatch.setattr(environment, "ENV_FILE_PATH", str(env_path))
 
     with pytest.raises(RuntimeError, match="database.host, database.name, database.user"):
         _ = get_server_settings(config_path=str(config_path))
@@ -132,7 +132,7 @@ def test_external_database_requires_host_name_and_user(tmp_path: Path, monkeypat
 def test_missing_configuration_file_fails_fast(tmp_path: Path, monkeypatch) -> None:
     env_path = tmp_path / ".env"
     _write_env(env_path, ["FASTAPI_HOST=127.0.0.1"])
-    monkeypatch.setattr(bootstrap, "ENV_FILE_PATH", str(env_path))
+    monkeypatch.setattr(environment, "ENV_FILE_PATH", str(env_path))
 
     with pytest.raises(RuntimeError, match="Configuration file not found"):
         _ = get_server_settings(config_path=str(tmp_path / "missing.json"))
@@ -145,7 +145,7 @@ def test_invalid_configuration_file_fails_fast(tmp_path: Path, monkeypatch) -> N
 
     env_path = tmp_path / ".env"
     _write_env(env_path, ["FASTAPI_HOST=127.0.0.1"])
-    monkeypatch.setattr(bootstrap, "ENV_FILE_PATH", str(env_path))
+    monkeypatch.setattr(environment, "ENV_FILE_PATH", str(env_path))
 
     with pytest.raises(RuntimeError, match="Unable to load configuration"):
         _ = get_server_settings(config_path=str(config_path))
