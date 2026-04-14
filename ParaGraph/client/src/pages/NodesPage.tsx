@@ -216,7 +216,7 @@ export default function NodesPage() {
     const getErrorMessage = useErrorMessage()
     const importModalTitleId = 'nodes-import-modal-title'
     const importModalDescriptionId = 'nodes-import-modal-description'
-    const pageBannerMessage = error || templatesError || (!isImportModalOpen ? importStatus : null)
+    const pageBannerMessage = error || templatesError
 
     const categoryCounts = useMemo(() => {
         return NODE_CATEGORY_ORDER.reduce<Record<NodeCategory, number>>((counts, category) => {
@@ -346,6 +346,14 @@ export default function NodesPage() {
                 </header>
 
                 <StatusBanner className="nodes-banner" message={pageBannerMessage} />
+                {!isImportModalOpen && importStatus && (
+                    <StatusBanner
+                        className="nodes-banner nodes-import-status"
+                        message={importStatus}
+                        role="alert"
+                        ariaLive="assertive"
+                    />
+                )}
 
                 <div className="nodes-split-layout">
                     <section className="nodes-split-panel nodes-split-panel-nodes">

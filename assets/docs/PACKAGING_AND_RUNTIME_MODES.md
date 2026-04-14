@@ -26,7 +26,7 @@ Switch modes by copying a profile into `ParaGraph/settings/.env`.
 |---|---|
 | `FASTAPI_HOST`, `FASTAPI_PORT` | Backend bind host/port. |
 | `UI_HOST`, `UI_PORT` | Frontend host/port for local preview mode. |
-| `VITE_API_BASE_URL` | Frontend API base path (`/api` in local web mode, `/` in packaged desktop build mode). |
+| `VITE_API_BASE_URL` | Frontend API base path (`/api` in both local web mode and packaged desktop build mode). |
 | `PARAGRAPH_CLOUD_MODE` | Cloud mode flag (`true` enables cloud restrictions). |
 | `RELOAD` | Backend auto-reload toggle for local workflow. |
 | `MPLBACKEND` | Runtime Matplotlib backend override (optional). |
