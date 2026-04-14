@@ -156,6 +156,20 @@ test('Workflow page imports bundle and runs through deterministic mocked executi
     expect(wsUrls.some((url) => url.includes('/executions/ws/runs/run-e2e'))).toBeTruthy()
 })
 
+test('Workflow import cancel does not leave a banner message behind', async ({ page }) => {
+    await setupMockBackend(page)
+
+    await page.goto('/')
+
+    const fileChooserPromise = page.waitForEvent('filechooser')
+    await page.getByRole('button', { name: 'Import JSON' }).click()
+    const fileChooser = await fileChooserPromise
+    await fileChooser.setFiles([])
+
+    await expect(page.getByText('Workflow import cancelled')).toHaveCount(0)
+    await expect(page.getByText('Ready')).toBeVisible()
+})
+
 function buildWorkflowConnectedBundleJson(): string {
     const promptManifest = {
         id: 'PROMPT',

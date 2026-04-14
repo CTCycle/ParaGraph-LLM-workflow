@@ -213,6 +213,13 @@
     gap: 6px;
 }
 
+.config-modal-error {
+    margin: 0;
+    color: #ffd28d;
+    font-size: 0.82rem;
+    line-height: 1.35;
+}
+
 .config-modal-actions {
     display: flex;
     justify-content: flex-end;

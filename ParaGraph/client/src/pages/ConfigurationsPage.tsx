@@ -54,6 +54,17 @@ function toCloudProvider(value: string): CloudProvider {
     return 'openai'
 }
 
+function formatOllamaStatusMessage(message: string, baseUrl: string): string {
+    const baseMessage = normalizeText(message)
+    const isConnectionIssue = /Unable to reach Ollama|ECONNREFUSED|WinError 10061|connection refused/i.test(baseMessage)
+    if (!isConnectionIssue) {
+        return baseMessage || 'Unable to check Ollama status'
+    }
+
+    const target = normalizeText(baseUrl) || 'the configured Ollama URL'
+    return `Ollama unreachable. Check that Ollama is running at ${target}.`
+}
+
 function mapPayloadToForm(payload: AppConfigurationPayload): ConfigurationFormValues {
     const cloudCredentials: Record<CloudProvider, ProviderCredential> = {
         openai: { ...EMPTY_CLOUD_CREDENTIALS.openai },
@@ -116,6 +127,7 @@ export default function ConfigurationsPage() {
     const [isLoadingProfile, setIsLoadingProfile] = useState(false)
     const [selectedProfileName, setSelectedProfileName] = useState('')
     const [saveProfileName, setSaveProfileName] = useState('')
+    const [saveProfileError, setSaveProfileError] = useState<string | null>(null)
 
     const currentCloudCredentials = useMemo(
         () => cloudCredentials[selectedCloudProvider],
@@ -212,10 +224,11 @@ export default function ConfigurationsPage() {
     async function handleSaveProfile(): Promise<void> {
         const profileName = normalizeText(saveProfileName)
         if (!profileName) {
-            setStatusMessage('Enter a configuration name')
+            setSaveProfileError('Enter a configuration name')
             return
         }
 
+        setSaveProfileError(null)
         setIsSavingProfile(true)
         setStatusMessage(null)
         try {
@@ -236,12 +249,23 @@ export default function ConfigurationsPage() {
         setOllamaStatus(null)
         try {
             const response = await pingOllama(normalizeText(ollamaBaseUrl) || null)
-            setOllamaStatus(response.message)
+            setOllamaStatus(formatOllamaStatusMessage(response.message, ollamaBaseUrl))
         } catch (error) {
-            setOllamaStatus(getErrorMessage(error, 'Unable to check Ollama status'))
+            setOllamaStatus(
+                formatOllamaStatusMessage(
+                    error instanceof Error ? error.message : 'Unable to check Ollama status',
+                    ollamaBaseUrl,
+                ),
+            )
         } finally {
             setIsPingingOllama(false)
         }
+    }
+
+    function openSaveModal(): void {
+        setSaveProfileName('')
+        setSaveProfileError(null)
+        saveModal.open()
     }
 
     function updateCurrentCloudCredential(field: keyof ProviderCredential, value: string): void {
@@ -308,8 +332,7 @@ export default function ConfigurationsPage() {
                             <button
                                 type="button"
                                 onClick={() => {
-                                    setSaveProfileName('')
-                                    saveModal.open()
+                                    openSaveModal()
                                 }}
                                 disabled={isLoading || isSavingProfile}
                             >
@@ -438,6 +461,11 @@ export default function ConfigurationsPage() {
                         maxLength={120}
                     />
                 </label>
+                {saveProfileError && (
+                    <p className="config-modal-error" role="alert">
+                        {saveProfileError}
+                    </p>
+                )}
             </ModalDialog>
         </section>
     )

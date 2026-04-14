@@ -69,10 +69,19 @@ describe('ConfigurationsPage profile modal flows', () => {
         const saveDialog = await screen.findByRole('dialog', { name: 'Save configuration' })
 
         await userEvent.click(within(saveDialog).getByRole('button', { name: 'Save' }))
-        await screen.findByText('Enter a configuration name')
+        await expect(within(saveDialog).getByRole('alert')).toHaveTextContent('Enter a configuration name')
 
-        await userEvent.type(within(saveDialog).getByRole('textbox', { name: 'Configuration name' }), 'team profile')
-        await userEvent.click(within(saveDialog).getByRole('button', { name: 'Save' }))
+        await userEvent.click(within(saveDialog).getByRole('button', { name: 'Cancel' }))
+        await waitFor(() => {
+            expect(screen.queryByRole('dialog', { name: 'Save configuration' })).toBeNull()
+        })
+        expect(screen.queryByText('Enter a configuration name')).toBeNull()
+
+        await userEvent.click(screen.getByRole('button', { name: 'Save' }))
+        const reopenedSaveDialog = await screen.findByRole('dialog', { name: 'Save configuration' })
+
+        await userEvent.type(within(reopenedSaveDialog).getByRole('textbox', { name: 'Configuration name' }), 'team profile')
+        await userEvent.click(within(reopenedSaveDialog).getByRole('button', { name: 'Save' }))
 
         await screen.findByText("Saved configuration 'team profile'")
 
