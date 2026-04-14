@@ -3693,7 +3693,6 @@ function WorkflowEditor() {
         try {
             const selection = await pickWorkflowJsonFromBrowser()
             if (!selection) {
-                setStatusText('Workflow import cancelled')
                 return
             }
 

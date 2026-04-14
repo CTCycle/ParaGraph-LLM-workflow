@@ -7,8 +7,12 @@ $ErrorActionPreference = "Stop"
 
 $repoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot "..\..\.."))
 $clientDir = Join-Path $repoRoot "ParaGraph\client"
+$tauriDir = Join-Path $clientDir "src-tauri"
+$projectDir = Join-Path $repoRoot "ParaGraph"
+$runtimesDir = Join-Path $repoRoot "runtimes"
 $releaseDir = Join-Path $clientDir "src-tauri\target\release"
 $bundleDir = Join-Path $releaseDir "bundle"
+$bundleSourceDir = Join-Path $tauriDir "r"
 
 if ([string]::IsNullOrWhiteSpace($OutputPath)) {
   $outputDir = Join-Path $repoRoot "release\windows"
@@ -61,18 +65,25 @@ foreach ($file in $portableExeCandidates) {
   Copy-Item -Path $file.FullName -Destination $portableDir -Force
 }
 
-$portableResourceEntries = @(
-  "ParaGraph",
-  "runtimes",
-  "pyproject.toml",
-  "uv.lock",
-  "_up_"
+$portableResourceMap = @(
+  @{ Name = "ParaGraph"; SourceCandidates = @((Join-Path $releaseDir "ParaGraph"), (Join-Path $bundleSourceDir "ParaGraph"), $projectDir) },
+  @{ Name = "runtimes"; SourceCandidates = @((Join-Path $releaseDir "runtimes"), (Join-Path $bundleSourceDir "runtimes"), $runtimesDir) },
+  @{ Name = "pyproject.toml"; SourceCandidates = @((Join-Path $releaseDir "pyproject.toml"), (Join-Path $bundleSourceDir "pyproject.toml"), (Join-Path $repoRoot "pyproject.toml")) },
+  @{ Name = "uv.lock"; SourceCandidates = @((Join-Path $releaseDir "uv.lock"), (Join-Path $bundleSourceDir "uv.lock"), (Join-Path $repoRoot "uv.lock"), (Join-Path $runtimesDir "uv.lock")) },
+  @{ Name = "_up_"; SourceCandidates = @((Join-Path $releaseDir "_up_"), (Join-Path $bundleSourceDir "_up_")) }
 )
 
-foreach ($entry in $portableResourceEntries) {
-  $sourcePath = Join-Path $releaseDir $entry
-  if (Test-Path $sourcePath) {
-    $destinationPath = Join-Path $portableDir $entry
+foreach ($entry in $portableResourceMap) {
+  $sourcePath = $null
+  foreach ($candidate in $entry.SourceCandidates) {
+    if (Test-Path $candidate) {
+      $sourcePath = $candidate
+      break
+    }
+  }
+
+  if ($null -ne $sourcePath) {
+    $destinationPath = Join-Path $portableDir $entry.Name
     Copy-Item -Path $sourcePath -Destination $destinationPath -Recurse -Force
   }
 }
