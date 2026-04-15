@@ -1,4 +1,9 @@
 # ParaGraph LLM Workflow
+[![Release](https://img.shields.io/github/v/release/CTCycle/RaGraph-Easy-Retrieval?display_name=tag)](https://github.com/CTCycle/RaGraph-Easy-Retrieval/releases)
+[![Python](https://img.shields.io/badge/Python-%3E%3D3.14-blue)](https://www.python.org/)
+[![Node.js](https://img.shields.io/badge/Node.js-22.12.0-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
+[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![CI](https://github.com/CTCycle/RaGraph-Easy-Retrieval/actions/workflows/ci.yml/badge.svg)](https://github.com/CTCycle/RaGraph-Easy-Retrieval/actions/workflows/ci.yml)
 
 ## 1. Project Overview
 
