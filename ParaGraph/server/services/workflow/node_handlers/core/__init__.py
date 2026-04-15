@@ -31,7 +31,7 @@ from ParaGraph.server.domain.node_handler_core import (
     VectorStoreParameters,
 )
 from ParaGraph.server.domain.node_catalog import ProviderModelDefinition
-from ParaGraph.server.domain.workflow_payloads import RetrievalResults, VectorPoint
+from ParaGraph.server.domain.workflow_payloads import RetrievalResults, VectorPoint, VectorStoreHandle
 from ParaGraph.server.services.configuration import configuration_service
 from ParaGraph.server.services.workflow.node_handlers.base import NodeHandler
 from ParaGraph.server.services.workflow.node_handlers.core.constants import (
@@ -661,9 +661,13 @@ def _similarity_search_executor(parameters: dict[str, Any], inputs: dict[str, An
     provider, model_name = _extract_embedding_source(embedding_payload)
     query_vector = _embed_text_for_text_embedding_node(provider=provider, model_name=model_name, text=query)
 
-    store_payload = inputs.get("store")
-    if not isinstance(store_payload, dict):
+    raw_store_payload = inputs.get("store")
+    if not isinstance(raw_store_payload, dict):
         raise ValueError("SIMILARITY_SEARCH requires a vector store controller input")
+    try:
+        store_payload = VectorStoreHandle.model_validate(raw_store_payload).model_dump(mode="json")
+    except ValidationError as exc:
+        raise ValueError("SIMILARITY_SEARCH received an invalid vector store controller payload") from exc
 
     requested_metric = _canonical_similarity_metric(parsed.similarity_strategy)
     store_metric = _canonical_similarity_metric(coerce_text(store_payload.get("metric") or "cosine"))
@@ -675,7 +679,22 @@ def _similarity_search_executor(parameters: dict[str, Any], inputs: dict[str, An
 
     backend = coerce_text(store_payload.get("backend") or "lancedb").strip().lower()
     adapter = get_vector_store_adapter(backend)
+    capabilities = adapter.describe_capabilities()
+    if parsed.search_mode == "hybrid" and not bool(capabilities.get("supports_hybrid_search")):
+        raise ValueError(f"SIMILARITY_SEARCH backend '{backend}' does not support hybrid mode")
+    if parsed.search_engine == "faiss_augmented" and not bool(capabilities.get("supports_faiss_augmentation")):
+        raise ValueError(f"SIMILARITY_SEARCH backend '{backend}' does not support faiss_augmented engine")
+
     raw_filter_spec = parsed.metadata_filter if isinstance(parsed.metadata_filter, dict) else None
+    if raw_filter_spec and not bool(capabilities.get("supports_metadata_filtering", True)):
+        raise ValueError(f"SIMILARITY_SEARCH backend '{backend}' does not support metadata filtering")
+
+    effective_search_engine = parsed.search_engine
+    if effective_search_engine == "faiss_augmented":
+        # The runtime currently reuses backend-native search while preserving
+        # explicit compatibility validation for optional faiss augmentation mode.
+        effective_search_engine = "native"
+
     hits = adapter.search(
         store=store_payload,
         query_vector=query_vector,
@@ -688,6 +707,7 @@ def _similarity_search_executor(parameters: dict[str, Any], inputs: dict[str, An
         keyword_query=coerce_text(parsed.keyword_query).strip() or None,
         vector_weight=float(parsed.vector_weight),
         keyword_weight=float(parsed.keyword_weight),
+        search_engine=effective_search_engine,
     )
 
     return {

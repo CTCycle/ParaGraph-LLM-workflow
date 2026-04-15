@@ -417,6 +417,9 @@ def _materialize_lancedb_rows(payload: Any) -> list[dict[str, Any]]:
 
 class VectorStoreAdapter:
     backend = "faiss"
+    supports_hybrid_search = False
+    supports_metadata_filtering = True
+    supports_faiss_augmentation = True
 
     def validate_connection(
         self,
@@ -437,8 +440,9 @@ class VectorStoreAdapter:
     def describe_capabilities(self) -> dict[str, Any]:
         return {
             "backend": self.backend,
-            "supports_hybrid_search": False,
-            "supports_metadata_filtering": True,
+            "supports_hybrid_search": bool(self.supports_hybrid_search),
+            "supports_metadata_filtering": bool(self.supports_metadata_filtering),
+            "supports_faiss_augmentation": bool(self.supports_faiss_augmentation),
         }
 
     def write_points(
@@ -620,6 +624,7 @@ class VectorStoreAdapter:
 
 class LanceDbVectorStoreAdapter(VectorStoreAdapter):
     backend = "lancedb"
+    supports_faiss_augmentation = False
 
     def _load_lancedb(self):
         return _import_lancedb_module()
@@ -771,6 +776,7 @@ class LanceDbVectorStoreAdapter(VectorStoreAdapter):
 
 class QdrantVectorStoreAdapter(VectorStoreAdapter):
     backend = "qdrant"
+    supports_faiss_augmentation = False
 
     def _load_client(self):
         return _import_qdrant_clients()
@@ -988,6 +994,7 @@ class QdrantVectorStoreAdapter(VectorStoreAdapter):
 
 class PineconeVectorStoreAdapter(VectorStoreAdapter):
     backend = "pinecone"
+    supports_faiss_augmentation = False
 
     def _load_client(self):
         return _import_pinecone_client()
@@ -1211,6 +1218,7 @@ class PineconeVectorStoreAdapter(VectorStoreAdapter):
 
 class WeaviateVectorStoreAdapter(VectorStoreAdapter):
     backend = "weaviate"
+    supports_faiss_augmentation = False
 
     def _load_client(self):
         return _import_weaviate_module()
@@ -1403,6 +1411,7 @@ class WeaviateVectorStoreAdapter(VectorStoreAdapter):
 
 class MilvusVectorStoreAdapter(VectorStoreAdapter):
     backend = "milvus"
+    supports_faiss_augmentation = False
 
     def _load_client(self):
         return _import_milvus_client()
@@ -1629,6 +1638,7 @@ class MilvusVectorStoreAdapter(VectorStoreAdapter):
 
 class ChromaVectorStoreAdapter(VectorStoreAdapter):
     backend = "chroma"
+    supports_faiss_augmentation = False
 
     def _load_client(self):
         return _import_chromadb_module()

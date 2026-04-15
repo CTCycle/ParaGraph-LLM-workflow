@@ -6,10 +6,12 @@ import { getDynamicModelOptions } from './WorkflowPage'
 import textEmbeddingManifestJson from '../../../resources/nodes/text_embedding_v1.json'
 import vectorStoreManifestJson from '../../../resources/nodes/vector_store_v1.json'
 import rerankManifestJson from '../../../resources/nodes/rerank_results_v1.json'
+import similaritySearchManifestJson from '../../../resources/nodes/similarity_search_v1.json'
 
 const textEmbeddingManifest = textEmbeddingManifestJson as NodeManifest
 const vectorStoreManifest = vectorStoreManifestJson as NodeManifest
 const rerankManifest = rerankManifestJson as NodeManifest
+const similaritySearchManifest = similaritySearchManifestJson as NodeManifest
 
 function getOptions(manifest: NodeManifest, parameterName: string): string[] {
     const parameter = manifest.parameters.find((item) => item.name === parameterName)
@@ -42,6 +44,16 @@ describe('WorkflowPage manifest-driven provider and retrieval behavior', () => {
             'metadata_boost',
             'top_k',
         ])
+    })
+
+    it('SIMILARITY_SEARCH exposes native-first engine options from manifest', () => {
+        const searchModeOptions = getOptions(similaritySearchManifest, 'search_mode')
+        const searchEngineOptions = getOptions(similaritySearchManifest, 'search_engine')
+        const metricOptions = getOptions(similaritySearchManifest, 'similarity_strategy')
+
+        expect(searchModeOptions).toEqual(['vector', 'hybrid'])
+        expect(searchEngineOptions).toEqual(['native', 'faiss_augmented'])
+        expect(metricOptions).toEqual(['cosine', 'euclidean', 'dot'])
     })
 
     it('embedding model options are provider-catalog driven and update on provider switch', () => {
