@@ -1,4 +1,5 @@
 # General Rules
+Last updated: 2026-04-08
 
 This is the mandatory entry document for every task.
 
@@ -25,7 +26,7 @@ This is the mandatory entry document for every task.
 | `PACKAGING_AND_RUNTIME_MODES.md` | Runtime/deployment modes, path behavior, packaging constraints. | Changes affecting launch/config/runtime behavior or packaging. |
 | `UI_STANDARDS.md` | Design tokens, spacing/typography/color/focus/accessibility standards. | Any UI/CSS/component interaction change. |
 | `UI_UX_AUDIT_REPORT.md` | Known UX gaps and remediation priorities. | UI changes where consistency with existing audit guidance matters. |
-| `README_WRITING.md` | README style and structure requirements. | Creating/updating README docs. |
+| `USER_MANUAL.md` | End-user operation guide: user journeys, commands, usage patterns, and troubleshooting. | User onboarding, operations docs, and usage clarifications. |
 
 ## 3. Runtime and Command Rules
 

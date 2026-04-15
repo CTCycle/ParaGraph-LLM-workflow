@@ -9,6 +9,7 @@ import {
     useRef,
     useState,
 } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import {
     addEdge,
     Background,
@@ -34,13 +35,12 @@ import {
 import {
     uploadNodeDirectory,
     checkDatabaseConnection,
-    compileWorkflow,
-    fetchProviderModels,
+    checkVectorStoreConnection,
     importNodeManifest,
-    pollExecution,
-    startExecution,
-    subscribeExecutionEvents,
-} from '../app/services/workflowApi'
+} from '../app/services/nodesApi'
+import { compileWorkflow } from '../app/services/workflowsApi'
+import { fetchProviderModels } from '../app/services/providersApi'
+import { pollExecution, startExecution, subscribeExecutionEvents } from '../app/services/executionsApi'
 import { usePageMetadata } from '../app/hooks/usePageMetadata'
 import { useNodeCatalog } from '../workflow/hooks/useNodeCatalog'
 import { NODE_CATEGORY_LABELS, NODE_CATEGORY_ORDER } from '../workflow/schema/nodeCategory'
@@ -56,7 +56,10 @@ import {
     WorkflowConnection,
     WorkflowDefinition,
     WorkflowNodeInstance,
+    WorkflowNavigationState,
+    WorkflowOpenIntent,
     WorkflowShareBundle,
+    WorkflowTemplate,
 } from '../workflow/schema/types'
 import './WorkflowPage.css'
 
@@ -208,95 +211,6 @@ const INTERNAL_PREVIEW_ITEMS_PARAMETER = '__preview_items'
 const NODE_OUTPUT_NAME_PARAMETER = '__output_name'
 const MAX_NODE_GLOW_TRAIL = 3
 const NODE_GLOW_CLEAR_DELAY_MS = 1200
-const TEXT_EMBEDDING_MODEL_OPTIONS: Record<string, ProviderModelDefinition[]> = {
-    cloud: [
-        {
-            provider: 'openai',
-            model: 'text-embedding-3-small',
-            label: 'Text Embedding 3 Small',
-            supports_image: false,
-            supports_embeddings: true,
-            supports_reasoning: false,
-            supports_structured_output: false,
-        },
-        {
-            provider: 'openai',
-            model: 'text-embedding-3-large',
-            label: 'Text Embedding 3 Large',
-            supports_image: false,
-            supports_embeddings: true,
-            supports_reasoning: false,
-            supports_structured_output: false,
-        },
-        {
-            provider: 'gemini',
-            model: 'gemini-embedding-001',
-            label: 'Gemini Embedding 001',
-            supports_image: false,
-            supports_embeddings: true,
-            supports_reasoning: false,
-            supports_structured_output: false,
-        },
-    ],
-    huggingface: [
-        {
-            provider: 'huggingface',
-            model: 'sentence-transformers/all-MiniLM-L6-v2',
-            label: 'all-MiniLM-L6-v2',
-            supports_image: false,
-            supports_embeddings: true,
-            supports_reasoning: false,
-            supports_structured_output: false,
-        },
-        {
-            provider: 'huggingface',
-            model: 'intfloat/e5-base-v2',
-            label: 'E5 Base v2',
-            supports_image: false,
-            supports_embeddings: true,
-            supports_reasoning: false,
-            supports_structured_output: false,
-        },
-        {
-            provider: 'huggingface',
-            model: 'BAAI/bge-small-en-v1.5',
-            label: 'BGE Small EN v1.5',
-            supports_image: false,
-            supports_embeddings: true,
-            supports_reasoning: false,
-            supports_structured_output: false,
-        },
-    ],
-    ollama: [
-        {
-            provider: 'ollama',
-            model: 'nomic-embed-text',
-            label: 'nomic-embed-text',
-            supports_image: false,
-            supports_embeddings: true,
-            supports_reasoning: false,
-            supports_structured_output: false,
-        },
-        {
-            provider: 'ollama',
-            model: 'mxbai-embed-large',
-            label: 'mxbai-embed-large',
-            supports_image: false,
-            supports_embeddings: true,
-            supports_reasoning: false,
-            supports_structured_output: false,
-        },
-        {
-            provider: 'ollama',
-            model: 'bge-m3',
-            label: 'bge-m3',
-            supports_image: false,
-            supports_embeddings: true,
-            supports_reasoning: false,
-            supports_structured_output: false,
-        },
-    ],
-}
 const WORKFLOW_EDITOR_HANDLE_HEIGHT_PX = 22
 
 type HandleKind = 'input' | 'output' | 'controller'
@@ -340,7 +254,7 @@ function pickWorkflowJsonFromBrowser(): Promise<SelectedWorkflowJson | null> {
                 return
             }
             settled = true
-            window.removeEventListener('focus', handleWindowFocus)
+            globalThis.removeEventListener('focus', handleWindowFocus)
             resolve(value)
         }
 
@@ -349,12 +263,12 @@ function pickWorkflowJsonFromBrowser(): Promise<SelectedWorkflowJson | null> {
                 return
             }
             settled = true
-            window.removeEventListener('focus', handleWindowFocus)
+            globalThis.removeEventListener('focus', handleWindowFocus)
             reject(error)
         }
 
         const handleWindowFocus = (): void => {
-            window.setTimeout(() => {
+            globalThis.setTimeout(() => {
                 if (!settled && !changeHandled && !input.files?.length) {
                     settle(null)
                 }
@@ -378,7 +292,7 @@ function pickWorkflowJsonFromBrowser(): Promise<SelectedWorkflowJson | null> {
                 })
         })
 
-        window.addEventListener('focus', handleWindowFocus, { once: true })
+        globalThis.addEventListener('focus', handleWindowFocus, { once: true })
         input.click()
     })
 }
@@ -388,7 +302,7 @@ function formatParameterLabel(parameterName: string): string {
 }
 
 function basenameOnly(value: unknown): string {
-    const text = String(value ?? '').trim()
+    const text = coerceTextPayload(value).trim()
     if (!text) {
         return ''
     }
@@ -490,19 +404,19 @@ function registerPickerCancelHandler(
     }
 
     const handleWindowFocus = (): void => {
-        window.setTimeout(() => {
+        globalThis.setTimeout(() => {
             if (!wasChangeHandled() && !input.files?.length) {
                 settleAsCancelled()
             }
         }, BROWSER_PICKER_CANCEL_GUARD_MS)
     }
-    window.addEventListener('focus', handleWindowFocus, { once: true })
-    return () => window.removeEventListener('focus', handleWindowFocus)
+    globalThis.addEventListener('focus', handleWindowFocus, { once: true })
+    return () => globalThis.removeEventListener('focus', handleWindowFocus)
 }
 
 function inferSelectedFolderName(files: File[]): string {
     const firstRelativePath = files[0]?.webkitRelativePath || files[0]?.name || ''
-    const [root] = firstRelativePath.split('/').filter(Boolean)
+    const root = firstRelativePath.split('/').find(Boolean)
     return root || 'selected folder'
 }
 
@@ -578,10 +492,10 @@ function pickFilesFromBrowser(options: { multiple: boolean }): Promise<BrowserFi
 }
 
 async function pickDirectoryHandleFromBrowser(): Promise<BrowserDirectoryHandleSelection | null> {
-    const browserWindow = window as WindowWithDirectoryPicker
+    const browserWindow = globalThis.window as WindowWithDirectoryPicker
     const picker = browserWindow.showDirectoryPicker
     if (typeof picker !== 'function') {
-        throw new Error('Directory picker is not supported in this browser')
+        throw new TypeError('Directory picker is not supported in this browser')
     }
     try {
         const handle = await picker()
@@ -622,10 +536,10 @@ function readBaseFileNameFromPath(pathValue: string): string {
 }
 
 async function pickSaveFileFromBrowser(options: SaveFilePickerOptions): Promise<SaveFileSelection | null> {
-    const browserWindow = window as WindowWithSaveFilePicker
+    const browserWindow = globalThis.window as WindowWithSaveFilePicker
     const picker = browserWindow.showSaveFilePicker
     if (typeof picker !== 'function') {
-        throw new Error('Save As is not supported in this browser')
+        throw new TypeError('Save As is not supported in this browser')
     }
     const extension = normalizeFileExtension(options.extension)
     try {
@@ -661,8 +575,8 @@ function isSaveAsFolderOutputPathParameter(manifest: NodeManifest, parameter: No
 }
 
 function getSaveAsFileOutputPathBrowseLabel(pathValue: unknown, extensionValue: unknown): string {
-    const normalizedPath = String(pathValue ?? '').trim()
-    const normalizedExtension = normalizeFileExtension(String(extensionValue ?? '.txt'))
+    const normalizedPath = coerceTextPayload(pathValue).trim()
+    const normalizedExtension = normalizeFileExtension(coerceTextPayload(extensionValue) || '.txt')
     const currentFileName = readBaseFileNameFromPath(normalizedPath)
     if (!currentFileName) {
         return `output${normalizedExtension}`
@@ -679,7 +593,7 @@ function stripExtensionFromName(fileName: string): string {
 }
 
 function getSaveAsFolderOutputLabel(pathValue: unknown, fallbackFolderName = 'output'): string {
-    const normalizedPath = String(pathValue ?? '').trim()
+    const normalizedPath = coerceTextPayload(pathValue).trim()
     const currentFileName = readBaseFileNameFromPath(normalizedPath)
     if (!currentFileName) {
         return fallbackFolderName
@@ -696,7 +610,7 @@ function shouldPreserveSaveNodeBrowseSelection(
     if (!selection) {
         return false
     }
-    const normalizedOutputPath = String(outputPathValue ?? '').trim()
+    const normalizedOutputPath = coerceTextPayload(outputPathValue).trim()
     if (!normalizedOutputPath) {
         return false
     }
@@ -705,7 +619,7 @@ function shouldPreserveSaveNodeBrowseSelection(
         if (selection.kind !== 'file') {
             return false
         }
-        const normalizedExtension = normalizeFileExtension(String(extensionValue ?? '.txt'))
+        const normalizedExtension = normalizeFileExtension(coerceTextPayload(extensionValue) || '.txt')
         const selectedFileName = ensureFileNameHasExtension(selection.fileHandle.name, normalizedExtension)
         return selectedFileName === normalizedOutputPath
     }
@@ -844,9 +758,7 @@ function collectNodeItemsFromPayloadValue(value: unknown): NodeItemRecord[] {
     }
 
     const vectors = (Array.isArray(isRecord(value) ? value.vectors : undefined) ? (isRecord(value) ? value.vectors : []) : []) as unknown[]
-    const legacyPoints = (Array.isArray(isRecord(value) ? value.points : undefined) ? (isRecord(value) ? value.points : []) : []) as unknown[]
-    const vectorPoints = vectors.length > 0 ? vectors : legacyPoints
-    for (const [index, vectorPoint] of vectorPoints.entries()) {
+    for (const [index, vectorPoint] of vectors.entries()) {
         if (!isRecord(vectorPoint)) {
             continue
         }
@@ -1093,13 +1005,6 @@ function defaultParameters(manifest: NodeManifest): Record<string, unknown> {
     return Object.fromEntries(manifest.parameters.map((parameter) => [parameter.name, parameter.default ?? '']))
 }
 
-function normalizePathParameter(parameters: Record<string, unknown>, canonicalName: 'storage_path' | 'folder_path'): void {
-    const current = parameters[canonicalName]
-    if (typeof current === 'string') {
-        parameters[canonicalName] = current.trim()
-    }
-}
-
 function getNodeOutputName(parameters: Record<string, unknown>): string | null {
     const value = parameters[NODE_OUTPUT_NAME_PARAMETER]
     if (typeof value !== 'string') {
@@ -1109,14 +1014,8 @@ function getNodeOutputName(parameters: Record<string, unknown>): string | null {
     return trimmed || null
 }
 
-function normalizeNodePathParameters(manifest: NodeManifest, parameters: Record<string, unknown>): Record<string, unknown> {
+function normalizeNodePathParameters(_manifest: NodeManifest, parameters: Record<string, unknown>): Record<string, unknown> {
     const nextParameters = cloneNodeParameters(parameters)
-    if (manifest.id === 'LOAD_TEXT') {
-        normalizePathParameter(nextParameters, 'storage_path')
-    }
-    if (manifest.id === 'LOAD_DOCUMENTS') {
-        normalizePathParameter(nextParameters, 'folder_path')
-    }
     delete nextParameters[INTERNAL_PREVIEW_ITEMS_PARAMETER]
     return nextParameters
 }
@@ -1127,13 +1026,12 @@ function normalizeJsonParameterValue(value: unknown): string {
     try {
         return JSON.stringify(value ?? {}, null, 2)
     } catch {
-        return String(value ?? '')
+        return coerceTextPayload(value)
     }
 }
 
 function normalizeProvider(value: unknown): string {
-    const text = String(value ?? '').trim().toLowerCase()
-    return text === 'anthropic' ? 'claude' : text
+    return coerceTextPayload(value).trim().toLowerCase()
 }
 
 function readNumericConstraint(constraints: Record<string, unknown>, key: string): number | undefined {
@@ -1202,6 +1100,9 @@ function isSqlConnectionNode(manifest: NodeManifest): manifest is NodeManifest &
     return manifest.id === 'SQL_DATABASE' || manifest.id === 'SQL_FILE_DATABASE'
 }
 
+function isVectorStoreConnectionNode(manifest: NodeManifest): manifest is NodeManifest & { id: 'VECTOR_STORE' } {
+    return manifest.id === 'VECTOR_STORE'
+}
 function formatWorkflowExecutionError(error: unknown, runState: ExecutionRunState | null): string {
     const reason = error instanceof Error ? error.message : 'Execution failed for an unknown reason.'
     const failedStep = runState?.steps.find((step) => step.status === 'failed')
@@ -1230,21 +1131,12 @@ function isAbortError(error: unknown): boolean {
     }
     return error instanceof Error && error.name === 'AbortError'
 }
-const LEGACY_MANIFEST_ID_MAP: Record<string, string> = {
-    OLLAMA_LLM_CHAT: 'LLM_CHAT',
-    CLOUD_LLM_CHAT: 'LLM_CHAT',
-    HUGGINGFACE_LLM_CHAT: 'LLM_CHAT',
-    OLLAMA_STRUCTURED_RESPONSE: 'LLM_STRUCTURED',
-    CLOUD_STRUCTURED_RESPONSE: 'LLM_STRUCTURED',
-    HUGGINGFACE_STRUCTURED_RESPONSE: 'LLM_STRUCTURED',
-}
-
 function manifestKey(manifest: NodeManifest): string {
     return `${manifest.id}:${manifest.version}`
 }
 
 function resolveManifestId(manifestId: string): string {
-    return LEGACY_MANIFEST_ID_MAP[manifestId] ?? manifestId
+    return manifestId
 }
 
 function createDefaultExpandedCategoriesState(): CategoryExpansionState {
@@ -1256,12 +1148,12 @@ function createDefaultExpandedCategoriesState(): CategoryExpansionState {
 
 function createExpandedCategoriesState(): CategoryExpansionState {
     const fallback = createDefaultExpandedCategoriesState()
-    if (typeof window === 'undefined') {
+    if (typeof globalThis.window === 'undefined') {
         return fallback
     }
 
     try {
-        const raw = window.localStorage.getItem(WORKFLOW_TREE_STATE_STORAGE_KEY)
+        const raw = globalThis.localStorage.getItem(WORKFLOW_TREE_STATE_STORAGE_KEY)
         if (!raw) {
             return fallback
         }
@@ -1395,6 +1287,36 @@ function isVisualGraphPayload(value: unknown): value is VisualGraph {
     )
 }
 
+function isWorkflowTemplatePayload(value: unknown): value is WorkflowTemplate {
+    if (!isRecord(value) || !Array.isArray(value.tags) || !Array.isArray(value.required_nodes)) {
+        return false
+    }
+
+    return (
+        typeof value.id === 'string' &&
+        typeof value.name === 'string' &&
+        typeof value.description === 'string' &&
+        value.tags.every((item) => typeof item === 'string') &&
+        value.required_nodes.every(isNodeManifestPayload) &&
+        isWorkflowDefinitionPayload(value.definition) &&
+        isVisualGraphPayload(value.visual_graph) &&
+        isRecord(value.metadata)
+    )
+}
+
+function isWorkflowOpenIntentPayload(value: unknown): value is WorkflowOpenIntent {
+    if (!isRecord(value) || typeof value.type !== 'string') {
+        return false
+    }
+    if (value.type === 'add-node') {
+        return typeof value.node_id === 'string' && isFiniteNumber(value.node_version)
+    }
+    if (value.type === 'load-template') {
+        return isWorkflowTemplatePayload(value.template)
+    }
+    return false
+}
+
 function isWorkflowShareBundlePayload(value: unknown): value is WorkflowShareBundle {
     if (!isRecord(value) || !isRecord(value.workflow)) {
         return false
@@ -1441,12 +1363,12 @@ function readImportedWorkflowPayload(value: unknown): ImportedWorkflowPayload {
 }
 
 function readPersistedWorkflowState(): PersistedWorkflowState | null {
-    if (typeof window === 'undefined') {
+    if (typeof globalThis.window === 'undefined') {
         return null
     }
 
     try {
-        const raw = window.localStorage.getItem(WORKFLOW_STATE_STORAGE_KEY)
+        const raw = globalThis.localStorage.getItem(WORKFLOW_STATE_STORAGE_KEY)
         if (!raw) {
             return null
         }
@@ -1501,7 +1423,7 @@ function readPersistedWorkflowState(): PersistedWorkflowState | null {
                         id:
                             typeof value.id === 'string' && value.id.trim()
                                 ? value.id
-                                : `${value.source}-${String(sourceHandle ?? '')}-${value.target}-${String(targetHandle ?? '')}`,
+                                : `${value.source}-${coerceTextPayload(sourceHandle)}-${value.target}-${coerceTextPayload(targetHandle)}`,
                         source: value.source,
                         target: value.target,
                         source_handle: typeof sourceHandle === 'string' ? sourceHandle : null,
@@ -1539,10 +1461,10 @@ function readPersistedWorkflowState(): PersistedWorkflowState | null {
 }
 
 function persistWorkflowState(state: PersistedWorkflowState): void {
-    if (typeof window === 'undefined') {
+    if (typeof globalThis.window === 'undefined') {
         return
     }
-    window.localStorage.setItem(WORKFLOW_STATE_STORAGE_KEY, JSON.stringify(state))
+    globalThis.localStorage.setItem(WORKFLOW_STATE_STORAGE_KEY, JSON.stringify(state))
 }
 
 function buildNodeSummary(manifest: NodeManifest): string {
@@ -1571,13 +1493,13 @@ function formatParameterValue(parameter: NodeParameterDefinition, value: unknown
         try {
             return JSON.stringify(value ?? {}, null, 2)
         } catch {
-            return String(value ?? '')
+            return coerceTextPayload(value)
         }
     }
     if (parameter.ui_control === 'string-list') {
         return formatPathListValue(value)
     }
-    return String(value ?? '')
+    return coerceTextPayload(value)
 }
 
 function formatRuntimeOutput(value: Record<string, unknown> | null): string {
@@ -1681,7 +1603,7 @@ export function resolveWorkflowTextEditorBinding(selectedNode: EditorSelectionNo
     if (selectedNode.manifestId === 'PROMPT') {
         return {
             nodeId: selectedNode.id,
-            text: String(selectedNode.parameters.prompt_text ?? ''),
+            text: coerceTextPayload(selectedNode.parameters.prompt_text),
             editable: true,
             parameterName: 'prompt_text',
         }
@@ -1690,7 +1612,7 @@ export function resolveWorkflowTextEditorBinding(selectedNode: EditorSelectionNo
     if (selectedNode.manifestId === 'PROMPT_TEMPLATE') {
         return {
             nodeId: selectedNode.id,
-            text: String(selectedNode.parameters.template ?? ''),
+            text: coerceTextPayload(selectedNode.parameters.template),
             editable: true,
             parameterName: 'template',
         }
@@ -1747,7 +1669,7 @@ function isEditableEventTarget(target: EventTarget | null): boolean {
     return Boolean(target.closest('input, textarea, select, [contenteditable="true"]'))
 }
 
-function getDynamicModelOptions(
+export function getDynamicModelOptions(
     manifest: NodeManifest,
     parameters: Record<string, unknown>,
     providerModels: ProviderModelDefinition[],
@@ -1757,8 +1679,8 @@ function getDynamicModelOptions(
         return providerModels.filter((item) => item.provider === provider)
     }
     if (manifest.id === 'TEXT_EMBEDDING') {
-        const provider = normalizeProvider(parameters.provider ?? 'cloud') || 'cloud'
-        return TEXT_EMBEDDING_MODEL_OPTIONS[provider] ?? []
+        const provider = normalizeProvider(parameters.provider ?? 'openai') || 'openai'
+        return providerModels.filter((item) => item.provider === provider && item.supports_embeddings)
     }
     return []
 }
@@ -1774,7 +1696,7 @@ function buildInitialNodeParameters(
     }
     const normalizedParameters = normalizeNodePathParameters(manifest, initialParameters)
     const initialModels = getDynamicModelOptions(manifest, normalizedParameters, providerModels)
-    if ((manifest.id === 'MODEL_PROVIDER' || manifest.id === 'TEXT_EMBEDDING') && initialModels.length > 0 && !String(normalizedParameters.model_name ?? '').trim()) {
+    if ((manifest.id === 'MODEL_PROVIDER' || manifest.id === 'TEXT_EMBEDDING') && initialModels.length > 0 && !coerceTextPayload(normalizedParameters.model_name).trim()) {
         normalizedParameters.model_name = initialModels[0].model
     }
     for (const parameter of manifest.parameters) {
@@ -1813,17 +1735,52 @@ function getParameterOptions(
         .map((option) => ({ value: option, label: formatWidgetOptionLabel(option) }))
 }
 
+
+function normalizeVisibleWhenValue(value: unknown): string {
+    if (typeof value === 'string') {
+        return value.trim().toLowerCase()
+    }
+    if (typeof value === 'number' || typeof value === 'boolean') {
+        return String(value).trim().toLowerCase()
+    }
+    return ''
+}
+
+function shouldShowParameter(parameter: NodeParameterDefinition, parameters: Record<string, unknown>): boolean {
+    const visibleWhen = parameter.constraints.visible_when
+    if (!visibleWhen || typeof visibleWhen !== 'object' || Array.isArray(visibleWhen)) {
+        return true
+    }
+
+    for (const [dependencyName, expectedRaw] of Object.entries(visibleWhen as Record<string, unknown>)) {
+        const currentValue = normalizeVisibleWhenValue(parameters[dependencyName])
+        const expectedValues = Array.isArray(expectedRaw) ? expectedRaw : [expectedRaw]
+        const normalizedExpected = expectedValues.map((item) => normalizeVisibleWhenValue(item)).filter(Boolean)
+        if (normalizedExpected.length === 0) {
+            continue
+        }
+        if (!normalizedExpected.includes(currentValue)) {
+            return false
+        }
+    }
+
+    return true
+}
 function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
     const nodeStyle: NodeAccentStyle = { '--node-accent': data.manifest.ui.accent_color }
     const structured = isStructuredNode(data.manifest)
     const isJsonOutputNode = data.manifest.id === 'JSON_OUTPUT'
     const sqlConnectionNode = isSqlConnectionNode(data.manifest)
+    const vectorStoreConnectionNode = isVectorStoreConnectionNode(data.manifest)
+    const supportsConnectionCheck = sqlConnectionNode || vectorStoreConnectionNode
     const [browseTarget, setBrowseTarget] = useState<string | null>(null)
     const [jsonDrafts, setJsonDrafts] = useState<Record<string, string>>({})
     const [listDrafts, setListDrafts] = useState<Record<string, string>>({})
     const [jsonValidationStates, setJsonValidationStates] = useState<Record<string, JsonValidationState>>({})
     const [runtimeJsonValidation, setRuntimeJsonValidation] = useState<JsonValidationState>('idle')
     const [connectionCheckState, setConnectionCheckState] = useState<'idle' | 'checking' | 'success' | 'error'>('idle')
+
+    const visibleParameters = data.manifest.parameters.filter((parameter) => shouldShowParameter(parameter, data.parameters))
 
     const runtimeOutputText = isJsonOutputNode ? formatJsonOutputRuntime(data.runtimeOutput) : formatRuntimeOutput(data.runtimeOutput)
     const shouldShowRuntimeOutput = Boolean(runtimeOutputText) || isJsonOutputNode
@@ -1925,12 +1882,14 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
     }
 
     async function handleConnectionCheck(): Promise<void> {
-        if (!sqlConnectionNode) {
+        if (!supportsConnectionCheck) {
             return
         }
         setConnectionCheckState('checking')
         try {
-            const response = await checkDatabaseConnection(data.manifest.id as 'SQL_DATABASE' | 'SQL_FILE_DATABASE', data.manifest.version, data.parameters)
+            const response = sqlConnectionNode
+                ? await checkDatabaseConnection(data.manifest.id as 'SQL_DATABASE' | 'SQL_FILE_DATABASE', data.manifest.version, data.parameters)
+                : await checkVectorStoreConnection('VECTOR_STORE', data.manifest.version, data.parameters)
             if (response.ok) {
                 setConnectionCheckState('success')
                 data.onStatusChange(response.message)
@@ -1940,7 +1899,7 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
             }
         } catch (error) {
             setConnectionCheckState('error')
-            data.onStatusChange(error instanceof Error ? error.message : 'Database connectivity check failed')
+            data.onStatusChange(error instanceof Error ? error.message : 'Connection check failed')
         }
     }
 
@@ -1948,7 +1907,7 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
         setBrowseTarget(parameter.name)
         try {
             if (isSaveAsFileOutputPathParameter(data.manifest, parameter)) {
-                const extension = String(data.parameters.extension ?? '.txt')
+                const extension = coerceTextPayload(data.parameters.extension) || '.txt'
                 const currentPath = data.parameters[parameter.name]
                 const suggestedName = getSaveAsFileOutputPathBrowseLabel(currentPath, extension)
                 const saveSelection = await pickSaveFileFromBrowser({
@@ -1985,7 +1944,7 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
                 }
 
                 const uploaded = await uploadNodeDirectory(browserSelection.files)
-                const stagedPath = String(uploaded.path ?? '').trim()
+                const stagedPath = coerceTextPayload(uploaded.path).trim()
                 if (!stagedPath) {
                     throw new Error('Folder upload succeeded but returned an empty path')
                 }
@@ -2006,7 +1965,7 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
                 const uploaded = await uploadNodeDirectory(browserSelection.files)
                 const normalizedFiles = uploaded.files
                     .map((pathValue) => String(pathValue).trim())
-                    .filter((pathValue) => Boolean(pathValue))
+                    .filter(Boolean)
                 if (parameter.ui_control === 'file-list') {
                     if (normalizedFiles.length === 0) {
                         throw new Error('File upload succeeded but returned no files')
@@ -2067,17 +2026,17 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
                 <div className="workflow-node-header-actions">
                     {data.isActive && <span className="workflow-node-badge workflow-node-badge-running">Running</span>}
                     {data.skipped && <span className="workflow-node-badge workflow-node-badge-skipped">Skipped</span>}
-                    {sqlConnectionNode && (
+                    {supportsConnectionCheck && (
                         <button
                             type="button"
                             className={`workflow-node-db-check workflow-node-db-check-${connectionCheckState} nodrag nopan`}
-                            aria-label="Check database connection"
-                            title="Check database connection"
+                            aria-label={sqlConnectionNode ? "Check database connection" : "Check vector store connection"}
+                            title={sqlConnectionNode ? "Check database connection" : "Check vector store connection"}
                             onPointerDown={preventNodeInteractionDrag}
                             onMouseDown={preventNodeInteractionDrag}
                             onClick={() => void handleConnectionCheck()}
                         >
-                            {connectionCheckState === 'checking' ? '...' : 'DB'}
+                            {connectionCheckState === 'checking' ? '...' : sqlConnectionNode ? 'DB' : 'VS'}
                         </button>
                     )}
                     {globalNodeKind && (
@@ -2184,10 +2143,10 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
                 </div>
             </div>
 
-            {!data.collapsed && data.manifest.parameters.length > 0 && (
+            {!data.collapsed && visibleParameters.length > 0 && (
                 <div className="workflow-node-parameters">
                     <div className="workflow-node-parameters-grid">
-                        {data.manifest.parameters.map((parameter) => {
+                        {visibleParameters.map((parameter) => {
                             const value = data.parameters[parameter.name] ?? parameter.default ?? ''
                             const options = getParameterOptions(parameter, data.manifest, data.parameters, data.providerModels)
                             const multiline = isMultilineControl(parameter)
@@ -2330,13 +2289,13 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
                                         ) : parameter.ui_control === 'select' && options.length > 0 ? (
                                             <select
                                                 className="nodrag nopan"
-                                                value={String(value ?? '')}
+                                                value={coerceTextPayload(value)}
                                                 onPointerDown={preventNodeInteractionDrag}
                                                 onMouseDown={preventNodeInteractionDrag}
                                                 onKeyDown={stopKeyboardEventPropagation}
                                                 onChange={(event) => data.onParameterChange(parameter.name, parseValue(parameter, event.target.value))}
                                             >
-                                                {!String(value ?? '') && <option value="">Select...</option>}
+                                                {!coerceTextPayload(value) && <option value="">Select...</option>}
                                                 {options.map((option) => (
                                                     <option key={option.value} value={option.value}>
                                                         {option.label}
@@ -2366,7 +2325,7 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
                                                     >
                                                         {isBrowsing ? '...' : 'Browse'}
                                                     </button>
-                                                    {String(value ?? '').trim() && (
+                                                    {coerceTextPayload(value).trim() && (
                                                         <button
                                                             type="button"
                                                             className="workflow-node-picker-clear"
@@ -2478,6 +2437,8 @@ const nodeTypes = { manifest: ManifestNode }
 
 function WorkflowEditor() {
     const { catalog, loading, error, reload } = useNodeCatalog()
+    const location = useLocation()
+    const navigate = useNavigate()
     const [providerModels, setProviderModels] = useState<ProviderModelDefinition[]>([])
     const [statusText, setStatusText] = useState('Ready')
     const [executionErrorModal, setExecutionErrorModal] = useState<WorkflowExecutionErrorModal | null>(null)
@@ -2585,12 +2546,12 @@ function WorkflowEditor() {
             return
         }
 
-        const clearTimer = window.setTimeout(() => {
+        const clearTimer = globalThis.setTimeout(() => {
             setGlowTrailNodeIds([])
         }, NODE_GLOW_CLEAR_DELAY_MS)
 
         return () => {
-            window.clearTimeout(clearTimer)
+            globalThis.clearTimeout(clearTimer)
         }
     }, [activeNodeId, glowTrailNodeIds])
 
@@ -2626,14 +2587,14 @@ function WorkflowEditor() {
             setIsEditorResizing(false)
         }
 
-        window.addEventListener('pointermove', handlePointerMove)
-        window.addEventListener('pointerup', stopResize)
-        window.addEventListener('pointercancel', stopResize)
+        globalThis.addEventListener('pointermove', handlePointerMove)
+        globalThis.addEventListener('pointerup', stopResize)
+        globalThis.addEventListener('pointercancel', stopResize)
 
         return () => {
-            window.removeEventListener('pointermove', handlePointerMove)
-            window.removeEventListener('pointerup', stopResize)
-            window.removeEventListener('pointercancel', stopResize)
+            globalThis.removeEventListener('pointermove', handlePointerMove)
+            globalThis.removeEventListener('pointerup', stopResize)
+            globalThis.removeEventListener('pointercancel', stopResize)
         }
     }, [isEditorResizing])
 
@@ -2642,8 +2603,8 @@ function WorkflowEditor() {
             setEditorPanelHeight((current) => clampEditorPanelHeight(current))
         }
 
-        window.addEventListener('resize', handleResize)
-        return () => window.removeEventListener('resize', handleResize)
+        globalThis.addEventListener('resize', handleResize)
+        return () => globalThis.removeEventListener('resize', handleResize)
     }, [])
 
     useEffect(() => {
@@ -2692,7 +2653,7 @@ function WorkflowEditor() {
                     return node
                 }
                 const options = getDynamicModelOptions(node.data.manifest, node.data.parameters, providerModels)
-                const currentValue = String(node.data.parameters.model_name ?? '').trim()
+                const currentValue = coerceTextPayload(node.data.parameters.model_name).trim()
                 if (currentValue || options.length === 0) {
                     return {
                         ...node,
@@ -2729,11 +2690,11 @@ function WorkflowEditor() {
             }
         }
 
-        window.addEventListener('pointerdown', closeNodeContextMenu)
-        window.addEventListener('keydown', handleEscape)
+        globalThis.addEventListener('pointerdown', closeNodeContextMenu)
+        globalThis.addEventListener('keydown', handleEscape)
         return () => {
-            window.removeEventListener('pointerdown', closeNodeContextMenu)
-            window.removeEventListener('keydown', handleEscape)
+            globalThis.removeEventListener('pointerdown', closeNodeContextMenu)
+            globalThis.removeEventListener('keydown', handleEscape)
         }
     }, [nodeContextMenu])
 
@@ -2750,8 +2711,8 @@ function WorkflowEditor() {
             setExecutionErrorModal(null)
         }
 
-        window.addEventListener('keydown', handleEscape)
-        return () => window.removeEventListener('keydown', handleEscape)
+        globalThis.addEventListener('keydown', handleEscape)
+        return () => globalThis.removeEventListener('keydown', handleEscape)
     }, [executionErrorModal])
     useEffect(() => {
         function handleKeyboardShortcuts(event: KeyboardEvent): void {
@@ -2857,15 +2818,15 @@ function WorkflowEditor() {
             }
         }
 
-        window.addEventListener('keydown', handleKeyboardShortcuts)
+        globalThis.addEventListener('keydown', handleKeyboardShortcuts)
         return () => {
-            window.removeEventListener('keydown', handleKeyboardShortcuts)
+            globalThis.removeEventListener('keydown', handleKeyboardShortcuts)
         }
     }, [edges, nodes, setEdges, setNodes])
 
     useEffect(() => {
         try {
-            window.localStorage.setItem(WORKFLOW_TREE_STATE_STORAGE_KEY, JSON.stringify(expandedCategories))
+            globalThis.localStorage.setItem(WORKFLOW_TREE_STATE_STORAGE_KEY, JSON.stringify(expandedCategories))
         } catch {
             // Ignore local storage persistence errors.
         }
@@ -3004,6 +2965,7 @@ function WorkflowEditor() {
             nodes: filteredCatalog.filter((manifest) => manifest.category === category),
         })).filter((group) => group.nodes.length > 0)
     }, [filteredCatalog])
+    const hasRunnableNodes = useMemo(() => nodes.some((node) => !node.data.skipped), [nodes])
 
     const selectedManifest = useMemo(() => {
         if (selectedManifestKey) {
@@ -3024,6 +2986,75 @@ function WorkflowEditor() {
     }, [nodeContextMenu, nodes])
     const contextMenuNodeIsExpandable = contextMenuNode ? isNodeItemExpandable(contextMenuNode.data.manifest) : false
     const contextMenuNodeGlobalKind = contextMenuNode ? getGlobalNodeKind(contextMenuNode.data.manifest) : null
+
+    useEffect(() => {
+        const navigationState = location.state as WorkflowNavigationState | null
+        const rawIntent = navigationState?.workflow_intent
+        if (!isWorkflowOpenIntentPayload(rawIntent)) {
+            return
+        }
+        if (loading) {
+            return
+        }
+
+        const clearIntentState = (): void => {
+            navigate(location.pathname, { replace: true, state: null })
+        }
+
+        if (rawIntent.type === 'add-node') {
+            const manifest =
+                catalog.find(
+                    (item) => item.id === rawIntent.node_id && item.version === rawIntent.node_version,
+                ) ?? null
+            if (!manifest) {
+                setStatusText(`Node not found in catalog: ${rawIntent.node_id} v${rawIntent.node_version}`)
+                clearIntentState()
+                return
+            }
+
+            const panelBounds = canvasPanelRef.current?.getBoundingClientRect()
+            const centerPosition = panelBounds
+                ? screenToFlowPosition({
+                    x: panelBounds.left + panelBounds.width * 0.5,
+                    y: panelBounds.top + panelBounds.height * 0.5,
+                })
+                : undefined
+            addManifestNode(manifest, centerPosition, { select: true })
+            setSelectedManifestKey(manifestKey(manifest))
+            setStatusText(`Added ${manifest.name} to canvas`)
+            clearIntentState()
+            return
+        }
+
+        const template = rawIntent.template
+        const requiredManifestKeys = new Set(template.required_nodes.map((manifest) => manifestKey(manifest)))
+        const manifestsForHydration = catalog.filter((manifest) => requiredManifestKeys.has(manifestKey(manifest)))
+        const missing = template.required_nodes.filter(
+            (requiredNode) => !manifestsForHydration.some((manifest) => manifest.id === requiredNode.id && manifest.version === requiredNode.version),
+        )
+        if (missing.length > 0) {
+            setStatusText(
+                `Template "${template.name}" requires missing node manifests: ${missing
+                    .map((manifest) => `${manifest.id} v${manifest.version}`)
+                    .join(', ')}`,
+            )
+            clearIntentState()
+            return
+        }
+
+        hydrateWorkflowFromPayload(
+            {
+                name: template.name,
+                definition: template.definition,
+                visualGraph: template.visual_graph,
+                requiredNodes: template.required_nodes,
+            },
+            manifestsForHydration,
+        )
+        setStatusText(`Loaded template "${template.name}"`)
+        clearIntentState()
+    }, [catalog, loading, location.pathname, location.state, navigate, screenToFlowPosition])
+
     function updateNode(nodeId: string, updater: (node: Node<WorkflowNodeData>) => Node<WorkflowNodeData>): void {
         setNodes((current) => current.map((node) => (node.id === nodeId ? updater(node) : node)))
     }
@@ -3376,7 +3407,7 @@ function WorkflowEditor() {
                 continue
             }
 
-            const extension = normalizeFileExtension(String(node.data.parameters.extension ?? '.txt'))
+                const extension = normalizeFileExtension(coerceTextPayload(node.data.parameters.extension) || '.txt')
             if (step.node_type === SAVE_AS_FILE_NODE_TYPE && selection.kind === 'file') {
                 await writeTextToFileHandle(selection.fileHandle, items.join(SAVE_AS_FILE_CHUNK_SEPARATOR))
                 savedFiles += 1
@@ -3662,7 +3693,6 @@ function WorkflowEditor() {
         try {
             const selection = await pickWorkflowJsonFromBrowser()
             if (!selection) {
-                setStatusText('Workflow import cancelled')
                 return
             }
 
@@ -3924,6 +3954,10 @@ function WorkflowEditor() {
         if (isRunning) {
             return
         }
+        if (!hasRunnableNodes) {
+            setStatusText('Add at least one active node before running the workflow')
+            return
+        }
         setExecutionErrorModal(null)
         setResumeRunSnapshot(null)
         setIsRunning(true)
@@ -3945,7 +3979,12 @@ function WorkflowEditor() {
         let latestRunState: ExecutionRunState | null = null
         let keepRunTracking = false
         try {
-            const compileResponse = await compileWorkflow(buildDefinition())
+            const definition = buildDefinition()
+            if (!definition.nodes.some((node) => !node.skipped)) {
+                throw new Error('Add at least one active node before running the workflow')
+            }
+
+            const compileResponse = await compileWorkflow(definition)
             if (!compileResponse.valid || !compileResponse.plan) {
                 throw new Error(compileResponse.diagnostics.map((item) => item.message).join('; ') || 'Compilation failed')
             }
@@ -3998,12 +4037,6 @@ function WorkflowEditor() {
                     <strong title={statusText}>{statusText}</strong>
                 </div>
                 <div className="workflow-toolbar-actions">
-                    <button type="button" onClick={() => void fitView({ padding: 0.2, duration: 180 })}>
-                        Fit View
-                    </button>
-                    <button type="button" onClick={() => setIsGridVisible((visible) => !visible)}>
-                        {isGridVisible ? 'Hide Grid' : 'Show Grid'}
-                    </button>
                     <button type="button" onClick={() => void exportWorkflowBundle()}>
                         Export JSON
                     </button>
@@ -4026,7 +4059,7 @@ function WorkflowEditor() {
                     <button type="button" onClick={() => setEdges([])}>
                         Clear Links
                     </button>
-                    <button type="button" className="workflow-run" onClick={() => void runWorkflow()} disabled={isRunning}>
+                    <button type="button" className="workflow-run" onClick={() => void runWorkflow()} disabled={isRunning || !hasRunnableNodes}>
                         {isRunning ? 'Running...' : 'Run Workflow'}
                     </button>
                 </div>
@@ -4201,7 +4234,8 @@ function WorkflowEditor() {
                         snapToGrid={isGridVisible}
                         snapGrid={[24, 24]}
                         fitView
-                        fitViewOptions={{ padding: 0.18 }}
+                        fitViewOptions={{ padding: 0.18, minZoom: 0.42 }}
+                        connectionRadius={22}
                         minZoom={0.05}
                         maxZoom={1.8}
                         multiSelectionKeyCode={['Control', 'Meta']}
@@ -4229,6 +4263,20 @@ function WorkflowEditor() {
                             </ControlButton>
                             <ControlButton title="Zoom in" aria-label="Zoom in" onClick={() => void zoomIn({ duration: 110 })}>
                                 +
+                            </ControlButton>
+                            <ControlButton
+                                title="Fit view"
+                                aria-label="Fit view"
+                                onClick={() => void fitView({ padding: 0.2, duration: 180 })}
+                            >
+                                []
+                            </ControlButton>
+                            <ControlButton
+                                title={isGridVisible ? 'Hide grid' : 'Show grid'}
+                                aria-label={isGridVisible ? 'Hide grid' : 'Show grid'}
+                                onClick={() => setIsGridVisible((visible) => !visible)}
+                            >
+                                {isGridVisible ? '##' : '..'}
                             </ControlButton>
                         </Controls>
                         {isGridVisible && (
@@ -4335,7 +4383,7 @@ function WorkflowEditor() {
                                         return
                                     }
                                     const currentName = getNodeOutputName(contextMenuNode.data.parameters) ?? ''
-                                    const nextName = window.prompt('Rename output', currentName)
+                                    const nextName = globalThis.prompt('Rename output', currentName)
                                     if (nextName === null) {
                                         return
                                     }
@@ -4428,4 +4476,13 @@ export default function WorkflowPage() {
         </ReactFlowProvider>
     )
 }
+
+
+
+
+
+
+
+
+
 

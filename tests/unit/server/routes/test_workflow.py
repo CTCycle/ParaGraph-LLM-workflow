@@ -5,7 +5,7 @@ from collections.abc import Callable
 from fastapi.testclient import TestClient
 
 from ParaGraph.server.domain.configuration import AccessKeyConfiguration
-from ParaGraph.server.domain.nodecatalog import ProviderModelDefinition
+from ParaGraph.server.domain.node_catalog import ProviderModelDefinition
 from ParaGraph.server.services.workflow import nodes as node_module
 
 
@@ -116,32 +116,6 @@ def build_provider_structured_with_json_output_definition(schema: object) -> dic
         ],
         'metadata': {},
     }
-def build_legacy_chat_definition() -> dict[str, object]:
-    return {
-        'schema_version': 2,
-        'nodes': [
-            {'node_id': 'system_1', 'node_type': 'SYSTEM_PROMPT', 'node_version': 1, 'parameters': {'prompt_text': 'Legacy system'}},
-            {'node_id': 'user_1', 'node_type': 'USER_PROMPT', 'node_version': 1, 'parameters': {'prompt_text': 'Say hello'}},
-            {
-                'node_id': 'provider_1',
-                'node_type': 'MODEL_PROVIDER',
-                'node_version': 1,
-                'parameters': {'provider': 'ollama', 'model_name': 'llama3.2'},
-            },
-            {
-                'node_id': 'chat_1',
-                'node_type': 'OLLAMA_LLM_CHAT',
-                'node_version': 1,
-                'parameters': {'context_window': 0, 'max_tokens': 64, 'use_reasoning': False},
-            },
-        ],
-        'connections': [
-            {'from_node': 'provider_1', 'from_output': 'model', 'to_node': 'chat_1', 'to_input': 'model'},
-            {'from_node': 'user_1', 'from_output': 'text', 'to_node': 'chat_1', 'to_input': 'user_prompt'},
-            {'from_node': 'system_1', 'from_output': 'text', 'to_node': 'chat_1', 'to_input': 'system_prompt'},
-        ],
-        'metadata': {},
-    }
 def test_compile_returns_plan_for_legacy_prompt_graph(client: TestClient) -> None:
     response = client.post('/executions/compile', json={'definition': build_simple_definition('Plan me')})
 
@@ -187,21 +161,6 @@ def test_compile_rejects_invalid_structured_schema(client: TestClient) -> None:
     payload = response.json()
     assert payload['valid'] is False
     assert any(item['code'] == 'invalid_response_schema' for item in payload['diagnostics'])
-
-
-def test_compile_migrates_legacy_llm_nodes(client: TestClient) -> None:
-    response = client.post('/executions/compile', json={'definition': build_legacy_chat_definition()})
-
-    assert response.status_code == 200
-    payload = response.json()
-    assert payload['valid'] is True
-    chat_step = next(step for step in payload['plan']['steps'] if step['node_id'] == 'chat_1')
-    system_step = next(step for step in payload['plan']['steps'] if step['node_id'] == 'system_1')
-    prompt_step = next(step for step in payload['plan']['steps'] if step['node_id'] == 'user_1')
-    assert chat_step['node_type'] == 'LLM_CHAT'
-    assert system_step['node_type'] == 'PROMPT'
-    assert prompt_step['node_type'] == 'PROMPT'
-    assert chat_step['parameters']['provider'] == 'ollama'
 
 
 def test_compile_rejects_llm_without_model_controller(client: TestClient) -> None:

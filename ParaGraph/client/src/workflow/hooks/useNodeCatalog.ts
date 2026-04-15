@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-import { fetchNodeCatalog } from '../../app/services/workflowApi'
+import { fetchNodeCatalog } from '../../app/services/nodesApi'
 import { NodeManifest } from '../schema/types'
 
 type UseNodeCatalogResult = {
@@ -17,6 +17,7 @@ export function useNodeCatalog(): UseNodeCatalogResult {
     const mountedRef = useRef(true)
 
     useEffect(() => {
+        mountedRef.current = true
         return () => {
             mountedRef.current = false
         }
@@ -54,3 +55,4 @@ export function useNodeCatalog(): UseNodeCatalogResult {
         reload,
     }
 }
+

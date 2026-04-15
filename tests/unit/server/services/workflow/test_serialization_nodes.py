@@ -4,8 +4,16 @@ from pathlib import Path
 
 import pytest
 
+from ParaGraph.server.configurations.startup import reset_configuration_runtime_for_tests
 from ParaGraph.server.services.workflow import node_registry
 from ParaGraph.server.services.workflow.node_handlers import core as core_node_handlers
+
+
+@pytest.fixture(autouse=True)
+def reset_settings_cache() -> None:
+    reset_configuration_runtime_for_tests()
+    yield
+    reset_configuration_runtime_for_tests()
 
 
 
@@ -360,7 +368,8 @@ def test_save_as_folder_rejects_relative_path_traversal() -> None:
 
 
 def test_save_as_file_rejects_absolute_paths_in_cloud_mode(monkeypatch, tmp_path: Path) -> None:
-    monkeypatch.setenv('PARAGRAPH_DEPLOYMENT_MODE', 'cloud')
+    monkeypatch.setenv('PARAGRAPH_CLOUD_MODE', 'true')
+    reset_configuration_runtime_for_tests()
     destination = tmp_path / 'exports' / 'saved.txt'
     with pytest.raises(ValueError, match='must resolve inside'):
         node_registry.execute(
@@ -373,7 +382,8 @@ def test_save_as_file_rejects_absolute_paths_in_cloud_mode(monkeypatch, tmp_path
 
 
 def test_save_as_folder_rejects_absolute_paths_in_cloud_mode(monkeypatch, tmp_path: Path) -> None:
-    monkeypatch.setenv('PARAGRAPH_DEPLOYMENT_MODE', 'cloud')
+    monkeypatch.setenv('PARAGRAPH_CLOUD_MODE', 'true')
+    reset_configuration_runtime_for_tests()
     destination = tmp_path / 'exports' / 'saved'
     with pytest.raises(ValueError, match='must resolve inside'):
         node_registry.execute(
@@ -403,7 +413,7 @@ def test_load_text_uses_shared_loader_for_pdf_paths(monkeypatch, tmp_path: Path)
         observed['path'] = path
         return ('pdf payload', 'application/pdf')
 
-    monkeypatch.setattr(core_node_handlers, '_load_file_text', fake_loader)
+    monkeypatch.setattr(core_node_handlers, 'load_file_text', fake_loader)
 
     loaded = node_registry.execute('LOAD_TEXT', 1, {'storage_path': str(source_file)}, {})
 

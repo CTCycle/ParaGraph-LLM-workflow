@@ -1,4 +1,5 @@
 # Background Jobs
+Last updated: 2026-04-08
 
 ParaGraph uses an in-process thread-based `JobManager` for long-running work.
 

@@ -1,159 +1,127 @@
 # Nodes Library
+Last updated: 2026-04-08
 
-Source of truth for available workflow nodes is the manifest set in:
-
-- `ParaGraph/resources/nodes/*.json`
-
-All currently shipped manifests are version `v1`.
+Source of truth for shipped nodes: `ParaGraph/resources/nodes/*.json`.
 
 ## 1. Current Node Inventory
 
 | Category | Node IDs |
 | --- | --- |
-| `input` | |
 | `web` | `API_CALL`, `FETCH_HTML` |
-| `control` | |
 | `prompt` | `PROMPT`, `PROMPT_TEMPLATE` |
 | `model` | `MODEL_PROVIDER`, `LLM_CHAT`, `LLM_STRUCTURED` |
 | `embeddings` | `TEXT_EMBEDDING` |
-| `retrieval` | `SIMILARITY_SEARCH` |
+| `retrieval` | `SIMILARITY_SEARCH`, `RERANK_RESULTS` |
 | `serialization` | `LOAD_DOCUMENTS`, `LOAD_TEXT`, `SAVE_AS_FILE`, `SAVE_AS_FOLDER` |
 | `text_segmentation` | `FIXED_SIZE_CHUNKS`, `BY_DELIMITER_CHUNKS`, `BY_STRUCTURE_CHUNKS`, `RECURSIVE_SPLIT_CHUNKS`, `REGEX_SPLIT_CHUNKS`, `SENTENCE_WINDOW_CHUNKS`, `MERGE_SMALL_CHUNKS` |
 | `database` | `SQL_DATABASE`, `SQL_FILE_DATABASE` |
-| `vector_storage` | `LANCE_DB` |
+| `vector_storage` | `VECTOR_STORE` |
 | `output` | `TEXT_OUTPUT`, `JSON_OUTPUT` |
 
 ## 2. Node Summary
 
-- `API_CALL`: calls a REST JSON/text endpoint (GET/POST) and emits text/json plus normalized response metadata.
-- `FETCH_HTML`: fetches webpage HTML and emits raw html, cleaned text, and response metadata.
-- `PROMPT`: emits fixed prompt text.
-- `PROMPT_TEMPLATE`: renders prompt text from template + variables.
-- `MODEL_PROVIDER`: emits a typed model-controller handle.
-- `LLM_CHAT`: runs chat completion using model handle + prompt input.
-- `LLM_STRUCTURED`: runs structured generation using model handle + prompt input.
-- `TEXT_EMBEDDING`: produces dense embedding vectors from text/doc/chunk inputs.
-- `SIMILARITY_SEARCH`: embeds query text and retrieves top-k nearest vectors from a connected vector store.
-- `LOAD_DOCUMENTS`: scans a folder and emits document records.
-- `LOAD_TEXT`: reads text from a local file path.
-- `SAVE_AS_FILE`: serializes text/docs/chunks into one output file.
-- `SAVE_AS_FOLDER`: serializes text/docs/chunks into output folder files.
-- `FIXED_SIZE_CHUNKS`: fixed-size segmentation.
-- `BY_DELIMITER_CHUNKS`: delimiter-based segmentation.
-- `BY_STRUCTURE_CHUNKS`: structure-aware segmentation (paragraph/heading boundaries).
-- `RECURSIVE_SPLIT_CHUNKS`: recursive separator fallback segmentation.
-- `REGEX_SPLIT_CHUNKS`: regex-based segmentation.
-- `SENTENCE_WINDOW_CHUNKS`: sentence-window segmentation with overlap.
-- `MERGE_SMALL_CHUNKS`: merges small adjacent fragments.
-- `SQL_DATABASE`: creates SQL DB controller handle from connection parameters.
-- `SQL_FILE_DATABASE`: creates embedded SQL DB controller handle.
-- `LANCE_DB`: stores embedding vectors in a local LanceDB table.
-- `TEXT_OUTPUT`: terminal text output node.
-- `JSON_OUTPUT`: terminal JSON output node.
+- `PROMPT`: emits fixed text.
+- `PROMPT_TEMPLATE`: renders prompt text from template placeholders + variables.
+- `MODEL_PROVIDER`: emits typed model handle for generation nodes.
+- `LLM_CHAT`: text generation node.
+- `LLM_STRUCTURED`: structured generation node with JSON-schema validation after generation.
+- `TEXT_EMBEDDING`: creates vectors from text/documents/chunks.
+- `VECTOR_STORE`: persists vectors to selected backend.
+- `SIMILARITY_SEARCH`: retrieves scored hits from vector store.
+- `RERANK_RESULTS`: deterministic reranking over `RETRIEVAL_RESULTS`.
+- `LOAD_DOCUMENTS` / `LOAD_TEXT`: local ingestion nodes.
+- `SAVE_AS_FILE` / `SAVE_AS_FOLDER`: artifact serialization nodes.
+- Chunking nodes: segmentation utilities for RAG ingestion.
 
-## 3. Core Contract Rules
+## 3. Core Contracts
 
-- Node contract validation is manifest-driven (`id`, `version`, ports, controllers, parameters, runtime metadata).
-- Data connections and controller connections are distinct and must match type + direction contracts.
-- Controller connector shape is rhomboidal and used for behavior/config wiring rather than standard data flow.
-- `accepts_multiple` inputs/controllers require list aggregation behavior in execution.
-- Terminal output nodes publish final outputs and are not required to feed downstream nodes.
+- Manifest-driven validation covers ports, controllers, parameters, and runtime metadata.
+- Data links and controller links are distinct and type-checked.
+- `accepts_multiple` inputs/controllers are aggregated at runtime.
+- Output nodes publish terminal outputs.
 
-## 4. Item Preview Policy (Inspect/Load Nodes)
+## 4. Embedding And Provider Matrix
 
-For nodes that inspect or load items:
+`TEXT_EMBEDDING` providers are explicit:
+- `openai`
+- `gemini`
+- `huggingface`
+- `ollama`
 
-- Preview items without workflow execution when source data is directly inspectable from node parameters (for example browser-selected files/folders).
-- If pre-run preview is available, UI should prompt user selection rather than requiring a run.
-- Display only basename (and optional extension); do not display full local file paths in preview lists.
-- Runtime-produced items still populate the same item viewer when execution data is available.
+`cloud` bucket is not used.
 
-## 5. Embedding Output Contract (`vectors`, not `points`)
+Model options are provider-catalog driven via `/providers/models` and filtered by `supports_embeddings=true`.
 
-`TEXT_EMBEDDING` standardized output port:
+Claude must never be used for embeddings.
 
-- Output name: `vectors`
-- Output type: `VECTOR_POINT_LIST`
-- Meaning: dense numeric embedding arrays (`vector`) with source identifiers and metadata used for semantic similarity search/storage.
+## 5. Vector Store Provider Matrix
 
-Migration compatibility:
+`VECTOR_STORE` provider options:
+- `lancedb`
+- `qdrant`
+- `pinecone`
+- `weaviate`
+- `milvus`
+- `chroma`
+- `faiss`
 
-- Legacy `points` references may be accepted by compatibility paths during transition.
-- New manifests and new workflows must use `vectors`.
+Critical parameter rules:
+- Local providers (`lancedb`, `chroma`, `faiss`) require `storage_path`.
+- Remote providers (`qdrant`, `pinecone`, `weaviate`, `milvus`) require `endpoint_url`.
 
-## 6. Controller Connector Contracts
+## 6. Retrieval And RAG Chain
 
-### 6.1 `TEXT_EMBEDDING`
+Recommended RAG flow:
+1. `LOAD_DOCUMENTS`
+2. Chunking node(s)
+3. `TEXT_EMBEDDING`
+4. `VECTOR_STORE`
+5. `PROMPT_TEMPLATE` (query construction)
+6. `SIMILARITY_SEARCH`
+7. `RERANK_RESULTS`
+8. `PROMPT_TEMPLATE` (answer synthesis)
+9. `LLM_CHAT` or `LLM_STRUCTURED`
 
-- Provides a controller source handle (`embedding`) on the right side.
-- Controller payload includes embedding provider/model context and generated vectors.
-- This allows direct controller wiring into vector stores for immediate persistence.
+Important:
+- Query construction is handled by `PROMPT_TEMPLATE`.
+- No dedicated query-prompt node is required or shipped.
 
-### 6.2 `LANCE_DB`
+## 7. `RERANK_RESULTS` Contract
 
-- Accepts controller target handle (`embedding`) for controller-driven vector-save behavior.
-- Provides controller source handle (`store`) for downstream retrieval nodes.
-- Supports both direct data input (`vectors`) and controller-driven save flow (`TEXT_EMBEDDING -> LANCE_DB`).
+- Node ID: `RERANK_RESULTS`
+- Input: `results` (`RETRIEVAL_RESULTS`, required), `query` (`TEXT`, optional)
+- Output: `results` (`RETRIEVAL_RESULTS`)
+- Runtime key: `rerank_results`
+- Deterministic local scoring strategies:
+  - `original_score`
+  - `term_overlap`
+  - `exact_phrase`
+  - `metadata_match`
+  - `weighted_composite`
 
-### 6.3 `SIMILARITY_SEARCH`
+## 8. Compatibility Constraints
 
-- Accepts controller target handle (`embedding`) to ensure query embedding uses the same embedder context.
-- Accepts controller target handle (`store`) for vector store source selection.
-- Vector store controller is required.
+- Hugging Face image input is explicitly rejected in current local generation runtime path.
+- Hugging Face structured output remains best-effort generation + JSON validation.
+- Hugging Face metadata indicates no streaming/tool-calling support.
+- Claude embeddings are unsupported by provider capabilities.
 
-## 7. Global Node Semantics
+## 9. Workflow Templates
 
-Supported global categories:
+Workflow templates are manifest-driven and loaded from:
+- `ParaGraph/resources/workflow_templates/*.json`
 
-- model provider (`MODEL_PROVIDER`)
-- database provider (`database` category nodes)
-- vector store (`vector_storage` category nodes)
+Templates are validated at load time against:
+- typed template schema
+- node catalog manifest availability (`required_nodes`)
+- compiler validity (`definition` + `visual_graph`)
 
-Rules:
+Shipped templates:
+- `system_user_llm_structured_output_v1`
+- `system_user_llm_chat_output_v1`
+- `load_documents_chunk_embed_store_v1`
 
-- At most one global node per global category.
-- Explicit controller connections always take precedence over globals.
-- If a compatible required controller connection is missing, compiler may inject global node usage implicitly.
-- Synthetic implicit links are compile/runtime behavior and are not rendered as canvas edges.
+## 10. Node Catalog Scope For This Release
 
-## 8. Retrieval Category: `SIMILARITY_SEARCH`
-
-Initial retrieval node contract:
-
-- Category: `retrieval`
-- Data input: `query` (`TEXT`)
-- Controller inputs:
-  - `embedding` (required)
-  - `store` (required)
-- Output: `results` (`RETRIEVAL_RESULTS`) containing scored hits and optional metadata.
-
-Config parameters:
-
-- `similarity_strategy`: `cosine`, `euclidean`, `dot` (must match store metric).
-- `ann_search_depth` (ANN tuning): default `100`, bounded numeric control.
-  - Higher depth generally improves recall with higher latency.
-  - Used as adapter-level search depth and mapped to backend-specific knobs where supported (for example HNSW `ef_search` / IVF `nprobe`).
-- `top_k`: default `5`, bounded numeric control.
-  - Controls result count returned to downstream nodes.
-- `score_threshold`: optional normalized threshold when backend adapter supports threshold filtering.
-- `include_metadata`: boolean toggle.
-
-Adapter behavior:
-
-- If a backend cannot apply a specific ANN tuning knob directly, use safe fallback behavior and preserve deterministic output contract.
-
-## 9. Import and Catalog API
-
-- Catalog: `GET /nodes/catalog`
-- Manifest import: `POST /nodes/import`
-
-Imported manifests must validate against backend schema (`NodeManifest`) before registration.
-
-## 10. Change Management
-
-When adding or modifying a node:
-
-1. Update/create manifest JSON in `ParaGraph/resources/nodes`.
-2. Implement or map runtime executor behavior.
-3. Update compiler/runtime tests for new contract behavior.
-4. Update this file (inventory + summary + contracts) in the same change.
+- No new node IDs were introduced.
+- Existing node contracts and execution handlers remain the source of truth.

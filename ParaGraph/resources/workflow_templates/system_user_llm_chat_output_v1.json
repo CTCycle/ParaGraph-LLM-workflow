@@ -1,0 +1,362 @@
+{
+  "id": "system_user_llm_chat_output_v1",
+  "name": "Simple System + User Prompt + LLM Chat + Output",
+  "description": "Chat generation template with separate system and user prompts, model controller binding, and text output.",
+  "tags": [
+    "llm",
+    "chat",
+    "starter"
+  ],
+  "definition": {
+    "schema_version": 2,
+    "nodes": [
+      {
+        "node_id": "system_prompt_1",
+        "node_type": "PROMPT",
+        "node_version": 1,
+        "parameters": {
+          "prompt_text": "You are a concise assistant."
+        }
+      },
+      {
+        "node_id": "user_prompt_1",
+        "node_type": "PROMPT",
+        "node_version": 1,
+        "parameters": {
+          "prompt_text": "Write a short answer for the user question."
+        }
+      },
+      {
+        "node_id": "model_provider_1",
+        "node_type": "MODEL_PROVIDER",
+        "node_version": 1,
+        "parameters": {
+          "provider": "openai",
+          "model_name": "gpt-5-mini",
+          "timeout_seconds": 120
+        }
+      },
+      {
+        "node_id": "llm_chat_1",
+        "node_type": "LLM_CHAT",
+        "node_version": 1,
+        "parameters": {
+          "context_window": 0,
+          "max_tokens": 512,
+          "use_reasoning": false
+        }
+      },
+      {
+        "node_id": "text_output_1",
+        "node_type": "TEXT_OUTPUT",
+        "node_version": 1,
+        "parameters": {}
+      }
+    ],
+    "connections": [
+      {
+        "from_node": "system_prompt_1",
+        "to_node": "llm_chat_1",
+        "connection_type": "data",
+        "from_output": "text",
+        "to_input": "system_prompt"
+      },
+      {
+        "from_node": "user_prompt_1",
+        "to_node": "llm_chat_1",
+        "connection_type": "data",
+        "from_output": "text",
+        "to_input": "user_prompt"
+      },
+      {
+        "from_node": "model_provider_1",
+        "to_node": "llm_chat_1",
+        "connection_type": "controller",
+        "from_controller": "model",
+        "to_controller": "model"
+      },
+      {
+        "from_node": "llm_chat_1",
+        "to_node": "text_output_1",
+        "connection_type": "data",
+        "from_output": "response",
+        "to_input": "text"
+      }
+    ],
+    "metadata": {
+      "global_nodes": {
+        "model_provider": "model_provider_1"
+      }
+    }
+  },
+  "visual_graph": {
+    "schema_version": 2,
+    "nodes": [
+      {
+        "node_id": "system_prompt_1",
+        "x": 80,
+        "y": 80,
+        "width": 320,
+        "height": 180,
+        "collapsed": false
+      },
+      {
+        "node_id": "user_prompt_1",
+        "x": 80,
+        "y": 320,
+        "width": 320,
+        "height": 180,
+        "collapsed": false
+      },
+      {
+        "node_id": "model_provider_1",
+        "x": 460,
+        "y": 80,
+        "width": 340,
+        "height": 220,
+        "collapsed": false,
+        "is_global": true
+      },
+      {
+        "node_id": "llm_chat_1",
+        "x": 900,
+        "y": 170,
+        "width": 360,
+        "height": 240,
+        "collapsed": false
+      },
+      {
+        "node_id": "text_output_1",
+        "x": 1310,
+        "y": 210,
+        "width": 280,
+        "height": 120,
+        "collapsed": false
+      }
+    ],
+    "groups": [],
+    "comments": []
+  },
+  "required_nodes": [
+    {
+      "id": "PROMPT",
+      "version": 1,
+      "name": "Prompt",
+      "category": "prompt",
+      "description": "Provide generic prompt text to the workflow graph.",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "text",
+          "data_type": "TEXT",
+          "required": true
+        }
+      ],
+      "parameters": [
+        {
+          "name": "prompt_text",
+          "data_type": "TEXT",
+          "default": "",
+          "constraints": {
+            "required": true
+          },
+          "ui_control": "textarea",
+          "description": "Prompt text emitted to downstream nodes."
+        }
+      ],
+      "ui": {
+        "default_width": 320,
+        "accent_color": "#59c6ff",
+        "collapsed_by_default": false
+      },
+      "runtime": {
+        "executor_key": "prompt",
+        "cacheable": true,
+        "deterministic": true,
+        "side_effecting": false
+      }
+    },
+    {
+      "id": "MODEL_PROVIDER",
+      "version": 1,
+      "name": "Model Provider",
+      "category": "model",
+      "description": "Select a provider and model, then expose a reusable typed model handle to connected LLM nodes.",
+      "inputs": [],
+      "outputs": [],
+      "controllers": [
+        {
+          "name": "model",
+          "data_type": "MODEL_HANDLE",
+          "required": false,
+          "accepts_multiple": true,
+          "description": "Controller handle used to configure connected LLM nodes.",
+          "scope": "source"
+        }
+      ],
+      "parameters": [
+        {
+          "name": "provider",
+          "data_type": "TEXT",
+          "default": "ollama",
+          "constraints": {
+            "required": true,
+            "options": [
+              "ollama",
+              "openai",
+              "gemini",
+              "claude",
+              "huggingface"
+            ]
+          },
+          "ui_control": "select",
+          "description": "Model provider."
+        },
+        {
+          "name": "model_name",
+          "data_type": "TEXT",
+          "default": "",
+          "constraints": {
+            "required": true,
+            "provider_source": "provider"
+          },
+          "ui_control": "select",
+          "description": "Model identifier available for the selected provider."
+        },
+        {
+          "name": "timeout_seconds",
+          "data_type": "JSON",
+          "default": 120,
+          "constraints": {
+            "min": 1,
+            "step": 1
+          },
+          "ui_control": "number",
+          "description": "Request timeout in seconds applied to downstream LLM calls."
+        }
+      ],
+      "ui": {
+        "default_width": 340,
+        "accent_color": "#7c9dfd",
+        "collapsed_by_default": false
+      },
+      "runtime": {
+        "executor_key": "model_provider",
+        "cacheable": true,
+        "deterministic": true,
+        "side_effecting": false
+      }
+    },
+    {
+      "id": "LLM_CHAT",
+      "version": 1,
+      "name": "LLM Chat",
+      "category": "model",
+      "description": "Run a chat completion with a typed model handle selected by a provider node and return plain text.",
+      "inputs": [
+        {
+          "name": "user_prompt",
+          "data_type": "TEXT",
+          "required": false
+        },
+        {
+          "name": "system_prompt",
+          "data_type": "TEXT",
+          "required": false
+        },
+        {
+          "name": "image",
+          "data_type": "IMAGE",
+          "required": false
+        }
+      ],
+      "outputs": [
+        {
+          "name": "response",
+          "data_type": "TEXT",
+          "required": true
+        }
+      ],
+      "controllers": [
+        {
+          "name": "model",
+          "data_type": "MODEL_HANDLE",
+          "required": true,
+          "accepts_multiple": false,
+          "description": "Required model controller provided by a MODEL_PROVIDER node.",
+          "scope": "target"
+        }
+      ],
+      "parameters": [
+        {
+          "name": "context_window",
+          "data_type": "JSON",
+          "default": 0,
+          "constraints": {
+            "min": 0
+          },
+          "ui_control": "number",
+          "description": "Context window size. Use 0 for provider-managed context."
+        },
+        {
+          "name": "max_tokens",
+          "data_type": "JSON",
+          "default": 512,
+          "constraints": {
+            "min": 1
+          },
+          "ui_control": "number",
+          "description": "Maximum output token count."
+        },
+        {
+          "name": "use_reasoning",
+          "data_type": "BOOLEAN",
+          "default": false,
+          "ui_control": "toggle",
+          "description": "Enable reasoning-oriented execution when the selected model supports it."
+        }
+      ],
+      "ui": {
+        "default_width": 360,
+        "accent_color": "#5f9bff",
+        "collapsed_by_default": false
+      },
+      "runtime": {
+        "executor_key": "llm_chat",
+        "cacheable": false,
+        "deterministic": false,
+        "side_effecting": false
+      }
+    },
+    {
+      "id": "TEXT_OUTPUT",
+      "version": 1,
+      "name": "Text Output",
+      "category": "output",
+      "description": "Expose final text results.",
+      "inputs": [
+        {
+          "name": "text",
+          "data_type": "TEXT",
+          "required": true
+        }
+      ],
+      "outputs": [],
+      "parameters": [],
+      "ui": {
+        "default_width": 280,
+        "accent_color": "#f87171"
+      },
+      "runtime": {
+        "executor_key": "text_output",
+        "cacheable": false,
+        "deterministic": true,
+        "side_effecting": false
+      }
+    }
+  ],
+  "metadata": {
+    "created_by": "paragraph",
+    "template_version": 1
+  }
+}

@@ -23,7 +23,7 @@ import {
     getHuggingFaceDownloadStatus,
     pullOllamaModel,
     type HuggingFaceModelQueryOptions,
-} from '../app/services/workflowApi'
+} from '../app/services/providersApi'
 import {
     HuggingFaceDownloadJobStatus,
     HuggingFaceModelCatalogResponse,
@@ -56,28 +56,25 @@ type HuggingFaceDownloadState = {
     message: string | null
 }
 
-function isOllamaModelFilter(value: string): value is OllamaModelFilter {
-    return OLLAMA_MODEL_FILTERS.some((candidate) => candidate === value)
+function parseOption<TOption extends string>(
+    value: string,
+    options: readonly TOption[],
+    fallback: TOption,
+): TOption {
+    const match = options.find((candidate) => candidate === value)
+    return match ?? fallback
 }
 
 function parseOllamaModelFilter(value: string): OllamaModelFilter {
-    return isOllamaModelFilter(value) ? value : 'all'
-}
-
-function isVisibilityFilter(value: string): value is ModelVisibilityFilter {
-    return HUGGINGFACE_VISIBILITY_FILTERS.some((candidate) => candidate === value)
+    return parseOption(value, OLLAMA_MODEL_FILTERS, 'all')
 }
 
 function parseVisibilityFilter(value: string): ModelVisibilityFilter {
-    return isVisibilityFilter(value) ? value : 'all'
-}
-
-function isHuggingFaceSortBy(value: string): value is HuggingFaceSortBy {
-    return HUGGINGFACE_SORT_OPTIONS.some((candidate) => candidate === value)
+    return parseOption(value, HUGGINGFACE_VISIBILITY_FILTERS, 'all')
 }
 
 function parseHuggingFaceSortBy(value: string): HuggingFaceSortBy {
-    return isHuggingFaceSortBy(value) ? value : 'relevance'
+    return parseOption(value, HUGGINGFACE_SORT_OPTIONS, 'relevance')
 }
 
 type VisibilityIconConfig = {
@@ -832,6 +829,7 @@ export default function ModelsPage() {
         </section>
     )
 }
+
 
 
 

@@ -2,13 +2,17 @@ from __future__ import annotations
 
 from fastapi import APIRouter, File, HTTPException, UploadFile, status
 
-from ParaGraph.server.domain.nodecatalog import NodeCatalogResponse, NodeManifest
+from ParaGraph.server.domain.node_catalog import NodeCatalogResponse, NodeManifest
 from ParaGraph.server.domain.nodes import (
     DatabaseConnectionCheckRequest,
     DatabaseConnectionCheckResponse,
     UploadedDirectoryResponse,
+    VectorStoreConnectionCheckRequest,
+    VectorStoreConnectionCheckResponse,
 )
 from ParaGraph.server.services.workflow import node_registry
+from ParaGraph.server.domain.node_handler_core import VectorStoreParameters
+from ParaGraph.server.services.workflow.vector_stores import get_vector_store_adapter
 from ParaGraph.server.services.workflow.browser_uploads import browser_upload_service
 
 
@@ -52,3 +56,24 @@ def check_database_connection(request: DatabaseConnectionCheckRequest) -> Databa
     except Exception:  # noqa: BLE001
         return DatabaseConnectionCheckResponse(ok=False, message="Database connection check failed.")
 
+
+@router.post("/check-vector-store-connection", response_model=VectorStoreConnectionCheckResponse)
+def check_vector_store_connection(request: VectorStoreConnectionCheckRequest) -> VectorStoreConnectionCheckResponse:
+    try:
+        parsed = VectorStoreParameters.model_validate(request.parameters)
+        adapter = get_vector_store_adapter(parsed.provider)
+        adapter.validate_connection(
+            index_name=parsed.index_name,
+            storage_directory=parsed.storage_path,
+            namespace=parsed.namespace,
+            endpoint_url=parsed.endpoint_url,
+            api_key=parsed.api_key,
+            collection_name=parsed.collection_name,
+            database_name=parsed.database_name,
+            provider_config=parsed.provider_config,
+        )
+        return VectorStoreConnectionCheckResponse(ok=True, message="Vector store connection successful.")
+    except ValueError as exc:
+        return VectorStoreConnectionCheckResponse(ok=False, message=str(exc) or "Vector store connection check failed.")
+    except Exception:  # noqa: BLE001
+        return VectorStoreConnectionCheckResponse(ok=False, message="Vector store connection check failed.")

@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Path, status
 
-from ParaGraph.server.configurations.server import server_settings
+from ParaGraph.server.configurations.startup import get_server_settings
 from ParaGraph.server.domain.execution import EventHistoryResponse, ExecutionRunState, StartExecutionRequest, StartExecutionResponse
-from ParaGraph.server.domain.workflowmodel import CompileWorkflowRequest, CompileWorkflowResponse
+from ParaGraph.server.domain.workflow_model import CompileWorkflowRequest, CompileWorkflowResponse
 from ParaGraph.server.services.runtime.events import execution_event_service
 from ParaGraph.server.services.workflow import compiler_service, execution_service
 
@@ -21,7 +21,11 @@ def compile_workflow(request: CompileWorkflowRequest) -> CompileWorkflowResponse
 @router.post("", response_model=StartExecutionResponse, status_code=status.HTTP_202_ACCEPTED)
 def start_execution(request: StartExecutionRequest) -> StartExecutionResponse:
     run_id = execution_service.start_execution(request.plan, workflow_id=request.workflow_id)
-    return StartExecutionResponse(run_id=run_id, status="running", poll_interval=server_settings.jobs.polling_interval)
+    return StartExecutionResponse(
+        run_id=run_id,
+        status="running",
+        poll_interval=get_server_settings().jobs.polling_interval,
+    )
 
 
 @router.get("/{run_id}", response_model=ExecutionRunState)

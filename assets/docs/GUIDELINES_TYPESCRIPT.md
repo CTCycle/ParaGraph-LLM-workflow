@@ -1,4 +1,5 @@
 # TypeScript Guidelines (ParaGraph Client)
+Last updated: 2026-04-08
 
 Stack baseline:
 - React 18

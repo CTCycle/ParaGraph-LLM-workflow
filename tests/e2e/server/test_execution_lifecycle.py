@@ -5,9 +5,9 @@ from threading import Thread
 
 from fastapi.testclient import TestClient
 
-from ParaGraph.server.domain.nodecatalog import ProviderModelDefinition
+from ParaGraph.server.domain.node_catalog import ProviderModelDefinition
 from ParaGraph.server.services.runtime.events import execution_event_service
-from ParaGraph.server.services.workflow import nodes as node_module
+from ParaGraph.server.services.workflow.provider import provider_service
 
 
 
@@ -108,10 +108,10 @@ def test_execution_lifecycle_end_to_end_with_websocket_replay(client: TestClient
             timeout_s=timeout_s,
         )
 
-    monkeypatch.setattr(node_module.provider_service, "validate_model_request", lambda **kwargs: None)
-    monkeypatch.setattr(node_module.provider_service, "get_model_metadata", _model_definition)
-    monkeypatch.setattr(node_module.provider_service, "build_model_definition", _model_definition)
-    monkeypatch.setattr(node_module.provider_service, "chat", lambda **kwargs: "Hello from deterministic e2e")
+    monkeypatch.setattr(provider_service, "validate_model_request", lambda **kwargs: None)
+    monkeypatch.setattr(provider_service, "get_model_metadata", _model_definition)
+    monkeypatch.setattr(provider_service, "build_model_definition", _model_definition)
+    monkeypatch.setattr(provider_service, "chat", lambda **kwargs: "Hello from deterministic e2e")
 
     compile_response = client.post("/executions/compile", json={"definition": _build_definition()})
     assert compile_response.status_code == 200

@@ -42,6 +42,7 @@ set "env_marker_node=%nodejs_dir%\.is_installed"
 
 set "pyproject=%root_folder%pyproject.toml"
 set "UVICORN_MODULE=ParaGraph.server.app:app"
+set "BACKEND_HEALTH_PATH=/docs"
 set "FRONTEND_DIR=%project_folder%client"
 set "FRONTEND_DIST=%FRONTEND_DIR%\dist"
 set "FRONTEND_LOCKFILE=%FRONTEND_DIR%\package-lock.json"
@@ -160,7 +161,6 @@ set "FASTAPI_PORT=8000"
 set "UI_HOST=127.0.0.1"
 set "UI_PORT=8001"
 set "RELOAD=true"
-set "OPTIONAL_DEPENDENCIES=false"
 
 if exist "%DOTENV%" (
   for /f "usebackq tokens=* delims=" %%L in ("%DOTENV%") do (
@@ -182,13 +182,9 @@ if exist "%DOTENV%" (
   echo [INFO] No .env overrides found at "%DOTENV%". Using defaults.
 )
 
-set "INSTALL_EXTRAS=false"
-if /i "!OPTIONAL_DEPENDENCIES!"=="true" set "INSTALL_EXTRAS=true"
-
 echo [INFO] FASTAPI_HOST=!FASTAPI_HOST! FASTAPI_PORT=!FASTAPI_PORT! UI_HOST=!UI_HOST! UI_PORT=!UI_PORT! RELOAD=!RELOAD!
 set "UI_URL=http://!UI_HOST!:!UI_PORT!"
-set "RELOAD_FLAG="
-if /i "!RELOAD!"=="true" set "RELOAD_FLAG=--reload"
+set "BACKEND_HEALTH_URL=http://!FASTAPI_HOST!:!FASTAPI_PORT!!BACKEND_HEALTH_PATH!"
 
 REM Ensure the embeddable runtime is used (avoid picking up Conda/other Python DLLs)
 set "PYTHONHOME=%python_dir%"
@@ -216,13 +212,11 @@ if exist "%runtime_uv_lock%" (
 ) else (
   echo [INFO] Runtime lockfile not found at "%runtime_uv_lock%". uv sync will use the current root lockfile state.
 )
-set "uv_extras_flag="
-if /i "%INSTALL_EXTRAS%"=="true" set "uv_extras_flag=--all-extras"
-"%uv_exe%" sync --python "%python_exe%" %uv_extras_flag%
+"%uv_exe%" sync --python "%python_exe%" --all-extras
 set "sync_ec=%ERRORLEVEL%"
 if not "%sync_ec%"=="0" (
   echo [WARN] uv sync with embeddable Python failed, code %sync_ec%. Falling back to uv-managed Python
-  "%uv_exe%" sync %uv_extras_flag%
+  "%uv_exe%" sync --all-extras
   set "sync_ec=%ERRORLEVEL%"
 )
 if "%sync_ec%"=="0" (
@@ -300,18 +294,26 @@ if not exist "%python_exe%" (
 
 echo [RUN] Launching backend via uvicorn (!UVICORN_MODULE!)
 call :kill_port !FASTAPI_PORT!
-start "" /b "%uv_exe%" run --no-sync --python "%python_exe%" python -m uvicorn %UVICORN_MODULE% --host !FASTAPI_HOST! --port !FASTAPI_PORT! !RELOAD_FLAG! --log-level info
+if /i "!RELOAD!"=="true" (
+  start "" /b "%uv_exe%" run --no-sync --python "%python_exe%" python -m uvicorn %UVICORN_MODULE% --host !FASTAPI_HOST! --port !FASTAPI_PORT! --reload --reload-dir "%project_folder%server" --log-level info
+) else (
+  start "" /b "%uv_exe%" run --no-sync --python "%python_exe%" python -m uvicorn %UVICORN_MODULE% --host !FASTAPI_HOST! --port !FASTAPI_PORT! --log-level info
+)
 
 REM ============================================================================
 REM Wait for backend
 REM ============================================================================
-echo [WAIT] Waiting for backend to be ready on port !FASTAPI_PORT!...
-for /L %%i in (1,1,20) do (
-  netstat -ano | findstr ":!FASTAPI_PORT!" | findstr "LISTENING" >nul
-  if !errorlevel! equ 0 goto :backend_ready_check
+echo [WAIT] Waiting for backend readiness at !BACKEND_HEALTH_URL!...
+set "backend_ready=0"
+for /L %%i in (1,1,60) do (
+  powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "try { $r = Invoke-WebRequest -UseBasicParsing -Uri '!BACKEND_HEALTH_URL!' -TimeoutSec 2; if ($r.StatusCode -ge 200 -and $r.StatusCode -lt 500) { exit 0 } else { exit 1 } } catch { exit 1 }" >nul 2>&1
+  if !errorlevel! equ 0 (
+    set "backend_ready=1"
+    goto :backend_ready_check
+  )
   timeout /t 1 /nobreak >nul
 )
-echo [WARN] Timed out waiting for backend. Proceeding to launch frontend...
+echo [WARN] Timed out waiting for backend HTTP readiness on !BACKEND_HEALTH_URL!.
 :backend_ready_check
 
 echo [RUN] Launching frontend
@@ -321,7 +323,11 @@ start "" /b "%NPM_CMD%" run preview -- --host !UI_HOST! --port !UI_PORT! --stric
 popd >nul
 
 start "" "%UI_URL%"
-echo [SUCCESS] Backend and frontend correctly launched
+if "!backend_ready!"=="1" (
+  echo [SUCCESS] Backend and frontend correctly launched
+) else (
+  echo [WARN] Frontend launched, but backend did not pass readiness check.
+)
 goto cleanup
 
 :promote_node_runtime

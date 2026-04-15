@@ -7,7 +7,8 @@ from sqlalchemy import MetaData, Table, select
 from sqlalchemy.exc import SQLAlchemyError
 
 from ParaGraph.server.common.utils.logger import logger
-from ParaGraph.server.configurations import DatabaseSettings, server_settings
+from ParaGraph.server.configurations.startup import get_server_settings
+from ParaGraph.server.domain.settings import DatabaseSettings
 from ParaGraph.server.repositories.database.postgres import PostgresRepository
 from ParaGraph.server.repositories.database.sqlite import SQLiteRepository
 from ParaGraph.server.repositories.database.utils import normalize_postgres_engine
@@ -83,7 +84,7 @@ def ensure_postgres_database(settings: DatabaseSettings) -> str:
 
 # -----------------------------------------------------------------------------
 def run_database_initialization() -> None:
-    settings = server_settings.database
+    settings = get_server_settings().database
     if settings.embedded_database:
         initialize_sqlite_database(settings)
         return

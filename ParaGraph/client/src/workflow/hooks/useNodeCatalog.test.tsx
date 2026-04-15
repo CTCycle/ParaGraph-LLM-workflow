@@ -2,10 +2,10 @@ import { act, renderHook, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
 import { createNodeManifest } from '../../test/fixtures'
-import * as workflowApi from '../../app/services/workflowApi'
+import * as workflowApi from '../../app/services/nodesApi'
 import { useNodeCatalog } from './useNodeCatalog'
 
-vi.mock('../../app/services/workflowApi', () => ({
+vi.mock('../../app/services/nodesApi', () => ({
     fetchNodeCatalog: vi.fn(),
 }))
 
@@ -35,3 +35,4 @@ describe('useNodeCatalog', () => {
         expect(fetchNodeCatalogMock).toHaveBeenCalledTimes(2)
     })
 })
+

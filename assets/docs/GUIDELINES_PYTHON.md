@@ -1,4 +1,5 @@
 # Python Guidelines (ParaGraph Backend)
+Last updated: 2026-04-08
 
 Standards for Python code under `ParaGraph/server` and backend tests.
 
@@ -41,7 +42,7 @@ Standards for Python code under `ParaGraph/server` and backend tests.
 
 ## 6. Persistence and Configuration
 
-- Keep DB mode environment-driven (`DB_EMBEDDED` and DB settings).
+- Keep DB mode and DB connection/tuning configuration-file-driven (`settings/configurations.json`).
 - Keep configuration load/coercion in configuration modules, not route handlers.
 - Keep repository interfaces deterministic and easy to test.
 
