@@ -7,6 +7,7 @@ from ParaGraph.server.domain.execution import CompiledExecutionPlan, ExecutionBi
 from ParaGraph.server.domain.workflow_model import CompilerDiagnostic, CompileWorkflowResponse, WorkflowConnection, WorkflowDefinition
 from ParaGraph.server.services.workflow.nodes import node_registry
 from ParaGraph.server.services.workflow.provider import provider_service
+from ParaGraph.server.services.workflow.vector_stores import get_vector_store_adapter
 
 
 MODEL_NODE_TYPES = {"LLM_CHAT", "LLM_STRUCTURED"}
@@ -245,6 +246,7 @@ class CompilerService:
         inbound_counts: dict[tuple[str, str], int] = defaultdict(int)
         inbound_by_node_input: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
         model_binding_by_node: dict[str, WorkflowConnection] = {}
+        similarity_store_binding_by_node: dict[str, WorkflowConnection] = {}
 
         for node in definition.nodes:
             if node.node_id in node_ids_seen:
@@ -401,6 +403,8 @@ class CompilerService:
                 inbound_by_node_input[connection.to_node][target_name] += 1
             if connection.connection_type == "controller" and target_name == "model":
                 model_binding_by_node.setdefault(connection.to_node, connection)
+            if connection.connection_type == "controller" and target_name == "store":
+                similarity_store_binding_by_node.setdefault(connection.to_node, connection)
             if inbound_counts[(connection.to_node, target_name)] > 1 and not target_port.accepts_multiple:
                 diagnostics.append(
                     CompilerDiagnostic(
@@ -498,6 +502,55 @@ class CompilerService:
                     diagnostics.append(
                         CompilerDiagnostic(code="provider_capability_error", message=str(exc), node_id=node.node_id)
                     )
+
+            if node.node_type == "SIMILARITY_SEARCH":
+                store_binding = similarity_store_binding_by_node.get(node.node_id)
+                if store_binding is not None:
+                    source_node = node_by_id.get(store_binding.from_node)
+                    if source_node is not None and source_node.node_type == "VECTOR_STORE":
+                        source_parameters = validated_parameters_by_node.get(source_node.node_id, source_node.parameters)
+                        backend = str(source_parameters.get("provider") or "lancedb").strip().lower()
+
+                        similarity_metric = str(parameters.get("similarity_strategy") or "cosine").strip().lower()
+                        if similarity_metric == "euclidean":
+                            similarity_metric = "l2"
+                        store_metric = str(source_parameters.get("distance_metric") or "cosine").strip().lower()
+                        if store_metric == "euclidean":
+                            store_metric = "l2"
+                        if similarity_metric != store_metric:
+                            diagnostics.append(
+                                CompilerDiagnostic(
+                                    code="similarity_metric_mismatch",
+                                    message=(
+                                        f"Node '{node.node_id}' similarity_strategy '{similarity_metric}' does not match "
+                                        f"connected VECTOR_STORE distance_metric '{store_metric}'."
+                                    ),
+                                    node_id=node.node_id,
+                                )
+                            )
+
+                        search_mode = str(parameters.get("search_mode") or "vector").strip().lower()
+                        search_engine = str(parameters.get("search_engine") or "native").strip().lower()
+                        try:
+                            capabilities = get_vector_store_adapter(backend).describe_capabilities()
+                        except ValueError:
+                            capabilities = {}
+                        if search_mode == "hybrid" and not bool(capabilities.get("supports_hybrid_search", False)):
+                            diagnostics.append(
+                                CompilerDiagnostic(
+                                    code="unsupported_similarity_mode",
+                                    message=f"Backend '{backend}' does not support SIMILARITY_SEARCH search_mode='hybrid'.",
+                                    node_id=node.node_id,
+                                )
+                            )
+                        if search_engine == "faiss_augmented" and not bool(capabilities.get("supports_faiss_augmentation", False)):
+                            diagnostics.append(
+                                CompilerDiagnostic(
+                                    code="unsupported_similarity_engine",
+                                    message=f"Backend '{backend}' does not support SIMILARITY_SEARCH search_engine='faiss_augmented'.",
+                                    node_id=node.node_id,
+                                )
+                            )
 
             if node.node_type == "EMBEDDING_MODEL":
                 provider = str(parameters.get("provider", "ollama")).lower()

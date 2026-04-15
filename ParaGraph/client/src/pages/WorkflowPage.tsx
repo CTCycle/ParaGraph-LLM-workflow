@@ -2471,7 +2471,7 @@ function WorkflowEditor() {
     const canvasColumnRef = useRef<HTMLDivElement | null>(null)
     const workflowShellRef = useRef<HTMLElement | null>(null)
     const editorResizeOriginRef = useRef<{ startY: number; startHeight: number } | null>(null)
-    const { fitView, getZoom, screenToFlowPosition, zoomIn, zoomTo } = useReactFlow<Node<WorkflowNodeData>, Edge>()
+    const { getZoom, screenToFlowPosition, zoomIn, zoomTo } = useReactFlow<Node<WorkflowNodeData>, Edge>()
     const glowLevelByNodeId = useMemo(
         () => buildNodeGlowLevelMap(activeNodeId, glowTrailNodeIds),
         [activeNodeId, glowTrailNodeIds],
@@ -4265,18 +4265,11 @@ function WorkflowEditor() {
                                 +
                             </ControlButton>
                             <ControlButton
-                                title="Fit view"
-                                aria-label="Fit view"
-                                onClick={() => void fitView({ padding: 0.2, duration: 180 })}
-                            >
-                                []
-                            </ControlButton>
-                            <ControlButton
                                 title={isGridVisible ? 'Hide grid' : 'Show grid'}
                                 aria-label={isGridVisible ? 'Hide grid' : 'Show grid'}
                                 onClick={() => setIsGridVisible((visible) => !visible)}
                             >
-                                {isGridVisible ? '##' : '..'}
+                                {isGridVisible ? '⊞' : '⊟'}
                             </ControlButton>
                         </Controls>
                         {isGridVisible && (

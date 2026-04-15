@@ -149,31 +149,17 @@ function formatPortSummary(names: string[]): string {
     return `${names.slice(0, 3).join(', ')} +${names.length - 3}`
 }
 
-function summarizeText(value: string, maxLength: number): string {
-    const normalized = value.trim().replace(/\s+/g, ' ')
-    if (normalized.length <= maxLength) {
-        return normalized
-    }
-
-    const clipped = normalized.slice(0, maxLength - 1)
-    const lastSpace = clipped.lastIndexOf(' ')
-    const truncated = lastSpace > maxLength * 0.6 ? clipped.slice(0, lastSpace) : clipped
-    return `${truncated.trimEnd()}…`
-}
-
 function buildNodeExplanation(node: NodeManifest): string {
-    const description = summarizeText(node.description, 150)
+    const description = node.description.trim().replace(/\s+/g, ' ')
     return description || 'No description provided.'
 }
 
 function buildNodeDetails(node: NodeManifest): Array<{ label: string; value: string }> {
-    const controllerNames = getNodeControllers(node)
     const parameterNames = node.parameters.map((parameter) => parameter.name)
 
     return [
         { label: 'Inputs', value: formatPortSummary(node.inputs.map((port) => port.name)) },
         { label: 'Outputs', value: formatPortSummary(node.outputs.map((port) => port.name)) },
-        { label: 'Controllers', value: formatPortSummary(controllerNames) },
         ...(parameterNames.length > 0 ? [{ label: 'Parameters', value: formatPortSummary(parameterNames) }] : []),
     ]
 }
@@ -430,6 +416,7 @@ export default function NodesPage() {
                                     filteredCatalog.map((node) => {
                                         const Icon = NODE_CATEGORY_ICONS[node.category]
                                         const detailItems = buildNodeDetails(node)
+                                        const controllerNames = getNodeControllers(node)
                                         return (
                                             <article key={`${node.id}-${node.version}`} className="nodes-preview-row" role="listitem">
                                                 <div className="nodes-preview-row-header">
@@ -459,6 +446,18 @@ export default function NodesPage() {
                                                     </div>
                                                 </div>
                                                 <p className="nodes-preview-summary">{buildNodeExplanation(node)}</p>
+                                                {controllerNames.length > 0 && (
+                                                    <div className="nodes-preview-controllers" aria-label={`${node.name} controllers`}>
+                                                        <span className="nodes-preview-controllers-label">Controllers</span>
+                                                        <div className="nodes-preview-controller-chips">
+                                                            {controllerNames.map((controllerName) => (
+                                                                <span key={`${node.id}-ctrl-${controllerName}`} className="nodes-preview-controller-chip">
+                                                                    {controllerName}
+                                                                </span>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
                                                 <dl className="nodes-preview-meta" aria-label={`${node.name} metadata`}>
                                                     {detailItems.map((item) => (
                                                         <div key={`${node.id}-${item.label}`} className="nodes-preview-meta-item">

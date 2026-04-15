@@ -147,6 +147,7 @@ class EmbeddingParameters(BaseModel):
 class SimilaritySearchParameters(BaseModel):
     similarity_strategy: str = "cosine"
     search_mode: str = "vector"
+    search_engine: str = "native"
     metadata_filter: dict[str, Any] | None = None
     ann_search_depth: int = Field(default=100, ge=10, le=500)
     top_k: int = Field(default=5, ge=1, le=100)
@@ -172,6 +173,14 @@ class SimilaritySearchParameters(BaseModel):
             raise ValueError("search_mode must be one of: vector, hybrid")
         return normalized
 
+    @field_validator("search_engine")
+    @classmethod
+    def validate_search_engine(cls, value: str) -> str:
+        normalized = str(value or "").strip().lower()
+        if normalized not in {"native", "faiss_augmented"}:
+            raise ValueError("search_engine must be one of: native, faiss_augmented")
+        return normalized
+
     @field_validator("metadata_filter", mode="before")
     @classmethod
     def validate_metadata_filter(cls, value: Any) -> dict[str, Any] | None:
@@ -188,6 +197,8 @@ class SimilaritySearchParameters(BaseModel):
             total_weight = float(self.vector_weight) + float(self.keyword_weight)
             if total_weight <= 0:
                 raise ValueError("Hybrid search requires vector_weight + keyword_weight > 0")
+        if self.search_engine == "faiss_augmented" and self.search_mode != "vector":
+            raise ValueError("faiss_augmented search_engine currently supports search_mode='vector' only")
         return self
 
 

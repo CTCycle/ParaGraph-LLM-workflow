@@ -9,6 +9,7 @@ from ParaGraph.server.services.workflow.vector_stores import (
     QdrantVectorStoreAdapter,
     VectorStoreError,
     WeaviateVectorStoreAdapter,
+    get_vector_store_adapter,
 )
 
 
@@ -118,3 +119,23 @@ def test_vector_store_parameters_require_endpoint_for_remote_providers(provider:
                 "endpoint_url": "",
             }
         )
+
+
+@pytest.mark.parametrize(
+    ("backend", "supports_faiss_augmentation"),
+    [
+        ("faiss", True),
+        ("lancedb", False),
+        ("qdrant", False),
+        ("pinecone", False),
+        ("weaviate", False),
+        ("milvus", False),
+        ("chroma", False),
+    ],
+)
+def test_vector_store_capabilities_matrix(backend: str, supports_faiss_augmentation: bool) -> None:
+    capabilities = get_vector_store_adapter(backend).describe_capabilities()
+    assert capabilities["backend"] == backend
+    assert capabilities["supports_metadata_filtering"] is True
+    assert capabilities["supports_hybrid_search"] is False
+    assert capabilities["supports_faiss_augmentation"] is supports_faiss_augmentation

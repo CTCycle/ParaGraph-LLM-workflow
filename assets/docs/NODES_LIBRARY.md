@@ -1,5 +1,5 @@
 # Nodes Library
-Last updated: 2026-04-08
+Last updated: 2026-04-15
 
 Source of truth for shipped nodes: `ParaGraph/resources/nodes/*.json`.
 
@@ -105,6 +105,34 @@ Important:
 - Hugging Face structured output remains best-effort generation + JSON validation.
 - Hugging Face metadata indicates no streaming/tool-calling support.
 - Claude embeddings are unsupported by provider capabilities.
+
+## 11. `SIMILARITY_SEARCH` Contract Matrix
+
+- Node ID: `SIMILARITY_SEARCH`
+- Input: `query` (`TEXT`, required)
+- Output: `results` (`RETRIEVAL_RESULTS`)
+- Required controllers:
+  - `embedding` (`JSON`, target)
+  - `store` (`VECTOR_STORE_HANDLE`, target)
+- Runtime key: `similarity_search`
+
+Parameter matrix:
+- `search_mode`
+  - options: `vector`, `hybrid`
+  - default: `vector`
+- `search_engine`
+  - options: `native`, `faiss_augmented`
+  - default: `native`
+  - `native` is the default and preferred mode
+  - `faiss_augmented` is optional and backend-dependent
+- `similarity_strategy`
+  - options: `cosine`, `euclidean`, `dot`
+  - default: `cosine`
+
+Execution constraints:
+- Native vector store indexing/query must be used by default.
+- Metric must remain compatible with connected `VECTOR_STORE.distance_metric`.
+- Unsupported mode/backend combinations must be rejected before execution.
 
 ## 9. Workflow Templates
 
