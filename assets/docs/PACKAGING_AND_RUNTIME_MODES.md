@@ -1,76 +1,77 @@
 # ParaGraph Packaging and Runtime Modes
+Last updated: 2026-04-10
 
-## 1. Strategy
+## 1. Runtime strategy
 
-ParaGraph uses one active runtime profile file: `ParaGraph/settings/.env`.
+ParaGraph is configuration-first and uses one active runtime file:
+- `ParaGraph/settings/.env`
 
-- Local web app mode: run directly on the host via launcher.
-- Local packaged app mode: distribute the app as a packaged Tauri desktop build.
-- Mode switching: update/copy the active local `.env` profile when running the web app.
-- Backend code paths are environment-driven (`DB_EMBEDDED`, DB settings, ports, provider keys, deployment mode).
+Modes:
+- Local mode (default developer workflow)
+- Desktop packaged mode (Tauri shell + local backend runtime)
 
-## 2. Runtime Profiles
+Switch modes by copying a profile into `ParaGraph/settings/.env`.
 
-- `ParaGraph/settings/.env.local.example`: local defaults (loopback hosts, embedded SQLite).
-- `ParaGraph/settings/.env`: active profile used by the launcher and tests.
-- `ParaGraph/settings/configurations.json`: non-secret defaults (`global`, `jobs`, base DB mode).
+## 2. Runtime profile files
 
-## 3. Required Environment Keys
+- `ParaGraph/settings/.env.local.example`
+- `ParaGraph/settings/.env.local.tauri.example`
+- `ParaGraph/settings/.env` (active)
+- `ParaGraph/settings/.env.tauri` (frontend build-mode overrides for desktop packaging)
+- `ParaGraph/settings/configurations.json` (non-secret defaults/tuning, including database settings)
+
+## 3. Environment contract (core keys)
 
 | Key | Purpose |
 |---|---|
 | `FASTAPI_HOST`, `FASTAPI_PORT` | Backend bind host/port. |
-| `UI_HOST`, `UI_PORT` | Frontend host/port for local preview. |
-| `VITE_API_BASE_URL` | Frontend API base path (default `/api`). |
-| `PARAGRAPH_DEPLOYMENT_MODE` | Deployment mode switch (`local` or `cloud`). Cloud mode disables public docs/openapi routes and enforces tighter filesystem guards for workflow artifacts. |
-| `RELOAD` | Enables Uvicorn reload in launcher flow when `true`. |
-| `OPTIONAL_DEPENDENCIES` | Controls optional dependency sync behavior in launcher/test flows. |
-| `DB_EMBEDDED` | `true` for SQLite, `false` for PostgreSQL settings. |
-| `DB_ENGINE`, `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` | External DB settings used when `DB_EMBEDDED=false`. |
-| `DB_SSL`, `DB_SSL_CA`, `DB_CONNECT_TIMEOUT`, `DB_INSERT_BATCH_SIZE` | PostgreSQL TLS/connect/write tuning. |
-| `OLLAMA_BASE_URL` | Base URL for local Ollama provider. |
-| `OPENAI_API_KEY`, `OPENAI_BASE_URL` | OpenAI provider credentials and endpoint. |
-| `GEMINI_API_KEY`, `GEMINI_BASE_URL` | Gemini provider credentials and endpoint. |
+| `UI_HOST`, `UI_PORT` | Frontend host/port for local preview mode. |
+| `VITE_API_BASE_URL` | Frontend API base path (`/api` in both local web mode and packaged desktop build mode). |
+| `PARAGRAPH_CLOUD_MODE` | Cloud mode flag (`true` enables cloud restrictions). |
+| `RELOAD` | Backend auto-reload toggle for local workflow. |
+| `MPLBACKEND` | Runtime Matplotlib backend override (optional). |
+| `KERAS_BACKEND` | Runtime Keras backend override (optional). |
 | `LLM_TIMEOUT_S` | Timeout used by LLM HTTP clients. |
 
-## 4. Local Web App Mode (Windows)
+Database values are loaded from `settings/configurations.json`.
+Provider credentials/endpoints are managed in the UI Configurations flow and persisted by the application.
 
-1. Copy local profile to active env:
+## 4. Local mode
+
+1. Activate profile:
    - `copy /Y ParaGraph\settings\.env.local.example ParaGraph\settings\.env`
-2. Start app:
+2. Start application:
    - `ParaGraph\start_on_windows.bat`
-3. Optional tests:
+3. Optional full test run:
    - `tests\run_tests.bat`
 
-This mode is fully local.
+## 5. Desktop packaged mode (Tauri)
 
-### Cloud deployment note
+Build entrypoint:
+- `release\tauri\build_with_tauri.bat`
 
-- Set `PARAGRAPH_DEPLOYMENT_MODE=cloud` for gateway-backed deployments.
-- In this mode, frontend API access is expected through the configured relative gateway path (`VITE_API_BASE_URL`, typically `/api`).
-- Backend docs/OpenAPI UI routes are disabled by default in cloud mode.
+Typical flow:
+1. Activate desktop profile:
+   - `copy /Y ParaGraph\settings\.env.local.tauri.example ParaGraph\settings\.env`
+2. Ensure runtimes exist:
+   - `ParaGraph\start_on_windows.bat`
+3. Ensure Rust toolchain is available (`rustup`).
+4. Build package:
+   - `release\tauri\build_with_tauri.bat`
 
-### Launcher behavior summary
+Packaged runtime behavior:
+- Tauri starts a local Python backend (`uvicorn ParaGraph.server.app:app`) with `PARAGRAPH_TAURI_MODE=true`.
+- Backend serves packaged frontend static assets from `ParaGraph/client/dist`.
+- Runtime setup prefers reusable `runtimes/.venv`, otherwise runs `uv sync --frozen` against bundled runtime lockfiles.
+- On shutdown, desktop wrapper terminates the backend process tree.
 
-`start_on_windows.bat` currently:
-- installs portable Python 3.14, `uv`, and Node.js under `runtimes/` at repository root
-- syncs backend deps from `pyproject.toml` using runtime-local state:
-  - virtual environment: `runtimes/.venv`
-  - lockfile source of truth: `runtimes/uv.lock` (mirrored through root `uv.lock` during sync)
-- installs frontend deps and builds client when needed
-- starts backend (`uvicorn ParaGraph.server.app:app`) and frontend preview server
+Windows artifacts:
+- `release/windows/installers`
+- `release/windows/portable`
 
-## 5. Local Packaged App Mode
+## 6. Deterministic build notes
 
-ParaGraph also supports local desktop distribution as a packaged Tauri application.
-
-- Treat the packaged app as a local-only delivery target.
-- Reuse the same backend/runtime assumptions as the local web app flow.
-- Keep release documentation limited to local runtime and packaging flows.
-
-## 6. Deterministic Build Notes
-
-- Backend dependencies are lockfile-backed through `runtimes/uv.lock` and installed into `runtimes/.venv`.
-- Frontend dependencies are lockfile-backed via `ParaGraph/client/package-lock.json` and installed via `npm ci` (fallback `npm install`).
+- Backend lockfile: `runtimes/uv.lock`.
+- Frontend lockfile: `ParaGraph/client/package-lock.json`.
 - Tauri packaging requires Rust tooling on the build host (`cargo` + a default `rustup` toolchain such as `stable`).
 

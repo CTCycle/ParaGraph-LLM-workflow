@@ -8,7 +8,8 @@ import pandas as pd
 
 from ParaGraph.server.common.constants import DATABASE_FILENAME, RESOURCES_PATH
 from ParaGraph.server.common.utils.logger import logger
-from ParaGraph.server.configurations import DatabaseSettings, server_settings
+from ParaGraph.server.configurations.startup import get_server_settings
+from ParaGraph.server.domain.settings import DatabaseSettings
 from ParaGraph.server.repositories.database.postgres import PostgresRepository
 from ParaGraph.server.repositories.database.sqlite import SQLiteRepository
 from ParaGraph.server.repositories.schemas import Base
@@ -55,7 +56,7 @@ BACKEND_FACTORIES: dict[str, BackendFactory] = {
 ###############################################################################
 class ParaGraphDatabase:
     def __init__(self) -> None:
-        self.settings = server_settings.database
+        self.settings = get_server_settings().database
         self.backend = self._build_backend(self.settings.embedded_database)
 
     # -------------------------------------------------------------------------
@@ -76,9 +77,9 @@ class ParaGraphDatabase:
         backend = BACKEND_FACTORIES[normalized_name](self.settings)
         if normalized_name == "sqlite" and not sqlite_database_exists:
             logger.info("SQLite database file missing at startup (%s). Initializing tables.", sqlite_db_path)
+            Base.metadata.create_all(backend.engine)
         else:
-            logger.info("Ensuring application tables exist for %s backend.", normalized_name)
-        Base.metadata.create_all(backend.engine)
+            logger.info("Skipping startup database initialization for %s backend.", normalized_name)
         return backend
 
     # -------------------------------------------------------------------------

@@ -1,4 +1,9 @@
 # ParaGraph LLM Workflow
+[![Release](https://img.shields.io/github/v/release/CTCycle/RaGraph-Easy-Retrieval?display_name=tag)](https://github.com/CTCycle/RaGraph-Easy-Retrieval/releases)
+[![Python](https://img.shields.io/badge/Python-%3E%3D3.14-blue)](https://www.python.org/)
+[![Node.js](https://img.shields.io/badge/Node.js-22.12.0-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
+[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![CI](https://github.com/CTCycle/RaGraph-Easy-Retrieval/actions/workflows/ci.yml/badge.svg)](https://github.com/CTCycle/RaGraph-Easy-Retrieval/actions/workflows/ci.yml)
 
 ## 1. Project Overview
 
@@ -14,8 +19,13 @@ Primary capabilities include:
 - **Compiling and running workflows** through backend execution APIs.
 - **Tracking execution events and outputs** in near real time.
 - **Managing node catalogs, model providers, and runtime profiles** from the UI.
+- **Building RAG pipelines** with embedding, vector storage, retrieval, reranking, and answer synthesis stages.
 
 > **Work in Progress**: ParaGraph is under active development. Behavior and available features may evolve.
+
+## User Documentation
+
+- [User Manual](assets/docs/USER_MANUAL.md)
 
 ## 2. Installation
 
@@ -44,12 +54,26 @@ At a high level:
 - Install backend dependencies and run the FastAPI service.
 - Install frontend dependencies from `ParaGraph/client` and start/build the UI.
 
+### 2.3 Desktop Packaging (Windows, Tauri)
+
+1. Activate desktop runtime profile:
+   - `copy /Y ParaGraph\settings\.env.local.tauri.example ParaGraph\settings\.env`
+2. Ensure local portable runtimes are provisioned:
+   - `ParaGraph\start_on_windows.bat`
+3. Build Tauri desktop release:
+   - `release\tauri\build_with_tauri.bat`
+
+Generated artifacts:
+- `release/windows/installers`
+- `release/windows/portable`
+
 ## 3. Usage
 
 ### 3.1 Launching
 
 - Run `ParaGraph/start_on_windows.bat` for the standard local workflow.
 - The app serves backend and frontend using values from `ParaGraph/settings/.env`.
+- For packaged desktop mode, Tauri launches the backend directly and serves the built frontend from backend static assets.
 
 ### 3.2 Typical User Workflow
 
@@ -59,13 +83,17 @@ At a high level:
 4. Monitor status via polling/websocket events.
 5. Inspect generated outputs and execution history.
 
-### 3.3 Active API Families
+### 3.3 Typical RAG Path
 
-- **Workflows**: `/workflows`, `/workflows/{workflow_id}`, `/workflows/{workflow_id}/versions`
-- **Executions**: `/executions/compile`, `/executions`, `/executions/{run_id}`, `/executions/{run_id}/events`, websocket `/executions/ws/runs/{run_id}`
-- **Nodes**: `/nodes/catalog`, `/nodes/import`, `/nodes/uploads/directory`, `/nodes/check-database-connection`
-- **Providers**: `/providers/models`, `/providers/ollama/library`, `/providers/ollama/pull`, `/providers/huggingface/models`, `/providers/huggingface/download`, `/providers/huggingface/download/{job_id}`
-- **Configurations**: `/configurations`, `/configurations/profiles`, `/configurations/profiles/{profile_name}`, `/configurations/ollama/ping`
+1. `LOAD_DOCUMENTS`
+2. Chunking node(s)
+3. `TEXT_EMBEDDING`
+4. `VECTOR_STORE`
+5. `PROMPT_TEMPLATE` for retrieval query rendering
+6. `SIMILARITY_SEARCH`
+7. `RERANK_RESULTS`
+8. `PROMPT_TEMPLATE` for final answer prompt
+9. `LLM_CHAT` or `LLM_STRUCTURED`
 
 ## 4. Testing
 
@@ -102,6 +130,8 @@ This runner executes available backend and frontend suites in sequence.
 Primary runtime configuration files:
 - `ParaGraph/settings/.env`
 - `ParaGraph/settings/.env.local.example`
+- `ParaGraph/settings/.env.local.tauri.example`
+- `ParaGraph/settings/.env.tauri`
 - `ParaGraph/settings/configurations.json`
 
 Runtime variables commonly used in local execution:
@@ -113,26 +143,25 @@ Runtime variables commonly used in local execution:
 | `UI_HOST` | Frontend host binding. |
 | `UI_PORT` | Frontend port binding. |
 | `VITE_API_BASE_URL` | Frontend API base URL (typically relative, e.g. `/api`). |
-| `DB_EMBEDDED` | Selects embedded/local database runtime mode. |
+| `PARAGRAPH_CLOUD_MODE` | Cloud mode flag (`true` enables cloud restrictions). |
+| `RELOAD` | Enables hot-reload for local launcher runs when `true`. |
+| `LLM_TIMEOUT_S` | Timeout used by LLM HTTP clients. |
 
-Provider-specific credentials and runtime keys are also sourced from the active `.env` profile when required.
+Provider-specific credentials and runtime endpoints are managed in-app under **Configurations** (session settings), not via `.env`.
+Database mode and connection/tuning values are defined in `ParaGraph/settings/configurations.json`.
 
 ## 6. Resources and Storage
 
 Runtime artifacts are stored under `ParaGraph/resources`.
-
-Current resource entries include:
-- `artifacts` (generated execution outputs and artifacts)
-- `logs` (runtime and process logs)
-- `models` (downloaded/managed model assets)
-- `nodes` (node-related persisted assets/imports)
-- `workflows` (workflow persistence)
-- `database.db` (local project database)
+This includes generated artifacts, logs, model assets, node assets, workflow persistence, and local database files used by runtime execution.
 
 ## 7. Maintenance Scripts
 
 - `ParaGraph/setup_and_maintenance.bat`: setup and maintenance utility for local environment operations.
 - `tests/run_tests.bat`: end-to-end local test orchestration across backend/frontend suites.
+- `release/tauri/build_with_tauri.bat`: Windows Tauri release build and artifact export.
+- `release/tauri/scripts/clean-tauri-build.ps1`: cleanup helper for Tauri release outputs.
+- `release/tauri/scripts/export-windows-artifacts.ps1`: export helper for installer and portable release artifacts.
 
 ## 8. License
 

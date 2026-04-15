@@ -15,14 +15,18 @@ import {
     X,
     type LucideIcon,
 } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 
 import { useErrorMessage } from '../app/hooks/useErrorMessage'
+import { useEscapeToClose } from '../app/hooks/useEscapeToClose'
 import { usePageMetadata } from '../app/hooks/usePageMetadata'
+import SectionHeading from '../components/SectionHeading'
 import StatusBanner from '../components/StatusBanner'
-import { importNodeManifest } from '../app/services/workflowApi'
+import { importNodeManifest } from '../app/services/nodesApi'
+import { fetchWorkflowTemplates } from '../app/services/workflowsApi'
 import { useNodeCatalog } from '../workflow/hooks/useNodeCatalog'
 import { NODE_CATEGORY_LABELS, NODE_CATEGORY_ORDER } from '../workflow/schema/nodeCategory'
-import { NodeCategory, NodeManifest } from '../workflow/schema/types'
+import { NodeCategory, NodeManifest, WorkflowNavigationState, WorkflowOpenIntent, WorkflowTemplate } from '../workflow/schema/types'
 import './NodesPage.css'
 
 const NODE_MANIFEST_TEMPLATE = `{
@@ -145,15 +149,49 @@ function formatPortSummary(names: string[]): string {
     return `${names.slice(0, 3).join(', ')} +${names.length - 3}`
 }
 
-function buildNodeExplanation(node: NodeManifest): string {
-    const description = node.description.trim()
-    const inputCount = node.inputs.length
-    const outputCount = node.outputs.length
-    const ioSummary = `${inputCount} input${inputCount === 1 ? '' : 's'} -> ${outputCount} output${outputCount === 1 ? '' : 's'}`
-    if (!description) {
-        return `Node details: ${ioSummary}.`
+function summarizeText(value: string, maxLength: number): string {
+    const normalized = value.trim().replace(/\s+/g, ' ')
+    if (normalized.length <= maxLength) {
+        return normalized
     }
-    return `${description} (${ioSummary})`
+
+    const clipped = normalized.slice(0, maxLength - 1)
+    const lastSpace = clipped.lastIndexOf(' ')
+    const truncated = lastSpace > maxLength * 0.6 ? clipped.slice(0, lastSpace) : clipped
+    return `${truncated.trimEnd()}…`
+}
+
+function buildNodeExplanation(node: NodeManifest): string {
+    const description = summarizeText(node.description, 150)
+    return description || 'No description provided.'
+}
+
+function buildNodeDetails(node: NodeManifest): Array<{ label: string; value: string }> {
+    const controllerNames = getNodeControllers(node)
+    const parameterNames = node.parameters.map((parameter) => parameter.name)
+
+    return [
+        { label: 'Inputs', value: formatPortSummary(node.inputs.map((port) => port.name)) },
+        { label: 'Outputs', value: formatPortSummary(node.outputs.map((port) => port.name)) },
+        { label: 'Controllers', value: formatPortSummary(controllerNames) },
+        ...(parameterNames.length > 0 ? [{ label: 'Parameters', value: formatPortSummary(parameterNames) }] : []),
+    ]
+}
+
+function getNodeControllers(node: NodeManifest): string[] {
+    return (node.controllers ?? []).map((controller) => controller.name)
+}
+
+function buildTemplateFlowPreview(template: WorkflowTemplate): string[] {
+    const nameByNodeType = new Map(template.required_nodes.map((manifest) => [manifest.id, manifest.name]))
+    const previewSteps = template.definition.nodes.slice(0, 5).map((node) => nameByNodeType.get(node.node_type) ?? node.node_type)
+    const remaining = template.definition.nodes.length - previewSteps.length
+
+    if (remaining <= 0) {
+        return previewSteps
+    }
+
+    return [...previewSteps, `+${remaining} more`]
 }
 
 export default function NodesPage() {
@@ -164,7 +202,12 @@ export default function NodesPage() {
     })
 
     const { catalog, loading, error, reload } = useNodeCatalog()
+    const navigate = useNavigate()
     const [search, setSearch] = useState('')
+    const [templateSearch, setTemplateSearch] = useState('')
+    const [templates, setTemplates] = useState<WorkflowTemplate[]>([])
+    const [templatesLoading, setTemplatesLoading] = useState(false)
+    const [templatesError, setTemplatesError] = useState<string | null>(null)
     const [selectedCategories, setSelectedCategories] = useState<NodeCategory[]>(() => [...NODE_CATEGORY_ORDER])
     const [jsonText, setJsonText] = useState('')
     const [importStatus, setImportStatus] = useState<string | null>(null)
@@ -173,6 +216,7 @@ export default function NodesPage() {
     const getErrorMessage = useErrorMessage()
     const importModalTitleId = 'nodes-import-modal-title'
     const importModalDescriptionId = 'nodes-import-modal-description'
+    const pageBannerMessage = error || templatesError
 
     const categoryCounts = useMemo(() => {
         return NODE_CATEGORY_ORDER.reduce<Record<NodeCategory, number>>((counts, category) => {
@@ -194,27 +238,57 @@ export default function NodesPage() {
         })
     }, [catalog, search, selectedCategories])
 
-    useEffect(() => {
-        if (!isImportModalOpen || isImporting) {
-            return
-        }
-
-        const handleKeyDown = (event: KeyboardEvent): void => {
-            if (event.key !== 'Escape') {
-                return
+    const filteredTemplates = useMemo(() => {
+        const normalized = templateSearch.trim().toLowerCase()
+        return templates.filter((template) => {
+            if (!normalized) {
+                return true
             }
-            event.preventDefault()
-            setIsImportModalOpen(false)
-        }
+            const haystack = `${template.name} ${template.description} ${template.tags.join(' ')}`.toLowerCase()
+            return haystack.includes(normalized)
+        })
+    }, [templateSearch, templates])
 
-        window.addEventListener('keydown', handleKeyDown)
-        return () => window.removeEventListener('keydown', handleKeyDown)
-    }, [isImportModalOpen, isImporting])
+    useEffect(() => {
+        let active = true
+        setTemplatesLoading(true)
+        void fetchWorkflowTemplates()
+            .then((payload) => {
+                if (!active) {
+                    return
+                }
+                setTemplates(payload.templates)
+                setTemplatesError(null)
+            })
+            .catch((loadError) => {
+                if (!active) {
+                    return
+                }
+                setTemplatesError(getErrorMessage(loadError, 'Failed to load workflow templates'))
+            })
+            .finally(() => {
+                if (active) {
+                    setTemplatesLoading(false)
+                }
+            })
+        return () => {
+            active = false
+        }
+    }, [getErrorMessage])
+
+    useEscapeToClose({
+        enabled: isImportModalOpen && !isImporting,
+        onClose: () => setIsImportModalOpen(false),
+    })
 
     function toggleCategory(category: NodeCategory): void {
         setSelectedCategories((current) =>
             current.includes(category) ? current.filter((item) => item !== category) : [...current, category],
         )
+    }
+
+    function navigateToWorkflow(intent: WorkflowOpenIntent): void {
+        navigate('/', { state: { workflow_intent: intent } satisfies WorkflowNavigationState })
     }
 
     function validateJson(): NodeManifest {
@@ -271,15 +345,26 @@ export default function NodesPage() {
                     </p>
                 </header>
 
-                <StatusBanner className="nodes-banner" message={error || importStatus} />
+                <StatusBanner className="nodes-banner" message={pageBannerMessage} />
+                {!isImportModalOpen && importStatus && (
+                    <StatusBanner
+                        className="nodes-banner nodes-import-status"
+                        message={importStatus}
+                        role="alert"
+                        ariaLive="assertive"
+                    />
+                )}
 
-                <div className="nodes-layout">
+                <div className="nodes-split-layout">
+                    <section className="nodes-split-panel nodes-split-panel-nodes">
+                        <div className="nodes-layout">
                     <section className="nodes-catalog-column">
                         <aside className="nodes-category-toolbar" aria-label="Category filters">
-                            <div className="nodes-section-heading">
-                                <h2>Categories</h2>
-                                <p>Select the groups you want to keep in the preview list.</p>
-                            </div>
+                            <SectionHeading
+                                className="nodes-section-heading"
+                                title="Categories"
+                                description="Select the groups you want to keep in the preview list."
+                            />
                             <div className="nodes-category-actions">
                                 <button type="button" onClick={() => setSelectedCategories([...NODE_CATEGORY_ORDER])}>
                                     Select all
@@ -311,10 +396,11 @@ export default function NodesPage() {
 
                         <div className="nodes-preview-shell">
                             <div className="nodes-preview-header">
-                                <div className="nodes-section-heading">
-                                    <h2>Node preview</h2>
-                                    <p>{filteredCatalog.length} nodes match the current filters.</p>
-                                </div>
+                                <SectionHeading
+                                    className="nodes-section-heading"
+                                    title="Node preview"
+                                    description={`${filteredCatalog.length} nodes match the current filters.`}
+                                />
                                 <div className="nodes-preview-header-controls">
                                     <input
                                         type="search"
@@ -343,27 +429,100 @@ export default function NodesPage() {
                                 {!loading &&
                                     filteredCatalog.map((node) => {
                                         const Icon = NODE_CATEGORY_ICONS[node.category]
+                                        const detailItems = buildNodeDetails(node)
                                         return (
                                             <article key={`${node.id}-${node.version}`} className="nodes-preview-row" role="listitem">
-                                                <div className="nodes-preview-icon">
-                                                    <Icon size={18} strokeWidth={1.8} />
-                                                </div>
-                                                <div className="nodes-preview-body">
-                                                    <div className="nodes-preview-title-row">
-                                                        <h3>{node.name}</h3>
-                                                        <span>{NODE_CATEGORY_LABELS[node.category]}</span>
+                                                <div className="nodes-preview-row-header">
+                                                    <div className="nodes-preview-icon">
+                                                        <Icon size={17} strokeWidth={1.8} />
                                                     </div>
-                                                    <p>{buildNodeExplanation(node)}</p>
-                                                    <div className="nodes-preview-io">
-                                                        <strong>In</strong>
-                                                        <span>{formatPortSummary(node.inputs.map((port) => port.name))}</span>
-                                                        <strong>Out</strong>
-                                                        <span>{formatPortSummary(node.outputs.map((port) => port.name))}</span>
+                                                    <div className="nodes-preview-title-group">
+                                                        <div className="nodes-preview-title-row">
+                                                            <h3>{node.name}</h3>
+                                                            <span>{NODE_CATEGORY_LABELS[node.category]}</span>
+                                                            <button
+                                                                type="button"
+                                                                className="nodes-node-add-button"
+                                                                aria-label={`Add ${node.name} to canvas`}
+                                                                title="Add to canvas"
+                                                                onClick={() =>
+                                                                    navigateToWorkflow({
+                                                                        type: 'add-node',
+                                                                        node_id: node.id,
+                                                                        node_version: node.version,
+                                                                    })
+                                                                }
+                                                            >
+                                                                <Plus size={14} strokeWidth={2.1} />
+                                                            </button>
+                                                        </div>
                                                     </div>
                                                 </div>
+                                                <p className="nodes-preview-summary">{buildNodeExplanation(node)}</p>
+                                                <dl className="nodes-preview-meta" aria-label={`${node.name} metadata`}>
+                                                    {detailItems.map((item) => (
+                                                        <div key={`${node.id}-${item.label}`} className="nodes-preview-meta-item">
+                                                            <dt>{item.label}</dt>
+                                                            <dd>{item.value}</dd>
+                                                        </div>
+                                                    ))}
+                                                </dl>
                                             </article>
                                         )
                                     })}
+                            </div>
+                        </div>
+                    </section>
+                        </div>
+                    </section>
+
+                    <section className="nodes-split-panel nodes-split-panel-templates">
+                        <div className="nodes-templates-shell">
+                            <div className="nodes-templates-header">
+                                <SectionHeading
+                                    className="nodes-section-heading"
+                                    title="Templates"
+                                    description="Load prebuilt workflows directly into the canvas."
+                                />
+                                <div className="nodes-templates-search">
+                                    <input
+                                        type="search"
+                                        value={templateSearch}
+                                        placeholder="Search templates"
+                                        aria-label="Search templates"
+                                        onChange={(event) => setTemplateSearch(event.target.value)}
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="nodes-templates-grid" role="list" aria-label="Workflow templates">
+                                {templatesLoading && <div className="nodes-empty">Loading templates...</div>}
+                                {!templatesLoading && filteredTemplates.length === 0 && (
+                                    <div className="nodes-empty">No templates match the current search.</div>
+                                )}
+                                {!templatesLoading &&
+                                    filteredTemplates.map((template) => (
+                                        <article key={template.id} className="nodes-template-card" role="listitem">
+                                            <div className="nodes-template-card-header">
+                                                <h3>{template.name}</h3>
+                                                <button
+                                                    type="button"
+                                                    onClick={() =>
+                                                        navigateToWorkflow({
+                                                            type: 'load-template',
+                                                            template,
+                                                        })
+                                                    }
+                                                >
+                                                    Use template
+                                                </button>
+                                            </div>
+                                            <p>{template.description}</p>
+                                            <p className="nodes-template-flow" aria-label={`${template.name} flow preview`}>
+                                                {buildTemplateFlowPreview(template).join(' -> ')}
+                                            </p>
+                                        </article>
+                                    ))}
                             </div>
                         </div>
                     </section>
@@ -389,10 +548,13 @@ export default function NodesPage() {
                         aria-describedby={importModalDescriptionId}
                     >
                         <div className="nodes-modal-header">
-                            <div className="nodes-section-heading">
-                                <h2 id={importModalTitleId}>Custom node JSON import</h2>
-                                <p id={importModalDescriptionId}>Start from the template, validate your manifest, then import it into the active catalog.</p>
-                            </div>
+                            <SectionHeading
+                                className="nodes-section-heading"
+                                title="Custom node JSON import"
+                                titleId={importModalTitleId}
+                                descriptionId={importModalDescriptionId}
+                                description="Start from the template, validate your manifest, then import it into the active catalog."
+                            />
                             <button
                                 type="button"
                                 className="nodes-modal-close"
@@ -411,6 +573,14 @@ export default function NodesPage() {
                                     Use template
                                 </button>
                             </div>
+                            {importStatus && (
+                                <StatusBanner
+                                    className="nodes-banner nodes-import-status"
+                                    message={importStatus}
+                                    role="alert"
+                                    ariaLive="assertive"
+                                />
+                            )}
                             <textarea
                                 value={jsonText}
                                 onChange={(event) => setJsonText(event.target.value)}
@@ -435,6 +605,7 @@ export default function NodesPage() {
         </>
     )
 }
+
 
 
 

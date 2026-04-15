@@ -1,4 +1,5 @@
-import { ReactNode, useEffect, useId } from 'react'
+import { ReactNode, useId } from 'react'
+import { useEscapeToClose } from '../app/hooks/useEscapeToClose'
 
 type ModalDialogProps = {
     isOpen: boolean
@@ -22,22 +23,10 @@ export default function ModalDialog({
     const titleId = useId()
     const descriptionId = useId()
 
-    useEffect(() => {
-        if (!isOpen || !onRequestClose) {
-            return
-        }
-
-        const handleKeyDown = (event: KeyboardEvent): void => {
-            if (event.key !== 'Escape') {
-                return
-            }
-            event.preventDefault()
-            onRequestClose()
-        }
-
-        window.addEventListener('keydown', handleKeyDown)
-        return () => window.removeEventListener('keydown', handleKeyDown)
-    }, [isOpen, onRequestClose])
+    useEscapeToClose({
+        enabled: isOpen && Boolean(onRequestClose),
+        onClose: () => onRequestClose?.(),
+    })
 
     if (!isOpen) {
         return null

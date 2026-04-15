@@ -12,7 +12,7 @@ test('Nodes page import modal validates payloads and handles success/error respo
 
     await dialog.getByRole('textbox').fill('{"bad":"payload"}')
     await dialog.getByRole('button', { name: 'Validate' }).click()
-    await expect(page.getByText('JSON must contain a node manifest object')).toBeVisible()
+    await expect(dialog.getByRole('alert')).toContainText('JSON must contain a node manifest object')
 
     const validManifest = {
         id: 'CUSTOM_NODE',
@@ -67,7 +67,7 @@ test('Nodes page import modal validates payloads and handles success/error respo
         }),
     )
     await secondDialog.getByRole('button', { name: 'Import Node' }).click()
-    await expect(page.getByText('Duplicate node id/version')).toBeVisible()
+    await expect(secondDialog.getByRole('alert')).toContainText('Duplicate node id/version')
 })
 
 test('Configurations and Models pages complete deterministic smoke flows', async ({ page }) => {

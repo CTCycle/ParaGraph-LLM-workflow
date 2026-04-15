@@ -9,7 +9,7 @@ import {
     loadConfigurationProfile,
     pingOllama,
     saveConfigurationProfile,
-} from '../app/services/workflowApi'
+} from '../app/services/configurationsApi'
 import ModalActionButtons from '../components/ModalActionButtons'
 import ModalDialog from '../components/ModalDialog'
 import { AccessKeyConfiguration, AppConfigurationPayload, ConfigurationProfileSummary } from '../workflow/schema/types'
@@ -51,10 +51,18 @@ function toCloudProvider(value: string): CloudProvider {
     if (value === 'openai' || value === 'gemini' || value === 'claude') {
         return value
     }
-    if (value === 'anthropic') {
-        return 'claude'
-    }
     return 'openai'
+}
+
+function formatOllamaStatusMessage(message: string, baseUrl: string): string {
+    const baseMessage = normalizeText(message)
+    const isConnectionIssue = /Unable to reach Ollama|ECONNREFUSED|WinError 10061|connection refused/i.test(baseMessage)
+    if (!isConnectionIssue) {
+        return baseMessage || 'Unable to check Ollama status'
+    }
+
+    const target = normalizeText(baseUrl) || 'the configured Ollama URL'
+    return `Ollama unreachable. Check that Ollama is running at ${target}.`
 }
 
 function mapPayloadToForm(payload: AppConfigurationPayload): ConfigurationFormValues {
@@ -119,6 +127,7 @@ export default function ConfigurationsPage() {
     const [isLoadingProfile, setIsLoadingProfile] = useState(false)
     const [selectedProfileName, setSelectedProfileName] = useState('')
     const [saveProfileName, setSaveProfileName] = useState('')
+    const [saveProfileError, setSaveProfileError] = useState<string | null>(null)
 
     const currentCloudCredentials = useMemo(
         () => cloudCredentials[selectedCloudProvider],
@@ -215,10 +224,11 @@ export default function ConfigurationsPage() {
     async function handleSaveProfile(): Promise<void> {
         const profileName = normalizeText(saveProfileName)
         if (!profileName) {
-            setStatusMessage('Enter a configuration name')
+            setSaveProfileError('Enter a configuration name')
             return
         }
 
+        setSaveProfileError(null)
         setIsSavingProfile(true)
         setStatusMessage(null)
         try {
@@ -239,12 +249,23 @@ export default function ConfigurationsPage() {
         setOllamaStatus(null)
         try {
             const response = await pingOllama(normalizeText(ollamaBaseUrl) || null)
-            setOllamaStatus(response.message)
+            setOllamaStatus(formatOllamaStatusMessage(response.message, ollamaBaseUrl))
         } catch (error) {
-            setOllamaStatus(getErrorMessage(error, 'Unable to check Ollama status'))
+            setOllamaStatus(
+                formatOllamaStatusMessage(
+                    error instanceof Error ? error.message : 'Unable to check Ollama status',
+                    ollamaBaseUrl,
+                ),
+            )
         } finally {
             setIsPingingOllama(false)
         }
+    }
+
+    function openSaveModal(): void {
+        setSaveProfileName('')
+        setSaveProfileError(null)
+        saveModal.open()
     }
 
     function updateCurrentCloudCredential(field: keyof ProviderCredential, value: string): void {
@@ -278,7 +299,12 @@ export default function ConfigurationsPage() {
                         </div>
                     </div>
 
-                    <div className="config-panel-fields">
+                    <form
+                        className="config-panel-fields"
+                        onSubmit={(event) => {
+                            event.preventDefault()
+                        }}
+                    >
                         <label>
                             <span>Base URL</span>
                             <input
@@ -288,7 +314,7 @@ export default function ConfigurationsPage() {
                                 placeholder="http://127.0.0.1:11434"
                             />
                         </label>
-                    </div>
+                    </form>
 
                     {ollamaStatus && <p className="config-panel-note">{ollamaStatus}</p>}
                 </section>
@@ -306,8 +332,7 @@ export default function ConfigurationsPage() {
                             <button
                                 type="button"
                                 onClick={() => {
-                                    setSaveProfileName('')
-                                    saveModal.open()
+                                    openSaveModal()
                                 }}
                                 disabled={isLoading || isSavingProfile}
                             >
@@ -316,7 +341,19 @@ export default function ConfigurationsPage() {
                         </div>
                     </div>
 
-                    <div className="config-panel-fields">
+                    <form
+                        className="config-panel-fields"
+                        onSubmit={(event) => {
+                            event.preventDefault()
+                        }}
+                    >
+                        <input
+                            type="text"
+                            className="config-hidden-username"
+                            autoComplete="username"
+                            tabIndex={-1}
+                            aria-hidden="true"
+                        />
                         <label>
                             <span>Cloud Provider</span>
                             <select
@@ -337,6 +374,7 @@ export default function ConfigurationsPage() {
                                 type="password"
                                 value={currentCloudCredentials.apiKey}
                                 placeholder="sk-..."
+                                autoComplete="current-password"
                                 onChange={(event) => updateCurrentCloudCredential('apiKey', event.target.value)}
                             />
                         </label>
@@ -347,10 +385,11 @@ export default function ConfigurationsPage() {
                                 type="password"
                                 value={huggingFaceKey}
                                 placeholder="hf_..."
+                                autoComplete="current-password"
                                 onChange={(event) => setHuggingFaceKey(event.target.value)}
                             />
                         </label>
-                    </div>
+                    </form>
 
                     {statusMessage && <p className="config-panel-note">{statusMessage}</p>}
                 </section>
@@ -422,9 +461,15 @@ export default function ConfigurationsPage() {
                         maxLength={120}
                     />
                 </label>
+                {saveProfileError && (
+                    <p className="config-modal-error" role="alert">
+                        {saveProfileError}
+                    </p>
+                )}
             </ModalDialog>
         </section>
     )
 }
+
 
 

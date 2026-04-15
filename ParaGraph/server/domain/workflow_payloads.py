@@ -4,7 +4,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, field_validator
 
-from ParaGraph.server.domain.nodecatalog import NodeDataType, ProviderModelDefinition
+from ParaGraph.server.domain.node_catalog import NodeDataType, ProviderModelDefinition
 
 
 class ImagePayload(BaseModel):

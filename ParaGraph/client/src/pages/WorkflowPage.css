@@ -19,6 +19,7 @@
     align-items: center;
     justify-content: space-between;
     gap: 8px;
+    flex-wrap: wrap;
     min-height: var(--control-height-md);
     padding: 0 0 var(--space-1);
     border-bottom: 1px solid rgba(64, 87, 118, 0.52);
@@ -26,6 +27,7 @@
 }
 
 .workflow-toolbar-status {
+    flex: 1 1 320px;
     min-width: 0;
     display: flex;
     align-items: center;
@@ -50,14 +52,15 @@
 }
 
 .workflow-toolbar-actions {
+    flex: 0 1 auto;
     display: inline-flex;
     align-items: stretch;
     justify-content: flex-end;
-    gap: 0;
-    flex-wrap: nowrap;
+    gap: 4px;
+    flex-wrap: wrap;
     border: 0;
     background: transparent;
-    overflow: hidden;
+    overflow: visible;
 }
 
 .workflow-hidden-file-input {
@@ -156,6 +159,8 @@
 .workflow-canvas-panel {
     min-height: 0;
     flex: 1;
+    display: flex;
+    flex-direction: column;
     border: 1px solid rgba(64, 87, 118, 0.76);
     background:
         radial-gradient(circle at top right, rgba(91, 167, 255, 0.13), transparent 26%),
@@ -404,6 +409,8 @@
 }
 
 .workflow-canvas-panel .react-flow {
+    flex: 1 1 auto;
+    min-height: 0;
     width: 100%;
     height: 100%;
 }
@@ -416,9 +423,18 @@
     pointer-events: none;
 }
 
+.workflow-canvas-panel-connecting .react-flow__node {
+    pointer-events: none;
+}
+
+.workflow-canvas-panel-connecting .workflow-node-port {
+    pointer-events: all;
+    z-index: 5;
+}
+
 .workflow-canvas-panel-connecting .workflow-node-port .react-flow__handle {
     pointer-events: all;
-    z-index: 4;
+    z-index: 6;
 }
 
 .workflow-canvas-panel .react-flow__controls {
@@ -428,6 +444,9 @@
     overflow: hidden;
     box-shadow: 0 8px 18px rgba(0, 0, 0, 0.32);
     background: rgba(5, 11, 22, 0.95);
+    display: inline-flex;
+    flex-direction: column;
+    align-items: stretch;
 }
 
 .workflow-canvas-panel .react-flow__controls-button {
@@ -747,19 +766,30 @@
 }
 
 .workflow-node-port-input .react-flow__handle {
-    left: -4px;
+    left: -12px;
 }
 
 .workflow-node-port-output .react-flow__handle {
-    right: -4px;
+    right: -12px;
 }
 
 .workflow-node-port .react-flow__handle {
     top: 50%;
-    width: 9px;
-    height: 9px;
+    width: 24px;
+    height: 24px;
     border: none;
+    background: transparent;
+    box-shadow: none;
+    position: absolute;
+}
+
+.workflow-node-port .react-flow__handle::after {
+    content: '';
+    position: absolute;
+    inset: 5px;
+    border-radius: 999px;
     background: var(--node-accent);
+    box-shadow: 0 0 0 2px rgba(6, 13, 24, 0.9);
 }
 .workflow-node-parameters,
 .workflow-node-runtime {
@@ -1064,7 +1094,8 @@
 }
 @media (max-width: 1120px) {
     .workflow-toolbar {
-        align-items: flex-start;
+        flex-direction: column;
+        align-items: stretch;
     }
 
     .workflow-toolbar-status,
@@ -1072,9 +1103,15 @@
         width: 100%;
     }
 
+    .workflow-toolbar-status strong {
+        max-width: none;
+        white-space: normal;
+        overflow: visible;
+        text-overflow: clip;
+    }
+
     .workflow-toolbar-actions {
         justify-content: flex-start;
-        overflow-x: auto;
     }
 
     .workflow-layout,
@@ -1094,7 +1131,14 @@
 }
 
 @media (max-width: 760px) {
+    .workflow-shell {
+        padding-left: var(--space-1);
+        padding-right: var(--space-1);
+    }
+
     .workflow-toolbar button {
+        flex: 1 1 120px;
+        min-width: 0;
         min-height: var(--control-height-sm);
         padding: 0 9px;
         font-size: 0.78rem;

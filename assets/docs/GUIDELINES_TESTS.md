@@ -1,4 +1,5 @@
 # Testing Guidelines
+Last updated: 2026-04-08
 
 Deterministic local test strategy for ParaGraph.
 
