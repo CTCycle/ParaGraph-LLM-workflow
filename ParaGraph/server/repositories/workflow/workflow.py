@@ -30,7 +30,6 @@ class WorkflowRepository:
                 WorkflowListItem(
                     workflow_id=str(item["workflow_id"]),
                     name=str(item["name"]),
-                    latest_version=int(item["latest_version"]),
                     updated_at=updated_at,
                 )
             )
@@ -47,7 +46,6 @@ class WorkflowRepository:
         document = WorkflowDocument(
             workflow_id=workflow_id,
             name=name,
-            latest_version=1,
             definition=definition,
             visual_graph=visual_graph,
         )
@@ -63,14 +61,13 @@ class WorkflowRepository:
         definition: WorkflowDefinition,
         visual_graph: VisualGraph,
     ) -> WorkflowDocument | None:
-        current = self.get_latest_workflow(workflow_id)
+        current = self.get_workflow(workflow_id)
         if current is None:
             return None
 
         document = WorkflowDocument(
             workflow_id=workflow_id,
             name=name or current.name,
-            latest_version=current.latest_version + 1,
             definition=definition,
             visual_graph=visual_graph,
             created_at=current.created_at,
@@ -80,46 +77,30 @@ class WorkflowRepository:
         self._upsert_index(document)
         return document
 
-    def get_latest_workflow(self, workflow_id: str) -> WorkflowDocument | None:
+    def get_workflow(self, workflow_id: str) -> WorkflowDocument | None:
         index = self._load_index()
         entry = next(
             (item for item in index if item["workflow_id"] == workflow_id), None
         )
         if entry is None:
             return None
-        return self.get_workflow_version(workflow_id, int(entry["latest_version"]))
-
-    def get_workflow_version(
-        self, workflow_id: str, version: int
-    ) -> WorkflowDocument | None:
-        path = self._version_path(workflow_id, version)
+        path = self._workflow_path(workflow_id)
         if not path.exists():
             return None
         payload = json.loads(path.read_text(encoding="utf-8"))
         return WorkflowDocument.model_validate(payload)
 
-    def list_versions(self, workflow_id: str) -> list[int]:
-        workflow_dir = self._workflow_dir(workflow_id)
-        if not workflow_dir.exists():
-            return []
-        versions: list[int] = []
-        for path in workflow_dir.glob("v*.json"):
-            raw = path.stem.removeprefix("v")
-            if raw.isdigit():
-                versions.append(int(raw))
-        return sorted(versions)
-
     def _workflow_dir(self, workflow_id: str) -> Path:
         return self._root / workflow_id
 
-    def _version_path(self, workflow_id: str, version: int) -> Path:
-        return self._workflow_dir(workflow_id) / f"v{version}.json"
+    def _workflow_path(self, workflow_id: str) -> Path:
+        return self._workflow_dir(workflow_id) / "workflow.json"
 
     def _save_document(self, document: WorkflowDocument) -> None:
         workflow_dir = self._workflow_dir(document.workflow_id)
         workflow_dir.mkdir(parents=True, exist_ok=True)
-        version_path = self._version_path(document.workflow_id, document.latest_version)
-        version_path.write_text(
+        workflow_path = self._workflow_path(document.workflow_id)
+        workflow_path.write_text(
             json.dumps(document.model_dump(mode="json"), indent=2),
             encoding="utf-8",
         )
@@ -140,7 +121,6 @@ class WorkflowRepository:
         serialized = {
             "workflow_id": document.workflow_id,
             "name": document.name,
-            "latest_version": document.latest_version,
             "updated_at": document.updated_at.isoformat(),
         }
 

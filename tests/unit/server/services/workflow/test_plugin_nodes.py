@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from ParaGraph.server.services.workflow import nodes as node_module
+from ParaGraph.server.services.workflow.nodes import registry as node_module
 
 
 def write_manifest(path: Path, payload: dict[str, object]) -> None:

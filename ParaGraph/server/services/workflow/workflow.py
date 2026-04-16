@@ -6,7 +6,6 @@ from ParaGraph.server.domain.workflow_model import (
     UpdateWorkflowRequest,
     WorkflowDocument,
     WorkflowListResponse,
-    WorkflowVersionListResponse,
 )
 
 
@@ -21,12 +20,8 @@ class WorkflowService:
             visual_graph=request.visual_graph,
         )
 
-    def get_workflow(
-        self, workflow_id: str, version: int | None = None
-    ) -> WorkflowDocument | None:
-        if version is None:
-            return workflow_repository.get_latest_workflow(workflow_id)
-        return workflow_repository.get_workflow_version(workflow_id, version)
+    def get_workflow(self, workflow_id: str) -> WorkflowDocument | None:
+        return workflow_repository.get_workflow(workflow_id)
 
     def update_workflow(
         self, workflow_id: str, request: UpdateWorkflowRequest
@@ -37,14 +32,5 @@ class WorkflowService:
             definition=request.definition,
             visual_graph=request.visual_graph,
         )
-
-    def list_versions(self, workflow_id: str) -> WorkflowVersionListResponse | None:
-        latest = workflow_repository.get_latest_workflow(workflow_id)
-        if latest is None:
-            return None
-
-        versions = workflow_repository.list_versions(workflow_id)
-        return WorkflowVersionListResponse(workflow_id=workflow_id, versions=versions)
-
 
 workflow_service = WorkflowService()

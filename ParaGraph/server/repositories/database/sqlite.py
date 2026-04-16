@@ -34,28 +34,8 @@ from ParaGraph.server.repositories.schemas import Base
 ###############################################################################
 class SQLiteRepository:
     def __init__(self, settings: DatabaseSettings) -> None:
-        legacy_db_path = os.path.join(RESOURCES_PATH, "database", DATABASE_FILENAME)
-        preferred_db_path = os.path.join(RESOURCES_PATH, DATABASE_FILENAME)
-        selected_db_path = preferred_db_path
-
-        os.makedirs(os.path.dirname(preferred_db_path), exist_ok=True)
-
-        if not os.path.exists(preferred_db_path) and os.path.exists(legacy_db_path):
-            try:
-                os.replace(legacy_db_path, preferred_db_path)
-                legacy_directory = os.path.dirname(legacy_db_path)
-                if os.path.isdir(legacy_directory) and not os.listdir(legacy_directory):
-                    os.rmdir(legacy_directory)
-                logger.info("Migrated SQLite database to %s", preferred_db_path)
-            except OSError as exc:
-                selected_db_path = legacy_db_path
-                logger.warning(
-                    "Could not migrate SQLite database to %s. Using legacy path: %s",
-                    preferred_db_path,
-                    exc,
-                )
-
-        self.db_path: str | None = selected_db_path
+        self.db_path: str | None = os.path.join(RESOURCES_PATH, DATABASE_FILENAME)
+        os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
         self.engine: Engine = sqlalchemy.create_engine(
             f"sqlite:///{self.db_path}", echo=False, future=True
         )

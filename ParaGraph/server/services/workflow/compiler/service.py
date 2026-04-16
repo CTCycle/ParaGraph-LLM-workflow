@@ -267,17 +267,10 @@ class CompilerService:
             return {}
 
         normalized: dict[str, str] = {}
-        aliases = {
-            "model_provider": "model_provider",
-            "model": "model_provider",
-            "database_provider": "database_provider",
-            "database": "database_provider",
-            "vector_store": "vector_store",
-            "vector_storage": "vector_store",
-        }
+        allowed_keys = {"model_provider", "database_provider", "vector_store"}
         for raw_key, raw_node_id in raw_globals.items():
-            key = aliases.get(str(raw_key).strip().lower())
-            if key is None or not isinstance(raw_node_id, str):
+            key = str(raw_key).strip().lower()
+            if key not in allowed_keys or not isinstance(raw_node_id, str):
                 continue
             node_id = raw_node_id.strip()
             if node_id and node_id in node_by_id:

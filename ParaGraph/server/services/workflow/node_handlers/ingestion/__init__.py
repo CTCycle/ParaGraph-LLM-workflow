@@ -74,19 +74,6 @@ def _read_text_file(path: Path) -> str:
         return path.read_text(encoding="latin-1")
 
 
-def _load_doc_text_fallback(path: Path) -> str:
-    # Legacy .doc extraction fallback: preserve printable text when a binary parser is unavailable.
-    raw = path.read_bytes()
-    for encoding in ("utf-8", "latin-1"):
-        decoded = raw.decode(encoding, errors="ignore")
-        compact = "\n".join(
-            line.strip() for line in decoded.splitlines() if line.strip()
-        )
-        if compact:
-            return compact
-    return ""
-
-
 def load_file_text(path: Path) -> tuple[str, str]:
     suffix = path.suffix.lower()
     if suffix in {".txt", ".md", ".markdown"}:
@@ -106,13 +93,6 @@ def load_file_text(path: Path) -> tuple[str, str]:
         return _read_text_file(path), mimetypes.guess_type(str(path))[0] or "text/plain"
     if suffix == ".rtf":
         return _read_text_file(path), "application/rtf"
-    if suffix == ".doc":
-        extracted = _load_doc_text_fallback(path)
-        if not extracted.strip():
-            raise ValueError(
-                f"Unable to extract readable text from legacy .doc file: {path}"
-            )
-        return extracted, "application/msword"
     if suffix == ".pdf":
         return _load_pdf_text(path), "application/pdf"
     if suffix == ".docx":

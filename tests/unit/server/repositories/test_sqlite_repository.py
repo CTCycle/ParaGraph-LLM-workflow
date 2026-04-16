@@ -35,25 +35,6 @@ def test_sqlite_repository_uses_resources_root_for_default_path(
     assert repository.db_path == str(tmp_path / "database.db")
 
 
-def test_sqlite_repository_migrates_legacy_database_path(
-    tmp_path: Path, monkeypatch
-) -> None:
-    monkeypatch.setattr(sqlite_module, "RESOURCES_PATH", str(tmp_path))
-
-    legacy_dir = tmp_path / "database"
-    legacy_dir.mkdir(parents=True, exist_ok=True)
-    legacy_db_path = legacy_dir / "database.db"
-    legacy_db_path.write_bytes(b"legacy-data")
-
-    repository = sqlite_module.SQLiteRepository(_build_settings())
-    migrated_db_path = Path(repository.db_path or "")
-
-    assert migrated_db_path == tmp_path / "database.db"
-    assert migrated_db_path.exists()
-    assert migrated_db_path.read_bytes() == b"legacy-data"
-    assert not legacy_db_path.exists()
-
-
 def test_sqlite_repository_save_load_and_count_rows(
     tmp_path: Path, monkeypatch
 ) -> None:

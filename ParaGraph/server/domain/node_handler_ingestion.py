@@ -21,7 +21,6 @@ LOAD_DOCUMENTS_SUPPORTED_EXTENSIONS = {
     ".md",
     ".markdown",
     ".pdf",
-    ".doc",
     ".docx",
     ".rtf",
     ".html",

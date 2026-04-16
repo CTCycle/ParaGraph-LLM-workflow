@@ -100,16 +100,6 @@ def _flatten_content(content: Any) -> str:
 
 
 # -----------------------------------------------------------------------------
-def messages_to_prompt(messages: list[dict[str, Any]]) -> str:
-    lines: list[str] = []
-    for message in messages:
-        role = str(message.get("role", "user")).upper()
-        content = _flatten_content(message.get("content", ""))
-        if content:
-            lines.append(f"{role}: {content}")
-    return "\n\n".join(lines)
-
-
 # -----------------------------------------------------------------------------
 def _content_blocks(value: Any) -> list[dict[str, Any]]:
     if isinstance(value, list):
@@ -280,43 +270,14 @@ class OllamaClient:
         if options:
             payload["options"] = options
 
-        response = self._request("POST", "/api/chat", payload=payload, allow_404=True)
-        if response.status_code != 404:
-            data = response.json()
-            message = data.get("message", {}) if isinstance(data, dict) else {}
-            content = message.get("content") if isinstance(message, dict) else None
-            text = _flatten_content(content)
-            if text:
-                return text
-            raise OllamaError("Invalid /api/chat response shape")
-
-        generate_payload: dict[str, Any] = {
-            "model": model,
-            "prompt": messages_to_prompt(messages),
-            "stream": False,
-        }
-        images: list[str] = []
-        for message in messages:
-            transformed = _to_ollama_message(message)
-            images.extend(transformed.get("images", []))
-        if images:
-            generate_payload["images"] = images
-        if format:
-            generate_payload["format"] = format
-        if options:
-            generate_payload["options"] = options
-
-        fallback_response = self._request(
-            "POST", "/api/generate", payload=generate_payload
-        )
-        fallback_data = fallback_response.json()
-        generated = (
-            fallback_data.get("response") if isinstance(fallback_data, dict) else None
-        )
-        text = _flatten_content(generated)
+        response = self._request("POST", "/api/chat", payload=payload)
+        data = response.json()
+        message = data.get("message", {}) if isinstance(data, dict) else {}
+        content = message.get("content") if isinstance(message, dict) else None
+        text = _flatten_content(content)
         if text:
             return text
-        raise OllamaError("Invalid /api/generate response shape")
+        raise OllamaError("Invalid /api/chat response shape")
 
 
 ###############################################################################

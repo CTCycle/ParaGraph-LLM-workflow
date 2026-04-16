@@ -3,6 +3,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 import ParaGraph.server.services.workflow.provider.service as provider_service_module
+from ParaGraph.server.services.llm.providers import OllamaClient
 from ParaGraph.server.services.workflow.provider import ProviderService
 
 
@@ -128,3 +129,27 @@ def test_claude_embeddings_are_rejected() -> None:
         assert "does not support embeddings" in str(exc)
     else:
         raise AssertionError("Expected ValueError")
+
+
+def test_ollama_client_chat_uses_chat_endpoint_only(monkeypatch) -> None:
+    client = OllamaClient(base_url="http://127.0.0.1:11434")
+    calls: list[tuple[str, str]] = []
+
+    class FakeResponse:
+        status_code = 200
+
+        @staticmethod
+        def json() -> dict[str, object]:
+            return {"message": {"content": "ok"}}
+
+    def fake_request(method: str, path: str, **kwargs):
+        _ = kwargs
+        calls.append((method, path))
+        return FakeResponse()
+
+    monkeypatch.setattr(client, "_request", fake_request)
+
+    result = client.chat(model="llama3.2", messages=[{"role": "user", "content": "hi"}])
+
+    assert result == "ok"
+    assert calls == [("POST", "/api/chat")]
