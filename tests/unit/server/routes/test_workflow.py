@@ -6,7 +6,7 @@ from fastapi.testclient import TestClient
 
 from ParaGraph.server.domain.configuration import AccessKeyConfiguration
 from ParaGraph.server.domain.node_catalog import ProviderModelDefinition
-from ParaGraph.server.services.workflow import nodes as node_module
+from ParaGraph.server.services.workflow import provider_service
 
 
 def build_simple_definition(prompt_text: str) -> dict[str, object]:
@@ -427,6 +427,29 @@ def test_compile_skipped_connection_is_excluded_from_required_input_resolution(
     assert "missing_source_node" not in codes
 
 
+def test_compile_ignores_legacy_global_node_aliases(client: TestClient) -> None:
+    definition = build_provider_chat_definition()
+    definition["metadata"] = {
+        "global_nodes": {
+            "model": "provider_1",
+        }
+    }
+    definition["connections"] = [
+        connection
+        for connection in definition["connections"]
+        if connection.get("connection_type") != "controller"
+    ]
+
+    response = client.post("/executions/compile", json={"definition": definition})
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["valid"] is False
+    assert any(
+        item["code"] == "missing_required_controller" for item in payload["diagnostics"]
+    )
+
+
 def build_huggingface_chat_definition(model_name: str) -> dict[str, object]:
     return {
         "schema_version": 2,
@@ -478,12 +501,12 @@ def test_compile_allows_tokenless_local_huggingface_model(
 ) -> None:
     model_name = "acme/local-model"
     monkeypatch.setattr(
-        node_module.provider_service,
+        provider_service,
         "_downloaded_huggingface_repo_ids",
         lambda: {model_name},
     )
     monkeypatch.setattr(
-        node_module.provider_service,
+        provider_service,
         "_get_access_key",
         lambda provider, session_name="default": None,
     )
@@ -503,10 +526,10 @@ def test_compile_rejects_remote_huggingface_model_without_token(
 ) -> None:
     model_name = "acme/remote-model"
     monkeypatch.setattr(
-        node_module.provider_service, "_downloaded_huggingface_repo_ids", lambda: set()
+        provider_service, "_downloaded_huggingface_repo_ids", lambda: set()
     )
     monkeypatch.setattr(
-        node_module.provider_service,
+        provider_service,
         "_get_access_key",
         lambda provider, session_name="default": None,
     )
@@ -532,10 +555,10 @@ def test_compile_allows_remote_huggingface_model_with_token(
 ) -> None:
     model_name = "acme/remote-model"
     monkeypatch.setattr(
-        node_module.provider_service, "_downloaded_huggingface_repo_ids", lambda: set()
+        provider_service, "_downloaded_huggingface_repo_ids", lambda: set()
     )
     monkeypatch.setattr(
-        node_module.provider_service,
+        provider_service,
         "_get_access_key",
         lambda provider, session_name="default": AccessKeyConfiguration(
             provider="huggingface", api_key="hf_test", base_url=None, metadata={}
@@ -577,12 +600,12 @@ def test_execute_returns_run_and_persists_output_payload(
         captured.update(kwargs)
         return "Hello back"
 
-    monkeypatch.setattr(node_module.provider_service, "chat", fake_chat)
+    monkeypatch.setattr(provider_service, "chat", fake_chat)
     monkeypatch.setattr(
-        node_module.provider_service, "validate_model_request", lambda **kwargs: None
+        provider_service, "validate_model_request", lambda **kwargs: None
     )
     monkeypatch.setattr(
-        node_module.provider_service,
+        provider_service,
         "build_model_definition",
         lambda provider, model, timeout_s=None, session_name="default": (
             build_stub_model_definition(provider, model, timeout_s=timeout_s)
@@ -623,13 +646,13 @@ def test_execute_structured_node_rejects_invalid_output(
     wait_for_job: Callable[[str, float], dict[str, object]],
 ) -> None:
     monkeypatch.setattr(
-        node_module.provider_service, "chat", lambda **kwargs: '{"name": 12}'
+        provider_service, "chat", lambda **kwargs: '{"name": 12}'
     )
     monkeypatch.setattr(
-        node_module.provider_service, "validate_model_request", lambda **kwargs: None
+        provider_service, "validate_model_request", lambda **kwargs: None
     )
     monkeypatch.setattr(
-        node_module.provider_service,
+        provider_service,
         "build_model_definition",
         lambda provider, model, timeout_s=None, session_name="default": (
             build_stub_model_definition(provider, model, timeout_s=timeout_s)
@@ -669,13 +692,13 @@ def test_execute_structured_node_emits_json_output_payload(
     wait_for_job: Callable[[str, float], dict[str, object]],
 ) -> None:
     monkeypatch.setattr(
-        node_module.provider_service, "chat", lambda **kwargs: '{"name":"Ada"}'
+        provider_service, "chat", lambda **kwargs: '{"name":"Ada"}'
     )
     monkeypatch.setattr(
-        node_module.provider_service, "validate_model_request", lambda **kwargs: None
+        provider_service, "validate_model_request", lambda **kwargs: None
     )
     monkeypatch.setattr(
-        node_module.provider_service,
+        provider_service,
         "build_model_definition",
         lambda provider, model, timeout_s=None, session_name="default": (
             build_stub_model_definition(provider, model, timeout_s=timeout_s)

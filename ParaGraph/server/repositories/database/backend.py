@@ -71,12 +71,7 @@ class ParaGraphDatabase:
         sqlite_database_exists = True
         if normalized_name == "sqlite":
             sqlite_db_path = os.path.join(RESOURCES_PATH, DATABASE_FILENAME)
-            legacy_sqlite_path = os.path.join(
-                RESOURCES_PATH, "database", DATABASE_FILENAME
-            )
-            sqlite_database_exists = os.path.exists(sqlite_db_path) or os.path.exists(
-                legacy_sqlite_path
-            )
+            sqlite_database_exists = os.path.exists(sqlite_db_path)
 
         backend = BACKEND_FACTORIES[normalized_name](self.settings)
         if normalized_name == "sqlite" and not sqlite_database_exists:

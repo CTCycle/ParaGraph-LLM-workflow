@@ -146,7 +146,6 @@ export interface VisualGraph {
 export interface WorkflowDocument {
     workflow_id: string
     name: string
-    latest_version: number
     definition: WorkflowDefinition
     visual_graph: VisualGraph
     created_at: string

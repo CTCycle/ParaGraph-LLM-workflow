@@ -862,32 +862,24 @@ function getControllers(manifest: NodeManifest): NonNullable<NodeManifest['contr
 }
 
 function getControllerScope(
-    manifest: NodeManifest,
     controller: { scope?: ControllerScope },
 ): ControllerScope {
-    if (controller.scope) {
-        return controller.scope
-    }
-    // Backward-compatible fallback for manifests loaded before scope metadata existed.
-    if (manifest.id === 'MODEL_PROVIDER') {
-        return 'source'
-    }
-    return 'target'
+    return controller.scope ?? 'target'
 }
 
 function supportsControllerSource(
-    manifest: NodeManifest,
+    _manifest: NodeManifest,
     controller: { scope?: ControllerScope },
 ): boolean {
-    const scope = getControllerScope(manifest, controller)
+    const scope = getControllerScope(controller)
     return scope === 'source' || scope === 'both'
 }
 
 function supportsControllerTarget(
-    manifest: NodeManifest,
+    _manifest: NodeManifest,
     controller: { scope?: ControllerScope },
 ): boolean {
-    const scope = getControllerScope(manifest, controller)
+    const scope = getControllerScope(controller)
     return scope === 'target' || scope === 'both'
 }
 function toHandleId(kind: HandleKind, name: string): string {

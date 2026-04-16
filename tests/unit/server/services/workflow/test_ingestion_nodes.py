@@ -86,6 +86,21 @@ def test_load_documents_rejects_non_canonical_folder_path_keys(tmp_path: Path) -
             )
 
 
+def test_load_documents_skips_legacy_doc_extension(tmp_path: Path) -> None:
+    source_dir = tmp_path / "docs"
+    source_dir.mkdir(parents=True, exist_ok=True)
+    (source_dir / "legacy.doc").write_text("legacy", encoding="utf-8")
+
+    payload = node_registry.execute(
+        "LOAD_DOCUMENTS",
+        1,
+        {"folder_path": str(source_dir), "recursive": False},
+        {},
+    )
+
+    assert payload["documents"] == []
+
+
 def test_sql_file_database_node_roundtrip(tmp_path: Path) -> None:
     class ItemsBase(DeclarativeBase):
         pass
