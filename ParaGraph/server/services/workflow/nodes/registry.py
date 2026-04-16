@@ -22,6 +22,7 @@ ARTIFACT_ROOT = Path(RESOURCES_PATH) / "artifacts"
 MODEL_NODE_IDS = {"LLM_CHAT", "LLM_STRUCTURED"}
 STRUCTURED_NODE_IDS = {"LLM_STRUCTURED"}
 
+
 def _format_parameter_validation_error(error: ValidationError) -> str:
     issues = error.errors()
     if not issues:
@@ -29,13 +30,16 @@ def _format_parameter_validation_error(error: ValidationError) -> str:
 
     messages: list[str] = []
     for issue in issues[:3]:
-        location = ".".join(str(part) for part in issue.get("loc", ()) if part != "__root__")
+        location = ".".join(
+            str(part) for part in issue.get("loc", ()) if part != "__root__"
+        )
         message = str(issue.get("msg") or "Invalid parameter")
         messages.append(f"{location}: {message}" if location else message)
 
     if len(issues) > 3:
         messages.append(f"(+{len(issues) - 3} more)")
     return "; ".join(messages)
+
 
 def _execute_plugin_manifest(
     registry: NodeRegistry,
@@ -46,7 +50,9 @@ def _execute_plugin_manifest(
     callable_executor = registry._load_plugin_callable(manifest)
     result = callable_executor(dict(parameters), dict(inputs))
     if not isinstance(result, dict):
-        raise ValueError(f"Node '{manifest.id}' plugin entrypoint must return an object")
+        raise ValueError(
+            f"Node '{manifest.id}' plugin entrypoint must return an object"
+        )
     return result
 
 
@@ -64,10 +70,14 @@ class NodeRegistry:
         definitions: dict[tuple[str, int], NodeManifest] = {}
         manifest_paths: dict[tuple[str, int], Path] = {}
         for path in sorted(NODE_ROOT.glob("*.json")):
-            manifest = NodeManifest.model_validate_json(path.read_text(encoding="utf-8"))
+            manifest = NodeManifest.model_validate_json(
+                path.read_text(encoding="utf-8")
+            )
             key = (manifest.id, manifest.version)
             if key in definitions:
-                raise ValueError(f"Duplicate node manifest detected for {manifest.id} v{manifest.version}")
+                raise ValueError(
+                    f"Duplicate node manifest detected for {manifest.id} v{manifest.version}"
+                )
             self._assert_executor_known(manifest, source_path=path)
             definitions[key] = manifest
             manifest_paths[key] = path
@@ -75,19 +85,27 @@ class NodeRegistry:
         self._manifest_paths = manifest_paths
         self._plugin_handlers = {}
 
-    def _assert_executor_known(self, manifest: NodeManifest, *, source_path: Path | None = None) -> None:
+    def _assert_executor_known(
+        self, manifest: NodeManifest, *, source_path: Path | None = None
+    ) -> None:
         plugin = manifest.runtime.plugin
         if plugin is not None:
-            self._resolve_plugin_script_path(manifest, source_path=source_path, validate_exists=True)
+            self._resolve_plugin_script_path(
+                manifest, source_path=source_path, validate_exists=True
+            )
             return
         if manifest.runtime.executor_key not in NODE_HANDLERS:
-            raise ValueError(f"Unknown executor_key '{manifest.runtime.executor_key}' for node '{manifest.id}'")
+            raise ValueError(
+                f"Unknown executor_key '{manifest.runtime.executor_key}' for node '{manifest.id}'"
+            )
 
     def _manifest_source_path(self, manifest: NodeManifest) -> Path:
         key = (manifest.id, manifest.version)
         path = self._manifest_paths.get(key)
         if path is None:
-            raise ValueError(f"Missing manifest source path for node '{manifest.id}' v{manifest.version}")
+            raise ValueError(
+                f"Missing manifest source path for node '{manifest.id}' v{manifest.version}"
+            )
         return path
 
     def _resolve_plugin_script_path(
@@ -103,7 +121,9 @@ class NodeRegistry:
 
         raw_script_path = plugin.script_path.strip()
         if not raw_script_path:
-            raise ValueError(f"Node '{manifest.id}' plugin script_path must not be empty")
+            raise ValueError(
+                f"Node '{manifest.id}' plugin script_path must not be empty"
+            )
 
         script_path = Path(raw_script_path).expanduser()
         if script_path.is_absolute():
@@ -114,7 +134,9 @@ class NodeRegistry:
         manifest_path = source_path or self._manifest_source_path(manifest)
         resolved = (manifest_path.parent / script_path).resolve()
         if validate_exists and (not resolved.exists() or not resolved.is_file()):
-            raise ValueError(f"Node '{manifest.id}' plugin script not found: {resolved}")
+            raise ValueError(
+                f"Node '{manifest.id}' plugin script not found: {resolved}"
+            )
         return resolved
 
     def _load_plugin_callable(self, manifest: NodeManifest):
@@ -131,7 +153,9 @@ class NodeRegistry:
         module_name = f"paragraph_node_plugin_{manifest.id.lower()}_{manifest.version}_{abs(hash(str(script_path)))}"
         spec = importlib.util.spec_from_file_location(module_name, script_path)
         if spec is None or spec.loader is None:
-            raise ValueError(f"Unable to load plugin module for node '{manifest.id}' from {script_path}")
+            raise ValueError(
+                f"Unable to load plugin module for node '{manifest.id}' from {script_path}"
+            )
 
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
@@ -152,7 +176,9 @@ class NodeRegistry:
         if cached is not None:
             return cached
 
-        handler = NodeHandler(executor=partial(_execute_plugin_manifest, self, manifest))
+        handler = NodeHandler(
+            executor=partial(_execute_plugin_manifest, self, manifest)
+        )
         self._plugin_handlers[key] = handler
         return handler
 
@@ -164,41 +190,58 @@ class NodeRegistry:
     def get(self, node_type: str, version: int | None = None) -> NodeManifest | None:
         if version is not None:
             return self._definitions.get((node_type, version))
-        matching = [manifest for (manifest_id, _), manifest in self._definitions.items() if manifest_id == node_type]
+        matching = [
+            manifest
+            for (manifest_id, _), manifest in self._definitions.items()
+            if manifest_id == node_type
+        ]
         if not matching:
             return None
         return sorted(matching, key=lambda item: item.version)[-1]
 
     def list(self) -> list[NodeManifest]:
-        return sorted(self._definitions.values(), key=lambda item: (item.category, item.name, item.version))
+        return sorted(
+            self._definitions.values(),
+            key=lambda item: (item.category, item.name, item.version),
+        )
 
     def catalog_response(self) -> NodeCatalogResponse:
         return NodeCatalogResponse(nodes=self.list())
 
     def import_manifest(self, manifest: NodeManifest) -> NodeManifest:
         if self.get(manifest.id, manifest.version) is not None:
-            raise ValueError(f"Node manifest already exists for {manifest.id} v{manifest.version}")
+            raise ValueError(
+                f"Node manifest already exists for {manifest.id} v{manifest.version}"
+            )
 
         filename = f"{manifest.id.lower()}_v{manifest.version}.json"
         path = NODE_ROOT / filename
         self._assert_executor_known(manifest, source_path=path)
-        path.write_text(json.dumps(manifest.model_dump(mode="json"), indent=2), encoding="utf-8")
+        path.write_text(
+            json.dumps(manifest.model_dump(mode="json"), indent=2), encoding="utf-8"
+        )
 
         try:
             self.reload()
             created = self.get(manifest.id, manifest.version)
             if created is None:
-                raise ValueError(f"Imported node manifest could not be reloaded: {manifest.id} v{manifest.version}")
+                raise ValueError(
+                    f"Imported node manifest could not be reloaded: {manifest.id} v{manifest.version}"
+                )
             configuration_service.save_node_manifest(created)
         except Exception as exc:
             if path.exists():
                 path.unlink()
             self.reload()
-            raise ValueError(f"Failed to persist imported node manifest in database: {exc}") from exc
+            raise ValueError(
+                f"Failed to persist imported node manifest in database: {exc}"
+            ) from exc
 
         return created
 
-    def validate_parameters(self, node_type: str, node_version: int, parameters: dict[str, Any]) -> dict[str, Any]:
+    def validate_parameters(
+        self, node_type: str, node_version: int, parameters: dict[str, Any]
+    ) -> dict[str, Any]:
         manifest = self.get(node_type, node_version)
         if manifest is None:
             raise ValueError(f"Unknown node type/version '{node_type}' v{node_version}")
@@ -206,30 +249,46 @@ class NodeRegistry:
         payload = dict(parameters)
         if handler.parameter_model is not None:
             try:
-                payload = handler.parameter_model.model_validate(payload).model_dump(mode="json")
+                payload = handler.parameter_model.model_validate(payload).model_dump(
+                    mode="json"
+                )
             except ValidationError as exc:
                 raise ValueError(_format_parameter_validation_error(exc)) from exc
         self._validate_parameter_constraints(manifest, payload)
         return payload
 
-    def _validate_parameter_constraints(self, manifest: NodeManifest, parameters: dict[str, Any]) -> None:
+    def _validate_parameter_constraints(
+        self, manifest: NodeManifest, parameters: dict[str, Any]
+    ) -> None:
         for parameter in manifest.parameters:
             if parameter.name not in parameters:
                 continue
             value = parameters[parameter.name]
             constraints = parameter.constraints or {}
-            if parameter.ui_control == "number" and isinstance(value, (int, float)) and not isinstance(value, bool):
+            if (
+                parameter.ui_control == "number"
+                and isinstance(value, (int, float))
+                and not isinstance(value, bool)
+            ):
                 minimum = constraints.get("min")
                 maximum = constraints.get("max")
                 if minimum is not None and value < minimum:
-                    raise ValueError(f"Parameter '{parameter.name}' must be greater than or equal to {minimum}")
+                    raise ValueError(
+                        f"Parameter '{parameter.name}' must be greater than or equal to {minimum}"
+                    )
                 if maximum is not None and value > maximum:
-                    raise ValueError(f"Parameter '{parameter.name}' must be less than or equal to {maximum}")
+                    raise ValueError(
+                        f"Parameter '{parameter.name}' must be less than or equal to {maximum}"
+                    )
             options = constraints.get("options")
             if isinstance(options, list) and options and value not in options:
-                raise ValueError(f"Parameter '{parameter.name}' must be one of: {', '.join(str(item) for item in options)}")
+                raise ValueError(
+                    f"Parameter '{parameter.name}' must be one of: {', '.join(str(item) for item in options)}"
+                )
 
-    def _validate_ports(self, manifest: NodeManifest, values: dict[str, Any], *, label: str) -> dict[str, Any]:
+    def _validate_ports(
+        self, manifest: NodeManifest, values: dict[str, Any], *, label: str
+    ) -> dict[str, Any]:
         if label == "input":
             ports = manifest.inputs
         elif label == "output":
@@ -242,13 +301,17 @@ class NodeRegistry:
         for port in ports:
             if port.name not in values:
                 if port.required and label == "output":
-                    raise ValueError(f"Node '{manifest.id}' did not produce required output '{port.name}'")
+                    raise ValueError(
+                        f"Node '{manifest.id}' did not produce required output '{port.name}'"
+                    )
                 continue
             value = values[port.name]
             if value is None and not port.required:
                 continue
             if port.accepts_multiple and isinstance(value, list):
-                validated[port.name] = [validate_data_type(port.data_type, item) for item in value]
+                validated[port.name] = [
+                    validate_data_type(port.data_type, item) for item in value
+                ]
             else:
                 validated[port.name] = validate_data_type(port.data_type, value)
         return validated
@@ -265,14 +328,20 @@ class NodeRegistry:
         if manifest is None:
             raise ValueError(f"Unknown node type/version '{node_type}' v{node_version}")
         handler = self._handler_for_manifest(manifest)
-        validated_parameters = self.validate_parameters(node_type, node_version, parameters)
+        validated_parameters = self.validate_parameters(
+            node_type, node_version, parameters
+        )
         validated_inputs = self._validate_ports(manifest, inputs, label="input")
-        validated_controllers = self._validate_ports(manifest, controllers or {}, label="controller")
+        validated_controllers = self._validate_ports(
+            manifest, controllers or {}, label="controller"
+        )
 
         overlapping_keys = set(validated_inputs).intersection(validated_controllers)
         if overlapping_keys:
             merged = ", ".join(sorted(overlapping_keys))
-            raise ValueError(f"Node '{manifest.id}' has overlapping input/controller names: {merged}")
+            raise ValueError(
+                f"Node '{manifest.id}' has overlapping input/controller names: {merged}"
+            )
 
         execution_inputs = {**validated_inputs, **validated_controllers}
         for port_name, validator in handler.input_validators.items():
@@ -280,7 +349,9 @@ class NodeRegistry:
                 execution_inputs[port_name] = validator(execution_inputs[port_name])
         outputs = handler.executor(validated_parameters, execution_inputs)
         validated_outputs = self._validate_ports(manifest, outputs, label="output")
-        validated_controller_outputs = self._validate_ports(manifest, outputs, label="controller")
+        validated_controller_outputs = self._validate_ports(
+            manifest, outputs, label="controller"
+        )
         for port_name, validator in handler.output_validators.items():
             if port_name in validated_outputs:
                 validated_outputs[port_name] = validator(validated_outputs[port_name])
@@ -288,5 +359,3 @@ class NodeRegistry:
 
 
 node_registry = NodeRegistry()
-
-

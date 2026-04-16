@@ -6,7 +6,11 @@ from datetime import datetime, timezone
 from typing import Any
 
 from ParaGraph.server.common.security import redact_sensitive_payload
-from ParaGraph.server.domain.execution import CompiledExecutionPlan, ExecutionRunState, ExecutionStepState
+from ParaGraph.server.domain.execution import (
+    CompiledExecutionPlan,
+    ExecutionRunState,
+    ExecutionStepState,
+)
 from ParaGraph.server.repositories.workflow import execution_run_repository
 from ParaGraph.server.services.jobs import job_manager
 from ParaGraph.server.services.runtime.events import execution_event_service
@@ -16,7 +20,9 @@ from ParaGraph.server.services.workflow.nodes import node_registry
 class ExecutionService:
     OUTPUT_NAME_PARAMETER = "__output_name"
 
-    def start_execution(self, plan: CompiledExecutionPlan, workflow_id: str | None = None) -> str:
+    def start_execution(
+        self, plan: CompiledExecutionPlan, workflow_id: str | None = None
+    ) -> str:
         return job_manager.start_job(
             job_type="workflow",
             runner=self.execute_plan_job,
@@ -26,9 +32,13 @@ class ExecutionService:
     def get_run(self, run_id: str) -> ExecutionRunState | None:
         return execution_run_repository.get_run(run_id)
 
-    def execute_plan_job(self, plan: CompiledExecutionPlan, workflow_id: str | None, job_id: str) -> dict[str, Any]:
+    def execute_plan_job(
+        self, plan: CompiledExecutionPlan, workflow_id: str | None, job_id: str
+    ) -> dict[str, Any]:
         steps_state = [
-            ExecutionStepState(step_id=step.step_id, node_id=step.node_id, node_type=step.node_type)
+            ExecutionStepState(
+                step_id=step.step_id, node_id=step.node_id, node_type=step.node_type
+            )
             for step in plan.steps
         ]
         run = ExecutionRunState(
@@ -39,10 +49,18 @@ class ExecutionService:
             steps=steps_state,
         )
         execution_run_repository.create_run(run)
-        execution_event_service.publish(run_id=job_id, event_type="execution.queued", payload={"plan_id": plan.plan_id})
+        execution_event_service.publish(
+            run_id=job_id,
+            event_type="execution.queued",
+            payload={"plan_id": plan.plan_id},
+        )
 
         execution_run_repository.update_run(job_id, status="running", progress=0.0)
-        execution_event_service.publish(run_id=job_id, event_type="execution.started", payload={"plan_id": plan.plan_id})
+        execution_event_service.publish(
+            run_id=job_id,
+            event_type="execution.started",
+            payload={"plan_id": plan.plan_id},
+        )
 
         outputs_by_step: dict[str, dict[str, Any]] = {}
         output_payload: dict[str, dict[str, Any]] = {}
@@ -56,7 +74,9 @@ class ExecutionService:
                 return {}
 
             step = step_lookup[step_id]
-            self._set_step_state(job_id, step_id, status="running", started_at=datetime.now(timezone.utc))
+            self._set_step_state(
+                job_id, step_id, status="running", started_at=datetime.now(timezone.utc)
+            )
             execution_event_service.publish(
                 run_id=job_id,
                 event_type="execution.step.started",
@@ -65,8 +85,14 @@ class ExecutionService:
             )
 
             try:
-                resolved_inputs, resolved_controllers = self._resolve_inputs(step, outputs_by_step, step_lookup)
-                cache_key = self._build_cache_key(step, resolved_inputs, resolved_controllers) if step.cacheable else None
+                resolved_inputs, resolved_controllers = self._resolve_inputs(
+                    step, outputs_by_step, step_lookup
+                )
+                cache_key = (
+                    self._build_cache_key(step, resolved_inputs, resolved_controllers)
+                    if step.cacheable
+                    else None
+                )
                 if cache_key is not None and cache_key in cache:
                     port_outputs = cache[cache_key]
                 else:
@@ -88,7 +114,9 @@ class ExecutionService:
                     }
                 )
 
-                result = self._extract_terminal_output(step.node_type, resolved_inputs, port_outputs)
+                result = self._extract_terminal_output(
+                    step.node_type, resolved_inputs, port_outputs
+                )
                 if result is not None:
                     output_payload[step.node_id] = result
                     job_manager.update_result(job_id, {"outputs": dict(output_payload)})
@@ -119,18 +147,30 @@ class ExecutionService:
                     completed_at=datetime.now(timezone.utc),
                     error=message,
                 )
-                execution_run_repository.update_run(job_id, status="failed", error=message)
+                execution_run_repository.update_run(
+                    job_id, status="failed", error=message
+                )
                 execution_event_service.publish(
                     run_id=job_id,
                     event_type="execution.step.failed",
                     step_id=step_id,
                     payload={"error": message},
                 )
-                execution_event_service.publish(run_id=job_id, event_type="execution.failed", payload={"error": message})
+                execution_event_service.publish(
+                    run_id=job_id,
+                    event_type="execution.failed",
+                    payload={"error": message},
+                )
                 raise
 
-        execution_run_repository.update_run(job_id, status="completed", outputs=output_payload, progress=100.0)
-        execution_event_service.publish(run_id=job_id, event_type="execution.completed", payload={"outputs": output_payload})
+        execution_run_repository.update_run(
+            job_id, status="completed", outputs=output_payload, progress=100.0
+        )
+        execution_event_service.publish(
+            run_id=job_id,
+            event_type="execution.completed",
+            payload={"outputs": output_payload},
+        )
         return {"outputs": output_payload}
 
     def _resolve_inputs(
@@ -140,8 +180,12 @@ class ExecutionService:
         step_lookup: dict[str, Any],
     ) -> tuple[dict[str, Any], dict[str, Any]]:
         manifest = node_registry.get(step.node_type, step.node_version)
-        manifests_by_input = {port.name: port for port in (manifest.inputs if manifest else [])}
-        manifests_by_controller = {port.name: port for port in (manifest.controllers if manifest else [])}
+        manifests_by_input = {
+            port.name: port for port in (manifest.inputs if manifest else [])
+        }
+        manifests_by_controller = {
+            port.name: port for port in (manifest.controllers if manifest else [])
+        }
         resolved_inputs: dict[str, Any] = {}
         resolved_controllers: dict[str, Any] = {}
 
@@ -150,11 +194,17 @@ class ExecutionService:
             value = source_ports.get(binding.source_output)
             binding_is_controller = binding.binding_type == "controller"
             source_step = step_lookup.get(binding.source_node_id)
-            output_name = self._resolve_output_name(source_step.parameters if source_step is not None else {})
+            output_name = self._resolve_output_name(
+                source_step.parameters if source_step is not None else {}
+            )
             if not binding_is_controller and output_name:
                 value = {output_name: value}
-            target_manifest_map = manifests_by_controller if binding_is_controller else manifests_by_input
-            target_values = resolved_controllers if binding_is_controller else resolved_inputs
+            target_manifest_map = (
+                manifests_by_controller if binding_is_controller else manifests_by_input
+            )
+            target_values = (
+                resolved_controllers if binding_is_controller else resolved_inputs
+            )
 
             if binding.input_name not in target_values:
                 target_port = target_manifest_map.get(binding.input_name)
@@ -208,7 +258,9 @@ class ExecutionService:
         port_outputs: dict[str, Any],
     ) -> dict[str, Any] | None:
         if node_type == "TEXT_OUTPUT":
-            return {"text": str(port_outputs.get("result", resolved_inputs.get("text", "")))}
+            return {
+                "text": str(port_outputs.get("result", resolved_inputs.get("text", "")))
+            }
         if node_type == "IMAGE_OUTPUT":
             image = port_outputs.get("result", resolved_inputs.get("image"))
             return {"image": image}

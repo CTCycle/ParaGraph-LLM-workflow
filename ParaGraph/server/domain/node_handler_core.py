@@ -5,6 +5,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+
 # -----------------------------------------------------------------------------
 def _parse_json_value(value: Any, label: str) -> Any:
     if isinstance(value, (dict, list, int, float, bool)) or value is None:
@@ -17,12 +18,22 @@ def _parse_json_value(value: Any, label: str) -> Any:
     except json.JSONDecodeError as exc:
         raise ValueError(f"{label} must be valid JSON") from exc
 
+
 # -----------------------------------------------------------------------------
 def _validate_schema_keys(schema: dict[str, Any], path: str) -> None:
-    allowed_keys = {"type", "properties", "required", "items", "additionalProperties", "enum"}
+    allowed_keys = {
+        "type",
+        "properties",
+        "required",
+        "items",
+        "additionalProperties",
+        "enum",
+    }
     unsupported = sorted(set(schema) - allowed_keys)
     if unsupported:
-        raise ValueError(f"Unsupported JSON Schema keys at {path}: {', '.join(unsupported)}")
+        raise ValueError(
+            f"Unsupported JSON Schema keys at {path}: {', '.join(unsupported)}"
+        )
 
 
 def _validate_schema_type(schema: dict[str, Any], path: str) -> None:
@@ -51,7 +62,10 @@ def _validate_schema_properties(schema: dict[str, Any], path: str) -> None:
 
 def _validate_schema_required(schema: dict[str, Any], path: str) -> None:
     required = schema.get("required")
-    if required is not None and (not isinstance(required, list) or not all(isinstance(item, str) for item in required)):
+    if required is not None and (
+        not isinstance(required, list)
+        or not all(isinstance(item, str) for item in required)
+    ):
         raise ValueError(f"required at {path} must be an array of strings")
 
 
@@ -62,7 +76,9 @@ def _validate_schema_items(schema: dict[str, Any], path: str) -> None:
 
 def _validate_schema_additional_properties(schema: dict[str, Any], path: str) -> None:
     additional_properties = schema.get("additionalProperties")
-    if additional_properties is not None and not isinstance(additional_properties, bool):
+    if additional_properties is not None and not isinstance(
+        additional_properties, bool
+    ):
         raise ValueError(f"additionalProperties at {path} must be a boolean")
 
 
@@ -140,7 +156,9 @@ class EmbeddingParameters(BaseModel):
         normalized = str(value or "").strip().lower()
         allowed = {"openai", "gemini", "huggingface", "ollama"}
         if normalized not in allowed:
-            raise ValueError("provider must be one of: openai, gemini, huggingface, ollama")
+            raise ValueError(
+                "provider must be one of: openai, gemini, huggingface, ollama"
+            )
         return normalized
 
 
@@ -162,7 +180,9 @@ class SimilaritySearchParameters(BaseModel):
     def validate_similarity_strategy(cls, value: str) -> str:
         normalized = str(value or "").strip().lower()
         if normalized not in {"cosine", "euclidean", "dot"}:
-            raise ValueError("similarity_strategy must be one of: cosine, euclidean, dot")
+            raise ValueError(
+                "similarity_strategy must be one of: cosine, euclidean, dot"
+            )
         return normalized
 
     @field_validator("search_mode")
@@ -196,9 +216,13 @@ class SimilaritySearchParameters(BaseModel):
         if self.search_mode == "hybrid":
             total_weight = float(self.vector_weight) + float(self.keyword_weight)
             if total_weight <= 0:
-                raise ValueError("Hybrid search requires vector_weight + keyword_weight > 0")
+                raise ValueError(
+                    "Hybrid search requires vector_weight + keyword_weight > 0"
+                )
         if self.search_engine == "faiss_augmented" and self.search_mode != "vector":
-            raise ValueError("faiss_augmented search_engine currently supports search_mode='vector' only")
+            raise ValueError(
+                "faiss_augmented search_engine currently supports search_mode='vector' only"
+            )
         return self
 
 
@@ -239,9 +263,19 @@ class VectorStoreParameters(BaseModel):
     @classmethod
     def validate_provider(cls, value: str) -> str:
         normalized = str(value or "").strip().lower()
-        allowed = {"lancedb", "qdrant", "pinecone", "weaviate", "milvus", "chroma", "faiss"}
+        allowed = {
+            "lancedb",
+            "qdrant",
+            "pinecone",
+            "weaviate",
+            "milvus",
+            "chroma",
+            "faiss",
+        }
         if normalized not in allowed:
-            raise ValueError("provider must be one of: lancedb, qdrant, pinecone, weaviate, milvus, chroma, faiss")
+            raise ValueError(
+                "provider must be one of: lancedb, qdrant, pinecone, weaviate, milvus, chroma, faiss"
+            )
         return normalized
 
     @field_validator("index_name")
@@ -292,7 +326,13 @@ class RerankParameters(BaseModel):
     @classmethod
     def validate_strategy(cls, value: str) -> str:
         normalized = str(value or "").strip().lower()
-        allowed = {"original_score", "term_overlap", "exact_phrase", "metadata_match", "weighted_composite"}
+        allowed = {
+            "original_score",
+            "term_overlap",
+            "exact_phrase",
+            "metadata_match",
+            "weighted_composite",
+        }
         if normalized not in allowed:
             raise ValueError(
                 "strategy must be one of: original_score, term_overlap, exact_phrase, metadata_match, weighted_composite"

@@ -4,7 +4,13 @@ from ParaGraph.server.domain.workflow_model import WorkflowDefinition
 from ParaGraph.server.services.workflow.compiler import compiler_service
 
 
-def _build_similarity_workflow(*, search_mode: str, search_engine: str, similarity_strategy: str, distance_metric: str) -> WorkflowDefinition:
+def _build_similarity_workflow(
+    *,
+    search_mode: str,
+    search_engine: str,
+    similarity_strategy: str,
+    distance_metric: str,
+) -> WorkflowDefinition:
     return WorkflowDefinition.model_validate(
         {
             "schema_version": 2,
@@ -19,7 +25,10 @@ def _build_similarity_workflow(*, search_mode: str, search_engine: str, similari
                     "node_id": "embed_query",
                     "node_type": "TEXT_EMBEDDING",
                     "node_version": 1,
-                    "parameters": {"provider": "openai", "model_name": "text-embedding-3-small"},
+                    "parameters": {
+                        "provider": "openai",
+                        "model_name": "text-embedding-3-small",
+                    },
                 },
                 {
                     "node_id": "store_vectors",
@@ -45,9 +54,24 @@ def _build_similarity_workflow(*, search_mode: str, search_engine: str, similari
                 },
             ],
             "connections": [
-                {"from_node": "prompt_query", "from_output": "text", "to_node": "embed_query", "to_input": "text"},
-                {"from_node": "embed_query", "from_output": "vectors", "to_node": "store_vectors", "to_input": "vectors"},
-                {"from_node": "prompt_query", "from_output": "text", "to_node": "similarity", "to_input": "query"},
+                {
+                    "from_node": "prompt_query",
+                    "from_output": "text",
+                    "to_node": "embed_query",
+                    "to_input": "text",
+                },
+                {
+                    "from_node": "embed_query",
+                    "from_output": "vectors",
+                    "to_node": "store_vectors",
+                    "to_input": "vectors",
+                },
+                {
+                    "from_node": "prompt_query",
+                    "from_output": "text",
+                    "to_node": "similarity",
+                    "to_input": "query",
+                },
                 {
                     "from_node": "embed_query",
                     "from_controller": "embedding",

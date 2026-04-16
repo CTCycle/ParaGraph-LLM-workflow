@@ -8,7 +8,10 @@ from pathlib import Path
 import pytest
 
 from ParaGraph.server.configurations import environment
-from ParaGraph.server.configurations.startup import get_server_settings, reset_configuration_runtime_for_tests
+from ParaGraph.server.configurations.startup import (
+    get_server_settings,
+    reset_configuration_runtime_for_tests,
+)
 from ParaGraph.server.services.llm.providers import CloudLLMClient
 
 
@@ -33,7 +36,9 @@ def _write_env(path: Path, lines: list[str]) -> None:
 
 
 # -----------------------------------------------------------------------------
-def test_bootstrap_environment_overrides_existing_process_values(tmp_path: Path, monkeypatch) -> None:
+def test_bootstrap_environment_overrides_existing_process_values(
+    tmp_path: Path, monkeypatch
+) -> None:
     env_path = tmp_path / ".env"
     _write_env(env_path, ["FASTAPI_HOST=from_dotenv"])
 
@@ -60,7 +65,9 @@ def test_bootstrap_is_idempotent_without_force(tmp_path: Path, monkeypatch) -> N
 
 
 # -----------------------------------------------------------------------------
-def test_server_package_import_bootstraps_env_early(tmp_path: Path, monkeypatch) -> None:
+def test_server_package_import_bootstraps_env_early(
+    tmp_path: Path, monkeypatch
+) -> None:
     env_path = tmp_path / ".env"
     _write_env(env_path, ["PARAGRAPH_CLOUD_MODE=true"])
 
@@ -75,7 +82,9 @@ def test_server_package_import_bootstraps_env_early(tmp_path: Path, monkeypatch)
 
 
 # -----------------------------------------------------------------------------
-def test_json_owned_db_embedded_ignores_environment_overlap(tmp_path: Path, monkeypatch) -> None:
+def test_json_owned_db_embedded_ignores_environment_overlap(
+    tmp_path: Path, monkeypatch
+) -> None:
     config_path = tmp_path / "configurations.json"
     _write_json(
         config_path,
@@ -108,7 +117,9 @@ def test_json_owned_db_embedded_ignores_environment_overlap(tmp_path: Path, monk
 
 
 # -----------------------------------------------------------------------------
-def test_external_database_requires_host_name_and_user(tmp_path: Path, monkeypatch) -> None:
+def test_external_database_requires_host_name_and_user(
+    tmp_path: Path, monkeypatch
+) -> None:
     config_path = tmp_path / "configurations.json"
     _write_json(
         config_path,
@@ -124,7 +135,9 @@ def test_external_database_requires_host_name_and_user(tmp_path: Path, monkeypat
 
     monkeypatch.setattr(environment, "ENV_FILE_PATH", str(env_path))
 
-    with pytest.raises(RuntimeError, match="database.host, database.name, database.user"):
+    with pytest.raises(
+        RuntimeError, match="database.host, database.name, database.user"
+    ):
         _ = get_server_settings(config_path=str(config_path))
 
 

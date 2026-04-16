@@ -66,7 +66,9 @@ class JobManager:
         if state.status not in ("pending", "running"):
             return False
         if state.status == "pending":
-            state.update(stop_requested=True, status="cancelled", completed_at=monotonic())
+            state.update(
+                stop_requested=True, status="cancelled", completed_at=monotonic()
+            )
             return True
         state.update(stop_requested=True)
         return True
@@ -140,7 +142,7 @@ class JobManager:
     def _runner_accepts_job_id(self, runner: Callable[..., dict[str, Any]]) -> bool:
         try:
             signature = inspect.signature(runner)
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             return False
         for param in signature.parameters.values():
             if param.kind == param.VAR_KEYWORD:
@@ -150,4 +152,3 @@ class JobManager:
 
 ###############################################################################
 job_manager = JobManager()
-

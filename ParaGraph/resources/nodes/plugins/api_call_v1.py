@@ -4,10 +4,19 @@ from typing import Any
 
 import httpx
 
-from ParaGraph.server.services.workflow.node_handlers.common import coerce_bool, coerce_float, coerce_text
+from ParaGraph.server.services.workflow.node_handlers.common import (
+    coerce_bool,
+    coerce_float,
+    coerce_text,
+)
 
 
-def _pick_override(inputs: dict[str, Any], input_key: str, parameters: dict[str, Any], parameter_key: str) -> Any:
+def _pick_override(
+    inputs: dict[str, Any],
+    input_key: str,
+    parameters: dict[str, Any],
+    parameter_key: str,
+) -> Any:
     if input_key in inputs and inputs[input_key] is not None:
         return inputs[input_key]
     return parameters.get(parameter_key)
@@ -41,8 +50,14 @@ def execute(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any
     if method not in {"GET", "POST"}:
         raise ValueError("method must be GET or POST")
 
-    headers = _normalize_headers(_as_object(_pick_override(inputs, "headers_in", parameters, "headers"), label="headers"))
-    params = _as_object(_pick_override(inputs, "params_in", parameters, "params"), label="params")
+    headers = _normalize_headers(
+        _as_object(
+            _pick_override(inputs, "headers_in", parameters, "headers"), label="headers"
+        )
+    )
+    params = _as_object(
+        _pick_override(inputs, "params_in", parameters, "params"), label="params"
+    )
     body = inputs.get("body")
 
     auth_mode = coerce_text(parameters.get("auth_mode", "none")).strip().lower()
@@ -65,7 +80,9 @@ def execute(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any
     timeout_s = max(0.1, coerce_float(parameters.get("timeout_s"), 15.0))
     follow_redirects = coerce_bool(parameters.get("follow_redirects", True))
     raise_for_status = coerce_bool(parameters.get("raise_for_status", False))
-    response_mode = coerce_text(parameters.get("response_mode", "auto")).strip().lower() or "auto"
+    response_mode = (
+        coerce_text(parameters.get("response_mode", "auto")).strip().lower() or "auto"
+    )
     if response_mode not in {"auto", "json", "text"}:
         raise ValueError("response_mode must be one of: auto, json, text")
 

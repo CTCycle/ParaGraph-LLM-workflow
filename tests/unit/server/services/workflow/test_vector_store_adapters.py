@@ -39,7 +39,10 @@ def test_qdrant_search_rejects_hybrid_mode() -> None:
 
     try:
         adapter.search(
-            store={"metadata": {"collection_name": "docs", "provider_config": {}}, "metric": "cosine"},
+            store={
+                "metadata": {"collection_name": "docs", "provider_config": {}},
+                "metric": "cosine",
+            },
             query_vector=[0.1, 0.2],
             top_k=3,
             score_threshold=0.0,
@@ -70,7 +73,9 @@ def test_weaviate_validate_connection_invokes_collection_exists(monkeypatch) -> 
 
     monkeypatch.setattr(adapter, "_connect", lambda endpoint_url, api_key: FakeClient())
 
-    adapter.validate_connection(index_name="docs", endpoint_url="https://cluster", api_key="token")
+    adapter.validate_connection(
+        index_name="docs", endpoint_url="https://cluster", api_key="token"
+    )
 
     assert calls["collection"] == "docs"
     assert calls["closed"] is True
@@ -96,7 +101,9 @@ def test_milvus_filter_expression_combines_groups() -> None:
 
 
 @pytest.mark.parametrize("provider", ["lancedb", "chroma", "faiss"])
-def test_vector_store_parameters_require_storage_path_for_local_providers(provider: str) -> None:
+def test_vector_store_parameters_require_storage_path_for_local_providers(
+    provider: str,
+) -> None:
     with pytest.raises(ValueError, match="storage_path is required"):
         VectorStoreParameters.model_validate(
             {
@@ -109,7 +116,9 @@ def test_vector_store_parameters_require_storage_path_for_local_providers(provid
 
 
 @pytest.mark.parametrize("provider", ["qdrant", "pinecone", "weaviate", "milvus"])
-def test_vector_store_parameters_require_endpoint_for_remote_providers(provider: str) -> None:
+def test_vector_store_parameters_require_endpoint_for_remote_providers(
+    provider: str,
+) -> None:
     with pytest.raises(ValueError, match="endpoint_url is required"):
         VectorStoreParameters.model_validate(
             {
@@ -133,7 +142,9 @@ def test_vector_store_parameters_require_endpoint_for_remote_providers(provider:
         ("chroma", False),
     ],
 )
-def test_vector_store_capabilities_matrix(backend: str, supports_faiss_augmentation: bool) -> None:
+def test_vector_store_capabilities_matrix(
+    backend: str, supports_faiss_augmentation: bool
+) -> None:
     capabilities = get_vector_store_adapter(backend).describe_capabilities()
     assert capabilities["backend"] == backend
     assert capabilities["supports_metadata_filtering"] is True

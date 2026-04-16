@@ -16,4 +16,3 @@ class EnvironmentVariables:
 
 
 env_variables = EnvironmentVariables()
-

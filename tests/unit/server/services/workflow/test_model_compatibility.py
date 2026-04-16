@@ -23,11 +23,15 @@ def test_ollama_chat_uses_provider_abstraction(monkeypatch) -> None:
         captured["kwargs"] = kwargs
         return FakeClient()
 
-    monkeypatch.setattr(provider_service_module, "select_llm_provider", fake_select_llm_provider)
+    monkeypatch.setattr(
+        provider_service_module, "select_llm_provider", fake_select_llm_provider
+    )
     monkeypatch.setattr(
         service,
         "_load_configuration",
-        lambda session_name="default": SimpleNamespace(ollama=SimpleNamespace(base_url="http://127.0.0.1:11434")),
+        lambda session_name="default": SimpleNamespace(
+            ollama=SimpleNamespace(base_url="http://127.0.0.1:11434")
+        ),
     )
 
     response = service.chat(
@@ -48,7 +52,9 @@ def test_validate_model_request_accepts_openai_gemini_and_claude(monkeypatch) ->
     monkeypatch.setattr(
         service,
         "_get_access_key",
-        lambda provider, session_name="default": SimpleNamespace(api_key=f"{provider}-key", base_url=None),
+        lambda provider, session_name="default": SimpleNamespace(
+            api_key=f"{provider}-key", base_url=None
+        ),
     )
 
     service.validate_model_request(
@@ -91,13 +97,17 @@ def test_validate_model_request_rejects_huggingface_image_input() -> None:
         raise AssertionError("Expected ValueError")
 
 
-def test_validate_model_request_allows_huggingface_structured_output(monkeypatch) -> None:
+def test_validate_model_request_allows_huggingface_structured_output(
+    monkeypatch,
+) -> None:
     service = ProviderService()
     monkeypatch.setattr(service, "_downloaded_huggingface_repo_ids", lambda: set())
     monkeypatch.setattr(
         service,
         "_get_access_key",
-        lambda provider, session_name="default": SimpleNamespace(api_key="hf-key", base_url=None),
+        lambda provider, session_name="default": SimpleNamespace(
+            api_key="hf-key", base_url=None
+        ),
     )
 
     service.validate_model_request(

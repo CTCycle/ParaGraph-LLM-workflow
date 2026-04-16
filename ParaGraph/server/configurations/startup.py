@@ -5,7 +5,10 @@ from typing import Any
 
 from ParaGraph.server.configurations.environment import EnvironmentLoader
 from ParaGraph.server.configurations.management import RuntimeConfigurationManager
-from ParaGraph.server.domain.settings import RuntimeConfigurationSettings, ServerSettings
+from ParaGraph.server.domain.settings import (
+    RuntimeConfigurationSettings,
+    ServerSettings,
+)
 
 
 ###############################################################################
@@ -21,7 +24,9 @@ class ConfigurationRuntime:
         self._initialized = False
 
     # -------------------------------------------------------------------------
-    def initialize(self, *, force: bool = False, configuration_file: str | None = None) -> ServerSettings:
+    def initialize(
+        self, *, force: bool = False, configuration_file: str | None = None
+    ) -> ServerSettings:
         with self._lock:
             self._environment_loader.ensure_loaded(force=force)
             if force or not self._initialized:
@@ -62,10 +67,14 @@ class ConfigurationRuntime:
         return self._configuration_manager.get_block(block_name)
 
     # -------------------------------------------------------------------------
-    def get_configuration_value(self, block_name: str, key: str, default: Any = None) -> Any:
+    def get_configuration_value(
+        self, block_name: str, key: str, default: Any = None
+    ) -> Any:
         if not self._initialized:
             self.initialize()
-        return self._configuration_manager.get_value(block_name=block_name, key=key, default=default)
+        return self._configuration_manager.get_value(
+            block_name=block_name, key=key, default=default
+        )
 
     # -------------------------------------------------------------------------
     def get_env_value(self, key: str, default: str | None = None) -> str | None:
@@ -99,7 +108,9 @@ _runtime = ConfigurationRuntime(
 
 
 ###############################################################################
-def initialize_configurations(*, force: bool = False, configuration_file: str | None = None) -> ServerSettings:
+def initialize_configurations(
+    *, force: bool = False, configuration_file: str | None = None
+) -> ServerSettings:
     return _runtime.initialize(force=force, configuration_file=configuration_file)
 
 
@@ -132,7 +143,9 @@ def get_configuration_block(block_name: str) -> dict[str, Any]:
 
 # -----------------------------------------------------------------------------
 def get_configuration_value(block_name: str, key: str, default: Any = None) -> Any:
-    return _runtime.get_configuration_value(block_name=block_name, key=key, default=default)
+    return _runtime.get_configuration_value(
+        block_name=block_name, key=key, default=default
+    )
 
 
 # -----------------------------------------------------------------------------

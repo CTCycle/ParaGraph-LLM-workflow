@@ -40,9 +40,8 @@ class ModelSerializer:
         try:
             with open(path, "r", encoding="utf-8") as handle:
                 payload = json.load(handle)
-        except (OSError, json.JSONDecodeError):
+        except OSError, json.JSONDecodeError:
             return default
         if isinstance(payload, dict):
             return payload
         return default
-

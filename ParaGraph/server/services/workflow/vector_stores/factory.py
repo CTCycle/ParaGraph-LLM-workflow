@@ -13,4 +13,3 @@ def get_vector_store_adapter(backend: str) -> VectorStoreAdapter:
     if adapter is None:
         raise VectorStoreError(f"Unsupported vector store backend: {backend}")
     return adapter
-

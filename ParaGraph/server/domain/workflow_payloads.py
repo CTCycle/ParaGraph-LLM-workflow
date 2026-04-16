@@ -150,4 +150,6 @@ def _normalize_validated_value(value: Any) -> Any:
 
 
 def validate_data_type(data_type: NodeDataType, value: Any) -> Any:
-    return _normalize_validated_value(DATA_TYPE_ADAPTERS[data_type].validate_python(value))
+    return _normalize_validated_value(
+        DATA_TYPE_ADAPTERS[data_type].validate_python(value)
+    )

@@ -3,7 +3,10 @@ from __future__ import annotations
 from pathlib import Path
 
 from ParaGraph.server.common.constants import RESOURCES_PATH
-from ParaGraph.server.domain.workflow_templates import WorkflowTemplateListResponse, WorkflowTemplateManifest
+from ParaGraph.server.domain.workflow_templates import (
+    WorkflowTemplateListResponse,
+    WorkflowTemplateManifest,
+)
 from ParaGraph.server.services.workflow.compiler import compiler_service
 from ParaGraph.server.services.workflow.nodes import node_registry
 
@@ -16,7 +19,9 @@ class WorkflowTemplateService:
         TEMPLATE_ROOT.mkdir(parents=True, exist_ok=True)
 
     def _load_template(self, path: Path) -> WorkflowTemplateManifest:
-        template = WorkflowTemplateManifest.model_validate_json(path.read_text(encoding="utf-8"))
+        template = WorkflowTemplateManifest.model_validate_json(
+            path.read_text(encoding="utf-8")
+        )
         self._validate_required_nodes(template)
         self._validate_compilation(template)
         return template
@@ -37,7 +42,9 @@ class WorkflowTemplateService:
         if result.valid:
             return
         if not result.diagnostics:
-            raise ValueError(f"Template '{template.id}' failed compilation without diagnostics")
+            raise ValueError(
+                f"Template '{template.id}' failed compilation without diagnostics"
+            )
         preview = "; ".join(diagnostic.message for diagnostic in result.diagnostics[:3])
         if len(result.diagnostics) > 3:
             preview = f"{preview}; (+{len(result.diagnostics) - 3} more)"
@@ -59,4 +66,3 @@ class WorkflowTemplateService:
 
 
 workflow_template_service = WorkflowTemplateService()
-

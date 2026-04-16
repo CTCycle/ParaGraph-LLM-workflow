@@ -55,7 +55,9 @@ class AppConfigurationPayload(BaseModel):
         text = str(value or "").strip()
         normalized = text or DEFAULT_SESSION_NAME
         if not re.fullmatch(SESSION_NAME_PATTERN, normalized):
-            raise ValueError("session_name may include only letters, numbers, dot, underscore, and dash")
+            raise ValueError(
+                "session_name may include only letters, numbers, dot, underscore, and dash"
+            )
         return normalized
 
 
