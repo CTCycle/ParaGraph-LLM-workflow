@@ -10,7 +10,6 @@ from ParaGraph.server.services.runtime.events import execution_event_service
 from ParaGraph.server.services.workflow.provider import provider_service
 
 
-
 def _build_definition() -> dict[str, object]:
     return {
         "schema_version": 2,
@@ -37,7 +36,11 @@ def _build_definition() -> dict[str, object]:
                 "node_id": "chat_1",
                 "node_type": "LLM_CHAT",
                 "node_version": 1,
-                "parameters": {"context_window": 0, "max_tokens": 64, "use_reasoning": False},
+                "parameters": {
+                    "context_window": 0,
+                    "max_tokens": 64,
+                    "use_reasoning": False,
+                },
             },
             {
                 "node_id": "output_1",
@@ -77,8 +80,9 @@ def _build_definition() -> dict[str, object]:
     }
 
 
-
-def _poll_run_until_terminal(client: TestClient, run_id: str, timeout_s: float = 3.0) -> list[dict[str, object]]:
+def _poll_run_until_terminal(
+    client: TestClient, run_id: str, timeout_s: float = 3.0
+) -> list[dict[str, object]]:
     deadline = time.monotonic() + timeout_s
     snapshots: list[dict[str, object]] = []
 
@@ -91,12 +95,20 @@ def _poll_run_until_terminal(client: TestClient, run_id: str, timeout_s: float =
             return snapshots
         time.sleep(0.01)
 
-    raise AssertionError(f"Run {run_id} did not reach terminal state within {timeout_s}s")
+    raise AssertionError(
+        f"Run {run_id} did not reach terminal state within {timeout_s}s"
+    )
 
 
-
-def test_execution_lifecycle_end_to_end_with_websocket_replay(client: TestClient, monkeypatch) -> None:
-    def _model_definition(provider: str, model: str, session_name: str = "default", timeout_s: float | None = None) -> ProviderModelDefinition:
+def test_execution_lifecycle_end_to_end_with_websocket_replay(
+    client: TestClient, monkeypatch
+) -> None:
+    def _model_definition(
+        provider: str,
+        model: str,
+        session_name: str = "default",
+        timeout_s: float | None = None,
+    ) -> ProviderModelDefinition:
         _ = session_name
         return ProviderModelDefinition(
             provider=provider,
@@ -108,19 +120,27 @@ def test_execution_lifecycle_end_to_end_with_websocket_replay(client: TestClient
             timeout_s=timeout_s,
         )
 
-    monkeypatch.setattr(provider_service, "validate_model_request", lambda **kwargs: None)
+    monkeypatch.setattr(
+        provider_service, "validate_model_request", lambda **kwargs: None
+    )
     monkeypatch.setattr(provider_service, "get_model_metadata", _model_definition)
     monkeypatch.setattr(provider_service, "build_model_definition", _model_definition)
-    monkeypatch.setattr(provider_service, "chat", lambda **kwargs: "Hello from deterministic e2e")
+    monkeypatch.setattr(
+        provider_service, "chat", lambda **kwargs: "Hello from deterministic e2e"
+    )
 
-    compile_response = client.post("/executions/compile", json={"definition": _build_definition()})
+    compile_response = client.post(
+        "/executions/compile", json={"definition": _build_definition()}
+    )
     assert compile_response.status_code == 200
     compile_payload = compile_response.json()
     assert compile_payload["valid"] is True
     plan = compile_payload["plan"]
     assert isinstance(plan, dict)
 
-    start_response = client.post("/executions", json={"workflow_id": "wf-e2e", "plan": plan})
+    start_response = client.post(
+        "/executions", json={"workflow_id": "wf-e2e", "plan": plan}
+    )
     assert start_response.status_code == 202
     run_id = start_response.json()["run_id"]
 
@@ -129,7 +149,9 @@ def test_execution_lifecycle_end_to_end_with_websocket_replay(client: TestClient
     assert len(snapshots) >= 1
     assert "completed" in statuses
     assert snapshots[-1]["status"] == "completed"
-    assert snapshots[-1]["outputs"] == {"output_1": {"text": "Hello from deterministic e2e"}}
+    assert snapshots[-1]["outputs"] == {
+        "output_1": {"text": "Hello from deterministic e2e"}
+    }
 
     events_response = client.get(f"/executions/{run_id}/events")
     assert events_response.status_code == 200
@@ -146,7 +168,9 @@ def test_execution_lifecycle_end_to_end_with_websocket_replay(client: TestClient
 
     assert [event["sequence"] for event in replayed] == sequences
 
-    with client.websocket_connect(f"/executions/ws/runs/{run_id}?replay=false") as websocket:
+    with client.websocket_connect(
+        f"/executions/ws/runs/{run_id}?replay=false"
+    ) as websocket:
         synthetic_holder: dict[str, object] = {}
 
         def _publish_after_subscribe() -> None:

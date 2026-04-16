@@ -134,7 +134,9 @@ def test_compile_flags_missing_ports_and_controllers(client: TestClient) -> None
         ],
         "metadata": {},
     }
-    response_source = client.post("/executions/compile", json={"definition": missing_source_port})
+    response_source = client.post(
+        "/executions/compile", json={"definition": missing_source_port}
+    )
     source_codes = {item["code"] for item in response_source.json()["diagnostics"]}
     assert "missing_source_port" in source_codes
 
@@ -164,7 +166,9 @@ def test_compile_flags_missing_ports_and_controllers(client: TestClient) -> None
         ],
         "metadata": {},
     }
-    response_target = client.post("/executions/compile", json={"definition": missing_target_port})
+    response_target = client.post(
+        "/executions/compile", json={"definition": missing_target_port}
+    )
     target_codes = {item["code"] for item in response_target.json()["diagnostics"]}
     assert "missing_target_port" in target_codes
 
@@ -181,7 +185,11 @@ def test_compile_flags_missing_ports_and_controllers(client: TestClient) -> None
                 "node_id": "chat_1",
                 "node_type": "LLM_CHAT",
                 "node_version": 1,
-                "parameters": {"context_window": 0, "max_tokens": 16, "use_reasoning": False},
+                "parameters": {
+                    "context_window": 0,
+                    "max_tokens": 16,
+                    "use_reasoning": False,
+                },
             },
         ],
         "connections": [
@@ -194,9 +202,16 @@ def test_compile_flags_missing_ports_and_controllers(client: TestClient) -> None
         ],
         "metadata": {},
     }
-    response_controller = client.post("/executions/compile", json={"definition": missing_controller})
-    controller_codes = {item["code"] for item in response_controller.json()["diagnostics"]}
-    assert "missing_required_controller" in controller_codes or "missing_model_selection" in controller_codes
+    response_controller = client.post(
+        "/executions/compile", json={"definition": missing_controller}
+    )
+    controller_codes = {
+        item["code"] for item in response_controller.json()["diagnostics"]
+    }
+    assert (
+        "missing_required_controller" in controller_codes
+        or "missing_model_selection" in controller_codes
+    )
 
 
 def test_get_execution_returns_404_for_unknown_run(client: TestClient) -> None:

@@ -58,7 +58,9 @@ class ByDelimiterChunksParameters(BaseModel):
     def validate_overflow_strategy(cls, value: str) -> str:
         normalized = str(value or "").strip().lower()
         if normalized not in {"split_further", "discard", "emit_as_is"}:
-            raise ValueError("overflow_strategy must be one of: split_further, discard, emit_as_is")
+            raise ValueError(
+                "overflow_strategy must be one of: split_further, discard, emit_as_is"
+            )
         return normalized
 
 
@@ -74,7 +76,9 @@ class ByStructureChunksParameters(BaseModel):
     def validate_strategy(cls, value: str) -> str:
         normalized = str(value or "").strip().lower()
         if normalized not in {"paragraph", "section", "heading_and_content"}:
-            raise ValueError("strategy must be one of: paragraph, section, heading_and_content")
+            raise ValueError(
+                "strategy must be one of: paragraph, section, heading_and_content"
+            )
         return normalized
 
     @field_validator("unit")
@@ -90,7 +94,9 @@ class ByStructureChunksParameters(BaseModel):
     def validate_overflow_strategy(cls, value: str) -> str:
         normalized = str(value or "").strip().lower()
         if normalized not in {"split_further", "emit_as_is"}:
-            raise ValueError("overflow_strategy must be one of: split_further, emit_as_is")
+            raise ValueError(
+                "overflow_strategy must be one of: split_further, emit_as_is"
+            )
         return normalized
 
 
@@ -116,8 +122,12 @@ class RecursiveSplitChunksParameters(BaseModel):
     @field_validator("separators", mode="before")
     @classmethod
     def parse_separators(cls, value: Any) -> list[str]:
-        parsed = _parse_json_value(value, "separators") if isinstance(value, str) else value
-        if not isinstance(parsed, list) or not all(isinstance(item, str) for item in parsed):
+        parsed = (
+            _parse_json_value(value, "separators") if isinstance(value, str) else value
+        )
+        if not isinstance(parsed, list) or not all(
+            isinstance(item, str) for item in parsed
+        ):
             raise ValueError("separators must be an array of strings")
         normalized = [entry for entry in parsed if entry != ""]
         if not normalized:
@@ -158,13 +168,17 @@ class SentenceWindowChunksParameters(BaseModel):
     def validate_overflow_strategy(cls, value: str) -> str:
         normalized = str(value or "").strip().lower()
         if normalized not in {"split_further", "emit_as_is"}:
-            raise ValueError("overflow_strategy must be one of: split_further, emit_as_is")
+            raise ValueError(
+                "overflow_strategy must be one of: split_further, emit_as_is"
+            )
         return normalized
 
     @model_validator(mode="after")
     def validate_overlap(self) -> "SentenceWindowChunksParameters":
         if self.sentence_overlap >= self.sentences_per_chunk:
-            raise ValueError("sentence_overlap must be smaller than sentences_per_chunk")
+            raise ValueError(
+                "sentence_overlap must be smaller than sentences_per_chunk"
+            )
         return self
 
 

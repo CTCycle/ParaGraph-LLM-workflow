@@ -6,7 +6,16 @@ from typing import Any
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 
-SUPPORTED_DOCUMENT_EXTENSIONS = {".txt", ".md", ".markdown", ".html", ".htm", ".json", ".pdf", ".docx"}
+SUPPORTED_DOCUMENT_EXTENSIONS = {
+    ".txt",
+    ".md",
+    ".markdown",
+    ".html",
+    ".htm",
+    ".json",
+    ".pdf",
+    ".docx",
+}
 LOAD_DOCUMENTS_SUPPORTED_EXTENSIONS = {
     ".txt",
     ".md",
@@ -49,13 +58,17 @@ def normalize_database_engine(value: Any, *, label: str = "engine") -> str:
         return "mysql"
     if normalized == "sqlite":
         return "sqlite"
-    raise ValueError(f"{label} must be one of: {', '.join(sorted(SUPPORTED_DATABASE_ENGINES))}")
+    raise ValueError(
+        f"{label} must be one of: {', '.join(sorted(SUPPORTED_DATABASE_ENGINES))}"
+    )
 
 
 class DirectoryLoaderParameters(BaseModel):
     directory_path: str
     recursive: bool = True
-    include_extensions: list[str] = Field(default_factory=lambda: sorted(SUPPORTED_DOCUMENT_EXTENSIONS))
+    include_extensions: list[str] = Field(
+        default_factory=lambda: sorted(SUPPORTED_DOCUMENT_EXTENSIONS)
+    )
 
     @field_validator("directory_path")
     @classmethod
@@ -68,10 +81,21 @@ class DirectoryLoaderParameters(BaseModel):
     @field_validator("include_extensions", mode="before")
     @classmethod
     def validate_extensions(cls, value: Any) -> list[str]:
-        parsed = _parse_json_value(value, "include_extensions") if isinstance(value, str) else value
-        if not isinstance(parsed, list) or not all(isinstance(item, str) for item in parsed):
-            raise ValueError("include_extensions must be a JSON array of file extensions")
-        return [item.lower() if item.startswith(".") else f".{item.lower()}" for item in parsed]
+        parsed = (
+            _parse_json_value(value, "include_extensions")
+            if isinstance(value, str)
+            else value
+        )
+        if not isinstance(parsed, list) or not all(
+            isinstance(item, str) for item in parsed
+        ):
+            raise ValueError(
+                "include_extensions must be a JSON array of file extensions"
+            )
+        return [
+            item.lower() if item.startswith(".") else f".{item.lower()}"
+            for item in parsed
+        ]
 
 
 class LoadDocumentsParameters(BaseModel):
@@ -108,7 +132,9 @@ class DatabaseConnectionParameters(BaseModel):
     def validate_options(cls, value: Any) -> dict[str, Any]:
         if value in (None, "", {}):
             return {}
-        parsed = _parse_json_value(value, "options") if isinstance(value, str) else value
+        parsed = (
+            _parse_json_value(value, "options") if isinstance(value, str) else value
+        )
         if not isinstance(parsed, dict):
             raise ValueError("options must be a JSON object")
         return parsed

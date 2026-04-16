@@ -6,14 +6,18 @@ from fastapi.testclient import TestClient
 from ParaGraph.server.api import nodes as nodes_api
 
 
-def test_check_vector_store_connection_calls_adapter_validate(client: TestClient, monkeypatch) -> None:
+def test_check_vector_store_connection_calls_adapter_validate(
+    client: TestClient, monkeypatch
+) -> None:
     calls: dict[str, object] = {}
 
     class FakeAdapter:
         def validate_connection(self, **kwargs):
             calls.update(kwargs)
 
-    monkeypatch.setattr(nodes_api, "get_vector_store_adapter", lambda provider: FakeAdapter())
+    monkeypatch.setattr(
+        nodes_api, "get_vector_store_adapter", lambda provider: FakeAdapter()
+    )
 
     response = client.post(
         "/nodes/check-vector-store-connection",
@@ -37,7 +41,10 @@ def test_check_vector_store_connection_calls_adapter_validate(client: TestClient
     )
 
     assert response.status_code == 200
-    assert response.json() == {"ok": True, "message": "Vector store connection successful."}
+    assert response.json() == {
+        "ok": True,
+        "message": "Vector store connection successful.",
+    }
     assert calls["index_name"] == "docs"
     assert calls["endpoint_url"] == "https://qdrant.local"
     assert calls["api_key"] == "secret"
@@ -55,7 +62,9 @@ def test_check_vector_store_connection_local_providers_require_storage_path(
         def validate_connection(self, **kwargs):
             calls.update(kwargs)
 
-    monkeypatch.setattr(nodes_api, "get_vector_store_adapter", lambda backend: FakeAdapter())
+    monkeypatch.setattr(
+        nodes_api, "get_vector_store_adapter", lambda backend: FakeAdapter()
+    )
     response = client.post(
         "/nodes/check-vector-store-connection",
         json={
@@ -94,7 +103,9 @@ def test_check_vector_store_connection_remote_providers_require_endpoint(
         def validate_connection(self, **kwargs):
             calls.update(kwargs)
 
-    monkeypatch.setattr(nodes_api, "get_vector_store_adapter", lambda backend: FakeAdapter())
+    monkeypatch.setattr(
+        nodes_api, "get_vector_store_adapter", lambda backend: FakeAdapter()
+    )
     response = client.post(
         "/nodes/check-vector-store-connection",
         json={

@@ -26,11 +26,15 @@ class BrowserUploadService:
 
         parts = [part for part in candidate.parts if part not in ("", ".")]
         if not parts or any(part == ".." or ":" in part for part in parts):
-            raise ValueError("Uploaded file names must be relative paths inside the selected folder")
+            raise ValueError(
+                "Uploaded file names must be relative paths inside the selected folder"
+            )
 
         return Path(*parts)
 
-    async def save_uploaded_directory(self, files: list[UploadFile]) -> tuple[str, int, list[str]]:
+    async def save_uploaded_directory(
+        self, files: list[UploadFile]
+    ) -> tuple[str, int, list[str]]:
         if not files:
             raise ValueError("No files were provided for upload")
 
@@ -41,12 +45,16 @@ class BrowserUploadService:
         staged_files: list[str] = []
         try:
             for upload in files:
-                relative_path = self.sanitize_relative_upload_path(upload.filename or "")
+                relative_path = self.sanitize_relative_upload_path(
+                    upload.filename or ""
+                )
                 destination = (destination_root / relative_path).resolve()
                 try:
                     destination.relative_to(destination_root)
                 except ValueError as exc:
-                    raise ValueError("Uploaded file names must remain inside the staged folder") from exc
+                    raise ValueError(
+                        "Uploaded file names must remain inside the staged folder"
+                    ) from exc
                 destination.parent.mkdir(parents=True, exist_ok=True)
 
                 with destination.open("wb") as output_stream:

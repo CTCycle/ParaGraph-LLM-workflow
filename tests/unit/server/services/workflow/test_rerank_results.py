@@ -38,7 +38,9 @@ def _results_payload() -> dict[str, object]:
     }
 
 
-def _execute(parameters: dict[str, object], *, query: str | None = None) -> dict[str, object]:
+def _execute(
+    parameters: dict[str, object], *, query: str | None = None
+) -> dict[str, object]:
     inputs: dict[str, object] = {"results": _results_payload()}
     if query is not None:
         inputs["query"] = query
@@ -46,19 +48,25 @@ def _execute(parameters: dict[str, object], *, query: str | None = None) -> dict
 
 
 def test_rerank_strategy_original_score_preserves_order_by_score() -> None:
-    payload = _execute({"strategy": "original_score", "score_mode": "replace", "top_k": 0})
+    payload = _execute(
+        {"strategy": "original_score", "score_mode": "replace", "top_k": 0}
+    )
     hits = payload["results"]["hits"]
     assert [hit["id"] for hit in hits] == ["b", "c", "a"]
 
 
 def test_rerank_strategy_term_overlap() -> None:
-    payload = _execute({"strategy": "term_overlap", "score_mode": "replace", "top_k": 0})
+    payload = _execute(
+        {"strategy": "term_overlap", "score_mode": "replace", "top_k": 0}
+    )
     hits = payload["results"]["hits"]
     assert [hit["id"] for hit in hits] == ["c", "b", "a"]
 
 
 def test_rerank_strategy_exact_phrase() -> None:
-    payload = _execute({"strategy": "exact_phrase", "score_mode": "replace", "top_k": 0})
+    payload = _execute(
+        {"strategy": "exact_phrase", "score_mode": "replace", "top_k": 0}
+    )
     hits = payload["results"]["hits"]
     assert hits[0]["id"] == "c"
     assert hits[0]["score"] == 1.0
@@ -97,10 +105,16 @@ def test_rerank_strategy_weighted_composite() -> None:
 
 
 def test_rerank_score_mode_replace_vs_boost() -> None:
-    replace_payload = _execute({"strategy": "term_overlap", "score_mode": "replace", "top_k": 0})
-    boost_payload = _execute({"strategy": "term_overlap", "score_mode": "boost", "top_k": 0})
+    replace_payload = _execute(
+        {"strategy": "term_overlap", "score_mode": "replace", "top_k": 0}
+    )
+    boost_payload = _execute(
+        {"strategy": "term_overlap", "score_mode": "boost", "top_k": 0}
+    )
 
-    replace_scores = {hit["id"]: hit["score"] for hit in replace_payload["results"]["hits"]}
+    replace_scores = {
+        hit["id"]: hit["score"] for hit in replace_payload["results"]["hits"]
+    }
     boost_scores = {hit["id"]: hit["score"] for hit in boost_payload["results"]["hits"]}
 
     assert boost_scores["a"] > replace_scores["a"]
@@ -138,15 +152,21 @@ def test_rerank_preserves_stable_order_on_exact_ties() -> None:
 
 
 def test_rerank_uses_results_query_when_query_input_is_missing() -> None:
-    payload = _execute({"strategy": "exact_phrase", "score_mode": "replace", "top_k": 0}, query="")
+    payload = _execute(
+        {"strategy": "exact_phrase", "score_mode": "replace", "top_k": 0}, query=""
+    )
     hits = payload["results"]["hits"]
     assert hits[0]["id"] == "c"
     assert payload["results"]["query"] == "fast api workflow"
 
 
 def test_rerank_top_k_zero_and_bounded_truncation() -> None:
-    all_hits_payload = _execute({"strategy": "original_score", "score_mode": "replace", "top_k": 0})
-    top_two_payload = _execute({"strategy": "original_score", "score_mode": "replace", "top_k": 2})
+    all_hits_payload = _execute(
+        {"strategy": "original_score", "score_mode": "replace", "top_k": 0}
+    )
+    top_two_payload = _execute(
+        {"strategy": "original_score", "score_mode": "replace", "top_k": 2}
+    )
 
     assert len(all_hits_payload["results"]["hits"]) == 3
     assert len(top_two_payload["results"]["hits"]) == 2

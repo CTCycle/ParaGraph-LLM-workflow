@@ -33,14 +33,24 @@ def get_provider_catalog() -> ProviderCatalogResponse:
 
 @router.get("/models", response_model=ProviderModelCatalogResponse)
 def get_provider_models(
-    session_name: str = Query(default=DEFAULT_SESSION_NAME, min_length=1, max_length=120, pattern=SESSION_NAME_PATTERN),
+    session_name: str = Query(
+        default=DEFAULT_SESSION_NAME,
+        min_length=1,
+        max_length=120,
+        pattern=SESSION_NAME_PATTERN,
+    ),
 ) -> ProviderModelCatalogResponse:
     return provider_service.list_models(session_name=session_name)
 
 
 @router.get("/ollama/library", response_model=OllamaLibraryCatalogResponse)
 def get_ollama_library_models(
-    session_name: str = Query(default=DEFAULT_SESSION_NAME, min_length=1, max_length=120, pattern=SESSION_NAME_PATTERN),
+    session_name: str = Query(
+        default=DEFAULT_SESSION_NAME,
+        min_length=1,
+        max_length=120,
+        pattern=SESSION_NAME_PATTERN,
+    ),
     search: str | None = Query(default=None, max_length=120),
     refresh: bool = Query(default=False),
 ) -> OllamaLibraryCatalogResponse:
@@ -57,17 +67,29 @@ def get_ollama_library_models(
 @router.post("/ollama/pull", response_model=OllamaModelPullResponse)
 def pull_ollama_model(
     payload: OllamaModelPullRequest,
-    session_name: str = Query(default=DEFAULT_SESSION_NAME, min_length=1, max_length=120, pattern=SESSION_NAME_PATTERN),
+    session_name: str = Query(
+        default=DEFAULT_SESSION_NAME,
+        min_length=1,
+        max_length=120,
+        pattern=SESSION_NAME_PATTERN,
+    ),
 ) -> OllamaModelPullResponse:
     try:
-        return provider_service.pull_ollama_model(model=payload.model, session_name=session_name)
+        return provider_service.pull_ollama_model(
+            model=payload.model, session_name=session_name
+        )
     except ProviderApiError as exc:
         raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
 
 
 @router.get("/huggingface/models", response_model=HuggingFaceModelCatalogResponse)
 def get_huggingface_models(
-    session_name: str = Query(default=DEFAULT_SESSION_NAME, min_length=1, max_length=120, pattern=SESSION_NAME_PATTERN),
+    session_name: str = Query(
+        default=DEFAULT_SESSION_NAME,
+        min_length=1,
+        max_length=120,
+        pattern=SESSION_NAME_PATTERN,
+    ),
     search: str | None = Query(default=None, max_length=180),
     task: str | None = Query(default=None, max_length=120),
     library: str | None = Query(default=None, max_length=120),
@@ -98,15 +120,25 @@ def get_huggingface_models(
 @router.post("/huggingface/download", response_model=HuggingFaceModelDownloadResponse)
 def download_huggingface_model(
     payload: HuggingFaceModelDownloadRequest,
-    session_name: str = Query(default=DEFAULT_SESSION_NAME, min_length=1, max_length=120, pattern=SESSION_NAME_PATTERN),
+    session_name: str = Query(
+        default=DEFAULT_SESSION_NAME,
+        min_length=1,
+        max_length=120,
+        pattern=SESSION_NAME_PATTERN,
+    ),
 ) -> HuggingFaceModelDownloadResponse:
     try:
-        return provider_service.download_huggingface_model(repo_id=payload.repo_id, session_name=session_name)
+        return provider_service.download_huggingface_model(
+            repo_id=payload.repo_id, session_name=session_name
+        )
     except ProviderApiError as exc:
         raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
 
 
-@router.get("/huggingface/download/{job_id}", response_model=HuggingFaceModelDownloadStatusResponse)
+@router.get(
+    "/huggingface/download/{job_id}",
+    response_model=HuggingFaceModelDownloadStatusResponse,
+)
 def get_huggingface_download_status(
     job_id: str = Path(..., min_length=1, max_length=128, pattern=JOB_ID_PATTERN),
 ) -> HuggingFaceModelDownloadStatusResponse:
@@ -116,7 +148,10 @@ def get_huggingface_download_status(
         raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
 
 
-@router.delete("/huggingface/download/{job_id}", response_model=HuggingFaceModelDownloadCancelResponse)
+@router.delete(
+    "/huggingface/download/{job_id}",
+    response_model=HuggingFaceModelDownloadCancelResponse,
+)
 def cancel_huggingface_download(
     job_id: str = Path(..., min_length=1, max_length=128, pattern=JOB_ID_PATTERN),
 ) -> HuggingFaceModelDownloadCancelResponse:

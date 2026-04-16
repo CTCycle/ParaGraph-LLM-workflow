@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 from ParaGraph.server.domain.configuration import DEFAULT_SESSION_NAME
-from ParaGraph.server.domain.node_catalog import OllamaLibraryCatalogResponse, OllamaModelPullResponse
+from ParaGraph.server.domain.node_catalog import (
+    OllamaLibraryCatalogResponse,
+    OllamaModelPullResponse,
+)
 
 
 class OllamaLibraryService:
@@ -31,4 +34,3 @@ class OllamaLibraryService:
             model=model,
             session_name=session_name,
         )
-

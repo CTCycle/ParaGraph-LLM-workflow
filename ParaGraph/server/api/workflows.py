@@ -10,7 +10,10 @@ from ParaGraph.server.domain.workflow_model import (
     WorkflowVersionListResponse,
 )
 from ParaGraph.server.domain.workflow_templates import WorkflowTemplateListResponse
-from ParaGraph.server.services.workflow import workflow_service, workflow_template_service
+from ParaGraph.server.services.workflow import (
+    workflow_service,
+    workflow_template_service,
+)
 
 
 router = APIRouter(prefix="/workflows", tags=["workflows"])
@@ -31,22 +34,32 @@ def list_workflow_templates() -> WorkflowTemplateListResponse:
     try:
         return workflow_template_service.list_templates()
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)
+        ) from exc
 
 
 @router.get("/{workflow_id}", response_model=WorkflowDocument)
 def get_workflow(workflow_id: str, version: int | None = None) -> WorkflowDocument:
     payload = workflow_service.get_workflow(workflow_id, version=version)
     if payload is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Workflow not found: {workflow_id}")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Workflow not found: {workflow_id}",
+        )
     return payload
 
 
 @router.put("/{workflow_id}", response_model=WorkflowDocument)
-def update_workflow(workflow_id: str, request: UpdateWorkflowRequest) -> WorkflowDocument:
+def update_workflow(
+    workflow_id: str, request: UpdateWorkflowRequest
+) -> WorkflowDocument:
     payload = workflow_service.update_workflow(workflow_id, request)
     if payload is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Workflow not found: {workflow_id}")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Workflow not found: {workflow_id}",
+        )
     return payload
 
 
@@ -54,5 +67,8 @@ def update_workflow(workflow_id: str, request: UpdateWorkflowRequest) -> Workflo
 def list_workflow_versions(workflow_id: str) -> WorkflowVersionListResponse:
     payload = workflow_service.list_versions(workflow_id)
     if payload is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Workflow not found: {workflow_id}")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Workflow not found: {workflow_id}",
+        )
     return payload

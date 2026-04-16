@@ -44,7 +44,9 @@ NodeDataType = Literal[
 ModelVisibility = Literal["public", "private", "gated", "unknown"]
 ModelVisibilityFilter = Literal["all", "public", "private", "gated"]
 HuggingFaceSortBy = Literal["relevance", "downloads", "likes", "updated"]
-HuggingFaceDownloadJobStatus = Literal["pending", "running", "completed", "failed", "cancelled"]
+HuggingFaceDownloadJobStatus = Literal[
+    "pending", "running", "completed", "failed", "cancelled"
+]
 
 
 class NodePortDefinition(BaseModel):

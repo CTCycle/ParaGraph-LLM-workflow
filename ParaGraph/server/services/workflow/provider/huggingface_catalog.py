@@ -1,7 +1,11 @@
 from __future__ import annotations
 
 from ParaGraph.server.domain.configuration import DEFAULT_SESSION_NAME
-from ParaGraph.server.domain.node_catalog import HuggingFaceModelCatalogResponse, HuggingFaceSortBy, ModelVisibilityFilter
+from ParaGraph.server.domain.node_catalog import (
+    HuggingFaceModelCatalogResponse,
+    HuggingFaceSortBy,
+    ModelVisibilityFilter,
+)
 
 
 class HuggingFaceCatalogService:
@@ -34,4 +38,3 @@ class HuggingFaceCatalogService:
             page_size=page_size,
             refresh=refresh,
         )
-

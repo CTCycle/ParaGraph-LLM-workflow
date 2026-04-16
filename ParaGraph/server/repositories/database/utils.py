@@ -42,7 +42,9 @@ def resolve_conflict_columns(
 def normalize_string_columns(df: pd.DataFrame) -> pd.DataFrame:
     normalized = df.copy()
     for column in normalized.columns:
-        if pd.api.types.is_string_dtype(normalized[column]) or pd.api.types.is_object_dtype(normalized[column]):
+        if pd.api.types.is_string_dtype(
+            normalized[column]
+        ) or pd.api.types.is_object_dtype(normalized[column]):
             object_series = normalized[column].astype(object)
             normalized[column] = object_series.where(object_series.notna(), None)
     return normalized

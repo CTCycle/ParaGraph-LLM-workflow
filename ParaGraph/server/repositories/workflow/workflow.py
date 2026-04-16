@@ -82,12 +82,16 @@ class WorkflowRepository:
 
     def get_latest_workflow(self, workflow_id: str) -> WorkflowDocument | None:
         index = self._load_index()
-        entry = next((item for item in index if item["workflow_id"] == workflow_id), None)
+        entry = next(
+            (item for item in index if item["workflow_id"] == workflow_id), None
+        )
         if entry is None:
             return None
         return self.get_workflow_version(workflow_id, int(entry["latest_version"]))
 
-    def get_workflow_version(self, workflow_id: str, version: int) -> WorkflowDocument | None:
+    def get_workflow_version(
+        self, workflow_id: str, version: int
+    ) -> WorkflowDocument | None:
         path = self._version_path(workflow_id, version)
         if not path.exists():
             return None

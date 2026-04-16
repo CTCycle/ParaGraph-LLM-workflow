@@ -39,12 +39,16 @@ class PostgresRepository:
         if not settings.database_name:
             raise ValueError("Database name must be provided for external database.")
         if not settings.username:
-            raise ValueError("Database username must be provided for external database.")
+            raise ValueError(
+                "Database username must be provided for external database."
+            )
 
         port = settings.port or 5432
         engine_name = normalize_postgres_engine(settings.engine)
         password = settings.password or ""
-        connect_args: dict[str, str | int] = {"connect_timeout": settings.connect_timeout}
+        connect_args: dict[str, str | int] = {
+            "connect_timeout": settings.connect_timeout
+        }
         if settings.ssl:
             connect_args["sslmode"] = "require"
             if settings.ssl_ca:
@@ -94,15 +98,25 @@ class PostgresRepository:
     # -------------------------------------------------------------------------
     def _create_table_from_dataframe(self, table_name: str, df: pd.DataFrame) -> Table:
         if len(df.columns) == 0:
-            raise ValueError(f"Cannot create table '{table_name}' from a dataframe with no columns")
+            raise ValueError(
+                f"Cannot create table '{table_name}' from a dataframe with no columns"
+            )
 
         metadata = MetaData()
         columns: list[Column[Any]] = []
         for column_name in df.columns:
             normalized_name = str(column_name).strip()
             if not normalized_name:
-                raise ValueError(f"Table '{table_name}' contains an invalid empty column name")
-            columns.append(Column(normalized_name, self._column_type_for_series(df[column_name]), nullable=True))
+                raise ValueError(
+                    f"Table '{table_name}' contains an invalid empty column name"
+                )
+            columns.append(
+                Column(
+                    normalized_name,
+                    self._column_type_for_series(df[column_name]),
+                    nullable=True,
+                )
+            )
 
         table = Table(table_name, metadata, *columns)
         metadata.create_all(self.engine, tables=[table])
@@ -114,7 +128,9 @@ class PostgresRepository:
         return normalized_df.to_dict(orient="records")
 
     # -------------------------------------------------------------------------
-    def _iter_batches(self, records: list[dict[str, Any]]) -> Iterator[list[dict[str, Any]]]:
+    def _iter_batches(
+        self, records: list[dict[str, Any]]
+    ) -> Iterator[list[dict[str, Any]]]:
         if not records:
             return
         batch_size = max(1, self.insert_batch_size)
@@ -138,7 +154,9 @@ class PostgresRepository:
                     statement = statement.limit(limit)
                 rows = db_session.scalars(statement).all()
                 columns = [column.name for column in model.__table__.columns]
-                payload = [{column: getattr(row, column) for column in columns} for row in rows]
+                payload = [
+                    {column: getattr(row, column) for column in columns} for row in rows
+                ]
                 return pd.DataFrame(payload, columns=columns).reset_index(drop=True)
 
             table = self._reflect_table(table_name)
@@ -194,4 +212,3 @@ class PostgresRepository:
                 raise ValueError(f"Table {table_name} does not exist")
             value = db_session.scalar(select(func.count()).select_from(table)) or 0
             return int(value)
-

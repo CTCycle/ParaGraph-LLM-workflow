@@ -49,6 +49,3 @@ LOG_CONFIG = {
 
 logging.config.dictConfig(LOG_CONFIG)
 logger = logging.getLogger("ParaGraph")
-
-
-

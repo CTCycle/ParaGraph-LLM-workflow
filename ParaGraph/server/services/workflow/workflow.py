@@ -21,12 +21,16 @@ class WorkflowService:
             visual_graph=request.visual_graph,
         )
 
-    def get_workflow(self, workflow_id: str, version: int | None = None) -> WorkflowDocument | None:
+    def get_workflow(
+        self, workflow_id: str, version: int | None = None
+    ) -> WorkflowDocument | None:
         if version is None:
             return workflow_repository.get_latest_workflow(workflow_id)
         return workflow_repository.get_workflow_version(workflow_id, version)
 
-    def update_workflow(self, workflow_id: str, request: UpdateWorkflowRequest) -> WorkflowDocument | None:
+    def update_workflow(
+        self, workflow_id: str, request: UpdateWorkflowRequest
+    ) -> WorkflowDocument | None:
         return workflow_repository.update_workflow(
             workflow_id=workflow_id,
             name=request.name,

@@ -6,4 +6,5 @@ from ParaGraph.server.services.workflow.vector_stores.base import VectorStoreAda
 class FaissVectorStoreAdapter(VectorStoreAdapter):
     pass
 
+
 __all__ = ["FaissVectorStoreAdapter"]

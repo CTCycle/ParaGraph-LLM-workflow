@@ -15,24 +15,37 @@ import ParaGraph.server.services.workflow.node_handlers.core as core_handlers
 def _read_parameter_options_from_doc(parameter_name: str) -> list[str]:
     doc_path = Path("assets/docs/NODES_LIBRARY.md")
     content = doc_path.read_text(encoding="utf-8")
-    pattern = re.compile(rf"- `{re.escape(parameter_name)}`\s*\n\s*- options:\s*([^\n]+)", flags=re.MULTILINE)
+    pattern = re.compile(
+        rf"- `{re.escape(parameter_name)}`\s*\n\s*- options:\s*([^\n]+)",
+        flags=re.MULTILINE,
+    )
     match = pattern.search(content)
     if match is None:
-        raise AssertionError(f"Missing options declaration in NODES_LIBRARY.md for parameter '{parameter_name}'")
+        raise AssertionError(
+            f"Missing options declaration in NODES_LIBRARY.md for parameter '{parameter_name}'"
+        )
     return re.findall(r"`([^`]+)`", match.group(1))
 
 
 def _manifest_parameter_options(parameter_name: str) -> list[str]:
     manifest_path = Path("ParaGraph/resources/nodes/similarity_search_v1.json")
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    parameter = next(item for item in manifest["parameters"] if item["name"] == parameter_name)
+    parameter = next(
+        item for item in manifest["parameters"] if item["name"] == parameter_name
+    )
     return [str(item) for item in parameter.get("constraints", {}).get("options", [])]
 
 
 def test_similarity_contract_matrix_doc_matches_manifest_options() -> None:
-    assert _manifest_parameter_options("search_mode") == _read_parameter_options_from_doc("search_mode")
-    assert _manifest_parameter_options("search_engine") == _read_parameter_options_from_doc("search_engine")
-    assert _manifest_parameter_options("similarity_strategy") == _read_parameter_options_from_doc("similarity_strategy")
+    assert _manifest_parameter_options(
+        "search_mode"
+    ) == _read_parameter_options_from_doc("search_mode")
+    assert _manifest_parameter_options(
+        "search_engine"
+    ) == _read_parameter_options_from_doc("search_engine")
+    assert _manifest_parameter_options(
+        "similarity_strategy"
+    ) == _read_parameter_options_from_doc("similarity_strategy")
 
 
 def test_similarity_search_parameters_validate_search_engine_rules() -> None:
@@ -51,7 +64,10 @@ def test_similarity_search_parameters_validate_search_engine_rules() -> None:
     with pytest.raises(ValueError, match="search_engine must be one of"):
         SimilaritySearchParameters.model_validate({"search_engine": "invalid"})
 
-    with pytest.raises(ValueError, match="faiss_augmented search_engine currently supports search_mode='vector' only"):
+    with pytest.raises(
+        ValueError,
+        match="faiss_augmented search_engine currently supports search_mode='vector' only",
+    ):
         SimilaritySearchParameters.model_validate(
             {
                 "search_mode": "hybrid",
@@ -111,10 +127,20 @@ def _valid_store_payload(*, backend: str, metric: str = "cosine") -> dict[str, A
     }
 
 
-def test_similarity_search_executor_rejects_unsupported_backend_modes(monkeypatch: pytest.MonkeyPatch) -> None:
-    adapter = _FakeAdapter(backend="chroma", supports_hybrid_search=False, supports_faiss_augmentation=False)
-    monkeypatch.setattr(core_handlers, "get_vector_store_adapter", lambda backend: adapter)
-    monkeypatch.setattr(core_handlers, "_embed_text_for_text_embedding_node", lambda **_: [0.2, 0.4])
+def test_similarity_search_executor_rejects_unsupported_backend_modes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    adapter = _FakeAdapter(
+        backend="chroma",
+        supports_hybrid_search=False,
+        supports_faiss_augmentation=False,
+    )
+    monkeypatch.setattr(
+        core_handlers, "get_vector_store_adapter", lambda backend: adapter
+    )
+    monkeypatch.setattr(
+        core_handlers, "_embed_text_for_text_embedding_node", lambda **_: [0.2, 0.4]
+    )
 
     with pytest.raises(ValueError, match="does not support hybrid mode"):
         node_registry.execute(
@@ -141,10 +167,18 @@ def test_similarity_search_executor_rejects_unsupported_backend_modes(monkeypatc
         )
 
 
-def test_similarity_search_executor_validates_store_payload_and_uses_native_search_engine(monkeypatch: pytest.MonkeyPatch) -> None:
-    adapter = _FakeAdapter(backend="faiss", supports_hybrid_search=False, supports_faiss_augmentation=True)
-    monkeypatch.setattr(core_handlers, "get_vector_store_adapter", lambda backend: adapter)
-    monkeypatch.setattr(core_handlers, "_embed_text_for_text_embedding_node", lambda **_: [0.3, 0.7])
+def test_similarity_search_executor_validates_store_payload_and_uses_native_search_engine(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    adapter = _FakeAdapter(
+        backend="faiss", supports_hybrid_search=False, supports_faiss_augmentation=True
+    )
+    monkeypatch.setattr(
+        core_handlers, "get_vector_store_adapter", lambda backend: adapter
+    )
+    monkeypatch.setattr(
+        core_handlers, "_embed_text_for_text_embedding_node", lambda **_: [0.3, 0.7]
+    )
 
     with pytest.raises(ValueError, match="VectorStoreHandle"):
         node_registry.execute(
@@ -161,7 +195,11 @@ def test_similarity_search_executor_validates_store_payload_and_uses_native_sear
     payload = node_registry.execute(
         "SIMILARITY_SEARCH",
         1,
-        {"search_mode": "vector", "search_engine": "faiss_augmented", "similarity_strategy": "cosine"},
+        {
+            "search_mode": "vector",
+            "search_engine": "faiss_augmented",
+            "similarity_strategy": "cosine",
+        },
         {"query": "hello"},
         controllers={
             "embedding": {"provider": "openai", "model": "text-embedding-3-small"},

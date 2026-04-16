@@ -13,7 +13,6 @@ from ParaGraph.server.services.workflow.execution import execution_service
 from ParaGraph.server.services.workflow import browser_uploads as browser_uploads_module
 
 
-
 def test_compiler_accepts_single_prompt_node_definition() -> None:
     definition = WorkflowDefinition.model_validate(
         {
@@ -39,7 +38,6 @@ def test_compiler_accepts_single_prompt_node_definition() -> None:
     assert compiled.plan.steps[0].node_type == "PROMPT"
 
 
-
 def test_execution_service_handles_single_non_output_step(job_state_factory) -> None:
     definition = WorkflowDefinition.model_validate(
         {
@@ -60,7 +58,9 @@ def test_execution_service_handles_single_non_output_step(job_state_factory) -> 
     assert compiled.plan is not None
 
     job_state_factory("run-single-node", "workflow")
-    result = execution_service.execute_plan_job(plan=compiled.plan, workflow_id=None, job_id="run-single-node")
+    result = execution_service.execute_plan_job(
+        plan=compiled.plan, workflow_id=None, job_id="run-single-node"
+    )
     run = execution_service.get_run("run-single-node")
 
     assert result == {"outputs": {}}
@@ -70,13 +70,18 @@ def test_execution_service_handles_single_non_output_step(job_state_factory) -> 
     assert run.steps[0].status == "completed"
 
 
-
-def test_save_uploaded_directory_supports_single_uploaded_file(monkeypatch, tmp_path: Path) -> None:
-    monkeypatch.setattr(browser_uploads_module, "UPLOAD_ROOT", tmp_path / "browser_uploads")
+def test_save_uploaded_directory_supports_single_uploaded_file(
+    monkeypatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(
+        browser_uploads_module, "UPLOAD_ROOT", tmp_path / "browser_uploads"
+    )
     upload = UploadFile(filename="single/readme.txt", file=BytesIO(b"hello"))
     service = BrowserUploadService(browser_uploads_module.UPLOAD_ROOT)
 
-    staged_root, file_count, files = asyncio.run(service.save_uploaded_directory([upload]))
+    staged_root, file_count, files = asyncio.run(
+        service.save_uploaded_directory([upload])
+    )
 
     assert file_count == 1
     assert len(files) == 1

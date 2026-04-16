@@ -23,7 +23,9 @@ class DataSerializer:
         self,
         only_metadata: bool = False,
         dataset_name: str | None = None,
-    ) -> tuple[pd.DataFrame, pd.DataFrame, dict[str, object]] | dict[str, object] | None:
+    ) -> (
+        tuple[pd.DataFrame, pd.DataFrame, dict[str, object]] | dict[str, object] | None
+    ):
         # Placeholder payload for template.
         if only_metadata:
             return {"dataset_name": dataset_name or "default", "source": "template"}
@@ -31,4 +33,3 @@ class DataSerializer:
         validation = pd.DataFrame({"id": [1], "feature": ["placeholder"]})
         metadata = {"dataset_name": dataset_name or "default"}
         return train, validation, metadata
-

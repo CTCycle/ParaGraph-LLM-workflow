@@ -4,7 +4,9 @@ from pathlib import Path
 
 import httpx
 
-from ParaGraph.server.services.workflow.provider import service as provider_service_module
+from ParaGraph.server.services.workflow.provider import (
+    service as provider_service_module,
+)
 from ParaGraph.server.services.workflow.provider import (
     HUGGINGFACE_MODEL_LIST_EXPAND_FIELDS,
     ProviderService,
@@ -41,35 +43,37 @@ def test_build_huggingface_list_kwargs_prefers_expand() -> None:
 
     kwargs = service._build_huggingface_list_kwargs(  # noqa: SLF001
         _FakeExpandApi(),
-        token='hf_test',
-        search='qwen',
-        task='text-generation',
-        library='transformers',
-        author='Qwen',
-        visibility='public',
-        sort='downloads',
+        token="hf_test",
+        search="qwen",
+        task="text-generation",
+        library="transformers",
+        author="Qwen",
+        visibility="public",
+        sort="downloads",
         limit=10,
     )
 
-    assert kwargs['expand'] == list(HUGGINGFACE_MODEL_LIST_EXPAND_FIELDS)
-    assert 'full' not in kwargs
+    assert kwargs["expand"] == list(HUGGINGFACE_MODEL_LIST_EXPAND_FIELDS)
+    assert "full" not in kwargs
 
 
-def test_huggingface_download_uses_explicit_stream_timeout(monkeypatch, tmp_path: Path, job_state_factory) -> None:
+def test_huggingface_download_uses_explicit_stream_timeout(
+    monkeypatch, tmp_path: Path, job_state_factory
+) -> None:
     service = ProviderService()
-    destination = tmp_path / 'huggingface'
-    files = [{'path': 'model.bin', 'size': 4}]
+    destination = tmp_path / "huggingface"
+    files = [{"path": "model.bin", "size": 4}]
     capture: dict[str, object] = {}
 
     class _FakeResponse:
-        headers = {'Content-Length': '4'}
+        headers = {"Content-Length": "4"}
 
         def raise_for_status(self) -> None:
             return None
 
         def iter_bytes(self, chunk_size: int = 0):
             _ = chunk_size
-            yield b'data'
+            yield b"data"
 
     class _FakeStreamContext:
         def __enter__(self) -> _FakeResponse:
@@ -81,26 +85,30 @@ def test_huggingface_download_uses_explicit_stream_timeout(monkeypatch, tmp_path
 
     def _fake_stream(method: str, url: str, **kwargs):
         _ = (method, url)
-        capture['timeout'] = kwargs.get('timeout')
+        capture["timeout"] = kwargs.get("timeout")
         return _FakeStreamContext()
 
-    monkeypatch.setattr(provider_service_module, 'hf_hub_url', lambda **kwargs: 'https://example.invalid/model.bin')
-    monkeypatch.setattr(provider_service_module.httpx, 'stream', _fake_stream)
-    job_state_factory('job-timeout', 'huggingface_download')
+    monkeypatch.setattr(
+        provider_service_module,
+        "hf_hub_url",
+        lambda **kwargs: "https://example.invalid/model.bin",
+    )
+    monkeypatch.setattr(provider_service_module.httpx, "stream", _fake_stream)
+    job_state_factory("job-timeout", "huggingface_download")
 
     result = service._run_huggingface_download_job(  # noqa: SLF001
-        job_id='job-timeout',
-        repo_id='owner/model',
+        job_id="job-timeout",
+        repo_id="owner/model",
         destination_path=str(destination),
         files=files,
         total_bytes=4,
-        revision='main',
+        revision="main",
         token=None,
     )
 
-    assert result['downloaded_bytes'] == 4
-    assert isinstance(capture['timeout'], httpx.Timeout)
-    timeout = capture['timeout']
+    assert result["downloaded_bytes"] == 4
+    assert isinstance(capture["timeout"], httpx.Timeout)
+    timeout = capture["timeout"]
     assert timeout.connect == HUGGINGFACE_DOWNLOAD_TIMEOUT_SECONDS
     assert timeout.read == HUGGINGFACE_DOWNLOAD_TIMEOUT_SECONDS
     assert timeout.write == HUGGINGFACE_DOWNLOAD_TIMEOUT_SECONDS
@@ -113,19 +121,19 @@ def test_huggingface_filter_tags_logs_and_falls_back(monkeypatch) -> None:
 
     class _FailingApi:
         def get_model_tags(self) -> dict[str, object]:
-            raise RuntimeError('tag service unavailable')
+            raise RuntimeError("tag service unavailable")
 
     def _capture_warning(message: str, *args, **kwargs) -> None:
-        captured.append({'message': message, 'args': args, 'kwargs': kwargs})
+        captured.append({"message": message, "args": args, "kwargs": kwargs})
 
-    monkeypatch.setattr(provider_service_module.logger, 'warning', _capture_warning)
+    monkeypatch.setattr(provider_service_module.logger, "warning", _capture_warning)
     tasks, libraries = service._load_huggingface_filter_tags(  # noqa: SLF001
         api=_FailingApi(),
-        token='hf_secret',
+        token="hf_secret",
         refresh=True,
     )
 
     assert tasks == HUGGINGFACE_FALLBACK_TASKS
     assert libraries == HUGGINGFACE_FALLBACK_LIBRARIES
     assert captured
-    assert captured[0]['kwargs'].get('exc_info') is True
+    assert captured[0]["kwargs"].get("exc_info") is True

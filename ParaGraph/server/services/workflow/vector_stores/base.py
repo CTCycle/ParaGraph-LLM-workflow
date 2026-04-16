@@ -11,8 +11,15 @@ from typing import Any
 import numpy as np
 import faiss
 from ParaGraph.server.common.constants import RESOURCES_PATH
-from ParaGraph.server.common.security import ensure_path_within_root, is_cloud_deployment
-from ParaGraph.server.domain.workflow_payloads import RetrievalHit, VectorPoint, VectorStoreHandle
+from ParaGraph.server.common.security import (
+    ensure_path_within_root,
+    is_cloud_deployment,
+)
+from ParaGraph.server.domain.workflow_payloads import (
+    RetrievalHit,
+    VectorPoint,
+    VectorStoreHandle,
+)
 
 
 ARTIFACT_ROOT = Path(RESOURCES_PATH) / "artifacts"
@@ -25,7 +32,9 @@ def _import_module_or_error(module_name: str, package_hint: str) -> Any:
     try:
         return importlib.import_module(module_name)
     except ModuleNotFoundError as exc:
-        raise VectorStoreError(f"{package_hint} support requires installing the '{module_name}' package") from exc
+        raise VectorStoreError(
+            f"{package_hint} support requires installing the '{module_name}' package"
+        ) from exc
 
 
 def _import_pinecone_client() -> tuple[Any, Any]:
@@ -33,7 +42,9 @@ def _import_pinecone_client() -> tuple[Any, Any]:
     pinecone_client = getattr(pinecone_module, "Pinecone", None)
     serverless_spec = getattr(pinecone_module, "ServerlessSpec", None)
     if pinecone_client is None or serverless_spec is None:
-        raise VectorStoreError("Installed pinecone package does not expose Pinecone client APIs")
+        raise VectorStoreError(
+            "Installed pinecone package does not expose Pinecone client APIs"
+        )
     return pinecone_client, serverless_spec
 
 
@@ -41,7 +52,9 @@ def _import_milvus_client() -> Any:
     milvus_module = _import_module_or_error("pymilvus", "Milvus")
     milvus_client = getattr(milvus_module, "MilvusClient", None)
     if milvus_client is None:
-        raise VectorStoreError("Installed pymilvus package does not expose MilvusClient")
+        raise VectorStoreError(
+            "Installed pymilvus package does not expose MilvusClient"
+        )
     return milvus_client
 
 
@@ -50,7 +63,9 @@ def _import_qdrant_clients() -> tuple[Any, Any]:
     qdrant_client = getattr(qdrant_module, "QdrantClient", None)
     qdrant_models = getattr(qdrant_module, "models", None)
     if qdrant_client is None or qdrant_models is None:
-        raise VectorStoreError("Installed qdrant-client package does not expose required client APIs")
+        raise VectorStoreError(
+            "Installed qdrant-client package does not expose required client APIs"
+        )
     return qdrant_client, qdrant_models
 
 
@@ -65,6 +80,7 @@ def _import_chromadb_module() -> Any:
 def _import_lancedb_module() -> Any:
     return _import_module_or_error("lancedb", "LanceDB")
 
+
 def _resolve_vectorstore_root(storage_directory: str | None) -> Path:
     selected = str(storage_directory or "").strip()
     default_root = VECTORSTORE_ROOT.resolve()
@@ -75,7 +91,9 @@ def _resolve_vectorstore_root(storage_directory: str | None) -> Path:
     if candidate.is_absolute():
         resolved = candidate.resolve()
         if is_cloud_deployment():
-            return ensure_path_within_root(resolved, default_root, label="storage_directory")
+            return ensure_path_within_root(
+                resolved, default_root, label="storage_directory"
+            )
         return resolved
 
     # Keep legacy relative roots anchored under artifacts/vectorstores.
@@ -83,17 +101,18 @@ def _resolve_vectorstore_root(storage_directory: str | None) -> Path:
     return ensure_path_within_root(resolved, default_root, label="storage_directory")
 
 
-
-
 def _normalize_index_name(index_name: str) -> str:
     normalized = str(index_name or "").strip()
     if not INDEX_NAME_PATTERN.fullmatch(normalized):
-        raise VectorStoreError("index_name must contain only letters, numbers, dot, underscore, or dash")
+        raise VectorStoreError(
+            "index_name must contain only letters, numbers, dot, underscore, or dash"
+        )
     return normalized
 
 
 class VectorStoreError(ValueError):
     pass
+
 
 def _point_attr(point: VectorPoint | dict[str, Any], name: str) -> Any:
     if isinstance(point, dict):
@@ -105,7 +124,6 @@ def _store_attr(store: VectorStoreHandle | dict[str, Any], name: str) -> Any:
     if isinstance(store, dict):
         return store.get(name)
     return getattr(store, name)
-
 
 
 def _metric_code(metric: str):
@@ -138,6 +156,7 @@ def _index_paths(root_path: Path, index_name: str) -> tuple[Path, Path, Path, Pa
 def _index_file_path(store_path: Path) -> Path:
     return store_path / "index.faiss"
 
+
 def _build_index(
     vectors: np.ndarray,
     *,
@@ -160,7 +179,11 @@ def _build_index(
     elif normalized_index_type == "hnsw_flat":
         index = faiss.IndexHNSWFlat(dim, hnsw_m, faiss_metric)
     elif normalized_index_type == "ivf_flat":
-        quantizer = faiss.IndexFlatL2(dim) if faiss_metric == faiss.METRIC_L2 else faiss.IndexFlatIP(dim)
+        quantizer = (
+            faiss.IndexFlatL2(dim)
+            if faiss_metric == faiss.METRIC_L2
+            else faiss.IndexFlatIP(dim)
+        )
         nlist_value = max(1, min(nlist, int(vectors.shape[0])))
         index = faiss.IndexIVFFlat(quantizer, dim, nlist_value, faiss_metric)
         if vectors.shape[0] == 0:
@@ -181,7 +204,9 @@ def _resolve_store_path_from_handle(store: VectorStoreHandle | dict[str, Any]) -
         if candidate.is_absolute():
             resolved = candidate.resolve()
             if is_cloud_deployment():
-                return ensure_path_within_root(resolved, artifact_root, label="artifact_path")
+                return ensure_path_within_root(
+                    resolved, artifact_root, label="artifact_path"
+                )
             return resolved
         resolved = (ARTIFACT_ROOT / candidate).resolve()
         return ensure_path_within_root(resolved, artifact_root, label="artifact_path")
@@ -191,7 +216,9 @@ def _resolve_store_path_from_handle(store: VectorStoreHandle | dict[str, Any]) -
     return (root / index_name).resolve()
 
 
-def _load_store(store: VectorStoreHandle | dict[str, Any]) -> tuple[dict[str, Any], list[dict[str, Any]], np.ndarray, Any]:
+def _load_store(
+    store: VectorStoreHandle | dict[str, Any],
+) -> tuple[dict[str, Any], list[dict[str, Any]], np.ndarray, Any]:
     store_path = _resolve_store_path_from_handle(store)
     manifest_path = store_path / "manifest.json"
     metadata_path = store_path / "metadata.json"
@@ -199,7 +226,12 @@ def _load_store(store: VectorStoreHandle | dict[str, Any]) -> tuple[dict[str, An
     index_path = _index_file_path(store_path)
     if not store_path.exists():
         raise VectorStoreError(f"Vector store not found: {store_path}")
-    if not manifest_path.exists() or not metadata_path.exists() or not vectors_path.exists() or not index_path.exists():
+    if (
+        not manifest_path.exists()
+        or not metadata_path.exists()
+        or not vectors_path.exists()
+        or not index_path.exists()
+    ):
         raise VectorStoreError(f"Vector store is incomplete: {store_path}")
 
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -207,6 +239,7 @@ def _load_store(store: VectorStoreHandle | dict[str, Any]) -> tuple[dict[str, An
     vectors = np.load(vectors_path)
     index = faiss.read_index(str(index_path))
     return manifest, metadata, vectors, index
+
 
 def _candidate_value(item: dict[str, Any], field_name: str) -> Any:
     current: Any = item
@@ -255,18 +288,32 @@ def _matches_filter(item: dict[str, Any], filter_spec: dict[str, Any] | None) ->
     must = filter_spec.get("must", [])
     should = filter_spec.get("should", [])
     must_not = filter_spec.get("must_not", [])
-    minimum_should_match = int(filter_spec.get("minimum_should_match", 1 if should else 0))
+    minimum_should_match = int(
+        filter_spec.get("minimum_should_match", 1 if should else 0)
+    )
 
-    if not isinstance(must, list) or not isinstance(should, list) or not isinstance(must_not, list):
+    if (
+        not isinstance(must, list)
+        or not isinstance(should, list)
+        or not isinstance(must_not, list)
+    ):
         raise VectorStoreError("Filter groups must be arrays")
 
-    if any(_matches_clause(item, clause) for clause in must_not if isinstance(clause, dict)):
+    if any(
+        _matches_clause(item, clause) for clause in must_not if isinstance(clause, dict)
+    ):
         return False
-    if any(not _matches_clause(item, clause) for clause in must if isinstance(clause, dict)):
+    if any(
+        not _matches_clause(item, clause) for clause in must if isinstance(clause, dict)
+    ):
         return False
 
     if should:
-        matched = sum(1 for clause in should if isinstance(clause, dict) and _matches_clause(item, clause))
+        matched = sum(
+            1
+            for clause in should
+            if isinstance(clause, dict) and _matches_clause(item, clause)
+        )
         if matched < minimum_should_match:
             return False
     return True
@@ -277,7 +324,6 @@ def _score_from_metric(metric: str, raw_score: float) -> float:
     if normalized == "l2":
         return 1.0 / (1.0 + max(raw_score, 0.0))
     return raw_score
-
 
 
 def _coerce_metric(metric: str) -> str:
@@ -347,7 +393,7 @@ def _pinecone_clause(clause: dict[str, Any]) -> dict[str, Any] | None:
 
 def _milvus_format_value(value: Any) -> str:
     if isinstance(value, str):
-        return '"' + value.replace('"', '\"') + '"'
+        return '"' + value.replace('"', '"') + '"'
     if isinstance(value, bool):
         return "true" if value else "false"
     if value is None:
@@ -375,6 +421,8 @@ def _milvus_clause_expression(clause: dict[str, Any]) -> str:
         values = ", ".join(_milvus_format_value(item) for item in value)
         return f"{field} in [{values}]"
     return ""
+
+
 def _sanitize_metadata_entry(point: VectorPoint | dict[str, Any]) -> dict[str, Any]:
     return {
         "id": _point_attr(point, "id"),
@@ -433,7 +481,14 @@ class VectorStoreAdapter:
         database_name: str = "",
         provider_config: dict[str, Any] | None = None,
     ) -> None:
-        _ = namespace, endpoint_url, api_key, collection_name, database_name, provider_config
+        _ = (
+            namespace,
+            endpoint_url,
+            api_key,
+            collection_name,
+            database_name,
+            provider_config,
+        )
         _normalize_index_name(index_name)
         _resolve_vectorstore_root(storage_directory)
 
@@ -464,9 +519,18 @@ class VectorStoreAdapter:
         hnsw_m: int = 16,
         **_: Any,
     ) -> VectorStoreHandle:
-        _ = namespace, endpoint_url, api_key, collection_name, database_name, provider_config
+        _ = (
+            namespace,
+            endpoint_url,
+            api_key,
+            collection_name,
+            database_name,
+            provider_config,
+        )
         if not points:
-            raise VectorStoreError("Vector store write requires at least one vector point")
+            raise VectorStoreError(
+                "Vector store write requires at least one vector point"
+            )
 
         normalized_index_name = _normalize_index_name(index_name)
         root_path = _resolve_vectorstore_root(storage_directory)
@@ -479,31 +543,55 @@ class VectorStoreAdapter:
         if write_mode_normalized not in {"overwrite", "append"}:
             raise VectorStoreError("write_mode must be either 'overwrite' or 'append'")
 
-        vectors = np.asarray([_point_attr(point, "vector") for point in points], dtype=np.float32)
+        vectors = np.asarray(
+            [_point_attr(point, "vector") for point in points], dtype=np.float32
+        )
         if metric.lower().strip() == "cosine":
             vectors = _normalize_vectors(vectors)
 
         metadata_entries = [_sanitize_metadata_entry(point) for point in points]
-        store_path, manifest_path, metadata_path, vectors_path = _index_paths(root_path, normalized_index_name)
+        store_path, manifest_path, metadata_path, vectors_path = _index_paths(
+            root_path, normalized_index_name
+        )
         index_path = _index_file_path(store_path)
 
         if write_mode_normalized == "append" and store_path.exists():
-            existing_manifest, existing_metadata, existing_vectors, _ = _load_store({"artifact_path": str(store_path)})
+            existing_manifest, existing_metadata, existing_vectors, _ = _load_store(
+                {"artifact_path": str(store_path)}
+            )
             if int(existing_manifest.get("dimension", 0)) != dimension:
-                raise VectorStoreError("Existing vector store dimension does not match incoming vectors")
-            if str(existing_manifest.get("metric", "")).lower() != metric.lower().strip():
-                raise VectorStoreError("Existing vector store metric does not match incoming vectors")
-            if str(existing_manifest.get("embedding_provider", "")).lower() != str(_point_attr(points[0], "embedding_provider") or "").lower():
-                raise VectorStoreError("Existing vector store embedding provider does not match incoming vectors")
-            if str(existing_manifest.get("embedding_model", "")) != str(_point_attr(points[0], "embedding_model") or ""):
-                raise VectorStoreError("Existing vector store embedding model does not match incoming vectors")
+                raise VectorStoreError(
+                    "Existing vector store dimension does not match incoming vectors"
+                )
+            if (
+                str(existing_manifest.get("metric", "")).lower()
+                != metric.lower().strip()
+            ):
+                raise VectorStoreError(
+                    "Existing vector store metric does not match incoming vectors"
+                )
+            if (
+                str(existing_manifest.get("embedding_provider", "")).lower()
+                != str(_point_attr(points[0], "embedding_provider") or "").lower()
+            ):
+                raise VectorStoreError(
+                    "Existing vector store embedding provider does not match incoming vectors"
+                )
+            if str(existing_manifest.get("embedding_model", "")) != str(
+                _point_attr(points[0], "embedding_model") or ""
+            ):
+                raise VectorStoreError(
+                    "Existing vector store embedding model does not match incoming vectors"
+                )
             vectors = np.vstack([existing_vectors.astype(np.float32), vectors])
             metadata_entries = [*existing_metadata, *metadata_entries]
         elif store_path.exists():
             shutil.rmtree(store_path)
 
         store_path.mkdir(parents=True, exist_ok=True)
-        index = _build_index(vectors, metric=metric, index_type=index_type, nlist=nlist, hnsw_m=hnsw_m)
+        index = _build_index(
+            vectors, metric=metric, index_type=index_type, nlist=nlist, hnsw_m=hnsw_m
+        )
         faiss.write_index(index, str(index_path))
         np.save(vectors_path, vectors)
 
@@ -514,13 +602,17 @@ class VectorStoreAdapter:
             "index_type": index_type.lower().strip(),
             "dimension": dimension,
             "count": len(metadata_entries),
-            "embedding_provider": str(_point_attr(points[0], "embedding_provider") or ""),
+            "embedding_provider": str(
+                _point_attr(points[0], "embedding_provider") or ""
+            ),
             "embedding_model": str(_point_attr(points[0], "embedding_model") or ""),
             "nlist": nlist,
             "hnsw_m": hnsw_m,
         }
         manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
-        metadata_path.write_text(json.dumps(metadata_entries, indent=2), encoding="utf-8")
+        metadata_path.write_text(
+            json.dumps(metadata_entries, indent=2), encoding="utf-8"
+        )
 
         return VectorStoreHandle(
             backend=self.backend,
@@ -557,10 +649,14 @@ class VectorStoreAdapter:
     ) -> list[RetrievalHit]:
         _ = keyword_query, vector_weight, keyword_weight
         if search_mode != "vector":
-            raise VectorStoreError(f"Search mode '{search_mode}' is not supported by backend '{self.backend}'")
+            raise VectorStoreError(
+                f"Search mode '{search_mode}' is not supported by backend '{self.backend}'"
+            )
         manifest, metadata, vectors, index = _load_store(store)
         if len(query_vector) != int(manifest.get("dimension", 0)):
-            raise VectorStoreError("Query vector dimension does not match the vector store")
+            raise VectorStoreError(
+                "Query vector dimension does not match the vector store"
+            )
 
         query = np.asarray([query_vector], dtype=np.float32)
         metric = str(manifest.get("metric", "cosine"))
@@ -568,7 +664,8 @@ class VectorStoreAdapter:
             query = _normalize_vectors(query)
 
         candidate_indexes = [
-            idx for idx, item in enumerate(metadata)
+            idx
+            for idx, item in enumerate(metadata)
             if isinstance(item, dict) and _matches_filter(item, filter_spec)
         ]
         if not candidate_indexes:
@@ -576,27 +673,40 @@ class VectorStoreAdapter:
 
         if len(candidate_indexes) != len(metadata):
             filtered_vectors = vectors[candidate_indexes]
-            raw_scores = filtered_vectors @ query[0] if metric in {"cosine", "ip"} else np.sum((filtered_vectors - query[0]) ** 2, axis=1)
+            raw_scores = (
+                filtered_vectors @ query[0]
+                if metric in {"cosine", "ip"}
+                else np.sum((filtered_vectors - query[0]) ** 2, axis=1)
+            )
             order = np.argsort(raw_scores if metric == "l2" else -raw_scores)
-            ranked = [(candidate_indexes[int(pos)], float(raw_scores[int(pos)])) for pos in order[:top_k]]
+            ranked = [
+                (candidate_indexes[int(pos)], float(raw_scores[int(pos)]))
+                for pos in order[:top_k]
+            ]
         else:
             normalized_depth = max(1, int(ann_search_depth))
             if hasattr(index, "hnsw") and hasattr(index.hnsw, "efSearch"):
                 try:
                     index.hnsw.efSearch = normalized_depth
                 except Exception as exc:  # noqa: BLE001
-                    logger.debug("Unable to apply HNSW efSearch=%s: %s", normalized_depth, exc)
+                    logger.debug(
+                        "Unable to apply HNSW efSearch=%s: %s", normalized_depth, exc
+                    )
             if hasattr(index, "nprobe"):
                 try:
                     index.nprobe = max(1, normalized_depth)
                 except Exception as exc:  # noqa: BLE001
-                    logger.debug("Unable to apply IVF nprobe=%s: %s", normalized_depth, exc)
+                    logger.debug(
+                        "Unable to apply IVF nprobe=%s: %s", normalized_depth, exc
+                    )
 
             search_limit = min(max(top_k * 5, top_k, normalized_depth), len(metadata))
             distances, indices = index.search(query, search_limit)
             ranked = [
                 (int(candidate_index), float(distance))
-                for candidate_index, distance in zip(indices[0], distances[0], strict=False)
+                for candidate_index, distance in zip(
+                    indices[0], distances[0], strict=False
+                )
                 if int(candidate_index) >= 0
             ]
 
@@ -649,9 +759,18 @@ class LanceDbVectorStoreAdapter(VectorStoreAdapter):
         create_vector_index: bool = True,
         **_: Any,
     ) -> VectorStoreHandle:
-        _ = namespace, endpoint_url, api_key, collection_name, database_name, provider_config
+        _ = (
+            namespace,
+            endpoint_url,
+            api_key,
+            collection_name,
+            database_name,
+            provider_config,
+        )
         if not points:
-            raise VectorStoreError("Vector store write requires at least one vector point")
+            raise VectorStoreError(
+                "Vector store write requires at least one vector point"
+            )
 
         lancedb = self._load_lancedb()
         normalized_index_name = _normalize_index_name(index_name)
@@ -670,7 +789,11 @@ class LanceDbVectorStoreAdapter(VectorStoreAdapter):
         if metric_normalized not in {"l2", "cosine", "dot"}:
             raise VectorStoreError(f"Unsupported LanceDB metric: {metric}")
 
-        rows = [_sanitize_metadata_entry(point) | {"vector": [float(item) for item in _point_attr(point, "vector")]} for point in points]
+        rows = [
+            _sanitize_metadata_entry(point)
+            | {"vector": [float(item) for item in _point_attr(point, "vector")]}
+            for point in points
+        ]
         db = lancedb.connect(str(root_path))
         table_names = set(db.table_names())
 
@@ -678,27 +801,56 @@ class LanceDbVectorStoreAdapter(VectorStoreAdapter):
             table = db.open_table(normalized_index_name)
             current_rows = _materialize_lancedb_rows(table)
             if current_rows:
-                existing_vector = current_rows[0].get("vector") if isinstance(current_rows[0], dict) else None
-                if not isinstance(existing_vector, list) or len(existing_vector) != dimension:
-                    raise VectorStoreError("Existing LanceDB table dimension does not match incoming vectors")
-                existing_provider = str(current_rows[0].get("embedding_provider", "")) if isinstance(current_rows[0], dict) else ""
-                existing_model = str(current_rows[0].get("embedding_model", "")) if isinstance(current_rows[0], dict) else ""
-                incoming_provider = str(_point_attr(points[0], "embedding_provider") or "")
+                existing_vector = (
+                    current_rows[0].get("vector")
+                    if isinstance(current_rows[0], dict)
+                    else None
+                )
+                if (
+                    not isinstance(existing_vector, list)
+                    or len(existing_vector) != dimension
+                ):
+                    raise VectorStoreError(
+                        "Existing LanceDB table dimension does not match incoming vectors"
+                    )
+                existing_provider = (
+                    str(current_rows[0].get("embedding_provider", ""))
+                    if isinstance(current_rows[0], dict)
+                    else ""
+                )
+                existing_model = (
+                    str(current_rows[0].get("embedding_model", ""))
+                    if isinstance(current_rows[0], dict)
+                    else ""
+                )
+                incoming_provider = str(
+                    _point_attr(points[0], "embedding_provider") or ""
+                )
                 incoming_model = str(_point_attr(points[0], "embedding_model") or "")
                 if existing_provider.lower() != incoming_provider.lower():
-                    raise VectorStoreError("Existing LanceDB table embedding provider does not match incoming vectors")
+                    raise VectorStoreError(
+                        "Existing LanceDB table embedding provider does not match incoming vectors"
+                    )
                 if existing_model != incoming_model:
-                    raise VectorStoreError("Existing LanceDB table embedding model does not match incoming vectors")
+                    raise VectorStoreError(
+                        "Existing LanceDB table embedding model does not match incoming vectors"
+                    )
             table.add(rows)
         else:
             table = db.create_table(normalized_index_name, data=rows, mode="overwrite")
 
         if create_vector_index:
             try:
-                table.create_index(vector_column_name="vector", metric=metric_normalized, num_partitions=max(1, nlist))
+                table.create_index(
+                    vector_column_name="vector",
+                    metric=metric_normalized,
+                    num_partitions=max(1, nlist),
+                )
             except TypeError:
                 try:
-                    table.create_index("vector", metric=metric_normalized, num_partitions=max(1, nlist))
+                    table.create_index(
+                        "vector", metric=metric_normalized, num_partitions=max(1, nlist)
+                    )
                 except TypeError:
                     table.create_index("vector")
 
@@ -739,16 +891,36 @@ class LanceDbVectorStoreAdapter(VectorStoreAdapter):
     ) -> list[RetrievalHit]:
         _ = keyword_query, vector_weight, keyword_weight
         if search_mode != "vector":
-            raise VectorStoreError(f"Search mode '{search_mode}' is not supported by backend '{self.backend}'")
+            raise VectorStoreError(
+                f"Search mode '{search_mode}' is not supported by backend '{self.backend}'"
+            )
         lancedb = self._load_lancedb()
-        store_metadata = _store_attr(store, "metadata") if isinstance(_store_attr(store, "metadata"), dict) else {}
-        root_path = _resolve_vectorstore_root(store_metadata.get("storage_directory") if isinstance(store_metadata, dict) else None)
+        store_metadata = (
+            _store_attr(store, "metadata")
+            if isinstance(_store_attr(store, "metadata"), dict)
+            else {}
+        )
+        root_path = _resolve_vectorstore_root(
+            store_metadata.get("storage_directory")
+            if isinstance(store_metadata, dict)
+            else None
+        )
         db = lancedb.connect(str(root_path))
-        table_name = str((store_metadata.get("table_name") if isinstance(store_metadata, dict) else None) or _store_attr(store, "index_name") or "").strip()
+        table_name = str(
+            (
+                store_metadata.get("table_name")
+                if isinstance(store_metadata, dict)
+                else None
+            )
+            or _store_attr(store, "index_name")
+            or ""
+        ).strip()
         if not table_name:
             raise VectorStoreError("LanceDB search requires a table name")
         table = db.open_table(table_name)
-        search_payload = table.search(query_vector).limit(max(1, top_k * 5, int(ann_search_depth)))
+        search_payload = table.search(query_vector).limit(
+            max(1, top_k * 5, int(ann_search_depth))
+        )
         rows = _materialize_lancedb_rows(search_payload)
 
         results: list[RetrievalHit] = []
@@ -756,7 +928,9 @@ class LanceDbVectorStoreAdapter(VectorStoreAdapter):
             if not isinstance(entry, dict) or not _matches_filter(entry, filter_spec):
                 continue
             raw_score = float(entry.get("_distance", 0.0))
-            score = _score_from_metric(str(_store_attr(store, "metric") or "cosine"), raw_score)
+            score = _score_from_metric(
+                str(_store_attr(store, "metric") or "cosine"), raw_score
+            )
             if score < score_threshold:
                 continue
             results.append(
@@ -773,6 +947,7 @@ class LanceDbVectorStoreAdapter(VectorStoreAdapter):
             if len(results) >= top_k:
                 break
         return results
+
 
 class QdrantVectorStoreAdapter(VectorStoreAdapter):
     backend = "qdrant"
@@ -808,7 +983,9 @@ class QdrantVectorStoreAdapter(VectorStoreAdapter):
             endpoint_url=endpoint_url,
             api_key=api_key,
         )
-        client = self._build_client(storage_directory=storage_directory, endpoint_url=endpoint, api_key=token)
+        client = self._build_client(
+            storage_directory=storage_directory, endpoint_url=endpoint, api_key=token
+        )
         timeout = float(config.get("timeout") or 5)
         client.get_collections(timeout=timeout)
 
@@ -830,7 +1007,9 @@ class QdrantVectorStoreAdapter(VectorStoreAdapter):
     ) -> VectorStoreHandle:
         _ = namespace, database_name
         if not points:
-            raise VectorStoreError("Vector store write requires at least one vector point")
+            raise VectorStoreError(
+                "Vector store write requires at least one vector point"
+            )
 
         normalized_metric = _coerce_metric(metric)
         if normalized_metric not in {"cosine", "l2", "dot"}:
@@ -850,10 +1029,16 @@ class QdrantVectorStoreAdapter(VectorStoreAdapter):
             endpoint_url=endpoint_url,
             api_key=api_key,
         )
-        client = self._build_client(storage_directory=storage_directory, endpoint_url=endpoint, api_key=token)
+        client = self._build_client(
+            storage_directory=storage_directory, endpoint_url=endpoint, api_key=token
+        )
         _, qm = self._load_client()
 
-        distance_map = {"cosine": qm.Distance.COSINE, "l2": qm.Distance.EUCLID, "dot": qm.Distance.DOT}
+        distance_map = {
+            "cosine": qm.Distance.COSINE,
+            "l2": qm.Distance.EUCLID,
+            "dot": qm.Distance.DOT,
+        }
         existing = {item.name for item in client.get_collections().collections}
         if collection in existing and write_mode_normalized == "overwrite":
             client.delete_collection(collection_name=collection)
@@ -861,7 +1046,9 @@ class QdrantVectorStoreAdapter(VectorStoreAdapter):
         if collection not in existing:
             client.create_collection(
                 collection_name=collection,
-                vectors_config=qm.VectorParams(size=dimension, distance=distance_map[normalized_metric]),
+                vectors_config=qm.VectorParams(
+                    size=dimension, distance=distance_map[normalized_metric]
+                ),
             )
 
         payloads = []
@@ -900,19 +1087,32 @@ class QdrantVectorStoreAdapter(VectorStoreAdapter):
             },
         )
 
-
     def _map_filter(self, filter_spec: dict[str, Any] | None, qm: Any) -> Any:
         if not filter_spec:
             return None
-        must = [_qdrant_condition(clause, qm) for clause in filter_spec.get("must", []) if isinstance(clause, dict)]
-        should = [_qdrant_condition(clause, qm) for clause in filter_spec.get("should", []) if isinstance(clause, dict)]
-        must_not = [_qdrant_condition(clause, qm) for clause in filter_spec.get("must_not", []) if isinstance(clause, dict)]
+        must = [
+            _qdrant_condition(clause, qm)
+            for clause in filter_spec.get("must", [])
+            if isinstance(clause, dict)
+        ]
+        should = [
+            _qdrant_condition(clause, qm)
+            for clause in filter_spec.get("should", [])
+            if isinstance(clause, dict)
+        ]
+        must_not = [
+            _qdrant_condition(clause, qm)
+            for clause in filter_spec.get("must_not", [])
+            if isinstance(clause, dict)
+        ]
         must = [item for item in must if item is not None]
         should = [item for item in should if item is not None]
         must_not = [item for item in must_not if item is not None]
         if not must and not should and not must_not:
             return None
-        return qm.Filter(must=must or None, should=should or None, must_not=must_not or None)
+        return qm.Filter(
+            must=must or None, should=should or None, must_not=must_not or None
+        )
 
     def search(
         self,
@@ -932,18 +1132,34 @@ class QdrantVectorStoreAdapter(VectorStoreAdapter):
     ) -> list[RetrievalHit]:
         _ = keyword_query, vector_weight, keyword_weight
         if search_mode != "vector":
-            raise VectorStoreError("Hybrid search is not currently supported for Qdrant in this runtime")
+            raise VectorStoreError(
+                "Hybrid search is not currently supported for Qdrant in this runtime"
+            )
 
-        metadata = _store_attr(store, "metadata") if isinstance(_store_attr(store, "metadata"), dict) else {}
-        config = metadata.get("provider_config") if isinstance(metadata.get("provider_config"), dict) else {}
-        endpoint = str(metadata.get("endpoint_url") or config.get("endpoint_url") or "").strip()
+        metadata = (
+            _store_attr(store, "metadata")
+            if isinstance(_store_attr(store, "metadata"), dict)
+            else {}
+        )
+        config = (
+            metadata.get("provider_config")
+            if isinstance(metadata.get("provider_config"), dict)
+            else {}
+        )
+        endpoint = str(
+            metadata.get("endpoint_url") or config.get("endpoint_url") or ""
+        ).strip()
         storage_directory = str(metadata.get("storage_directory") or "").strip()
         token = str(config.get("api_key") or "").strip()
-        collection = str(metadata.get("collection_name") or _store_attr(store, "index_name") or "").strip()
+        collection = str(
+            metadata.get("collection_name") or _store_attr(store, "index_name") or ""
+        ).strip()
         if not collection:
             raise VectorStoreError("Qdrant search requires a collection name")
 
-        client = self._build_client(storage_directory=storage_directory, endpoint_url=endpoint, api_key=token)
+        client = self._build_client(
+            storage_directory=storage_directory, endpoint_url=endpoint, api_key=token
+        )
         _, qm = self._load_client()
         qdrant_filter = self._map_filter(filter_spec, qm)
 
@@ -964,13 +1180,19 @@ class QdrantVectorStoreAdapter(VectorStoreAdapter):
         metric = str(_store_attr(store, "metric") or "cosine")
         results: list[RetrievalHit] = []
         for point in response or []:
-            payload = point.payload if isinstance(getattr(point, "payload", None), dict) else {}
+            payload = (
+                point.payload
+                if isinstance(getattr(point, "payload", None), dict)
+                else {}
+            )
             entry_for_filter = {
                 "chunk_id": payload.get("chunk_id"),
                 "document_id": payload.get("document_id"),
                 "text": payload.get("text"),
                 "source_uri": payload.get("source_uri"),
-                "metadata": payload.get("metadata", {}) if isinstance(payload.get("metadata"), dict) else {},
+                "metadata": payload.get("metadata", {})
+                if isinstance(payload.get("metadata"), dict)
+                else {},
             }
             if filter_spec and not _matches_filter(entry_for_filter, filter_spec):
                 continue
@@ -1055,7 +1277,9 @@ class PineconeVectorStoreAdapter(VectorStoreAdapter):
         provider_config: dict[str, Any] | None = None,
     ) -> None:
         _ = storage_directory, namespace, endpoint_url, database_name
-        _, _, token = _extract_provider_config(provider_config=provider_config, endpoint_url="", api_key=api_key)
+        _, _, token = _extract_provider_config(
+            provider_config=provider_config, endpoint_url="", api_key=api_key
+        )
         if not token:
             raise VectorStoreError("Pinecone requires api_key")
         Pinecone, _ = self._load_client()
@@ -1063,7 +1287,10 @@ class PineconeVectorStoreAdapter(VectorStoreAdapter):
         target = _normalize_index_name(collection_name or index_name)
         names = {item.name for item in client.list_indexes()}
         if target and target not in names:
-            logger.debug("Pinecone index '%s' does not exist yet (will be created on first write)", target)
+            logger.debug(
+                "Pinecone index '%s' does not exist yet (will be created on first write)",
+                target,
+            )
 
     def write_points(
         self,
@@ -1083,7 +1310,9 @@ class PineconeVectorStoreAdapter(VectorStoreAdapter):
     ) -> VectorStoreHandle:
         _ = storage_directory, endpoint_url, database_name
         if not points:
-            raise VectorStoreError("Vector store write requires at least one vector point")
+            raise VectorStoreError(
+                "Vector store write requires at least one vector point"
+            )
 
         normalized_metric = _coerce_metric(metric)
         if normalized_metric not in {"cosine", "dot", "l2"}:
@@ -1093,7 +1322,9 @@ class PineconeVectorStoreAdapter(VectorStoreAdapter):
         if write_mode_normalized not in {"overwrite", "append"}:
             raise VectorStoreError("write_mode must be either 'overwrite' or 'append'")
 
-        config, _, token = _extract_provider_config(provider_config=provider_config, endpoint_url="", api_key=api_key)
+        config, _, token = _extract_provider_config(
+            provider_config=provider_config, endpoint_url="", api_key=api_key
+        )
         if not token:
             raise VectorStoreError("Pinecone requires api_key")
 
@@ -1116,7 +1347,9 @@ class PineconeVectorStoreAdapter(VectorStoreAdapter):
                 spec=ServerlessSpec(cloud=cloud, region=region),
             )
         elif write_mode_normalized == "overwrite":
-            client.Index(target_index).delete(delete_all=True, namespace=namespace or None)
+            client.Index(target_index).delete(
+                delete_all=True, namespace=namespace or None
+            )
 
         index = client.Index(target_index)
         vectors = []
@@ -1169,17 +1402,31 @@ class PineconeVectorStoreAdapter(VectorStoreAdapter):
     ) -> list[RetrievalHit]:
         _ = ann_search_depth
         if search_mode != "vector":
-            raise VectorStoreError("Hybrid search is not currently supported for Pinecone in this runtime")
+            raise VectorStoreError(
+                "Hybrid search is not currently supported for Pinecone in this runtime"
+            )
 
-        metadata = _store_attr(store, "metadata") if isinstance(_store_attr(store, "metadata"), dict) else {}
-        config = metadata.get("provider_config") if isinstance(metadata.get("provider_config"), dict) else {}
+        metadata = (
+            _store_attr(store, "metadata")
+            if isinstance(_store_attr(store, "metadata"), dict)
+            else {}
+        )
+        config = (
+            metadata.get("provider_config")
+            if isinstance(metadata.get("provider_config"), dict)
+            else {}
+        )
         token = str(config.get("api_key") or "").strip()
         if not token:
-            raise VectorStoreError("Pinecone search requires api_key in provider_config")
+            raise VectorStoreError(
+                "Pinecone search requires api_key in provider_config"
+            )
 
         Pinecone, _ = self._load_client()
         client = Pinecone(api_key=token)
-        index_name = str(metadata.get("collection_name") or _store_attr(store, "index_name") or "").strip()
+        index_name = str(
+            metadata.get("collection_name") or _store_attr(store, "index_name") or ""
+        ).strip()
         if not index_name:
             raise VectorStoreError("Pinecone search requires an index name")
         namespace = str(metadata.get("namespace") or "").strip() or None
@@ -1194,11 +1441,23 @@ class PineconeVectorStoreAdapter(VectorStoreAdapter):
             filter=pinecone_filter,
         )
 
-        matches = response.get("matches") if isinstance(response, dict) else getattr(response, "matches", [])
+        matches = (
+            response.get("matches")
+            if isinstance(response, dict)
+            else getattr(response, "matches", [])
+        )
         results: list[RetrievalHit] = []
         for match in matches or []:
-            record = match if isinstance(match, dict) else getattr(match, "to_dict", lambda: {})()
-            item_metadata = record.get("metadata") if isinstance(record.get("metadata"), dict) else {}
+            record = (
+                match
+                if isinstance(match, dict)
+                else getattr(match, "to_dict", lambda: {})()
+            )
+            item_metadata = (
+                record.get("metadata")
+                if isinstance(record.get("metadata"), dict)
+                else {}
+            )
             score = float(record.get("score") or 0.0)
             if score < score_threshold:
                 continue
@@ -1210,7 +1469,9 @@ class PineconeVectorStoreAdapter(VectorStoreAdapter):
                     text=str(item_metadata.get("text", "")),
                     source_uri=str(item_metadata.get("source_uri", "")),
                     score=score,
-                    metadata=(item_metadata.get("metadata", {}) if include_metadata else {}),
+                    metadata=(
+                        item_metadata.get("metadata", {}) if include_metadata else {}
+                    ),
                 )
             )
         return results
@@ -1232,7 +1493,9 @@ class WeaviateVectorStoreAdapter(VectorStoreAdapter):
                 cluster_url=endpoint_url,
                 auth_credentials=weaviate.Auth.api_key(api_key),
             )
-        return weaviate.connect_to_custom(http_host=endpoint_url, http_port=443, http_secure=True)
+        return weaviate.connect_to_custom(
+            http_host=endpoint_url, http_port=443, http_secure=True
+        )
 
     def validate_connection(
         self,
@@ -1277,7 +1540,9 @@ class WeaviateVectorStoreAdapter(VectorStoreAdapter):
     ) -> VectorStoreHandle:
         _ = storage_directory, namespace, database_name
         if not points:
-            raise VectorStoreError("Vector store write requires at least one vector point")
+            raise VectorStoreError(
+                "Vector store write requires at least one vector point"
+            )
         normalized_metric = _coerce_metric(metric)
         if normalized_metric not in {"cosine", "l2", "dot"}:
             raise VectorStoreError(f"Unsupported Weaviate metric: {metric}")
@@ -1355,13 +1620,27 @@ class WeaviateVectorStoreAdapter(VectorStoreAdapter):
     ) -> list[RetrievalHit]:
         _ = ann_search_depth, keyword_query, vector_weight, keyword_weight
         if search_mode != "vector":
-            raise VectorStoreError("Hybrid search is not currently supported for Weaviate in this runtime")
+            raise VectorStoreError(
+                "Hybrid search is not currently supported for Weaviate in this runtime"
+            )
 
-        metadata = _store_attr(store, "metadata") if isinstance(_store_attr(store, "metadata"), dict) else {}
-        config = metadata.get("provider_config") if isinstance(metadata.get("provider_config"), dict) else {}
-        endpoint = str(metadata.get("endpoint_url") or config.get("endpoint_url") or "").strip()
+        metadata = (
+            _store_attr(store, "metadata")
+            if isinstance(_store_attr(store, "metadata"), dict)
+            else {}
+        )
+        config = (
+            metadata.get("provider_config")
+            if isinstance(metadata.get("provider_config"), dict)
+            else {}
+        )
+        endpoint = str(
+            metadata.get("endpoint_url") or config.get("endpoint_url") or ""
+        ).strip()
         token = str(config.get("api_key") or "").strip()
-        collection = str(metadata.get("collection_name") or _store_attr(store, "index_name") or "").strip()
+        collection = str(
+            metadata.get("collection_name") or _store_attr(store, "index_name") or ""
+        ).strip()
         if not collection:
             raise VectorStoreError("Weaviate search requires a collection name")
 
@@ -1380,8 +1659,16 @@ class WeaviateVectorStoreAdapter(VectorStoreAdapter):
         metric = str(_store_attr(store, "metric") or "cosine")
         hits: list[RetrievalHit] = []
         for item in objects:
-            properties = getattr(item, "properties", {}) if isinstance(getattr(item, "properties", {}), dict) else {}
-            meta = properties.get("metadata", {}) if isinstance(properties.get("metadata"), dict) else {}
+            properties = (
+                getattr(item, "properties", {})
+                if isinstance(getattr(item, "properties", {}), dict)
+                else {}
+            )
+            meta = (
+                properties.get("metadata", {})
+                if isinstance(properties.get("metadata"), dict)
+                else {}
+            )
             entry_for_filter = {
                 "chunk_id": properties.get("chunk_id"),
                 "document_id": properties.get("document_id"),
@@ -1391,8 +1678,12 @@ class WeaviateVectorStoreAdapter(VectorStoreAdapter):
             }
             if filter_spec and not _matches_filter(entry_for_filter, filter_spec):
                 continue
-            distance = float(getattr(getattr(item, "metadata", None), "distance", 0.0) or 0.0)
-            score = _score_from_metric(metric, distance if metric == "l2" else 1.0 - distance)
+            distance = float(
+                getattr(getattr(item, "metadata", None), "distance", 0.0) or 0.0
+            )
+            score = _score_from_metric(
+                metric, distance if metric == "l2" else 1.0 - distance
+            )
             if score < score_threshold:
                 continue
             hits.append(
@@ -1429,9 +1720,21 @@ class MilvusVectorStoreAdapter(VectorStoreAdapter):
     def _milvus_filter(self, filter_spec: dict[str, Any] | None) -> str:
         if not filter_spec:
             return ""
-        must = [_milvus_clause_expression(item) for item in filter_spec.get("must", []) if isinstance(item, dict)]
-        must_not = [_milvus_clause_expression(item) for item in filter_spec.get("must_not", []) if isinstance(item, dict)]
-        should = [_milvus_clause_expression(item) for item in filter_spec.get("should", []) if isinstance(item, dict)]
+        must = [
+            _milvus_clause_expression(item)
+            for item in filter_spec.get("must", [])
+            if isinstance(item, dict)
+        ]
+        must_not = [
+            _milvus_clause_expression(item)
+            for item in filter_spec.get("must_not", [])
+            if isinstance(item, dict)
+        ]
+        should = [
+            _milvus_clause_expression(item)
+            for item in filter_spec.get("should", [])
+            if isinstance(item, dict)
+        ]
         must = [item for item in must if item]
         must_not = [item for item in must_not if item]
         should = [item for item in should if item]
@@ -1489,7 +1792,9 @@ class MilvusVectorStoreAdapter(VectorStoreAdapter):
     ) -> VectorStoreHandle:
         _ = storage_directory, namespace
         if not points:
-            raise VectorStoreError("Vector store write requires at least one vector point")
+            raise VectorStoreError(
+                "Vector store write requires at least one vector point"
+            )
         normalized_metric = _coerce_metric(metric)
         metric_map = {"cosine": "COSINE", "l2": "L2", "dot": "IP"}
         if normalized_metric not in metric_map:
@@ -1505,7 +1810,9 @@ class MilvusVectorStoreAdapter(VectorStoreAdapter):
         )
         collection = _normalize_index_name(collection_name or index_name)
         database = str(config.get("database_name") or database_name or "").strip()
-        client = self._build_client(endpoint_url=endpoint, api_key=token, database_name=database)
+        client = self._build_client(
+            endpoint_url=endpoint, api_key=token, database_name=database
+        )
 
         dimension = len(_point_attr(points[0], "vector"))
         if any(len(_point_attr(point, "vector")) != dimension for point in points):
@@ -1536,7 +1843,9 @@ class MilvusVectorStoreAdapter(VectorStoreAdapter):
                     "source_uri": str(entry["source_uri"] or ""),
                     "embedding_provider": str(entry["embedding_provider"] or ""),
                     "embedding_model": str(entry["embedding_model"] or ""),
-                    "metadata": entry["metadata"] if isinstance(entry["metadata"], dict) else {},
+                    "metadata": entry["metadata"]
+                    if isinstance(entry["metadata"], dict)
+                    else {},
                 }
             )
         client.insert(collection_name=collection, data=rows)
@@ -1575,19 +1884,37 @@ class MilvusVectorStoreAdapter(VectorStoreAdapter):
     ) -> list[RetrievalHit]:
         _ = ann_search_depth, keyword_query, vector_weight, keyword_weight
         if search_mode != "vector":
-            raise VectorStoreError("Hybrid search is not currently supported for Milvus in this runtime")
+            raise VectorStoreError(
+                "Hybrid search is not currently supported for Milvus in this runtime"
+            )
 
-        metadata = _store_attr(store, "metadata") if isinstance(_store_attr(store, "metadata"), dict) else {}
-        config = metadata.get("provider_config") if isinstance(metadata.get("provider_config"), dict) else {}
-        endpoint = str(metadata.get("endpoint_url") or config.get("endpoint_url") or "").strip()
-        database = str(metadata.get("database_name") or config.get("database_name") or "").strip()
+        metadata = (
+            _store_attr(store, "metadata")
+            if isinstance(_store_attr(store, "metadata"), dict)
+            else {}
+        )
+        config = (
+            metadata.get("provider_config")
+            if isinstance(metadata.get("provider_config"), dict)
+            else {}
+        )
+        endpoint = str(
+            metadata.get("endpoint_url") or config.get("endpoint_url") or ""
+        ).strip()
+        database = str(
+            metadata.get("database_name") or config.get("database_name") or ""
+        ).strip()
         token = str(config.get("api_key") or "").strip()
-        collection = str(metadata.get("collection_name") or _store_attr(store, "index_name") or "").strip()
+        collection = str(
+            metadata.get("collection_name") or _store_attr(store, "index_name") or ""
+        ).strip()
         if not collection:
             raise VectorStoreError("Milvus search requires a collection name")
 
         filter_expr = self._milvus_filter(filter_spec)
-        client = self._build_client(endpoint_url=endpoint, api_key=token, database_name=database)
+        client = self._build_client(
+            endpoint_url=endpoint, api_key=token, database_name=database
+        )
         response = client.search(
             collection_name=collection,
             data=[[float(item) for item in query_vector]],
@@ -1606,15 +1933,21 @@ class MilvusVectorStoreAdapter(VectorStoreAdapter):
 
         metric = str(_store_attr(store, "metric") or "cosine")
         hits: list[RetrievalHit] = []
-        for raw_hit in (response[0] if isinstance(response, list) and response else []):
-            hit = raw_hit if isinstance(raw_hit, dict) else getattr(raw_hit, "to_dict", lambda: {})()
+        for raw_hit in response[0] if isinstance(response, list) and response else []:
+            hit = (
+                raw_hit
+                if isinstance(raw_hit, dict)
+                else getattr(raw_hit, "to_dict", lambda: {})()
+            )
             entity = hit.get("entity") if isinstance(hit.get("entity"), dict) else {}
             entry_for_filter = {
                 "chunk_id": entity.get("chunk_id"),
                 "document_id": entity.get("document_id"),
                 "text": entity.get("text"),
                 "source_uri": entity.get("source_uri"),
-                "metadata": entity.get("metadata", {}) if isinstance(entity.get("metadata"), dict) else {},
+                "metadata": entity.get("metadata", {})
+                if isinstance(entity.get("metadata"), dict)
+                else {},
             }
             if filter_spec and not _matches_filter(entry_for_filter, filter_spec):
                 continue
@@ -1664,7 +1997,9 @@ class ChromaVectorStoreAdapter(VectorStoreAdapter):
         provider_config: dict[str, Any] | None = None,
     ) -> None:
         _ = namespace, api_key, database_name, provider_config
-        client = self._build_client(storage_directory=storage_directory, endpoint_url=endpoint_url)
+        client = self._build_client(
+            storage_directory=storage_directory, endpoint_url=endpoint_url
+        )
         _normalize_index_name(collection_name or index_name)
         client.heartbeat()
 
@@ -1686,7 +2021,9 @@ class ChromaVectorStoreAdapter(VectorStoreAdapter):
     ) -> VectorStoreHandle:
         _ = namespace, api_key, database_name, provider_config
         if not points:
-            raise VectorStoreError("Vector store write requires at least one vector point")
+            raise VectorStoreError(
+                "Vector store write requires at least one vector point"
+            )
 
         normalized_metric = _coerce_metric(metric)
         if normalized_metric not in {"cosine", "l2", "dot"}:
@@ -1697,7 +2034,9 @@ class ChromaVectorStoreAdapter(VectorStoreAdapter):
             raise VectorStoreError("write_mode must be either 'overwrite' or 'append'")
 
         collection = _normalize_index_name(collection_name or index_name)
-        client = self._build_client(storage_directory=storage_directory, endpoint_url=endpoint_url)
+        client = self._build_client(
+            storage_directory=storage_directory, endpoint_url=endpoint_url
+        )
 
         if write_mode_normalized == "overwrite":
             try:
@@ -1725,7 +2064,9 @@ class ChromaVectorStoreAdapter(VectorStoreAdapter):
                     "metadata": entry["metadata"],
                 }
             )
-        coll.upsert(ids=ids, embeddings=embeddings, documents=documents, metadatas=metadatas)
+        coll.upsert(
+            ids=ids, embeddings=embeddings, documents=documents, metadatas=metadatas
+        )
 
         return VectorStoreHandle(
             backend=self.backend,
@@ -1757,19 +2098,32 @@ class ChromaVectorStoreAdapter(VectorStoreAdapter):
     ) -> list[RetrievalHit]:
         _ = ann_search_depth
         if search_mode != "vector":
-            raise VectorStoreError("Hybrid search is not currently supported for Chroma in this runtime")
+            raise VectorStoreError(
+                "Hybrid search is not currently supported for Chroma in this runtime"
+            )
 
-        metadata = _store_attr(store, "metadata") if isinstance(_store_attr(store, "metadata"), dict) else {}
+        metadata = (
+            _store_attr(store, "metadata")
+            if isinstance(_store_attr(store, "metadata"), dict)
+            else {}
+        )
         storage_directory = str(metadata.get("storage_directory") or "").strip()
         endpoint_url = str(metadata.get("endpoint_url") or "").strip()
-        collection = str(metadata.get("collection_name") or _store_attr(store, "index_name") or "").strip()
+        collection = str(
+            metadata.get("collection_name") or _store_attr(store, "index_name") or ""
+        ).strip()
         if not collection:
             raise VectorStoreError("Chroma search requires a collection name")
 
-        client = self._build_client(storage_directory=storage_directory, endpoint_url=endpoint_url)
+        client = self._build_client(
+            storage_directory=storage_directory, endpoint_url=endpoint_url
+        )
         coll = client.get_collection(name=collection)
 
-        results = coll.query(query_embeddings=[[float(item) for item in query_vector]], n_results=max(1, top_k))
+        results = coll.query(
+            query_embeddings=[[float(item) for item in query_vector]],
+            n_results=max(1, top_k),
+        )
         ids = (results.get("ids") or [[]])[0]
         documents = (results.get("documents") or [[]])[0]
         metadatas = (results.get("metadatas") or [[]])[0]
@@ -1777,9 +2131,15 @@ class ChromaVectorStoreAdapter(VectorStoreAdapter):
 
         payloads: list[RetrievalHit] = []
         for idx, item_id in enumerate(ids):
-            meta = metadatas[idx] if idx < len(metadatas) and isinstance(metadatas[idx], dict) else {}
+            meta = (
+                metadatas[idx]
+                if idx < len(metadatas) and isinstance(metadatas[idx], dict)
+                else {}
+            )
             entry_for_filter = {
-                "metadata": meta.get("metadata", {}) if isinstance(meta.get("metadata"), dict) else {},
+                "metadata": meta.get("metadata", {})
+                if isinstance(meta.get("metadata"), dict)
+                else {},
                 "document_id": meta.get("document_id"),
                 "chunk_id": meta.get("chunk_id"),
                 "source_uri": meta.get("source_uri"),
@@ -1788,7 +2148,9 @@ class ChromaVectorStoreAdapter(VectorStoreAdapter):
             if not _matches_filter(entry_for_filter, filter_spec):
                 continue
             raw = float(distances[idx]) if idx < len(distances) else 0.0
-            score = _score_from_metric(str(_store_attr(store, "metric") or "cosine"), raw)
+            score = _score_from_metric(
+                str(_store_attr(store, "metric") or "cosine"), raw
+            )
             if score < score_threshold:
                 continue
             payloads.append(
@@ -1822,22 +2184,3 @@ def get_vector_store_adapter(backend: str) -> VectorStoreAdapter:
     if adapter is None:
         raise VectorStoreError(f"Unsupported vector store backend: {backend}")
     return adapter
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

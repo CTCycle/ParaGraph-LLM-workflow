@@ -29,7 +29,9 @@ class WorkflowConnection(BaseModel):
     def validate_connection_type_contract(self) -> WorkflowConnection:
         if self.connection_type == "controller":
             if not self.from_controller or not self.to_controller:
-                raise ValueError("Controller connections require from_controller and to_controller")
+                raise ValueError(
+                    "Controller connections require from_controller and to_controller"
+                )
             self.from_output = None
             self.to_input = None
             return self

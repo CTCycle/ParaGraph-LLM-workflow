@@ -9,7 +9,10 @@ from fastapi.testclient import TestClient
 
 from ParaGraph.server.app import app
 from ParaGraph.server.domain.jobs import JobState
-from ParaGraph.server.repositories.workflow import execution_run_repository, workflow_repository
+from ParaGraph.server.repositories.workflow import (
+    execution_run_repository,
+    workflow_repository,
+)
 from ParaGraph.server.services.jobs import job_manager
 from ParaGraph.server.services.runtime.events import execution_event_service
 from ParaGraph.server.services.workflow.provider import provider_service
@@ -49,7 +52,9 @@ def clear_provider_caches() -> None:
 
 
 # -----------------------------------------------------------------------------
-def register_job_state(job_id: str = "job-test", job_type: str = "workflow") -> JobState:
+def register_job_state(
+    job_id: str = "job-test", job_type: str = "workflow"
+) -> JobState:
     state = JobState(job_id=job_id, job_type=job_type, status="running")
     with job_manager.lock:
         job_manager.jobs[job_id] = state
@@ -69,7 +74,9 @@ def wait_for_job_completion(job_id: str, timeout_s: float = 2.0) -> dict[str, ob
                 return snapshot
         time.sleep(0.01)
 
-    raise AssertionError(f"Job {job_id} did not finish within {timeout_s} seconds. Last snapshot: {last_snapshot}")
+    raise AssertionError(
+        f"Job {job_id} did not finish within {timeout_s} seconds. Last snapshot: {last_snapshot}"
+    )
 
 
 ###############################################################################

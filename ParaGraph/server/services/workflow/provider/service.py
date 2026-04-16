@@ -33,7 +33,7 @@ from ParaGraph.server.domain.node_catalog import (
     ProviderCatalogResponse,
     ProviderModelCatalogResponse,
     ProviderModelDefinition,
- )
+)
 from ParaGraph.server.domain.provider import (
     CachedValue,
     ModelMetadata,
@@ -42,7 +42,12 @@ from ParaGraph.server.domain.provider import (
 )
 from ParaGraph.server.services.jobs import job_manager
 from ParaGraph.server.services.configuration import configuration_service
-from ParaGraph.server.services.llm.providers import LLMError, OllamaClient, OllamaError, select_llm_provider
+from ParaGraph.server.services.llm.providers import (
+    LLMError,
+    OllamaClient,
+    OllamaError,
+    select_llm_provider,
+)
 from ParaGraph.server.services.workflow.provider.constants import (
     HUGGINGFACE_CACHE_TTL_SECONDS,
     HUGGINGFACE_DOWNLOAD_JOB_TYPE,
@@ -61,8 +66,12 @@ from ParaGraph.server.services.workflow.provider.constants import (
     OLLAMA_LIBRARY_URL,
 )
 from ParaGraph.server.services.workflow.provider.errors import ProviderApiError
-from ParaGraph.server.services.workflow.provider.huggingface_catalog import HuggingFaceCatalogService
-from ParaGraph.server.services.workflow.provider.huggingface_downloads import HuggingFaceDownloadService
+from ParaGraph.server.services.workflow.provider.huggingface_catalog import (
+    HuggingFaceCatalogService,
+)
+from ParaGraph.server.services.workflow.provider.huggingface_downloads import (
+    HuggingFaceDownloadService,
+)
 from ParaGraph.server.services.workflow.provider.ollama import OllamaLibraryService
 
 
@@ -173,7 +182,11 @@ def _extract_huggingface_model_size(payload: Any) -> int | None:
 
     safetensors = read("safetensors")
     if isinstance(safetensors, dict):
-        total = _safe_int(safetensors.get("total") or safetensors.get("total_size") or safetensors.get("size"))
+        total = _safe_int(
+            safetensors.get("total")
+            or safetensors.get("total_size")
+            or safetensors.get("size")
+        )
         if total is not None and total >= 0:
             return total
 
@@ -227,7 +240,6 @@ def _extract_huggingface_tag_values(payload: Any) -> tuple[str, ...]:
     return tuple(sorted(values))
 
 
-
 PROVIDER_CAPABILITIES = {
     "ollama": ProviderMetadata(
         name="ollama",
@@ -274,44 +286,167 @@ PROVIDER_CAPABILITIES = {
 
 CURATED_MODELS: dict[str, tuple[ModelMetadata, ...]] = {
     "ollama": (
-        ModelMetadata(provider="ollama", model="nomic-embed-text", label="nomic-embed-text", supports_embeddings=True),
-        ModelMetadata(provider="ollama", model="mxbai-embed-large", label="mxbai-embed-large", supports_embeddings=True),
-        ModelMetadata(provider="ollama", model="bge-m3", label="bge-m3", supports_embeddings=True),
+        ModelMetadata(
+            provider="ollama",
+            model="nomic-embed-text",
+            label="nomic-embed-text",
+            supports_embeddings=True,
+        ),
+        ModelMetadata(
+            provider="ollama",
+            model="mxbai-embed-large",
+            label="mxbai-embed-large",
+            supports_embeddings=True,
+        ),
+        ModelMetadata(
+            provider="ollama", model="bge-m3", label="bge-m3", supports_embeddings=True
+        ),
     ),
     "openai": (
-        ModelMetadata(provider="openai", model="gpt-5.4", label="GPT-5.4", supports_image=True, supports_reasoning=True),
-        ModelMetadata(provider="openai", model="gpt-5-mini", label="GPT-5 mini", supports_image=True, supports_reasoning=True),
-        ModelMetadata(provider="openai", model="gpt-5-nano", label="GPT-5 nano", supports_image=True, supports_reasoning=True),
-        ModelMetadata(provider="openai", model="gpt-4.1", label="GPT-4.1", supports_image=True),
-        ModelMetadata(provider="openai", model="text-embedding-3-small", label="Text Embedding 3 Small", supports_embeddings=True),
-        ModelMetadata(provider="openai", model="text-embedding-3-large", label="Text Embedding 3 Large", supports_embeddings=True),
+        ModelMetadata(
+            provider="openai",
+            model="gpt-5.4",
+            label="GPT-5.4",
+            supports_image=True,
+            supports_reasoning=True,
+        ),
+        ModelMetadata(
+            provider="openai",
+            model="gpt-5-mini",
+            label="GPT-5 mini",
+            supports_image=True,
+            supports_reasoning=True,
+        ),
+        ModelMetadata(
+            provider="openai",
+            model="gpt-5-nano",
+            label="GPT-5 nano",
+            supports_image=True,
+            supports_reasoning=True,
+        ),
+        ModelMetadata(
+            provider="openai", model="gpt-4.1", label="GPT-4.1", supports_image=True
+        ),
+        ModelMetadata(
+            provider="openai",
+            model="text-embedding-3-small",
+            label="Text Embedding 3 Small",
+            supports_embeddings=True,
+        ),
+        ModelMetadata(
+            provider="openai",
+            model="text-embedding-3-large",
+            label="Text Embedding 3 Large",
+            supports_embeddings=True,
+        ),
     ),
     "gemini": (
-        ModelMetadata(provider="gemini", model="gemini-3-pro-preview", label="Gemini 3 Pro Preview", supports_image=True, supports_reasoning=True),
-        ModelMetadata(provider="gemini", model="gemini-3-flash-preview", label="Gemini 3 Flash Preview", supports_image=True, supports_reasoning=True),
-        ModelMetadata(provider="gemini", model="gemini-2.5-pro", label="Gemini 2.5 Pro", supports_image=True, supports_reasoning=True),
-        ModelMetadata(provider="gemini", model="gemini-2.5-flash", label="Gemini 2.5 Flash", supports_image=True, supports_reasoning=True),
-        ModelMetadata(provider="gemini", model="gemini-2.5-flash-lite", label="Gemini 2.5 Flash-Lite", supports_image=True, supports_reasoning=True),
-        ModelMetadata(provider="gemini", model="gemini-embedding-001", label="Gemini Embedding 001", supports_embeddings=True),
+        ModelMetadata(
+            provider="gemini",
+            model="gemini-3-pro-preview",
+            label="Gemini 3 Pro Preview",
+            supports_image=True,
+            supports_reasoning=True,
+        ),
+        ModelMetadata(
+            provider="gemini",
+            model="gemini-3-flash-preview",
+            label="Gemini 3 Flash Preview",
+            supports_image=True,
+            supports_reasoning=True,
+        ),
+        ModelMetadata(
+            provider="gemini",
+            model="gemini-2.5-pro",
+            label="Gemini 2.5 Pro",
+            supports_image=True,
+            supports_reasoning=True,
+        ),
+        ModelMetadata(
+            provider="gemini",
+            model="gemini-2.5-flash",
+            label="Gemini 2.5 Flash",
+            supports_image=True,
+            supports_reasoning=True,
+        ),
+        ModelMetadata(
+            provider="gemini",
+            model="gemini-2.5-flash-lite",
+            label="Gemini 2.5 Flash-Lite",
+            supports_image=True,
+            supports_reasoning=True,
+        ),
+        ModelMetadata(
+            provider="gemini",
+            model="gemini-embedding-001",
+            label="Gemini Embedding 001",
+            supports_embeddings=True,
+        ),
     ),
     "claude": (
-        ModelMetadata(provider="claude", model="claude-opus-4-1-20250805", label="Claude Opus 4.1", supports_image=True, supports_reasoning=True),
-        ModelMetadata(provider="claude", model="claude-sonnet-4-20250514", label="Claude Sonnet 4", supports_image=True, supports_reasoning=True),
-        ModelMetadata(provider="claude", model="claude-3-7-sonnet-latest", label="Claude Sonnet 3.7", supports_image=True, supports_reasoning=True),
-        ModelMetadata(provider="claude", model="claude-3-5-haiku-latest", label="Claude Haiku 3.5", supports_image=True),
+        ModelMetadata(
+            provider="claude",
+            model="claude-opus-4-1-20250805",
+            label="Claude Opus 4.1",
+            supports_image=True,
+            supports_reasoning=True,
+        ),
+        ModelMetadata(
+            provider="claude",
+            model="claude-sonnet-4-20250514",
+            label="Claude Sonnet 4",
+            supports_image=True,
+            supports_reasoning=True,
+        ),
+        ModelMetadata(
+            provider="claude",
+            model="claude-3-7-sonnet-latest",
+            label="Claude Sonnet 3.7",
+            supports_image=True,
+            supports_reasoning=True,
+        ),
+        ModelMetadata(
+            provider="claude",
+            model="claude-3-5-haiku-latest",
+            label="Claude Haiku 3.5",
+            supports_image=True,
+        ),
     ),
     "huggingface": (
-        ModelMetadata(provider="huggingface", model="meta-llama/Llama-3.2-3B-Instruct", label="Llama 3.2 3B Instruct"),
-        ModelMetadata(provider="huggingface", model="Qwen/Qwen2.5-7B-Instruct", label="Qwen 2.5 7B Instruct"),
-        ModelMetadata(provider="huggingface", model="deepseek-ai/DeepSeek-R1-Distill-Qwen-7B", label="DeepSeek R1 Distill Qwen 7B", supports_reasoning=True),
+        ModelMetadata(
+            provider="huggingface",
+            model="meta-llama/Llama-3.2-3B-Instruct",
+            label="Llama 3.2 3B Instruct",
+        ),
+        ModelMetadata(
+            provider="huggingface",
+            model="Qwen/Qwen2.5-7B-Instruct",
+            label="Qwen 2.5 7B Instruct",
+        ),
+        ModelMetadata(
+            provider="huggingface",
+            model="deepseek-ai/DeepSeek-R1-Distill-Qwen-7B",
+            label="DeepSeek R1 Distill Qwen 7B",
+            supports_reasoning=True,
+        ),
         ModelMetadata(
             provider="huggingface",
             model="sentence-transformers/all-MiniLM-L6-v2",
             label="all-MiniLM-L6-v2",
             supports_embeddings=True,
         ),
-        ModelMetadata(provider="huggingface", model="intfloat/e5-base-v2", label="E5 Base v2", supports_embeddings=True),
-        ModelMetadata(provider="huggingface", model="BAAI/bge-small-en-v1.5", label="BGE Small EN v1.5", supports_embeddings=True),
+        ModelMetadata(
+            provider="huggingface",
+            model="intfloat/e5-base-v2",
+            label="E5 Base v2",
+            supports_embeddings=True,
+        ),
+        ModelMetadata(
+            provider="huggingface",
+            model="BAAI/bge-small-en-v1.5",
+            label="BGE Small EN v1.5",
+            supports_embeddings=True,
+        ),
     ),
 }
 
@@ -325,8 +460,12 @@ def _normalize_provider(provider: str) -> str:
 
 def _infer_ollama_metadata(model_name: str) -> ModelMetadata:
     normalized = model_name.lower()
-    supports_image = any(token in normalized for token in ("llava", "vision", "bakllava", "moondream"))
-    supports_reasoning = any(token in normalized for token in ("deepseek-r1", "qwq", "reason", "qwen3"))
+    supports_image = any(
+        token in normalized for token in ("llava", "vision", "bakllava", "moondream")
+    )
+    supports_reasoning = any(
+        token in normalized for token in ("deepseek-r1", "qwq", "reason", "qwen3")
+    )
     return ModelMetadata(
         provider="ollama",
         model=model_name,
@@ -339,8 +478,13 @@ def _infer_ollama_metadata(model_name: str) -> ModelMetadata:
 
 def _infer_huggingface_metadata(repo_id: str) -> ModelMetadata:
     normalized = repo_id.lower()
-    supports_image = any(token in normalized for token in ("vision", "vl", "llava", "pixtral", "moondream"))
-    supports_reasoning = any(token in normalized for token in ("reason", "r1", "r2", "qwq", "o1", "o3"))
+    supports_image = any(
+        token in normalized
+        for token in ("vision", "vl", "llava", "pixtral", "moondream")
+    )
+    supports_reasoning = any(
+        token in normalized for token in ("reason", "r1", "r2", "qwq", "o1", "o3")
+    )
     return ModelMetadata(
         provider="huggingface",
         model=repo_id,
@@ -385,9 +529,13 @@ class ProviderService:
                     provider=PROVIDER_CAPABILITIES[name].name,
                     supports_chat=PROVIDER_CAPABILITIES[name].supports_chat,
                     supports_embeddings=PROVIDER_CAPABILITIES[name].supports_embeddings,
-                    supports_structured_output=PROVIDER_CAPABILITIES[name].supports_structured_output,
+                    supports_structured_output=PROVIDER_CAPABILITIES[
+                        name
+                    ].supports_structured_output,
                     supports_streaming=PROVIDER_CAPABILITIES[name].supports_streaming,
-                    supports_tool_calling=PROVIDER_CAPABILITIES[name].supports_tool_calling,
+                    supports_tool_calling=PROVIDER_CAPABILITIES[
+                        name
+                    ].supports_tool_calling,
                 )
                 for name in ordered
             ]
@@ -404,11 +552,15 @@ class ProviderService:
         if metadata is None:
             raise ValueError(f"Unsupported provider: {provider}")
         if structured_output and not metadata.supports_structured_output:
-            raise ValueError(f"Provider '{provider}' does not support structured output")
+            raise ValueError(
+                f"Provider '{provider}' does not support structured output"
+            )
         if embeddings and not metadata.supports_embeddings:
             raise ValueError(f"Provider '{provider}' does not support embeddings")
 
-    def list_models(self, session_name: str = DEFAULT_SESSION_NAME) -> ProviderModelCatalogResponse:
+    def list_models(
+        self, session_name: str = DEFAULT_SESSION_NAME
+    ) -> ProviderModelCatalogResponse:
         metadata_rows: list[ModelMetadata] = []
         metadata_rows.extend(self._ollama_models(session_name))
         metadata_rows.extend(CURATED_MODELS.get("ollama", ()))
@@ -483,12 +635,18 @@ class ProviderService:
         repo_id: str,
         session_name: str = DEFAULT_SESSION_NAME,
     ) -> HuggingFaceModelDownloadResponse:
-        return self.huggingface_downloads.download_model(repo_id=repo_id, session_name=session_name)
+        return self.huggingface_downloads.download_model(
+            repo_id=repo_id, session_name=session_name
+        )
 
-    def get_huggingface_download_status(self, *, job_id: str) -> HuggingFaceModelDownloadStatusResponse:
+    def get_huggingface_download_status(
+        self, *, job_id: str
+    ) -> HuggingFaceModelDownloadStatusResponse:
         return self.huggingface_downloads.get_download_status(job_id=job_id)
 
-    def cancel_huggingface_download(self, *, job_id: str) -> HuggingFaceModelDownloadCancelResponse:
+    def cancel_huggingface_download(
+        self, *, job_id: str
+    ) -> HuggingFaceModelDownloadCancelResponse:
         return self.huggingface_downloads.cancel_download(job_id=job_id)
 
     def _list_ollama_library_models_impl(
@@ -508,7 +666,10 @@ class ProviderService:
                 searchable = f"{model_name} {description or ''}".lower()
                 if search_term not in searchable:
                     continue
-            is_pulled = model_name in pulled_models or _model_basename(model_name) in pulled_models
+            is_pulled = (
+                model_name in pulled_models
+                or _model_basename(model_name) in pulled_models
+            )
             models.append(
                 OllamaLibraryModelDefinition(
                     model=model_name,
@@ -537,7 +698,9 @@ class ProviderService:
             raise ProviderApiError("Model name is required.", status_code=400)
 
         try:
-            available = self._ollama_client(session_name).check_model_availability(normalized_model, auto_pull=True)
+            available = self._ollama_client(session_name).check_model_availability(
+                normalized_model, auto_pull=True
+            )
         except (ValueError, OllamaError) as exc:
             raise ProviderApiError(
                 f"Unable to pull Ollama model '{normalized_model}': {exc}",
@@ -565,12 +728,16 @@ class ProviderService:
         normalized_repo_id = _normalize_huggingface_repo_id(repo_id)
         destination = self._huggingface_local_model_path(normalized_repo_id)
 
-        is_complete, _, downloaded_bytes, total_bytes = self._is_huggingface_download_complete(
-            destination,
-            expected_repo_id=normalized_repo_id,
+        is_complete, _, downloaded_bytes, total_bytes = (
+            self._is_huggingface_download_complete(
+                destination,
+                expected_repo_id=normalized_repo_id,
+            )
         )
         if is_complete:
-            resolved_total = total_bytes if total_bytes is not None else downloaded_bytes
+            resolved_total = (
+                total_bytes if total_bytes is not None else downloaded_bytes
+            )
             return HuggingFaceModelDownloadResponse(
                 ok=True,
                 repo_id=normalized_repo_id,
@@ -585,7 +752,9 @@ class ProviderService:
                 poll_interval=get_server_settings().jobs.polling_interval,
             )
 
-        manifest = self._build_huggingface_download_manifest(repo_id=normalized_repo_id, session_name=session_name)
+        manifest = self._build_huggingface_download_manifest(
+            repo_id=normalized_repo_id, session_name=session_name
+        )
         manifest_total_bytes = _safe_int(manifest.get("total_bytes"))
         manifest_files = manifest.get("files")
         if not isinstance(manifest_files, list) or not manifest_files:
@@ -640,10 +809,12 @@ class ProviderService:
             progress=0.0,
             downloaded_bytes=0,
             total_bytes=manifest_total_bytes,
-                poll_interval=get_server_settings().jobs.polling_interval,
+            poll_interval=get_server_settings().jobs.polling_interval,
         )
 
-    def _get_huggingface_download_status_impl(self, *, job_id: str) -> HuggingFaceModelDownloadStatusResponse:
+    def _get_huggingface_download_status_impl(
+        self, *, job_id: str
+    ) -> HuggingFaceModelDownloadStatusResponse:
         payload = job_manager.get_job_status(job_id)
         if payload is None:
             raise ProviderApiError(f"Download job not found: {job_id}", status_code=404)
@@ -660,7 +831,9 @@ class ProviderService:
 
         repo_id = _coerce_optional_text(result.get("repo_id"))
         if not repo_id:
-            raise ProviderApiError(f"Download metadata unavailable for job: {job_id}", status_code=404)
+            raise ProviderApiError(
+                f"Download metadata unavailable for job: {job_id}", status_code=404
+            )
 
         destination_path = _coerce_optional_text(result.get("destination_path"))
         if destination_path is None:
@@ -690,7 +863,9 @@ class ProviderService:
             error=error,
         )
 
-    def _cancel_huggingface_download_impl(self, *, job_id: str) -> HuggingFaceModelDownloadCancelResponse:
+    def _cancel_huggingface_download_impl(
+        self, *, job_id: str
+    ) -> HuggingFaceModelDownloadCancelResponse:
         status = self.get_huggingface_download_status(job_id=job_id)
         success = job_manager.cancel_job(job_id)
         if not success:
@@ -722,8 +897,12 @@ class ProviderService:
     ) -> HuggingFaceModelCatalogResponse:
         safe_page = max(1, page)
         safe_page_size = max(1, min(page_size, HUGGINGFACE_MAX_PAGE_SIZE))
-        normalized_visibility: ModelVisibilityFilter = visibility if visibility in {"all", "public", "private", "gated"} else "all"
-        normalized_sort: HuggingFaceSortBy = sort if sort in HUGGINGFACE_SORT_FIELD_MAP else "relevance"
+        normalized_visibility: ModelVisibilityFilter = (
+            visibility if visibility in {"all", "public", "private", "gated"} else "all"
+        )
+        normalized_sort: HuggingFaceSortBy = (
+            sort if sort in HUGGINGFACE_SORT_FIELD_MAP else "relevance"
+        )
 
         cache_key = self._build_huggingface_cache_key(
             session_name=session_name,
@@ -756,7 +935,9 @@ class ProviderService:
         self._store_huggingface_cached_response(cache_key, response)
         return response
 
-    def _build_huggingface_download_manifest(self, *, repo_id: str, session_name: str) -> dict[str, Any]:
+    def _build_huggingface_download_manifest(
+        self, *, repo_id: str, session_name: str
+    ) -> dict[str, Any]:
         api, token = self._resolve_huggingface_api(session_name)
         model_info_kwargs: dict[str, Any] = {"files_metadata": True}
         if token:
@@ -863,7 +1044,11 @@ class ProviderService:
                 request_headers["Authorization"] = f"Bearer {token}"
 
             file_downloaded_bytes = 0
-            file_total_bytes = max(0, expected_size) if expected_size is not None and expected_size >= 0 else None
+            file_total_bytes = (
+                max(0, expected_size)
+                if expected_size is not None and expected_size >= 0
+                else None
+            )
             last_emit_at = 0.0
 
             try:
@@ -877,12 +1062,16 @@ class ProviderService:
                 ) as response:
                     response.raise_for_status()
                     if file_total_bytes is None:
-                        file_total_bytes = _safe_int(response.headers.get("Content-Length"))
+                        file_total_bytes = _safe_int(
+                            response.headers.get("Content-Length")
+                        )
 
                     with local_path.open("wb") as file_handle:
                         for chunk in response.iter_bytes(chunk_size=1024 * 1024):
                             if job_manager.should_stop(job_id):
-                                self._cleanup_huggingface_download_directory(destination)
+                                self._cleanup_huggingface_download_directory(
+                                    destination
+                                )
                                 job_manager.update_result(
                                     job_id,
                                     {
@@ -982,7 +1171,9 @@ class ProviderService:
                 status_code=500,
             )
 
-        resolved_total_bytes = safe_total_bytes if safe_total_bytes is not None else validated_bytes
+        resolved_total_bytes = (
+            safe_total_bytes if safe_total_bytes is not None else validated_bytes
+        )
         self._write_huggingface_model_metadata(
             repo_id,
             destination,
@@ -1078,7 +1269,9 @@ class ProviderService:
 
         return True, total_bytes
 
-    def _ollama_models(self, session_name: str = DEFAULT_SESSION_NAME) -> tuple[ModelMetadata, ...]:
+    def _ollama_models(
+        self, session_name: str = DEFAULT_SESSION_NAME
+    ) -> tuple[ModelMetadata, ...]:
         try:
             names = self._ollama_client(session_name).list_models()
         except ValueError:
@@ -1093,7 +1286,9 @@ class ProviderService:
                 names = [fallback]
         return tuple(_infer_ollama_metadata(name) for name in names)
 
-    def _to_model_definition(self, metadata: ModelMetadata, timeout_s: float | None = None) -> ProviderModelDefinition:
+    def _to_model_definition(
+        self, metadata: ModelMetadata, timeout_s: float | None = None
+    ) -> ProviderModelDefinition:
         return ProviderModelDefinition(
             provider=metadata.provider,
             model=metadata.model,
@@ -1142,7 +1337,9 @@ class ProviderService:
         if normalized_provider == "huggingface":
             return _infer_huggingface_metadata(model)
 
-        raise ValueError(f"Unknown model '{model}' for provider '{normalized_provider}'")
+        raise ValueError(
+            f"Unknown model '{model}' for provider '{normalized_provider}'"
+        )
 
     def validate_model_request(
         self,
@@ -1155,20 +1352,28 @@ class ProviderService:
         session_name: str = DEFAULT_SESSION_NAME,
     ) -> None:
         normalized_provider = _normalize_provider(provider)
-        self.assert_capabilities(normalized_provider, structured_output=structured_output)
+        self.assert_capabilities(
+            normalized_provider, structured_output=structured_output
+        )
 
         if normalized_provider in {"openai", "gemini", "claude"}:
             access_key = self._get_access_key(normalized_provider, session_name)
             if access_key is None or not access_key.api_key:
-                raise ValueError(f"Provider '{normalized_provider}' requires an access key in Configurations")
+                raise ValueError(
+                    f"Provider '{normalized_provider}' requires an access key in Configurations"
+                )
         elif normalized_provider == "huggingface":
             if requires_image:
-                raise ValueError("Provider 'huggingface' does not support image input in the current local runtime path")
+                raise ValueError(
+                    "Provider 'huggingface' does not support image input in the current local runtime path"
+                )
             is_local_model = model in self._downloaded_huggingface_repo_ids()
             if not is_local_model:
                 access_key = self._get_access_key(normalized_provider, session_name)
                 if access_key is None or not access_key.api_key:
-                    raise ValueError("Provider 'huggingface' requires an access key in Configurations for remote models")
+                    raise ValueError(
+                        "Provider 'huggingface' requires an access key in Configurations for remote models"
+                    )
 
         metadata = self.get_model_metadata(normalized_provider, model, session_name)
         if requires_image and not metadata.supports_image:
@@ -1206,17 +1411,23 @@ class ProviderService:
 
         try:
             client = select_llm_provider(normalized_provider, **kwargs)
-            return client.chat(model=model, messages=messages, format=response_format, options=options)
+            return client.chat(
+                model=model, messages=messages, format=response_format, options=options
+            )
         except (LLMError, OllamaError) as exc:
             raise ValueError(str(exc)) from exc
 
-    def _fallback_embedding(self, *, provider: str, model: str, text: str, dimensions: int | None) -> list[float]:
+    def _fallback_embedding(
+        self, *, provider: str, model: str, text: str, dimensions: int | None
+    ) -> list[float]:
         target_dimensions = dimensions or 12
         digest = hashlib.sha256(f"{provider}:{model}:{text}".encode("utf-8")).digest()
         values: list[float] = []
         for index in range(target_dimensions):
             start = (index * 2) % len(digest)
-            chunk = int.from_bytes(digest[start:start + 2], byteorder="big", signed=False)
+            chunk = int.from_bytes(
+                digest[start : start + 2], byteorder="big", signed=False
+            )
             values.append(round(chunk / 65535.0, 6))
         return values
 
@@ -1227,7 +1438,10 @@ class ProviderService:
             {"model": model, "prompt": text},
         )
         last_error: Exception | None = None
-        for path, payload in (("/api/embed", payloads[0]), ("/api/embeddings", payloads[1])):
+        for path, payload in (
+            ("/api/embed", payloads[0]),
+            ("/api/embeddings", payloads[1]),
+        ):
             try:
                 response = httpx.post(f"{base_url}{path}", json=payload, timeout=30.0)
                 if response.status_code == 404:
@@ -1236,7 +1450,11 @@ class ProviderService:
                 data = response.json()
                 if isinstance(data, dict):
                     embeddings = data.get("embeddings")
-                    if isinstance(embeddings, list) and embeddings and isinstance(embeddings[0], list):
+                    if (
+                        isinstance(embeddings, list)
+                        and embeddings
+                        and isinstance(embeddings[0], list)
+                    ):
                         return [float(item) for item in embeddings[0]]
                     embedding = data.get("embedding")
                     if isinstance(embedding, list):
@@ -1256,9 +1474,15 @@ class ProviderService:
     ) -> list[float]:
         access_key = self._get_access_key("openai", session_name)
         api_key = access_key.api_key if access_key else None
-        base_url = (access_key.base_url if access_key and access_key.base_url else "https://api.openai.com/v1").rstrip("/")
+        base_url = (
+            access_key.base_url
+            if access_key and access_key.base_url
+            else "https://api.openai.com/v1"
+        ).rstrip("/")
         if not api_key:
-            raise ValueError("Provider 'openai' requires an access key in Configurations")
+            raise ValueError(
+                "Provider 'openai' requires an access key in Configurations"
+            )
         payload: dict[str, Any] = {"model": model, "input": text}
         if dimensions is not None:
             payload["dimensions"] = dimensions
@@ -1266,12 +1490,19 @@ class ProviderService:
             f"{base_url}/embeddings",
             json=payload,
             timeout=30.0,
-            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            },
         )
         response.raise_for_status()
         data = response.json()
         items = data.get("data", []) if isinstance(data, dict) else []
-        if not items or not isinstance(items[0], dict) or not isinstance(items[0].get("embedding"), list):
+        if (
+            not items
+            or not isinstance(items[0], dict)
+            or not isinstance(items[0].get("embedding"), list)
+        ):
             raise ValueError("Invalid OpenAI embeddings response")
         return [float(item) for item in items[0]["embedding"]]
 
@@ -1288,18 +1519,36 @@ class ProviderService:
         self.assert_capabilities(normalized_provider, embeddings=True)
         try:
             if normalized_provider == "ollama":
-                vector = self._ollama_embed(model=model, text=text, session_name=session_name)
+                vector = self._ollama_embed(
+                    model=model, text=text, session_name=session_name
+                )
             elif normalized_provider == "openai":
-                vector = self._openai_embed(model=model, text=text, session_name=session_name, dimensions=dimensions)
+                vector = self._openai_embed(
+                    model=model,
+                    text=text,
+                    session_name=session_name,
+                    dimensions=dimensions,
+                )
             else:
-                vector = self._fallback_embedding(provider=normalized_provider, model=model, text=text, dimensions=dimensions)
+                vector = self._fallback_embedding(
+                    provider=normalized_provider,
+                    model=model,
+                    text=text,
+                    dimensions=dimensions,
+                )
         except httpx.HTTPError as exc:
-            raise ValueError(f"{normalized_provider} embeddings request failed: {exc}") from exc
+            raise ValueError(
+                f"{normalized_provider} embeddings request failed: {exc}"
+            ) from exc
         if dimensions is not None and len(vector) != dimensions:
-            raise ValueError(f"Embedding dimension mismatch: expected {dimensions}, got {len(vector)}")
+            raise ValueError(
+                f"Embedding dimension mismatch: expected {dimensions}, got {len(vector)}"
+            )
         return vector
 
-    def _load_ollama_library_catalog(self, *, refresh: bool) -> OllamaLibraryCachePayload:
+    def _load_ollama_library_catalog(
+        self, *, refresh: bool
+    ) -> OllamaLibraryCachePayload:
         now = time.monotonic()
         with self._cache_lock:
             cached = self._ollama_library_cache
@@ -1349,7 +1598,9 @@ class ProviderService:
             if not slug:
                 continue
             label_text = anchor.get_text(" ", strip=True)
-            description = label_text if label_text and label_text.lower() != slug else None
+            description = (
+                label_text if label_text and label_text.lower() != slug else None
+            )
             discovered.setdefault(slug, description)
 
         if not discovered:
@@ -1365,7 +1616,7 @@ class ProviderService:
     def _get_pulled_ollama_model_names(self, session_name: str) -> set[str]:
         try:
             pulled = self._ollama_client(session_name).list_models()
-        except (ValueError, OllamaError):
+        except ValueError, OllamaError:
             return set()
 
         normalized: set[str] = set()
@@ -1420,21 +1671,25 @@ class ProviderService:
         metadata_path = destination / HUGGINGFACE_LOCAL_MODEL_METADATA_FILE
         metadata_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
-    def _read_huggingface_metadata(self, model_directory: Path) -> dict[str, Any] | None:
+    def _read_huggingface_metadata(
+        self, model_directory: Path
+    ) -> dict[str, Any] | None:
         metadata_path = model_directory / HUGGINGFACE_LOCAL_MODEL_METADATA_FILE
         if not metadata_path.exists():
             return None
 
         try:
             payload = json.loads(metadata_path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
+        except OSError, json.JSONDecodeError:
             return None
 
         if isinstance(payload, dict):
             return payload
         return None
 
-    def _read_huggingface_repo_id_from_metadata(self, model_directory: Path) -> str | None:
+    def _read_huggingface_repo_id_from_metadata(
+        self, model_directory: Path
+    ) -> str | None:
         payload = self._read_huggingface_metadata(model_directory)
         if isinstance(payload, dict):
             candidate = _coerce_optional_text(payload.get("repo_id"))
@@ -1477,10 +1732,17 @@ class ProviderService:
             return False, repo_id, 0, expected_total_bytes
 
         metadata_downloaded_bytes = _safe_int(payload.get("downloaded_bytes"))
-        if metadata_downloaded_bytes is not None and metadata_downloaded_bytes != validated_bytes:
+        if (
+            metadata_downloaded_bytes is not None
+            and metadata_downloaded_bytes != validated_bytes
+        ):
             return False, repo_id, validated_bytes, expected_total_bytes
 
-        total_bytes = expected_total_bytes if expected_total_bytes is not None else validated_bytes
+        total_bytes = (
+            expected_total_bytes
+            if expected_total_bytes is not None
+            else validated_bytes
+        )
         return True, repo_id, validated_bytes, total_bytes
 
     def _downloaded_huggingface_models(self) -> tuple[ModelMetadata, ...]:
@@ -1489,7 +1751,9 @@ class ProviderService:
 
         models: list[ModelMetadata] = []
         seen: set[str] = set()
-        for item in sorted(HUGGINGFACE_LOCAL_MODELS_ROOT.iterdir(), key=lambda path: path.name.lower()):
+        for item in sorted(
+            HUGGINGFACE_LOCAL_MODELS_ROOT.iterdir(), key=lambda path: path.name.lower()
+        ):
             if not item.is_dir():
                 continue
 
@@ -1519,7 +1783,9 @@ class ProviderService:
         page_size: int,
     ) -> str:
         token = self._get_huggingface_token(session_name)
-        token_fingerprint = hashlib.sha256(token.encode("utf-8")).hexdigest()[:12] if token else "anon"
+        token_fingerprint = (
+            hashlib.sha256(token.encode("utf-8")).hexdigest()[:12] if token else "anon"
+        )
         return "|".join(
             [
                 session_name.strip(),
@@ -1535,7 +1801,9 @@ class ProviderService:
             ]
         )
 
-    def _load_huggingface_cached_response(self, cache_key: str, *, refresh: bool) -> HuggingFaceModelCatalogResponse | None:
+    def _load_huggingface_cached_response(
+        self, cache_key: str, *, refresh: bool
+    ) -> HuggingFaceModelCatalogResponse | None:
         if refresh:
             return None
 
@@ -1549,14 +1817,22 @@ class ProviderService:
                 return None
             return payload.model_copy(deep=True)
 
-    def _store_huggingface_cached_response(self, cache_key: str, payload: HuggingFaceModelCatalogResponse) -> None:
+    def _store_huggingface_cached_response(
+        self, cache_key: str, payload: HuggingFaceModelCatalogResponse
+    ) -> None:
         now = time.monotonic()
         expiry = now + HUGGINGFACE_CACHE_TTL_SECONDS
         with self._cache_lock:
-            stale_keys = [key for key, value in self._huggingface_cache.items() if value.expires_at <= now]
+            stale_keys = [
+                key
+                for key, value in self._huggingface_cache.items()
+                if value.expires_at <= now
+            ]
             for key in stale_keys:
                 self._huggingface_cache.pop(key, None)
-            self._huggingface_cache[cache_key] = CachedValue(value=payload.model_copy(deep=True), expires_at=expiry)
+            self._huggingface_cache[cache_key] = CachedValue(
+                value=payload.model_copy(deep=True), expires_at=expiry
+            )
 
     def _fetch_huggingface_models(
         self,
@@ -1624,9 +1900,15 @@ class ProviderService:
         if visibility in {"private", "gated"} and not token:
             warning = "Configure a Hugging Face token in Configurations to access private or gated models."
 
-        permission_warning = self._detect_huggingface_permission_warning(api=api, token=token, search=search, rows=rows)
+        permission_warning = self._detect_huggingface_permission_warning(
+            api=api, token=token, search=search, rows=rows
+        )
         if permission_warning:
-            warning = permission_warning if warning is None else f"{warning} {permission_warning}"
+            warning = (
+                permission_warning
+                if warning is None
+                else f"{warning} {permission_warning}"
+            )
 
         filter_tasks, filter_libraries = self._load_huggingface_filter_tags(
             api=api,
@@ -1667,15 +1949,23 @@ class ProviderService:
         token: str | None,
         refresh: bool,
     ) -> tuple[tuple[str, ...], tuple[str, ...]]:
-        cache_key = hashlib.sha256((token or "anonymous").encode("utf-8")).hexdigest()[:12]
+        cache_key = hashlib.sha256((token or "anonymous").encode("utf-8")).hexdigest()[
+            :12
+        ]
         now = time.monotonic()
 
         if not refresh:
             with self._cache_lock:
                 cached = self._huggingface_filter_tags_cache.get(cache_key)
-                if cached and cached.expires_at > now and isinstance(cached.value, tuple):
+                if (
+                    cached
+                    and cached.expires_at > now
+                    and isinstance(cached.value, tuple)
+                ):
                     cached_tasks, cached_libraries = cached.value
-                    if isinstance(cached_tasks, tuple) and isinstance(cached_libraries, tuple):
+                    if isinstance(cached_tasks, tuple) and isinstance(
+                        cached_libraries, tuple
+                    ):
                         return cached_tasks, cached_libraries
 
         tasks = HUGGINGFACE_FALLBACK_TASKS
@@ -1683,10 +1973,16 @@ class ProviderService:
         try:
             tags_payload = api.get_model_tags()
             if isinstance(tags_payload, dict):
-                extracted_tasks = _extract_huggingface_tag_values(tags_payload.get("pipeline_tag"))
-                extracted_libraries = _extract_huggingface_tag_values(tags_payload.get("library"))
+                extracted_tasks = _extract_huggingface_tag_values(
+                    tags_payload.get("pipeline_tag")
+                )
+                extracted_libraries = _extract_huggingface_tag_values(
+                    tags_payload.get("library")
+                )
                 if not extracted_libraries:
-                    extracted_libraries = _extract_huggingface_tag_values(tags_payload.get("library_name"))
+                    extracted_libraries = _extract_huggingface_tag_values(
+                        tags_payload.get("library_name")
+                    )
                 if extracted_tasks:
                     tasks = extracted_tasks
                 if extracted_libraries:
@@ -1753,7 +2049,9 @@ class ProviderService:
 
         return kwargs
 
-    def _parse_huggingface_model(self, payload: Any) -> HuggingFaceModelDefinition | None:
+    def _parse_huggingface_model(
+        self, payload: Any
+    ) -> HuggingFaceModelDefinition | None:
         if isinstance(payload, dict):
             read = payload.get
         else:
@@ -1800,7 +2098,9 @@ class ProviderService:
             size_bytes=_extract_huggingface_model_size(payload),
         )
 
-    def _visibility_matches(self, model_visibility: str, requested_visibility: ModelVisibilityFilter) -> bool:
+    def _visibility_matches(
+        self, model_visibility: str, requested_visibility: ModelVisibilityFilter
+    ) -> bool:
         if requested_visibility == "all":
             return True
         return model_visibility == requested_visibility
@@ -1893,6 +2193,3 @@ class ProviderService:
 
 
 provider_service = ProviderService()
-
-
-

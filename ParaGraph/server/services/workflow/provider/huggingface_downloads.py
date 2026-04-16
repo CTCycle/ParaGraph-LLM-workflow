@@ -23,9 +23,12 @@ class HuggingFaceDownloadService:
             session_name=session_name,
         )
 
-    def get_download_status(self, *, job_id: str) -> HuggingFaceModelDownloadStatusResponse:
-        return self._provider_service._get_huggingface_download_status_impl(job_id=job_id)  # noqa: SLF001
+    def get_download_status(
+        self, *, job_id: str
+    ) -> HuggingFaceModelDownloadStatusResponse:
+        return self._provider_service._get_huggingface_download_status_impl(
+            job_id=job_id
+        )  # noqa: SLF001
 
     def cancel_download(self, *, job_id: str) -> HuggingFaceModelDownloadCancelResponse:
         return self._provider_service._cancel_huggingface_download_impl(job_id=job_id)  # noqa: SLF001
-

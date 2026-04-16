@@ -53,7 +53,7 @@ class EnvironmentLoader:
             return default
         try:
             return int(value.strip())
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             return default
 
     # -------------------------------------------------------------------------
@@ -63,7 +63,7 @@ class EnvironmentLoader:
             return default
         try:
             return float(value.strip())
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             return default
 
     # -------------------------------------------------------------------------
