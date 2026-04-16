@@ -16,7 +16,7 @@ from ParaGraph.server.domain.node_handler_processing import (
     SentenceWindowChunksParameters,
 )
 from ParaGraph.server.services.workflow.node_handlers.base import NodeHandler
-from ParaGraph.server.services.workflow.node_handlers.ingestion.files import (
+from ParaGraph.server.services.workflow.node_handlers.ingestion import (
     load_file_text,
     resolve_local_path,
 )

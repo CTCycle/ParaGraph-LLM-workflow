@@ -31,7 +31,7 @@ from ParaGraph.server.services.workflow.node_handlers.common import (
 )
 
 
-def _resolve_local_path(path_value: str) -> Path:
+def resolve_local_path(path_value: str) -> Path:
     return Path(path_value).expanduser().resolve()
 
 
@@ -87,7 +87,7 @@ def _load_doc_text_fallback(path: Path) -> str:
     return ""
 
 
-def _load_file_text(path: Path) -> tuple[str, str]:
+def load_file_text(path: Path) -> tuple[str, str]:
     suffix = path.suffix.lower()
     if suffix in {".txt", ".md", ".markdown"}:
         return _read_text_file(path), mimetypes.guess_type(str(path))[0] or "text/plain"
@@ -141,7 +141,7 @@ def _build_database_url(payload: dict[str, Any]) -> tuple[str | URL, dict[str, A
         file_path = str(payload.get("file_path") or "").strip()
         if not file_path:
             raise ValueError("sqlite connections require file_path")
-        resolved_file = _resolve_local_path(file_path)
+        resolved_file = resolve_local_path(file_path)
         if not resolved_file.exists() or not resolved_file.is_file():
             raise ValueError(f"SQLite database file not found: {resolved_file}")
         return f"sqlite:///{resolved_file.as_posix()}", {}
@@ -176,7 +176,7 @@ def _directory_loader_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
 ) -> dict[str, Any]:
     _ = inputs
-    directory = _resolve_local_path(
+    directory = resolve_local_path(
         coerce_text(parameters.get("directory_path")).strip()
     )
     if not directory.exists() or not directory.is_dir():
@@ -195,7 +195,7 @@ def _directory_loader_executor(
     for path in sorted(paths):
         if not path.is_file() or path.suffix.lower() not in extensions:
             continue
-        text_content, mime_type = _load_file_text(path)
+        text_content, mime_type = load_file_text(path)
         documents.append(
             _build_document(
                 str(path.resolve()),
@@ -217,7 +217,7 @@ def _load_documents_executor(
 ) -> dict[str, Any]:
     _ = inputs
     parsed = LoadDocumentsParameters.model_validate(parameters)
-    directory = _resolve_local_path(parsed.folder_path)
+    directory = resolve_local_path(parsed.folder_path)
     if not directory.exists() or not directory.is_dir():
         raise ValueError(f"Directory not found: {directory}")
 
@@ -314,7 +314,7 @@ def _validate_and_build_database_connection(
         engine.dispose()
 
     resolved_file_path = (
-        str(_resolve_local_path(parsed.file_path))
+        str(resolve_local_path(parsed.file_path))
         if parsed.engine == "sqlite"
         else None
     )

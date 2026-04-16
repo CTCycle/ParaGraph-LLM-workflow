@@ -59,7 +59,7 @@ from ParaGraph.server.services.workflow.node_handlers.common import (
     validate_schema_definition,
 )
 from ParaGraph.server.services.workflow.provider import provider_service
-from ParaGraph.server.services.workflow.node_handlers.ingestion.files import (
+from ParaGraph.server.services.workflow.node_handlers.ingestion import (
     load_file_text,
     resolve_local_path,
 )
