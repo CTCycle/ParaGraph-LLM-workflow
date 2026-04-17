@@ -43,12 +43,13 @@
 
 .workflow-toolbar-status strong {
     display: block;
-    max-width: 32vw;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    max-width: min(72ch, 100%);
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    white-space: pre-wrap;
     color: #e4f0fe;
     font-size: 0.9rem;
+    line-height: 1.35;
 }
 
 .workflow-toolbar-actions {
@@ -1117,6 +1118,7 @@
     .workflow-layout,
     .workflow-layout[data-library-hidden='true'] {
         grid-template-columns: 1fr;
+        overflow: visible;
     }
 
     .workflow-library-shell {
@@ -1126,22 +1128,49 @@
     }
 
     .workflow-canvas-panel {
-        min-height: 620px;
+        min-height: clamp(340px, 56vh, 620px);
+    }
+
+    .workflow-bottom-editor-shell {
+        min-height: 0;
     }
 }
 
 @media (max-width: 760px) {
     .workflow-shell {
+        height: auto;
+        overflow: auto;
         padding-left: var(--space-1);
         padding-right: var(--space-1);
     }
 
+    .workflow-toolbar-actions {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        justify-content: stretch;
+        gap: 4px;
+    }
+
     .workflow-toolbar button {
-        flex: 1 1 120px;
-        min-width: 0;
         min-height: var(--control-height-sm);
         padding: 0 9px;
         font-size: 0.78rem;
+    }
+
+    .workflow-library-shell {
+        max-height: min(42vh, 300px);
+    }
+
+    .workflow-canvas-column {
+        overflow: visible;
+    }
+
+    .workflow-canvas-panel {
+        min-height: 62vh;
+    }
+
+    .workflow-bottom-editor-shell {
+        display: none;
     }
 }
 

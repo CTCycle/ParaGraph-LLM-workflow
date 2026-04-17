@@ -30,6 +30,8 @@ type ConfigurationFormValues = {
     selectedCloudProvider: CloudProvider
 }
 
+type InlineStatusTone = 'neutral' | 'success' | 'error'
+
 const DEFAULT_SESSION_NAME = 'default'
 const CLOUD_PROVIDER_OPTIONS: Array<{ value: CloudProvider; label: string }> = [
     { value: 'openai', label: 'OpenAI' },
@@ -115,6 +117,7 @@ export default function ConfigurationsPage() {
     const [ollamaEmbeddingModel, setOllamaEmbeddingModel] = useState('nomic-embed-text')
     const [statusMessage, setStatusMessage] = useState<string | null>(null)
     const [ollamaStatus, setOllamaStatus] = useState<string | null>(null)
+    const [ollamaStatusTone, setOllamaStatusTone] = useState<InlineStatusTone>('neutral')
     const [isLoading, setIsLoading] = useState(true)
     const [isSavingProfile, setIsSavingProfile] = useState(false)
     const [isPingingOllama, setIsPingingOllama] = useState(false)
@@ -247,9 +250,11 @@ export default function ConfigurationsPage() {
     async function handlePingOllama(): Promise<void> {
         setIsPingingOllama(true)
         setOllamaStatus(null)
+        setOllamaStatusTone('neutral')
         try {
             const response = await pingOllama(normalizeText(ollamaBaseUrl) || null)
             setOllamaStatus(formatOllamaStatusMessage(response.message, ollamaBaseUrl))
+            setOllamaStatusTone(response.ok ? 'success' : 'error')
         } catch (error) {
             setOllamaStatus(
                 formatOllamaStatusMessage(
@@ -257,6 +262,7 @@ export default function ConfigurationsPage() {
                     ollamaBaseUrl,
                 ),
             )
+            setOllamaStatusTone('error')
         } finally {
             setIsPingingOllama(false)
         }
@@ -316,7 +322,19 @@ export default function ConfigurationsPage() {
                         </label>
                     </form>
 
-                    {ollamaStatus && <p className="config-panel-note">{ollamaStatus}</p>}
+                    {ollamaStatus && (
+                        <p
+                            className={`config-panel-note ${ollamaStatusTone === 'error'
+                                ? 'config-panel-note-error'
+                                : ollamaStatusTone === 'success'
+                                    ? 'config-panel-note-success'
+                                    : ''}`}
+                            role={ollamaStatusTone === 'error' ? 'alert' : 'status'}
+                        >
+                            {ollamaStatusTone === 'error' ? 'Error: ' : ''}
+                            {ollamaStatus}
+                        </p>
+                    )}
                 </section>
 
                 <section className="config-panel config-panel-column">
