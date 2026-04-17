@@ -27,7 +27,7 @@ function sleep(ms: number, signal?: AbortSignal): Promise<void> {
   if (!signal) return new Promise((resolve) => setTimeout(resolve, ms))
   if (signal.aborted) return Promise.reject(createAbortError())
   return new Promise((resolve, reject) => {
-    const timer = globalThis.setTimeout(() => {
+    const timer = window.setTimeout(() => {
       cleanup()
       resolve()
     }, ms)
@@ -36,7 +36,7 @@ function sleep(ms: number, signal?: AbortSignal): Promise<void> {
       reject(createAbortError())
     }
     const cleanup = (): void => {
-      globalThis.clearTimeout(timer)
+      window.clearTimeout(timer)
       signal.removeEventListener('abort', handleAbort)
     }
     signal.addEventListener('abort', handleAbort, { once: true })
