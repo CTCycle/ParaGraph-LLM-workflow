@@ -145,6 +145,26 @@
     margin: 12px 0 0;
     color: #b5cae6;
     font-size: 0.84rem;
+    line-height: 1.4;
+}
+
+.config-panel-note-success,
+.config-panel-note-error {
+    padding: 10px 12px;
+    border-radius: 10px;
+    border-left: 4px solid transparent;
+}
+
+.config-panel-note-success {
+    color: #b8ffe0;
+    border-left-color: #2ecb8a;
+    background: rgba(17, 76, 55, 0.35);
+}
+
+.config-panel-note-error {
+    color: #ffd9df;
+    border-left-color: #ff5f83;
+    background: rgba(109, 27, 48, 0.38);
 }
 
 .config-modal-backdrop {

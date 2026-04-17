@@ -92,4 +92,21 @@ describe('ConfigurationsPage profile modal flows', () => {
             expect(saveConfigurationProfileMock).toHaveBeenCalledWith('team profile', expect.any(Object))
         })
     })
+
+    it('renders ollama connectivity failures with strong error styling and alert semantics', async () => {
+        const fetchConfigurationsMock = vi.mocked(workflowApi.fetchConfigurations)
+        const pingOllamaMock = vi.mocked(workflowApi.pingOllama)
+
+        fetchConfigurationsMock.mockResolvedValue(createConfigurationPayload())
+        pingOllamaMock.mockRejectedValue(new Error('Unable to reach Ollama at http://127.0.0.1:1'))
+
+        render(<ConfigurationsPage />)
+
+        await screen.findByText('Configuration loaded')
+        await userEvent.click(screen.getByRole('button', { name: 'Check Status' }))
+
+        const alert = await screen.findByRole('alert')
+        expect(alert).toHaveClass('config-panel-note-error')
+        expect(alert).toHaveTextContent('Error:')
+    })
 })

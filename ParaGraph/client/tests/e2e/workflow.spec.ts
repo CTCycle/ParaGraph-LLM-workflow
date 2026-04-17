@@ -284,3 +284,92 @@ test('Workflow canvas renders imported links and clears them through the UI', as
     await page.getByRole('button', { name: 'Clear Links' }).click()
     await expect(page.locator('.react-flow__edge-path')).toHaveCount(0)
 })
+
+test('Workflow mobile layout keeps actions and canvas usable', async ({ page }) => {
+    await setupMockBackend(page)
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto('/')
+
+    const runButton = page.getByRole('button', { name: 'Run Workflow' })
+    await expect(runButton).toBeVisible()
+    await expect(runButton).toBeInViewport()
+
+    const canvasPanelBounds = await page.locator('.workflow-canvas-panel').boundingBox()
+    expect(canvasPanelBounds).not.toBeNull()
+    expect((canvasPanelBounds as { height: number }).height).toBeGreaterThan(320)
+    await expect(page.locator('.workflow-canvas-panel')).toBeInViewport()
+})
+
+test('Workflow status area renders long compile diagnostics without truncating content', async ({ page }) => {
+    await setupMockBackend(page)
+    const longDiagnostic =
+        'Compilation failed: Invalid metadata filter JSON at node PROMPT_1; expected object with key-value pairs but received malformed input. Keep this full message visible for debugging.'
+
+    await page.route('**/api/executions/compile', async (route) => {
+        await route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify({
+                valid: false,
+                diagnostics: [{ message: longDiagnostic }],
+                plan: null,
+            }),
+        })
+    })
+
+    await page.goto('/')
+    const fileChooserPromise = page.waitForEvent('filechooser')
+    await page.getByRole('button', { name: 'Import JSON' }).click()
+    const fileChooser = await fileChooserPromise
+    await fileChooser.setFiles({
+        name: 'workflow.json',
+        mimeType: 'application/json',
+        buffer: Buffer.from(buildWorkflowBundleJson(), 'utf-8'),
+    })
+
+    await page.getByRole('button', { name: 'Run Workflow' }).click()
+    await expect(page.locator('.workflow-toolbar-status strong')).toHaveText(longDiagnostic)
+})
+
+test('Workflow prevents re-run while execution error modal is open', async ({ page }) => {
+    await setupMockBackend(page)
+
+    await page.route('**/api/executions/run-e2e', async (route) => {
+        await route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify({
+                run_id: 'run-e2e',
+                workflow_id: null,
+                plan_id: 'plan-e2e',
+                status: 'failed',
+                created_at: '2026-03-24T00:00:00Z',
+                updated_at: '2026-03-24T00:00:00Z',
+                progress: 100,
+                steps: [],
+                outputs: {},
+                error: 'Deterministic execution failure for modal test',
+            }),
+        })
+    })
+
+    await page.goto('/')
+    const fileChooserPromise = page.waitForEvent('filechooser')
+    await page.getByRole('button', { name: 'Import JSON' }).click()
+    const fileChooser = await fileChooserPromise
+    await fileChooser.setFiles({
+        name: 'workflow.json',
+        mimeType: 'application/json',
+        buffer: Buffer.from(buildWorkflowBundleJson(), 'utf-8'),
+    })
+
+    await page.getByRole('button', { name: 'Run Workflow' }).click()
+    await expect(page.getByRole('dialog', { name: 'Workflow execution error' })).toBeVisible()
+
+    const runButton = page.getByRole('button', { name: 'Run Workflow' })
+    await expect(runButton).toBeDisabled()
+
+    await page.getByRole('button', { name: 'Close error dialog' }).click()
+    await expect(page.getByRole('dialog', { name: 'Workflow execution error' })).toHaveCount(0)
+    await expect(runButton).toBeEnabled()
+})

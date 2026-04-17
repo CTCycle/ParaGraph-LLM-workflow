@@ -2958,6 +2958,7 @@ function WorkflowEditor() {
         })).filter((group) => group.nodes.length > 0)
     }, [filteredCatalog])
     const hasRunnableNodes = useMemo(() => nodes.some((node) => !node.data.skipped), [nodes])
+    const isExecutionErrorModalOpen = executionErrorModal !== null
 
     const selectedManifest = useMemo(() => {
         if (selectedManifestKey) {
@@ -3946,6 +3947,10 @@ function WorkflowEditor() {
         if (isRunning) {
             return
         }
+        if (executionErrorModal) {
+            setStatusText('Close the execution error dialog before starting a new run')
+            return
+        }
         if (!hasRunnableNodes) {
             setStatusText('Add at least one active node before running the workflow')
             return
@@ -4026,7 +4031,7 @@ function WorkflowEditor() {
             <div className="workflow-toolbar" role="navigation" aria-label="Workflow actions">
                 <div className="workflow-toolbar-status">
                     <span className="workflow-toolbar-status-label">Status</span>
-                    <strong title={statusText}>{statusText}</strong>
+                    <strong>{statusText}</strong>
                 </div>
                 <div className="workflow-toolbar-actions">
                     <button type="button" onClick={() => void exportWorkflowBundle()}>
@@ -4051,7 +4056,12 @@ function WorkflowEditor() {
                     <button type="button" onClick={() => setEdges([])}>
                         Clear Links
                     </button>
-                    <button type="button" className="workflow-run" onClick={() => void runWorkflow()} disabled={isRunning || !hasRunnableNodes}>
+                    <button
+                        type="button"
+                        className="workflow-run"
+                        onClick={() => void runWorkflow()}
+                        disabled={isRunning || !hasRunnableNodes || isExecutionErrorModalOpen}
+                    >
                         {isRunning ? 'Running...' : 'Run Workflow'}
                     </button>
                 </div>

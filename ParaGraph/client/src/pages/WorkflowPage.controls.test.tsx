@@ -17,4 +17,12 @@ describe('WorkflowPage canvas controls source', () => {
         expect(source).toContain("{isGridVisible ? '⊞' : '⊟'}")
         expect(source).not.toContain("{isGridVisible ? '##' : '..'}")
     })
+
+    it('blocks new runs while the execution error modal is open', () => {
+        const source = readWorkflowPageSource()
+        expect(source).toContain('const isExecutionErrorModalOpen = executionErrorModal !== null')
+        expect(source).toContain('if (executionErrorModal)')
+        expect(source).toContain("setStatusText('Close the execution error dialog before starting a new run')")
+        expect(source).toContain('disabled={isRunning || !hasRunnableNodes || isExecutionErrorModalOpen}')
+    })
 })
