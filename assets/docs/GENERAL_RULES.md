@@ -1,5 +1,5 @@
 # General Rules
-Last updated: 2026-04-08
+Last updated: 2026-04-17
 
 This is the mandatory entry document for every task.
 
@@ -63,6 +63,8 @@ Required consistency checks:
 - Keep API handlers thin and move logic into services.
 - Preserve backward compatibility where required; migrate legacy contracts explicitly.
 - Use secure defaults: validation, path safety, least privilege.
+- Do not introduce global variables (`global ...`, mutable module-level shared state, or `globalThis`-based shared mutable data). Use explicit dependency injection, local state, or scoped context providers instead.
+- Enforce this rule across code and docs under `assets/docs`; when adding or updating coding guidance, keep this prohibition explicit.
 
 ## 7. Frontend File Handling Rules
 

@@ -254,7 +254,7 @@ function pickWorkflowJsonFromBrowser(): Promise<SelectedWorkflowJson | null> {
                 return
             }
             settled = true
-            globalThis.removeEventListener('focus', handleWindowFocus)
+            window.removeEventListener('focus', handleWindowFocus)
             resolve(value)
         }
 
@@ -263,12 +263,12 @@ function pickWorkflowJsonFromBrowser(): Promise<SelectedWorkflowJson | null> {
                 return
             }
             settled = true
-            globalThis.removeEventListener('focus', handleWindowFocus)
+            window.removeEventListener('focus', handleWindowFocus)
             reject(error)
         }
 
         const handleWindowFocus = (): void => {
-            globalThis.setTimeout(() => {
+            window.setTimeout(() => {
                 if (!settled && !changeHandled && !input.files?.length) {
                     settle(null)
                 }
@@ -292,7 +292,7 @@ function pickWorkflowJsonFromBrowser(): Promise<SelectedWorkflowJson | null> {
                 })
         })
 
-        globalThis.addEventListener('focus', handleWindowFocus, { once: true })
+        window.addEventListener('focus', handleWindowFocus, { once: true })
         input.click()
     })
 }
@@ -404,14 +404,14 @@ function registerPickerCancelHandler(
     }
 
     const handleWindowFocus = (): void => {
-        globalThis.setTimeout(() => {
+        window.setTimeout(() => {
             if (!wasChangeHandled() && !input.files?.length) {
                 settleAsCancelled()
             }
         }, BROWSER_PICKER_CANCEL_GUARD_MS)
     }
-    globalThis.addEventListener('focus', handleWindowFocus, { once: true })
-    return () => globalThis.removeEventListener('focus', handleWindowFocus)
+    window.addEventListener('focus', handleWindowFocus, { once: true })
+    return () => window.removeEventListener('focus', handleWindowFocus)
 }
 
 function inferSelectedFolderName(files: File[]): string {
@@ -492,7 +492,7 @@ function pickFilesFromBrowser(options: { multiple: boolean }): Promise<BrowserFi
 }
 
 async function pickDirectoryHandleFromBrowser(): Promise<BrowserDirectoryHandleSelection | null> {
-    const browserWindow = globalThis.window as WindowWithDirectoryPicker
+    const browserWindow = window as WindowWithDirectoryPicker
     const picker = browserWindow.showDirectoryPicker
     if (typeof picker !== 'function') {
         throw new TypeError('Directory picker is not supported in this browser')
@@ -536,7 +536,7 @@ function readBaseFileNameFromPath(pathValue: string): string {
 }
 
 async function pickSaveFileFromBrowser(options: SaveFilePickerOptions): Promise<SaveFileSelection | null> {
-    const browserWindow = globalThis.window as WindowWithSaveFilePicker
+    const browserWindow = window as WindowWithSaveFilePicker
     const picker = browserWindow.showSaveFilePicker
     if (typeof picker !== 'function') {
         throw new TypeError('Save As is not supported in this browser')
@@ -1140,12 +1140,12 @@ function createDefaultExpandedCategoriesState(): CategoryExpansionState {
 
 function createExpandedCategoriesState(): CategoryExpansionState {
     const fallback = createDefaultExpandedCategoriesState()
-    if (typeof globalThis.window === 'undefined') {
+    if (typeof window === 'undefined') {
         return fallback
     }
 
     try {
-        const raw = globalThis.localStorage.getItem(WORKFLOW_TREE_STATE_STORAGE_KEY)
+        const raw = window.localStorage.getItem(WORKFLOW_TREE_STATE_STORAGE_KEY)
         if (!raw) {
             return fallback
         }
@@ -1355,12 +1355,12 @@ function readImportedWorkflowPayload(value: unknown): ImportedWorkflowPayload {
 }
 
 function readPersistedWorkflowState(): PersistedWorkflowState | null {
-    if (typeof globalThis.window === 'undefined') {
+    if (typeof window === 'undefined') {
         return null
     }
 
     try {
-        const raw = globalThis.localStorage.getItem(WORKFLOW_STATE_STORAGE_KEY)
+        const raw = window.localStorage.getItem(WORKFLOW_STATE_STORAGE_KEY)
         if (!raw) {
             return null
         }
@@ -1453,10 +1453,10 @@ function readPersistedWorkflowState(): PersistedWorkflowState | null {
 }
 
 function persistWorkflowState(state: PersistedWorkflowState): void {
-    if (typeof globalThis.window === 'undefined') {
+    if (typeof window === 'undefined') {
         return
     }
-    globalThis.localStorage.setItem(WORKFLOW_STATE_STORAGE_KEY, JSON.stringify(state))
+    window.localStorage.setItem(WORKFLOW_STATE_STORAGE_KEY, JSON.stringify(state))
 }
 
 function buildNodeSummary(manifest: NodeManifest): string {
@@ -2538,12 +2538,12 @@ function WorkflowEditor() {
             return
         }
 
-        const clearTimer = globalThis.setTimeout(() => {
+        const clearTimer = window.setTimeout(() => {
             setGlowTrailNodeIds([])
         }, NODE_GLOW_CLEAR_DELAY_MS)
 
         return () => {
-            globalThis.clearTimeout(clearTimer)
+            window.clearTimeout(clearTimer)
         }
     }, [activeNodeId, glowTrailNodeIds])
 
@@ -2579,14 +2579,14 @@ function WorkflowEditor() {
             setIsEditorResizing(false)
         }
 
-        globalThis.addEventListener('pointermove', handlePointerMove)
-        globalThis.addEventListener('pointerup', stopResize)
-        globalThis.addEventListener('pointercancel', stopResize)
+        window.addEventListener('pointermove', handlePointerMove)
+        window.addEventListener('pointerup', stopResize)
+        window.addEventListener('pointercancel', stopResize)
 
         return () => {
-            globalThis.removeEventListener('pointermove', handlePointerMove)
-            globalThis.removeEventListener('pointerup', stopResize)
-            globalThis.removeEventListener('pointercancel', stopResize)
+            window.removeEventListener('pointermove', handlePointerMove)
+            window.removeEventListener('pointerup', stopResize)
+            window.removeEventListener('pointercancel', stopResize)
         }
     }, [isEditorResizing])
 
@@ -2595,8 +2595,8 @@ function WorkflowEditor() {
             setEditorPanelHeight((current) => clampEditorPanelHeight(current))
         }
 
-        globalThis.addEventListener('resize', handleResize)
-        return () => globalThis.removeEventListener('resize', handleResize)
+        window.addEventListener('resize', handleResize)
+        return () => window.removeEventListener('resize', handleResize)
     }, [])
 
     useEffect(() => {
@@ -2682,11 +2682,11 @@ function WorkflowEditor() {
             }
         }
 
-        globalThis.addEventListener('pointerdown', closeNodeContextMenu)
-        globalThis.addEventListener('keydown', handleEscape)
+        window.addEventListener('pointerdown', closeNodeContextMenu)
+        window.addEventListener('keydown', handleEscape)
         return () => {
-            globalThis.removeEventListener('pointerdown', closeNodeContextMenu)
-            globalThis.removeEventListener('keydown', handleEscape)
+            window.removeEventListener('pointerdown', closeNodeContextMenu)
+            window.removeEventListener('keydown', handleEscape)
         }
     }, [nodeContextMenu])
 
@@ -2703,8 +2703,8 @@ function WorkflowEditor() {
             setExecutionErrorModal(null)
         }
 
-        globalThis.addEventListener('keydown', handleEscape)
-        return () => globalThis.removeEventListener('keydown', handleEscape)
+        window.addEventListener('keydown', handleEscape)
+        return () => window.removeEventListener('keydown', handleEscape)
     }, [executionErrorModal])
     useEffect(() => {
         function handleKeyboardShortcuts(event: KeyboardEvent): void {
@@ -2810,15 +2810,15 @@ function WorkflowEditor() {
             }
         }
 
-        globalThis.addEventListener('keydown', handleKeyboardShortcuts)
+        window.addEventListener('keydown', handleKeyboardShortcuts)
         return () => {
-            globalThis.removeEventListener('keydown', handleKeyboardShortcuts)
+            window.removeEventListener('keydown', handleKeyboardShortcuts)
         }
     }, [edges, nodes, setEdges, setNodes])
 
     useEffect(() => {
         try {
-            globalThis.localStorage.setItem(WORKFLOW_TREE_STATE_STORAGE_KEY, JSON.stringify(expandedCategories))
+            window.localStorage.setItem(WORKFLOW_TREE_STATE_STORAGE_KEY, JSON.stringify(expandedCategories))
         } catch {
             // Ignore local storage persistence errors.
         }
@@ -4368,7 +4368,7 @@ function WorkflowEditor() {
                                         return
                                     }
                                     const currentName = getNodeOutputName(contextMenuNode.data.parameters) ?? ''
-                                    const nextName = globalThis.prompt('Rename output', currentName)
+                                    const nextName = window.prompt('Rename output', currentName)
                                     if (nextName === null) {
                                         return
                                     }
