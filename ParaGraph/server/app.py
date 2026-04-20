@@ -4,8 +4,6 @@ import os
 import warnings
 from pathlib import Path
 
-warnings.filterwarnings("ignore", category=FutureWarning)
-
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
@@ -22,6 +20,8 @@ from ParaGraph.server.api.nodes import router as nodes_router
 from ParaGraph.server.api.providers import router as providers_router
 from ParaGraph.server.api.workflows import router as workflows_router
 from ParaGraph.server.api.ws import router as ws_router
+
+warnings.filterwarnings("ignore", category=FutureWarning)
 
 
 cloud_mode = is_cloud_deployment()
@@ -54,7 +54,6 @@ if tauri_mode and frontend_dist.exists():
         "/", StaticFiles(directory=str(frontend_dist), html=True), name="paragraph-ui"
     )
 else:
-
     @app.get("/")
     def redirect_to_docs():
         if cloud_mode:

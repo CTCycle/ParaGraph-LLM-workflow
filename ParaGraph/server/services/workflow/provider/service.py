@@ -4,7 +4,6 @@ from datetime import datetime, timezone
 import json
 import hashlib
 from pathlib import Path
-import re
 import shutil
 from threading import Lock
 import time
@@ -170,17 +169,15 @@ def _resolve_visibility(private: bool | None, gated: bool | None) -> str:
 
 
 def _extract_huggingface_model_size(payload: Any) -> int | None:
-    if isinstance(payload, dict):
-        read = payload.get
-    else:
-        read = lambda key: getattr(payload, key, None)
+    def _read(key: str) -> Any:
+        return _payload_value(payload, key)
 
     for key in ("size", "model_size", "total_size", "usedStorage"):
-        candidate = _safe_int(read(key))
+        candidate = _safe_int(_read(key))
         if candidate is not None and candidate >= 0:
             return candidate
 
-    safetensors = read("safetensors")
+    safetensors = _read("safetensors")
     if isinstance(safetensors, dict):
         total = _safe_int(
             safetensors.get("total")
@@ -190,7 +187,7 @@ def _extract_huggingface_model_size(payload: Any) -> int | None:
         if total is not None and total >= 0:
             return total
 
-    siblings = read("siblings")
+    siblings = _read("siblings")
     if isinstance(siblings, list) and siblings:
         total_bytes = 0
         found_size = False
@@ -238,6 +235,12 @@ def _extract_huggingface_tag_values(payload: Any) -> tuple[str, ...]:
             values.add(candidate)
 
     return tuple(sorted(values))
+
+
+def _payload_value(payload: Any, key: str) -> Any:
+    if isinstance(payload, dict):
+        return payload.get(key)
+    return getattr(payload, key, None)
 
 
 PROVIDER_CAPABILITIES = {
@@ -954,16 +957,14 @@ class ProviderService:
         has_unknown_size = False
 
         for sibling in siblings or []:
-            if isinstance(sibling, dict):
-                read = sibling.get
-            else:
-                read = lambda key: getattr(sibling, key, None)
-
-            relative_path = _coerce_optional_text(read("rfilename") or read("filename"))
+            relative_path = _coerce_optional_text(
+                _payload_value(sibling, "rfilename")
+                or _payload_value(sibling, "filename")
+            )
             if not relative_path:
                 continue
 
-            size_bytes = _safe_int(read("size"))
+            size_bytes = _safe_int(_payload_value(sibling, "size"))
             if size_bytes is None:
                 has_unknown_size = True
             else:
@@ -2052,21 +2053,24 @@ class ProviderService:
     def _parse_huggingface_model(
         self, payload: Any
     ) -> HuggingFaceModelDefinition | None:
-        if isinstance(payload, dict):
-            read = payload.get
-        else:
-            read = lambda key: getattr(payload, key, None)
-
-        repo_id = _coerce_optional_text(read("id") or read("modelId"))
+        repo_id = _coerce_optional_text(
+            _payload_value(payload, "id") or _payload_value(payload, "modelId")
+        )
         if repo_id is None:
             return None
 
-        author = _coerce_optional_text(read("author"))
-        task = _coerce_optional_text(read("pipeline_tag") or read("pipelineTag"))
-        library = _coerce_optional_text(read("library_name") or read("libraryName"))
+        author = _coerce_optional_text(_payload_value(payload, "author"))
+        task = _coerce_optional_text(
+            _payload_value(payload, "pipeline_tag")
+            or _payload_value(payload, "pipelineTag")
+        )
+        library = _coerce_optional_text(
+            _payload_value(payload, "library_name")
+            or _payload_value(payload, "libraryName")
+        )
 
         if library is None:
-            tags = read("tags")
+            tags = _payload_value(payload, "tags")
             if isinstance(tags, list):
                 for item in tags:
                     text = _coerce_optional_text(item)
@@ -2074,10 +2078,12 @@ class ProviderService:
                         library = text
                         break
 
-        private = _coerce_optional_bool(read("private"))
-        gated = _coerce_optional_bool(read("gated"))
+        private = _coerce_optional_bool(_payload_value(payload, "private"))
+        gated = _coerce_optional_bool(_payload_value(payload, "gated"))
 
-        last_modified_raw = read("last_modified") or read("lastModified")
+        last_modified_raw = _payload_value(payload, "last_modified") or _payload_value(
+            payload, "lastModified"
+        )
         if isinstance(last_modified_raw, datetime):
             last_modified = last_modified_raw.astimezone(timezone.utc).isoformat()
         else:
@@ -2088,8 +2094,8 @@ class ProviderService:
             author=author,
             task=task,
             library=library,
-            likes=_safe_int(read("likes")),
-            downloads=_safe_int(read("downloads")),
+            likes=_safe_int(_payload_value(payload, "likes")),
+            downloads=_safe_int(_payload_value(payload, "downloads")),
             visibility=_resolve_visibility(private, gated),
             private=private,
             gated=gated,

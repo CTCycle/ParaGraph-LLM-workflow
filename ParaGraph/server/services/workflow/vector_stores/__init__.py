@@ -1,20 +1,50 @@
 from __future__ import annotations
 
 from ParaGraph.server.services.workflow.vector_stores.base import (
-    ChromaVectorStoreAdapter,
-    LanceDbVectorStoreAdapter,
-    MilvusVectorStoreAdapter,
-    PineconeVectorStoreAdapter,
-    QdrantVectorStoreAdapter,
     VectorStoreAdapter,
     VectorStoreError,
+)
+from ParaGraph.server.services.workflow.vector_stores.chroma import (
+    ChromaVectorStoreAdapter,
+)
+from ParaGraph.server.services.workflow.vector_stores.lancedb import (
+    LanceDbVectorStoreAdapter,
+)
+from ParaGraph.server.services.workflow.vector_stores.milvus import (
+    MilvusVectorStoreAdapter,
+)
+from ParaGraph.server.services.workflow.vector_stores.pinecone import (
+    PineconeVectorStoreAdapter,
+)
+from ParaGraph.server.services.workflow.vector_stores.qdrant import (
+    QdrantVectorStoreAdapter,
+)
+from ParaGraph.server.services.workflow.vector_stores.weaviate import (
     WeaviateVectorStoreAdapter,
-    get_vector_store_adapter,
 )
 
 
 class FaissVectorStoreAdapter(VectorStoreAdapter):
     pass
+
+
+VECTOR_STORE_ADAPTERS = {
+    "faiss": FaissVectorStoreAdapter(),
+    "lancedb": LanceDbVectorStoreAdapter(),
+    "qdrant": QdrantVectorStoreAdapter(),
+    "pinecone": PineconeVectorStoreAdapter(),
+    "weaviate": WeaviateVectorStoreAdapter(),
+    "milvus": MilvusVectorStoreAdapter(),
+    "chroma": ChromaVectorStoreAdapter(),
+}
+
+
+def get_vector_store_adapter(backend: str) -> VectorStoreAdapter:
+    adapter = VECTOR_STORE_ADAPTERS.get(backend.lower().strip())
+    if adapter is None:
+        raise VectorStoreError(f"Unsupported vector store backend: {backend}")
+    return adapter
+
 
 __all__ = [
     "ChromaVectorStoreAdapter",
