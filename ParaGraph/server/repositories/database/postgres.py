@@ -196,10 +196,6 @@ class PostgresRepository:
             db_session.commit()
 
     # -------------------------------------------------------------------------
-    def upsert_into_database(self, df: pd.DataFrame, table_name: str) -> None:
-        self.save_into_database(df, table_name)
-
-    # -------------------------------------------------------------------------
     def count_rows(self, table_name: str) -> int:
         model = self._model_for_table(table_name)
         with Session(self.engine) as db_session:

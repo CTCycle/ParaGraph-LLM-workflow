@@ -30,8 +30,6 @@ GLOBAL_CONTROLLER_KINDS: dict[str, str] = {
 
 def _resolve_provider(parameters: dict[str, object], default: str = "ollama") -> str:
     provider = str(parameters.get("provider", default)).strip().lower()
-    if provider == "anthropic":
-        return "claude"
     return provider or default
 
 
@@ -710,19 +708,6 @@ class CompilerService:
                                     node_id=node.node_id,
                                 )
                             )
-
-            if node.node_type == "EMBEDDING_MODEL":
-                provider = str(parameters.get("provider", "ollama")).lower()
-                try:
-                    provider_service.assert_capabilities(provider, embeddings=True)
-                except ValueError as exc:
-                    diagnostics.append(
-                        CompilerDiagnostic(
-                            code="provider_capability_error",
-                            message=str(exc),
-                            node_id=node.node_id,
-                        )
-                    )
 
         try:
             self._topological_order(definition)

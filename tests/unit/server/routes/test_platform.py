@@ -90,6 +90,8 @@ def test_nodes_catalog_exposes_registry(client: TestClient) -> None:
     }
     assert "USER_PROMPT" not in ids
     assert "SYSTEM_PROMPT" not in ids
+    assert "EMBEDDING_MODEL" not in ids
+    assert "LANCE_DB" not in ids
     assert "LLM_GENERATE" not in ids
     categories = {node["category"] for node in payload["nodes"]}
     assert "fragmentation" not in categories

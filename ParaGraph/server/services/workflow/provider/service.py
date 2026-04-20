@@ -73,7 +73,7 @@ from ParaGraph.server.services.workflow.provider.huggingface_downloads import (
 )
 from ParaGraph.server.services.workflow.provider.ollama import OllamaLibraryService
 
-
+###############################################################################
 def _safe_int(value: Any) -> int | None:
     if isinstance(value, bool):
         return int(value)
@@ -90,14 +90,14 @@ def _safe_int(value: Any) -> int | None:
                 return None
     return None
 
-
+###############################################################################
 def _coerce_optional_text(value: Any) -> str | None:
     if value is None:
         return None
     text = str(value).strip()
     return text or None
 
-
+###############################################################################
 def _coerce_optional_bool(value: Any) -> bool | None:
     if value is None:
         return None
@@ -114,7 +114,7 @@ def _coerce_optional_bool(value: Any) -> bool | None:
         return bool(value)
     return None
 
-
+###############################################################################
 def _normalize_ollama_library_slug(href: str) -> str | None:
     if not href.startswith("/library/"):
         return None
@@ -130,11 +130,11 @@ def _normalize_ollama_library_slug(href: str) -> str | None:
         return None
     return slug
 
-
+###############################################################################
 def _model_basename(model: str) -> str:
     return model.split(":", 1)[0].strip().lower()
 
-
+###############################################################################
 def _normalize_huggingface_repo_id(repo_id: str) -> str:
     normalized = repo_id.strip().strip("/")
     if not normalized or not HUGGINGFACE_REPO_ID_PATTERN.fullmatch(normalized):
@@ -144,11 +144,11 @@ def _normalize_huggingface_repo_id(repo_id: str) -> str:
         )
     return normalized
 
-
+###############################################################################
 def _huggingface_model_dir_name(repo_id: str) -> str:
     return repo_id.replace("/", "--")
 
-
+###############################################################################
 def _huggingface_repo_id_from_dir_name(value: str) -> str | None:
     if "--" not in value:
         return None
@@ -157,7 +157,7 @@ def _huggingface_repo_id_from_dir_name(value: str) -> str | None:
         return None
     return candidate
 
-
+###############################################################################
 def _resolve_visibility(private: bool | None, gated: bool | None) -> str:
     if gated is True:
         return "gated"
@@ -167,7 +167,7 @@ def _resolve_visibility(private: bool | None, gated: bool | None) -> str:
         return "public"
     return "unknown"
 
-
+###############################################################################
 def _extract_huggingface_model_size(payload: Any) -> int | None:
     def _read(key: str) -> Any:
         return _payload_value(payload, key)
@@ -205,7 +205,7 @@ def _extract_huggingface_model_size(payload: Any) -> int | None:
 
     return None
 
-
+###############################################################################
 def _extract_huggingface_tag_values(payload: Any) -> tuple[str, ...]:
     values: set[str] = set()
 
@@ -236,13 +236,13 @@ def _extract_huggingface_tag_values(payload: Any) -> tuple[str, ...]:
 
     return tuple(sorted(values))
 
-
+###############################################################################
 def _payload_value(payload: Any, key: str) -> Any:
     if isinstance(payload, dict):
         return payload.get(key)
     return getattr(payload, key, None)
 
-
+###############################################################################
 PROVIDER_CAPABILITIES = {
     "ollama": ProviderMetadata(
         name="ollama",
@@ -286,7 +286,7 @@ PROVIDER_CAPABILITIES = {
     ),
 }
 
-
+###############################################################################
 CURATED_MODELS: dict[str, tuple[ModelMetadata, ...]] = {
     "ollama": (
         ModelMetadata(
@@ -453,14 +453,11 @@ CURATED_MODELS: dict[str, tuple[ModelMetadata, ...]] = {
     ),
 }
 
-
+###############################################################################
 def _normalize_provider(provider: str) -> str:
-    normalized = provider.lower().strip()
-    if normalized == "anthropic":
-        return "claude"
-    return normalized
+    return provider.lower().strip()
 
-
+###############################################################################
 def _infer_ollama_metadata(model_name: str) -> ModelMetadata:
     normalized = model_name.lower()
     supports_image = any(

@@ -29,9 +29,9 @@ Routers are mounted in `ParaGraph/server/app.py`.
 - Workflows (`/workflows`)
   - `GET /workflows`
   - `POST /workflows`
+  - `GET /workflows/templates`
   - `GET /workflows/{workflow_id}`
   - `PUT /workflows/{workflow_id}`
-  - `GET /workflows/{workflow_id}/versions`
 - Executions (`/executions`)
   - `POST /executions/compile`
   - `POST /executions`
