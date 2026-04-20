@@ -25,6 +25,7 @@ const buildProxy = (apiBase: string, apiTarget: string) => {
         [apiBase]: {
             target: apiTarget,
             changeOrigin: true,
+            ws: true,
             rewrite: (proxyPath: string) => proxyPath.replace(baseRegex, ''),
         },
     }

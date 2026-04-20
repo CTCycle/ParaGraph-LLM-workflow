@@ -2454,6 +2454,7 @@ function WorkflowEditor() {
     const stopEventsRef = useRef<(() => void) | null>(null)
     const pollingAbortRef = useRef<AbortController | null>(null)
     const activePlanRef = useRef<CompiledExecutionPlan | null>(null)
+    const runWorkflowLockRef = useRef(false)
     const saveNodeBrowseSelectionsRef = useRef<Record<string, SaveNodeBrowserSelection>>({})
     const hasHydratedWorkflowRef = useRef(false)
     const draggedManifestKeyRef = useRef<string | null>(null)
@@ -3903,6 +3904,7 @@ function WorkflowEditor() {
         const snapshot = resumeRunSnapshot
         setResumeRunSnapshot(null)
         setExecutionErrorModal(null)
+        runWorkflowLockRef.current = true
         setIsRunning(true)
         clearExecutionHighlight()
         setGlowTrailNodeIds([])
@@ -3936,6 +3938,7 @@ function WorkflowEditor() {
                 setActiveRun(null)
             } finally {
                 if (!keepRunTracking) {
+                    runWorkflowLockRef.current = false
                     setIsRunning(false)
                     activePlanRef.current = null
                 }
@@ -3944,7 +3947,7 @@ function WorkflowEditor() {
     }, [isRunning, resumeRunSnapshot])
 
     async function runWorkflow(): Promise<void> {
-        if (isRunning) {
+        if (isRunning || runWorkflowLockRef.current) {
             return
         }
         if (executionErrorModal) {
@@ -3957,6 +3960,7 @@ function WorkflowEditor() {
         }
         setExecutionErrorModal(null)
         setResumeRunSnapshot(null)
+        runWorkflowLockRef.current = true
         setIsRunning(true)
         clearExecutionHighlight()
         setGlowTrailNodeIds([])
@@ -4019,6 +4023,7 @@ function WorkflowEditor() {
             setActiveRun(null)
         } finally {
             if (!keepRunTracking) {
+                runWorkflowLockRef.current = false
                 clearExecutionHighlight()
                 setIsRunning(false)
                 activePlanRef.current = null

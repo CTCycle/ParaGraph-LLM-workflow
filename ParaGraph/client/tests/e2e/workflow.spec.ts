@@ -156,6 +156,40 @@ test('Workflow page imports bundle and runs through deterministic mocked executi
     expect(wsUrls.some((url) => url.includes('/executions/ws/runs/run-e2e'))).toBeTruthy()
 })
 
+test('Workflow run action ignores rapid repeated clicks while a run is in progress', async ({ page }) => {
+    const state = await setupMockBackend(page, 'Hello lock output')
+
+    await page.goto('/')
+
+    const fileChooserPromise = page.waitForEvent('filechooser')
+    await page.getByRole('button', { name: 'Import JSON' }).click()
+    const fileChooser = await fileChooserPromise
+    await fileChooser.setFiles({
+        name: 'workflow.json',
+        mimeType: 'application/json',
+        buffer: Buffer.from(buildWorkflowBundleJson(), 'utf-8'),
+    })
+
+    await expect(page.getByText(/Imported workflow "Shared Workflow"/)).toBeVisible()
+
+    await page.evaluate(() => {
+        const runButton = Array.from(document.querySelectorAll('button')).find(
+            (button) => button.textContent?.trim() === 'Run Workflow',
+        )
+        if (!runButton) {
+            throw new Error('Run Workflow button not found')
+        }
+        runButton.click()
+        runButton.click()
+        runButton.click()
+        runButton.click()
+    })
+
+    await expect(page.getByText('Workflow completed')).toBeVisible()
+    expect(state.compileCalls).toBe(1)
+    expect(state.startCalls).toBe(1)
+})
+
 test('Workflow import cancel does not leave a banner message behind', async ({ page }) => {
     await setupMockBackend(page)
 
