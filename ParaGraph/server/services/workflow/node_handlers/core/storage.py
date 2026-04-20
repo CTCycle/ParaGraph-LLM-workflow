@@ -101,17 +101,13 @@ def _collect_save_items(inputs: dict[str, Any]) -> list[dict[str, str]]:
     if text_payload.strip():
         items.append({"name": "text_output", "text": text_payload})
 
-    documents = (
-        inputs.get("documents") if isinstance(inputs.get("documents"), list) else []
-    )
+    raw_documents = inputs.get("documents")
+    documents: list[Any] = raw_documents if isinstance(raw_documents, list) else []
     for index, document in enumerate(documents, start=1):
         if not isinstance(document, dict):
             continue
-        metadata = (
-            document.get("metadata")
-            if isinstance(document.get("metadata"), dict)
-            else {}
-        )
+        raw_metadata = document.get("metadata")
+        metadata: dict[str, Any] = raw_metadata if isinstance(raw_metadata, dict) else {}
         text_content = _extract_text_from_payload(document, ("text", "content", "chunk"))
         if not text_content.strip():
             path_candidate = coerce_text(
@@ -132,7 +128,8 @@ def _collect_save_items(inputs: dict[str, Any]) -> list[dict[str, str]]:
         )
         items.append({"name": derived or f"document_{index}", "text": text_content})
 
-    chunks = inputs.get("chunks") if isinstance(inputs.get("chunks"), list) else []
+    raw_chunks = inputs.get("chunks")
+    chunks: list[Any] = raw_chunks if isinstance(raw_chunks, list) else []
     for index, chunk in enumerate(chunks, start=1):
         if not isinstance(chunk, dict):
             continue
