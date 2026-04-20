@@ -1,5 +1,5 @@
 # ParaGraph Architecture
-Last updated: 2026-04-08
+Last updated: 2026-04-20
 
 ParaGraph is a local-first workflow system built from:
 - FastAPI backend (`ParaGraph/server`)
@@ -13,6 +13,9 @@ ParaGraph is a local-first workflow system built from:
   - `api/`: route modules (`workflows`, `executions`, `nodes`, `providers`, `configurations`, `ws`)
   - `domain/`: typed request/response and runtime contracts
   - `services/`: orchestration for workflows, providers, runtime events, jobs, and persistence-facing logic
+    - `services/workflow/nodes/connectivity.py`: node connection validation service used by `/nodes` connection-check endpoints
+    - `services/workflow/node_handlers/core/`: core node executors split by concern (`storage.py`, `routing.py`, plus core registry/orchestration in `__init__.py`)
+    - `services/workflow/vector_stores/`: adapter-per-backend modules (`lancedb.py`, `qdrant.py`, `pinecone.py`, `weaviate.py`, `milvus.py`, `chroma.py`) with shared infrastructure in `base.py`
 - `ParaGraph/client`
   - `src/pages/WorkflowPage.tsx`: workflow authoring, compile/run, and execution monitoring
   - `src/pages/NodesPage.tsx`: node catalog browsing and manifest import

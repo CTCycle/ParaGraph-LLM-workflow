@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pathlib import Path
 from os.path import abspath, join
 
 # [PATHS]
@@ -8,6 +9,7 @@ ROOT_DIR = abspath(join(__file__, "../../../.."))
 PROJECT_DIR = join(ROOT_DIR, "ParaGraph")
 SETTING_PATH = join(PROJECT_DIR, "settings")
 RESOURCES_PATH = join(PROJECT_DIR, "resources")
+ARTIFACT_ROOT = Path(RESOURCES_PATH) / "artifacts"
 LOGS_PATH = join(RESOURCES_PATH, "logs")
 ENV_FILE_PATH = join(SETTING_PATH, ".env")
 MODELS_PATH = join(RESOURCES_PATH, "models")

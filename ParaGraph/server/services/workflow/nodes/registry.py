@@ -8,17 +8,15 @@ from typing import Any
 
 from pydantic import ValidationError
 
-from ParaGraph.server.common.constants import RESOURCES_PATH
+from ParaGraph.server.common.constants import ARTIFACT_ROOT, RESOURCES_PATH
 from ParaGraph.server.domain.node_catalog import NodeCatalogResponse, NodeManifest
 from ParaGraph.server.services.configuration import configuration_service
 from ParaGraph.server.services.workflow.node_handlers import NODE_HANDLERS
 from ParaGraph.server.services.workflow.node_handlers.base import NodeHandler
 from ParaGraph.server.domain.workflow_payloads import validate_data_type
-from ParaGraph.server.services.workflow.provider import provider_service
 
 
 NODE_ROOT = Path(RESOURCES_PATH) / "nodes"
-ARTIFACT_ROOT = Path(RESOURCES_PATH) / "artifacts"
 MODEL_NODE_IDS = {"LLM_CHAT", "LLM_STRUCTURED"}
 STRUCTURED_NODE_IDS = {"LLM_STRUCTURED"}
 
