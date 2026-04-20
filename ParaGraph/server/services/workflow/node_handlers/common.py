@@ -58,8 +58,6 @@ class NodeValueService:
     @classmethod
     def normalize_provider_name(cls, provider: Any, default: str = "ollama") -> str:
         normalized = cls.coerce_text(provider or default).strip().lower()
-        if normalized == "anthropic":
-            return "claude"
         return normalized or default
 
     @staticmethod

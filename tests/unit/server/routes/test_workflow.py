@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable
 
 from fastapi.testclient import TestClient
+import pytest
 
 from ParaGraph.server.domain.configuration import AccessKeyConfiguration
 from ParaGraph.server.domain.node_catalog import ProviderModelDefinition
@@ -447,6 +448,78 @@ def test_compile_ignores_legacy_global_node_aliases(client: TestClient) -> None:
     assert payload["valid"] is False
     assert any(
         item["code"] == "missing_required_controller" for item in payload["diagnostics"]
+    )
+
+
+@pytest.mark.parametrize(
+    "legacy_node_type",
+    ["USER_PROMPT", "SYSTEM_PROMPT", "EMBEDDING_MODEL", "LANCE_DB"],
+)
+def test_compile_rejects_legacy_node_type_aliases(
+    client: TestClient, legacy_node_type: str
+) -> None:
+    response = client.post(
+        "/executions/compile",
+        json={
+            "definition": {
+                "schema_version": 2,
+                "nodes": [
+                    {
+                        "node_id": "legacy_1",
+                        "node_type": legacy_node_type,
+                        "node_version": 1,
+                        "parameters": {},
+                    }
+                ],
+                "connections": [],
+                "metadata": {},
+            }
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["valid"] is False
+    assert any(
+        item["code"] == "unknown_node_type"
+        and legacy_node_type in item["message"]
+        for item in payload["diagnostics"]
+    )
+
+
+@pytest.mark.parametrize("legacy_provider", ["anthropic", "local"])
+def test_compile_rejects_legacy_provider_aliases(
+    client: TestClient, legacy_provider: str
+) -> None:
+    response = client.post(
+        "/executions/compile",
+        json={
+            "definition": {
+                "schema_version": 2,
+                "nodes": [
+                    {
+                        "node_id": "provider_1",
+                        "node_type": "MODEL_PROVIDER",
+                        "node_version": 1,
+                        "parameters": {
+                            "provider": legacy_provider,
+                            "model_name": "legacy-model",
+                        },
+                    }
+                ],
+                "connections": [],
+                "metadata": {},
+            }
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["valid"] is False
+    assert any(
+        item["code"] == "invalid_parameter"
+        and "must be one of: ollama, openai, gemini, claude, huggingface"
+        for item in payload["diagnostics"]
     )
 
 

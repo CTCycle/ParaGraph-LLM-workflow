@@ -962,57 +962,10 @@ def _rerank_results_executor(
     }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-# -----------------------------------------------------------------------------
-
-
-# -----------------------------------------------------------------------------
-
-
-# -----------------------------------------------------------------------------
-
-
-# -----------------------------------------------------------------------------
-
-
-# -----------------------------------------------------------------------------
-
-
-# -----------------------------------------------------------------------------
-
-
-# -----------------------------------------------------------------------------
-
-
-# -----------------------------------------------------------------------------
-
-
-# -----------------------------------------------------------------------------
-
-
-
-
 CORE_HANDLERS = {
     "prompt": NodeHandler(executor=_prompt_executor, parameter_model=PromptParameters),
     "prompt_template": NodeHandler(
         executor=_prompt_template_executor, parameter_model=PromptTemplateParameters
-    ),
-    "user_prompt": NodeHandler(
-        executor=_prompt_executor, parameter_model=PromptParameters
-    ),
-    "system_prompt": NodeHandler(
-        executor=_prompt_executor, parameter_model=PromptParameters
     ),
     "image_input": NodeHandler(
         executor=_image_input_executor, parameter_model=ImageInputParameters
@@ -1026,16 +979,10 @@ CORE_HANDLERS = {
     "llm_structured": NodeHandler(
         executor=_llm_structured_executor, parameter_model=StructuredParameters
     ),
-    "embedding_model": NodeHandler(
-        executor=_embedding_executor, parameter_model=EmbeddingParameters
-    ),
     "text_embedding": NodeHandler(
         executor=_embedding_executor, parameter_model=EmbeddingParameters
     ),
     "vector_store": NodeHandler(
-        executor=_vector_store_executor, parameter_model=VectorStoreParameters
-    ),
-    "lance_db": NodeHandler(
         executor=_vector_store_executor, parameter_model=VectorStoreParameters
     ),
     "similarity_search": NodeHandler(

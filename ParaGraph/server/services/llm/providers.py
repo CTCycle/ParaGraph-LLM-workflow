@@ -57,14 +57,6 @@ def _get_timeout(timeout_s: float | None) -> float:
 
 
 # -----------------------------------------------------------------------------
-def _normalize_provider_name(provider: str) -> str:
-    normalized = provider.strip().lower()
-    if normalized == "anthropic":
-        return "claude"
-    return normalized
-
-
-# -----------------------------------------------------------------------------
 def _read_image_payload(path_value: str) -> dict[str, str]:
     image_path = Path(path_value)
     if not image_path.exists() or not image_path.is_file():
@@ -289,7 +281,7 @@ class CloudLLMClient:
         base_url: str | None = None,
         timeout_s: float | None = None,
     ) -> None:
-        normalized_provider = _normalize_provider_name(provider)
+        normalized_provider = provider.strip().lower()
         self.provider = CloudProvider(normalized_provider)
         self.timeout = _get_timeout(timeout_s)
 
@@ -536,8 +528,8 @@ class CloudLLMClient:
 
 # -----------------------------------------------------------------------------
 def select_llm_provider(provider: str, **kwargs: Any) -> SupportsChat:
-    normalized = _normalize_provider_name(provider)
-    if normalized in {"ollama", "local"}:
+    normalized = provider.strip().lower()
+    if normalized == "ollama":
         return OllamaClient(
             base_url=kwargs.get("base_url"),
             timeout_s=kwargs.get("timeout_s"),
