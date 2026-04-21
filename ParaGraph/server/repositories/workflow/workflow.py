@@ -1,15 +1,14 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+import shutil
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
 from ParaGraph.server.common.constants import RESOURCES_PATH
 from ParaGraph.server.domain.workflow_model import (
-    VisualGraph,
-    WorkflowDefinition,
     WorkflowDocument,
     WorkflowListItem,
 )
@@ -17,9 +16,10 @@ from ParaGraph.server.domain.workflow_model import (
 
 class WorkflowRepository:
     def __init__(self) -> None:
-        self._root = Path(RESOURCES_PATH) / "workflows"
+        self._default_root = Path(RESOURCES_PATH) / "workflows"
+        self._root = self._default_root
         self._index_path = self._root / "index.json"
-        self._root.mkdir(parents=True, exist_ok=True)
+        self._ensure_storage()
 
     def list_workflows(self) -> list[WorkflowListItem]:
         index = self._load_index()
@@ -35,47 +35,19 @@ class WorkflowRepository:
             )
         return sorted(items, key=lambda entry: entry.updated_at, reverse=True)
 
-    def create_workflow(
-        self,
-        *,
-        name: str,
-        definition: WorkflowDefinition,
-        visual_graph: VisualGraph,
-    ) -> WorkflowDocument:
-        workflow_id = f"wf_{uuid4().hex[:10]}"
-        document = WorkflowDocument(
-            workflow_id=workflow_id,
-            name=name,
-            definition=definition,
-            visual_graph=visual_graph,
-        )
-        self._save_document(document)
-        self._upsert_index(document)
-        return document
+    def new_workflow_id(self) -> str:
+        return f"wf_{uuid4().hex[:10]}"
 
-    def update_workflow(
-        self,
-        *,
-        workflow_id: str,
-        name: str | None,
-        definition: WorkflowDefinition,
-        visual_graph: VisualGraph,
-    ) -> WorkflowDocument | None:
-        current = self.get_workflow(workflow_id)
-        if current is None:
-            return None
-
-        document = WorkflowDocument(
-            workflow_id=workflow_id,
-            name=name or current.name,
-            definition=definition,
-            visual_graph=visual_graph,
-            created_at=current.created_at,
-            updated_at=datetime.now(timezone.utc),
+    def save_workflow(self, document: WorkflowDocument) -> None:
+        self._ensure_storage()
+        workflow_dir = self._workflow_dir(document.workflow_id)
+        workflow_dir.mkdir(parents=True, exist_ok=True)
+        workflow_path = self._workflow_path(document.workflow_id)
+        workflow_path.write_text(
+            json.dumps(document.model_dump(mode="json"), indent=2),
+            encoding="utf-8",
         )
-        self._save_document(document)
         self._upsert_index(document)
-        return document
 
     def get_workflow(self, workflow_id: str) -> WorkflowDocument | None:
         index = self._load_index()
@@ -90,20 +62,29 @@ class WorkflowRepository:
         payload = json.loads(path.read_text(encoding="utf-8"))
         return WorkflowDocument.model_validate(payload)
 
+    def configure_storage_for_tests(self, root: Path) -> None:
+        self._root = root
+        self._index_path = self._root / "index.json"
+        self._ensure_storage()
+
+    def reset_for_tests(self) -> None:
+        if self._root.exists():
+            shutil.rmtree(self._root)
+        self._ensure_storage()
+
+    def restore_default_storage_for_tests(self) -> None:
+        self._root = self._default_root
+        self._index_path = self._root / "index.json"
+        self._ensure_storage()
+
+    def _ensure_storage(self) -> None:
+        self._root.mkdir(parents=True, exist_ok=True)
+
     def _workflow_dir(self, workflow_id: str) -> Path:
         return self._root / workflow_id
 
     def _workflow_path(self, workflow_id: str) -> Path:
         return self._workflow_dir(workflow_id) / "workflow.json"
-
-    def _save_document(self, document: WorkflowDocument) -> None:
-        workflow_dir = self._workflow_dir(document.workflow_id)
-        workflow_dir.mkdir(parents=True, exist_ok=True)
-        workflow_path = self._workflow_path(document.workflow_id)
-        workflow_path.write_text(
-            json.dumps(document.model_dump(mode="json"), indent=2),
-            encoding="utf-8",
-        )
 
     def _load_index(self) -> list[dict[str, Any]]:
         if not self._index_path.exists():

@@ -505,6 +505,12 @@ class ProviderService:
         self.huggingface_catalog = HuggingFaceCatalogService(self)
         self.huggingface_downloads = HuggingFaceDownloadService(self)
 
+    def reset_for_tests(self) -> None:
+        with self._cache_lock:
+            self._ollama_library_cache = None
+            self._huggingface_cache.clear()
+            self._huggingface_filter_tags_cache.clear()
+
     def _load_configuration(self, session_name: str = DEFAULT_SESSION_NAME):
         return configuration_service.load_configuration(session_name=session_name)
 

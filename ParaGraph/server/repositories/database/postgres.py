@@ -25,7 +25,7 @@ from sqlalchemy.exc import NoSuchTableError
 from sqlalchemy.orm import Session, sessionmaker
 
 from ParaGraph.server.common.utils.logger import logger
-from ParaGraph.server.configurations import DatabaseSettings
+from ParaGraph.server.domain.settings import DatabaseSettings
 from ParaGraph.server.repositories.database.utils import normalize_postgres_engine
 from ParaGraph.server.repositories.database.utils import normalize_string_columns
 from ParaGraph.server.repositories.schemas import Base

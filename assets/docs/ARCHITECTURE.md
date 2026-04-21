@@ -1,5 +1,5 @@
 # ParaGraph Architecture
-Last updated: 2026-04-20
+Last updated: 2026-04-21
 
 ParaGraph is a local-first workflow system built from:
 - FastAPI backend (`ParaGraph/server`)
@@ -71,6 +71,26 @@ Routers are mounted in `ParaGraph/server/app.py`.
 5. Runtime executes steps and publishes event updates.
 6. UI monitors state through polling (`GET /executions/{run_id}`), event history, and websocket stream.
 
+## 3.1 Bootstrap And Runtime Ownership
+
+- App bootstrap is explicit through `create_app()` in `ParaGraph/server/app.py`.
+- Package import (`ParaGraph/server/__init__.py`) is side-effect free.
+- Root behavior is API-owned (`ParaGraph/server/api/root.py`):
+  - cloud mode returns `{"status": "ok"}`
+  - non-cloud mode redirects to `/docs`
+- Configuration bootstrap is centralized in `ParaGraph/server/configurations/startup.py` through `get_configuration_runtime()` and `get_server_settings()`.
+- `EnvironmentLoader` in `ParaGraph/server/configurations/environment.py` is instance-based and does not rely on mutable module-level globals.
+
+## 3.2 Service And Repository Boundaries
+
+- API modules delegate to services; endpoints do not access repositories directly.
+- Services own orchestration and request/response composition.
+- Repositories own persistence and storage primitives only.
+- Workflow orchestration (create/update document assembly and merge semantics) belongs to `ParaGraph/server/services/workflow/workflow.py`.
+- Workflow repository (`ParaGraph/server/repositories/workflow/workflow.py`) is persistence-only.
+- Configuration repository resolves database backends through `ParaGraph/server/repositories/database/factory.py`.
+- Repositories must not read runtime settings at import time.
+
 ## 4. Node and Contract Model
 
 - Node schemas are loaded from manifests in `ParaGraph/resources/nodes`.
@@ -97,3 +117,13 @@ Known capability constraints in current runtime:
 - Execution state/events are available via run polling, event history, and websocket stream.
 - Long-running provider jobs (for example Hugging Face downloads) use job-style async status endpoints.
 - Download cancellation is supported through `DELETE /providers/huggingface/download/{job_id}`.
+
+## 7. Test Reset Boundaries
+
+- Stateful runtime components expose explicit test reset APIs:
+  - `workflow_repository.reset_for_tests()`
+  - `execution_run_repository.reset_for_tests()`
+  - `execution_event_service.reset_for_tests()`
+  - `job_manager.reset_for_tests()`
+  - `provider_service.reset_for_tests()`
+- Tests use these public boundaries instead of mutating private internals.

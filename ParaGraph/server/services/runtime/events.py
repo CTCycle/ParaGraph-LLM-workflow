@@ -68,5 +68,12 @@ class EventService:
             events = list(self._history.get(run_id, []))
         return EventHistoryResponse(run_id=run_id, events=events)
 
+    # -------------------------------------------------------------------------
+    def reset_for_tests(self) -> None:
+        with self._lock:
+            self._subscribers.clear()
+            self._history.clear()
+            self._sequence.clear()
+
 
 execution_event_service = EventService()

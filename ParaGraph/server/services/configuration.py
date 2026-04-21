@@ -6,22 +6,28 @@ from ParaGraph.server.domain.configuration import (
     OllamaStatusResponse,
 )
 from ParaGraph.server.domain.node_catalog import NodeManifest
-from ParaGraph.server.repositories.configuration import configuration_repository
+from ParaGraph.server.repositories.configuration import (
+    ConfigurationRepository,
+    configuration_repository,
+)
 from ParaGraph.server.services.llm.providers import OllamaClient, OllamaError
 
 
 ###############################################################################
 class ConfigurationService:
+    def __init__(self, repository: ConfigurationRepository | None = None) -> None:
+        self._repository = repository or configuration_repository
+
     def load_configuration(
         self, session_name: str | None = None
     ) -> AppConfigurationPayload:
-        payload = configuration_repository.load_configuration(session_name=session_name)
+        payload = self._repository.load_configuration(session_name=session_name)
         return AppConfigurationPayload.model_validate(payload)
 
     def save_configuration(
         self, payload: AppConfigurationPayload
     ) -> AppConfigurationPayload:
-        stored = configuration_repository.save_configuration(
+        stored = self._repository.save_configuration(
             session_name=payload.session_name,
             access_keys=[item.model_dump(mode="json") for item in payload.access_keys],
             ollama=payload.ollama.model_dump(mode="json"),
@@ -31,7 +37,7 @@ class ConfigurationService:
     def list_configuration_profiles(
         self, session_name: str | None = None
     ) -> ConfigurationProfileListResponse:
-        payload = configuration_repository.list_configuration_profiles(
+        payload = self._repository.list_configuration_profiles(
             session_name=session_name
         )
         return ConfigurationProfileListResponse.model_validate(payload)
@@ -39,11 +45,11 @@ class ConfigurationService:
     def load_configuration_profile(
         self, *, session_name: str | None, profile_name: str
     ) -> AppConfigurationPayload:
-        profile_payload = configuration_repository.load_configuration_profile(
+        profile_payload = self._repository.load_configuration_profile(
             session_name=session_name,
             profile_name=profile_name,
         )
-        stored = configuration_repository.save_configuration(
+        stored = self._repository.save_configuration(
             session_name=profile_payload["session_name"],
             access_keys=profile_payload.get("access_keys", []),
             ollama=profile_payload.get("ollama", {}),
@@ -57,7 +63,7 @@ class ConfigurationService:
         payload: AppConfigurationPayload,
     ) -> AppConfigurationPayload:
         stored = self.save_configuration(payload)
-        configuration_repository.save_configuration_profile(
+        self._repository.save_configuration_profile(
             session_name=stored.session_name,
             profile_name=profile_name,
             configuration_json=stored.model_dump(mode="json"),
@@ -94,7 +100,7 @@ class ConfigurationService:
     def save_node_manifest(
         self, manifest: NodeManifest, session_name: str | None = None
     ) -> None:
-        configuration_repository.save_node_configuration(
+        self._repository.save_node_configuration(
             session_name=session_name,
             node_key=f"{manifest.id}:{manifest.version}",
             node_type=manifest.id,

@@ -9,9 +9,7 @@ from sqlalchemy.orm import Session
 
 from ParaGraph.server.configurations.startup import get_server_settings
 from ParaGraph.server.domain.configuration import DEFAULT_SESSION_NAME
-from ParaGraph.server.repositories.database.postgres import PostgresRepository
-from ParaGraph.server.repositories.database.sqlite import SQLiteRepository
-from ParaGraph.server.repositories.database.utils import normalize_postgres_engine
+from ParaGraph.server.repositories.database.factory import DatabaseRepositoryFactory
 from ParaGraph.server.repositories.schemas import (
     AccessKey,
     ConfigurationProfile,
@@ -20,28 +18,18 @@ from ParaGraph.server.repositories.schemas import (
 )
 
 
-def _build_database_repository() -> SQLiteRepository | PostgresRepository:
-    settings = get_server_settings().database
-    if settings.embedded_database:
-        return SQLiteRepository(settings)
-
-    engine_name = normalize_postgres_engine(settings.engine).lower()
-    if engine_name not in {
-        "postgres",
-        "postgresql",
-        "postgresql+psycopg",
-        "postgresql+psycopg2",
-    }:
-        raise ValueError(f"Unsupported database engine: {settings.engine}")
-    return PostgresRepository(settings)
-
-
-database_repository = _build_database_repository()
-
-
 ###############################################################################
 class ConfigurationRepository:
     _profile_name_pattern = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._ -]{0,119}$")
+
+    def __init__(
+        self, database_factory: DatabaseRepositoryFactory | None = None
+    ) -> None:
+        self._database_factory = database_factory or DatabaseRepositoryFactory()
+
+    def _database_engine(self):
+        settings = get_server_settings().database
+        return self._database_factory.build(settings).engine
 
     def _normalize_session_name(self, session_name: str | None) -> str:
         normalized = (session_name or "").strip()
@@ -120,7 +108,7 @@ class ConfigurationRepository:
 
     def load_configuration(self, session_name: str | None = None) -> dict[str, Any]:
         normalized_session_name = self._normalize_session_name(session_name)
-        with Session(database_repository.engine) as db_session:
+        with Session(self._database_engine()) as db_session:
             session_row, created = self._get_or_create_session(
                 db_session, normalized_session_name
             )
@@ -153,7 +141,7 @@ class ConfigurationRepository:
                 else {},
             }
 
-        with Session(database_repository.engine) as db_session:
+        with Session(self._database_engine()) as db_session:
             session_row, _ = self._get_or_create_session(
                 db_session, normalized_session_name
             )
@@ -196,7 +184,7 @@ class ConfigurationRepository:
         self, session_name: str | None = None
     ) -> dict[str, Any]:
         normalized_session_name = self._normalize_session_name(session_name)
-        with Session(database_repository.engine) as db_session:
+        with Session(self._database_engine()) as db_session:
             session_row, created = self._get_or_create_session(
                 db_session, normalized_session_name
             )
@@ -227,7 +215,7 @@ class ConfigurationRepository:
         normalized_session_name = self._normalize_session_name(session_name)
         normalized_profile_name = self._normalize_profile_name(profile_name)
 
-        with Session(database_repository.engine) as db_session:
+        with Session(self._database_engine()) as db_session:
             session_row, _ = self._get_or_create_session(
                 db_session, normalized_session_name
             )
@@ -272,7 +260,7 @@ class ConfigurationRepository:
         normalized_session_name = self._normalize_session_name(session_name)
         normalized_profile_name = self._normalize_profile_name(profile_name)
 
-        with Session(database_repository.engine) as db_session:
+        with Session(self._database_engine()) as db_session:
             session_row, _ = self._get_or_create_session(
                 db_session, normalized_session_name
             )
@@ -306,7 +294,7 @@ class ConfigurationRepository:
         session_name: str | None = None,
     ) -> None:
         normalized_session_name = self._normalize_session_name(session_name)
-        with Session(database_repository.engine) as db_session:
+        with Session(self._database_engine()) as db_session:
             session_row, _ = self._get_or_create_session(
                 db_session, normalized_session_name
             )

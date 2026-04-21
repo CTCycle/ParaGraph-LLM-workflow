@@ -9,6 +9,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from ParaGraph.server.common.utils.logger import logger
 from ParaGraph.server.configurations.startup import get_server_settings
 from ParaGraph.server.domain.settings import DatabaseSettings
+from ParaGraph.server.repositories.database.factory import DatabaseRepositoryFactory
 from ParaGraph.server.repositories.database.postgres import PostgresRepository
 from ParaGraph.server.repositories.database.sqlite import SQLiteRepository
 from ParaGraph.server.repositories.database.utils import normalize_postgres_engine
@@ -91,18 +92,11 @@ def ensure_postgres_database(settings: DatabaseSettings) -> str:
 # -----------------------------------------------------------------------------
 def run_database_initialization() -> None:
     settings = get_server_settings().database
-    if settings.embedded_database:
+    repository = DatabaseRepositoryFactory().build(settings)
+    if isinstance(repository, SQLiteRepository):
         initialize_sqlite_database(settings)
         return
 
-    engine_name = normalize_postgres_engine(settings.engine).lower()
-    if engine_name not in {
-        "postgres",
-        "postgresql",
-        "postgresql+psycopg",
-        "postgresql+psycopg2",
-    }:
-        raise ValueError(f"Unsupported database engine: {settings.engine}")
     ensure_postgres_database(settings)
 
 
