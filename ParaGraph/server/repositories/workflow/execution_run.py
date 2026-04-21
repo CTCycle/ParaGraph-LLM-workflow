@@ -49,5 +49,9 @@ class ExecutionRunRepository:
             self._runs[run_id] = updated
             return updated.model_copy(deep=True)
 
+    def reset_for_tests(self) -> None:
+        with self._lock:
+            self._runs.clear()
+
 
 execution_run_repository = ExecutionRunRepository()

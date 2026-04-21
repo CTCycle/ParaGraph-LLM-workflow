@@ -6,10 +6,12 @@ from datetime import datetime, timezone
 from typing import Any
 
 from ParaGraph.server.common.security import redact_sensitive_payload
+from ParaGraph.server.configurations.startup import get_server_settings
 from ParaGraph.server.domain.execution import (
     CompiledExecutionPlan,
     ExecutionRunState,
     ExecutionStepState,
+    StartExecutionResponse,
 )
 from ParaGraph.server.repositories.workflow import execution_run_repository
 from ParaGraph.server.services.jobs import job_manager
@@ -27,6 +29,16 @@ class ExecutionService:
             job_type="workflow",
             runner=self.execute_plan_job,
             kwargs={"plan": plan, "workflow_id": workflow_id},
+        )
+
+    def start_execution_response(
+        self, plan: CompiledExecutionPlan, workflow_id: str | None = None
+    ) -> StartExecutionResponse:
+        run_id = self.start_execution(plan, workflow_id=workflow_id)
+        return StartExecutionResponse(
+            run_id=run_id,
+            status="running",
+            poll_interval=get_server_settings().jobs.polling_interval,
         )
 
     def get_run(self, run_id: str) -> ExecutionRunState | None:

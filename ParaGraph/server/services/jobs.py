@@ -14,9 +14,9 @@ from ParaGraph.server.domain.jobs import JobState
 ###############################################################################
 class JobManager:
     def __init__(self) -> None:
-        self.jobs: dict[str, JobState] = {}
-        self.threads: dict[str, threading.Thread] = {}
-        self.lock = threading.Lock()
+        self._jobs: dict[str, JobState] = {}
+        self._threads: dict[str, threading.Thread] = {}
+        self._lock = threading.Lock()
 
     # -------------------------------------------------------------------------
     def start_job(
@@ -33,16 +33,16 @@ class JobManager:
         if self._runner_accepts_job_id(runner):
             runner_kwargs["job_id"] = job_id
 
-        with self.lock:
-            self.jobs[job_id] = state
+        with self._lock:
+            self._jobs[job_id] = state
 
         thread = threading.Thread(
             target=self._run_job,
             args=(job_id, runner, args, runner_kwargs),
             daemon=True,
         )
-        with self.lock:
-            self.threads[job_id] = thread
+        with self._lock:
+            self._threads[job_id] = thread
 
         state.update(status="running")
         thread.start()
@@ -51,16 +51,16 @@ class JobManager:
 
     # -------------------------------------------------------------------------
     def get_job_status(self, job_id: str) -> dict[str, Any] | None:
-        with self.lock:
-            state = self.jobs.get(job_id)
+        with self._lock:
+            state = self._jobs.get(job_id)
         if state is None:
             return None
         return state.snapshot()
 
     # -------------------------------------------------------------------------
     def cancel_job(self, job_id: str) -> bool:
-        with self.lock:
-            state = self.jobs.get(job_id)
+        with self._lock:
+            state = self._jobs.get(job_id)
         if state is None:
             return False
         if state.status not in ("pending", "running"):
@@ -75,8 +75,8 @@ class JobManager:
 
     # -------------------------------------------------------------------------
     def is_job_running(self, job_type: str | None = None) -> bool:
-        with self.lock:
-            for state in self.jobs.values():
+        with self._lock:
+            for state in self._jobs.values():
                 if state.status in ("pending", "running"):
                     if job_type is None or state.job_type == job_type:
                         return True
@@ -84,23 +84,23 @@ class JobManager:
 
     # -------------------------------------------------------------------------
     def should_stop(self, job_id: str) -> bool:
-        with self.lock:
-            state = self.jobs.get(job_id)
+        with self._lock:
+            state = self._jobs.get(job_id)
         if state is None:
             return True
         return state.stop_requested
 
     # -------------------------------------------------------------------------
     def update_progress(self, job_id: str, progress: float) -> None:
-        with self.lock:
-            state = self.jobs.get(job_id)
+        with self._lock:
+            state = self._jobs.get(job_id)
         if state:
             state.update(progress=min(100.0, max(0.0, progress)))
 
     # -------------------------------------------------------------------------
     def update_result(self, job_id: str, patch: dict[str, Any]) -> None:
-        with self.lock:
-            state = self.jobs.get(job_id)
+        with self._lock:
+            state = self._jobs.get(job_id)
         if state is None:
             return
         with state.lock:
@@ -115,8 +115,8 @@ class JobManager:
         args: tuple[Any, ...],
         kwargs: dict[str, Any],
     ) -> None:
-        with self.lock:
-            state = self.jobs.get(job_id)
+        with self._lock:
+            state = self._jobs.get(job_id)
         if state is None:
             return
         try:
@@ -148,6 +148,24 @@ class JobManager:
             if param.kind == param.VAR_KEYWORD:
                 return True
         return "job_id" in signature.parameters
+
+    # -------------------------------------------------------------------------
+    def register_job_for_tests(self, state: JobState) -> None:
+        with self._lock:
+            self._jobs[state.job_id] = state
+
+    # -------------------------------------------------------------------------
+    def reset_for_tests(self) -> None:
+        with self._lock:
+            threads = list(self._threads.values())
+
+        for thread in threads:
+            if thread.is_alive():
+                thread.join(timeout=1)
+
+        with self._lock:
+            self._jobs.clear()
+            self._threads.clear()
 
 
 ###############################################################################

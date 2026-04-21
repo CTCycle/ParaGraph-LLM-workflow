@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from ParaGraph.server.configurations.startup import get_cloud_mode_enabled
+from ParaGraph.server.configurations.startup import get_configuration_runtime
 
 
 _SENSITIVE_KEY_TOKENS = (
@@ -17,7 +17,9 @@ _SENSITIVE_KEY_TOKENS = (
 
 
 def is_cloud_deployment() -> bool:
-    return get_cloud_mode_enabled()
+    return get_configuration_runtime().environment().get_bool(
+        "PARAGRAPH_CLOUD_MODE", False
+    )
 
 
 def ensure_path_within_root(path: Path, root: Path, *, label: str) -> Path:

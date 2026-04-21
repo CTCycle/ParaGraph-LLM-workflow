@@ -8,7 +8,7 @@ from typing import Any, Protocol
 
 import httpx
 
-from ParaGraph.server.configurations.startup import get_llm_timeout_seconds
+from ParaGraph.server.configurations.startup import get_configuration_runtime
 
 
 ###############################################################################
@@ -53,7 +53,7 @@ class CloudProvider(str, Enum):
 def _get_timeout(timeout_s: float | None) -> float:
     if timeout_s is not None:
         return timeout_s
-    return get_llm_timeout_seconds()
+    return get_configuration_runtime().environment().get_float("LLM_TIMEOUT_S", 30.0)
 
 
 # -----------------------------------------------------------------------------
