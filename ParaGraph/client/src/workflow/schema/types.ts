@@ -3,6 +3,7 @@ export type NodeCategory =
     | 'web'
     | 'prompt'
     | 'model'
+    | 'memory'
     | 'processing'
     | 'retrieval'
     | 'embeddings'
@@ -29,6 +30,7 @@ export type NodeDataType =
     | 'TOKEN_IDS'
     | 'JSON'
     | 'MODEL_HANDLE'
+    | 'CHAT_HISTORY_HANDLE'
     | 'DATASET'
     | 'BOOLEAN'
     | 'ANY'
@@ -242,6 +244,7 @@ export interface CompileWorkflowResponse {
 export interface StartExecutionResponse {
     run_id: string
     status: string
+    execution_session_id?: string | null
     poll_interval: number
 }
 
@@ -261,6 +264,7 @@ export interface ExecutionStepState {
 export interface ExecutionRunState {
     run_id: string
     workflow_id?: string | null
+    execution_session_id?: string | null
     plan_id: string
     status: ExecutionStatus
     created_at: string

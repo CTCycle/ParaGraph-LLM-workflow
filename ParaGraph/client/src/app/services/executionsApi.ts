@@ -6,10 +6,18 @@ import {
 } from '../../workflow/schema/types'
 import { getApiBase, requestJson } from './api'
 
-export function startExecution(plan: CompiledExecutionPlan, workflowId?: string): Promise<StartExecutionResponse> {
+export function startExecution(
+  plan: CompiledExecutionPlan,
+  workflowId?: string,
+  executionSessionId?: string,
+): Promise<StartExecutionResponse> {
   return requestJson<StartExecutionResponse>('/executions', {
     method: 'POST',
-    body: JSON.stringify({ workflow_id: workflowId ?? null, plan }),
+    body: JSON.stringify({
+      workflow_id: workflowId ?? null,
+      execution_session_id: executionSessionId ?? null,
+      plan,
+    }),
   })
 }
 

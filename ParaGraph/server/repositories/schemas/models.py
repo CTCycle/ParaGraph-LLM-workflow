@@ -8,7 +8,7 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 from ParaGraph.server.repositories.schemas.types import JSONSequence
 
-
+###############################################################################
 class Base(DeclarativeBase):
     pass
 
@@ -154,4 +154,31 @@ class AccessKey(Base):
             "session_id", "provider", name="uq_access_keys_session_provider"
         ),
         Index("ix_access_keys_provider", "provider"),
+    )
+
+
+###############################################################################
+class ChatHistoryMessageRecord(Base):
+    __tablename__ = "chat_history_messages"
+
+    chat_history_message_id: Mapped[int] = mapped_column(
+        primary_key=True, autoincrement=True
+    )
+    workflow_id: Mapped[str] = mapped_column(nullable=False)
+    execution_session_id: Mapped[str] = mapped_column(nullable=False)
+    node_id: Mapped[str] = mapped_column(nullable=False)
+    role: Mapped[str] = mapped_column(nullable=False)
+    content: Mapped[str] = mapped_column(nullable=False, default="")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow
+    )
+
+    __table_args__ = (
+        Index(
+            "ix_chat_history_lookup",
+            "workflow_id",
+            "execution_session_id",
+            "node_id",
+            "chat_history_message_id",
+        ),
     )

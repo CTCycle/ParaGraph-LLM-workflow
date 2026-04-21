@@ -1,17 +1,21 @@
 import { describe, expect, it } from 'vitest'
 
 import type { NodeManifest, ProviderModelDefinition } from '../workflow/schema/types'
-import { getDynamicModelOptions } from './WorkflowPage'
+import { getDynamicModelOptions, resolveExecutionSessionId } from './WorkflowPage'
 
 import textEmbeddingManifestJson from '../../../resources/nodes/text_embedding_v1.json'
 import vectorStoreManifestJson from '../../../resources/nodes/vector_store_v1.json'
 import rerankManifestJson from '../../../resources/nodes/rerank_results_v1.json'
 import similaritySearchManifestJson from '../../../resources/nodes/similarity_search_v1.json'
+import chatHistoryMemoryManifestJson from '../../../resources/nodes/chat_history_memory_v1.json'
+import chatHistoryPersistedManifestJson from '../../../resources/nodes/chat_history_persisted_v1.json'
 
 const textEmbeddingManifest = textEmbeddingManifestJson as NodeManifest
 const vectorStoreManifest = vectorStoreManifestJson as NodeManifest
 const rerankManifest = rerankManifestJson as NodeManifest
 const similaritySearchManifest = similaritySearchManifestJson as NodeManifest
+const chatHistoryMemoryManifest = chatHistoryMemoryManifestJson as NodeManifest
+const chatHistoryPersistedManifest = chatHistoryPersistedManifestJson as NodeManifest
 
 function getOptions(manifest: NodeManifest, parameterName: string): string[] {
     const parameter = manifest.parameters.find((item) => item.name === parameterName)
@@ -56,6 +60,20 @@ describe('WorkflowPage manifest-driven provider and retrieval behavior', () => {
         expect(metricOptions).toEqual(['cosine', 'euclidean', 'dot'])
     })
 
+    it('chat history manifests expose expected parameters', () => {
+        expect(chatHistoryMemoryManifest.parameters.map((item) => item.name)).toEqual([
+            'max_messages',
+            'separator',
+            'keep_prompt_type',
+        ])
+        expect(chatHistoryPersistedManifest.parameters.map((item) => item.name)).toEqual([
+            'max_messages',
+            'separator',
+            'keep_prompt_type',
+            'storage_backend',
+        ])
+    })
+
     it('embedding model options are provider-catalog driven and update on provider switch', () => {
         const providerModels: ProviderModelDefinition[] = [
             {
@@ -92,5 +110,17 @@ describe('WorkflowPage manifest-driven provider and retrieval behavior', () => {
 
         expect(openaiModels.map((item) => item.model)).toEqual(['custom-openai-embed'])
         expect(geminiModels.map((item) => item.model)).toEqual(['gemini-embedding-001'])
+    })
+
+    it('execution session id stays stable until reset', () => {
+        let sequence = 0
+        const factory = () => `session-${++sequence}`
+        const first = resolveExecutionSessionId(null, { idFactory: factory })
+        const second = resolveExecutionSessionId(first, { idFactory: factory })
+        const third = resolveExecutionSessionId(second, { reset: true, idFactory: factory })
+
+        expect(first).toBe('session-1')
+        expect(second).toBe('session-1')
+        expect(third).toBe('session-2')
     })
 })

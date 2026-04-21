@@ -13,6 +13,10 @@ from ParaGraph.server.domain.node_catalog import NodeCatalogResponse, NodeManife
 from ParaGraph.server.services.configuration import configuration_service
 from ParaGraph.server.services.workflow.node_handlers import NODE_HANDLERS
 from ParaGraph.server.services.workflow.node_handlers.base import NodeHandler
+from ParaGraph.server.services.workflow.nodes.execution_context import (
+    reset_execution_context,
+    set_execution_context,
+)
 from ParaGraph.server.domain.workflow_payloads import validate_data_type
 
 
@@ -321,6 +325,7 @@ class NodeRegistry:
         parameters: dict[str, Any],
         inputs: dict[str, Any],
         controllers: dict[str, Any] | None = None,
+        context: dict[str, str] | None = None,
     ) -> dict[str, Any]:
         manifest = self.get(node_type, node_version)
         if manifest is None:
@@ -345,15 +350,22 @@ class NodeRegistry:
         for port_name, validator in handler.input_validators.items():
             if port_name in execution_inputs:
                 execution_inputs[port_name] = validator(execution_inputs[port_name])
-        outputs = handler.executor(validated_parameters, execution_inputs)
-        validated_outputs = self._validate_ports(manifest, outputs, label="output")
-        validated_controller_outputs = self._validate_ports(
-            manifest, outputs, label="controller"
-        )
-        for port_name, validator in handler.output_validators.items():
-            if port_name in validated_outputs:
-                validated_outputs[port_name] = validator(validated_outputs[port_name])
-        return {**validated_outputs, **validated_controller_outputs}
+
+        token = set_execution_context(context or {})
+        try:
+            outputs = handler.executor(validated_parameters, execution_inputs)
+            validated_outputs = self._validate_ports(manifest, outputs, label="output")
+            validated_controller_outputs = self._validate_ports(
+                manifest, outputs, label="controller"
+            )
+            for port_name, validator in handler.output_validators.items():
+                if port_name in validated_outputs:
+                    validated_outputs[port_name] = validator(
+                        validated_outputs[port_name]
+                    )
+            return {**validated_outputs, **validated_controller_outputs}
+        finally:
+            reset_execution_context(token)
 
 
 node_registry = NodeRegistry()

@@ -71,6 +71,9 @@ Routers are mounted in `ParaGraph/server/app.py`.
 5. Runtime executes steps and publishes event updates.
 6. UI monitors state through polling (`GET /executions/{run_id}`), event history, and websocket stream.
 
+Repeated conversational cycles use repeated `POST /executions` calls with the same `execution_session_id` while keeping the workflow graph acyclic.
+Session-aware controller nodes (`CHAT_HISTORY_MEMORY`, `CHAT_HISTORY_PERSISTED`) emit typed `CHAT_HISTORY_HANDLE` values consumed by `LLM_CHAT` and `LLM_STRUCTURED`.
+
 ## 3.1 Bootstrap And Runtime Ownership
 
 - App bootstrap is explicit through `create_app()` in `ParaGraph/server/app.py`.
@@ -88,6 +91,10 @@ Routers are mounted in `ParaGraph/server/app.py`.
 - Repositories own persistence and storage primitives only.
 - Workflow orchestration (create/update document assembly and merge semantics) belongs to `ParaGraph/server/services/workflow/workflow.py`.
 - Workflow repository (`ParaGraph/server/repositories/workflow/workflow.py`) is persistence-only.
+- Chat history persistence is split by repository implementation:
+  - in-memory: `repositories/workflow/chat_history_memory.py`
+  - file-backed: `repositories/workflow/chat_history_file.py`
+  - database-backed: `repositories/workflow/chat_history_database.py`
 - Configuration repository resolves database backends through `ParaGraph/server/repositories/database/factory.py`.
 - Repositories must not read runtime settings at import time.
 

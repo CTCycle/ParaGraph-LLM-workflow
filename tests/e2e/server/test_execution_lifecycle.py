@@ -139,16 +139,24 @@ def test_execution_lifecycle_end_to_end_with_websocket_replay(
     assert isinstance(plan, dict)
 
     start_response = client.post(
-        "/executions", json={"workflow_id": "wf-e2e", "plan": plan}
+        "/executions",
+        json={
+            "workflow_id": "wf-e2e",
+            "execution_session_id": "session-e2e-1",
+            "plan": plan,
+        },
     )
     assert start_response.status_code == 202
-    run_id = start_response.json()["run_id"]
+    started = start_response.json()
+    run_id = started["run_id"]
+    assert started["execution_session_id"] == "session-e2e-1"
 
     snapshots = _poll_run_until_terminal(client, run_id)
     statuses = {snapshot["status"] for snapshot in snapshots}
     assert len(snapshots) >= 1
     assert "completed" in statuses
     assert snapshots[-1]["status"] == "completed"
+    assert snapshots[-1]["execution_session_id"] == "session-e2e-1"
     assert snapshots[-1]["outputs"] == {
         "output_1": {"text": "Hello from deterministic e2e"}
     }

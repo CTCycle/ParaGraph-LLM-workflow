@@ -23,21 +23,36 @@ class ExecutionService:
     OUTPUT_NAME_PARAMETER = "__output_name"
 
     def start_execution(
-        self, plan: CompiledExecutionPlan, workflow_id: str | None = None
+        self,
+        plan: CompiledExecutionPlan,
+        workflow_id: str | None = None,
+        execution_session_id: str | None = None,
     ) -> str:
         return job_manager.start_job(
             job_type="workflow",
             runner=self.execute_plan_job,
-            kwargs={"plan": plan, "workflow_id": workflow_id},
+            kwargs={
+                "plan": plan,
+                "workflow_id": workflow_id,
+                "execution_session_id": execution_session_id,
+            },
         )
 
     def start_execution_response(
-        self, plan: CompiledExecutionPlan, workflow_id: str | None = None
+        self,
+        plan: CompiledExecutionPlan,
+        workflow_id: str | None = None,
+        execution_session_id: str | None = None,
     ) -> StartExecutionResponse:
-        run_id = self.start_execution(plan, workflow_id=workflow_id)
+        run_id = self.start_execution(
+            plan,
+            workflow_id=workflow_id,
+            execution_session_id=execution_session_id,
+        )
         return StartExecutionResponse(
             run_id=run_id,
             status="running",
+            execution_session_id=execution_session_id,
             poll_interval=get_server_settings().jobs.polling_interval,
         )
 
@@ -45,9 +60,13 @@ class ExecutionService:
         return execution_run_repository.get_run(run_id)
 
     def execute_plan_job(
-        self, plan: CompiledExecutionPlan, workflow_id: str | None, job_id: str
+        self,
+        plan: CompiledExecutionPlan,
+        workflow_id: str | None,
+        job_id: str,
+        execution_session_id: str | None = None,
     ) -> dict[str, Any]:
-        self._initialize_run(plan, workflow_id, job_id)
+        self._initialize_run(plan, workflow_id, execution_session_id, job_id)
         outputs_by_step: dict[str, dict[str, Any]] = {}
         output_payload: dict[str, dict[str, Any]] = {}
         cache: dict[str, dict[str, Any]] = {}
@@ -63,6 +82,8 @@ class ExecutionService:
                 self._start_step(job_id, step)
                 output_state_public = self._execute_step(
                     job_id=job_id,
+                    workflow_id=workflow_id,
+                    execution_session_id=execution_session_id,
                     step=step,
                     outputs_by_step=outputs_by_step,
                     output_payload=output_payload,
@@ -87,7 +108,11 @@ class ExecutionService:
         return {"outputs": output_payload}
 
     def _initialize_run(
-        self, plan: CompiledExecutionPlan, workflow_id: str | None, job_id: str
+        self,
+        plan: CompiledExecutionPlan,
+        workflow_id: str | None,
+        execution_session_id: str | None,
+        job_id: str,
     ) -> None:
         steps_state = [
             ExecutionStepState(
@@ -98,6 +123,7 @@ class ExecutionService:
         run = ExecutionRunState(
             run_id=job_id,
             workflow_id=workflow_id,
+            execution_session_id=execution_session_id,
             plan_id=plan.plan_id,
             status="queued",
             steps=steps_state,
@@ -139,6 +165,8 @@ class ExecutionService:
         self,
         *,
         job_id: str,
+        workflow_id: str | None,
+        execution_session_id: str | None,
         step: Any,
         outputs_by_step: dict[str, dict[str, Any]],
         output_payload: dict[str, dict[str, Any]],
@@ -149,7 +177,13 @@ class ExecutionService:
             step, outputs_by_step, step_lookup
         )
         port_outputs = self._resolve_port_outputs(
-            step, resolved_inputs, resolved_controllers, cache
+            step,
+            resolved_inputs,
+            resolved_controllers,
+            cache,
+            job_id=job_id,
+            workflow_id=workflow_id,
+            execution_session_id=execution_session_id,
         )
         outputs_by_step[step.step_id] = port_outputs
         result = self._extract_terminal_output(
@@ -171,6 +205,10 @@ class ExecutionService:
         resolved_inputs: dict[str, Any],
         resolved_controllers: dict[str, Any],
         cache: dict[str, dict[str, Any]],
+        *,
+        job_id: str,
+        workflow_id: str | None,
+        execution_session_id: str | None,
     ) -> dict[str, Any]:
         cache_key = (
             self._build_cache_key(step, resolved_inputs, resolved_controllers)
@@ -186,6 +224,12 @@ class ExecutionService:
             step.parameters,
             resolved_inputs,
             resolved_controllers,
+            context={
+                "run_id": job_id,
+                "workflow_id": workflow_id or "",
+                "execution_session_id": execution_session_id or "",
+                "node_id": step.node_id,
+            },
         )
         if cache_key is not None:
             cache[cache_key] = port_outputs

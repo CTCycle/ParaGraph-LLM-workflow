@@ -10,7 +10,10 @@ from fastapi.testclient import TestClient
 from ParaGraph.server.app import app
 from ParaGraph.server.domain.jobs import JobState
 from ParaGraph.server.repositories.workflow import (
+    database_chat_history_repository,
     execution_run_repository,
+    file_chat_history_repository,
+    in_memory_chat_history_repository,
     workflow_repository,
 )
 from ParaGraph.server.services.jobs import job_manager
@@ -27,6 +30,8 @@ def clear_job_manager() -> None:
 def clear_execution_state() -> None:
     execution_run_repository.reset_for_tests()
     execution_event_service.reset_for_tests()
+    in_memory_chat_history_repository.reset_for_tests()
+    database_chat_history_repository.reset_for_tests()
 
 
 # -----------------------------------------------------------------------------
@@ -73,10 +78,14 @@ def isolated_job_manager() -> Iterator[None]:
 @pytest.fixture(autouse=True)
 def isolated_runtime_state(tmp_path: Path) -> Iterator[None]:
     isolated_root = tmp_path / "workflows"
+    isolated_chat_history_root = tmp_path / "chat_history"
     isolated_root.mkdir(parents=True, exist_ok=True)
+    isolated_chat_history_root.mkdir(parents=True, exist_ok=True)
     workflow_repository.configure_storage_for_tests(isolated_root)
+    file_chat_history_repository.configure_storage_for_tests(isolated_chat_history_root)
 
     workflow_repository.reset_for_tests()
+    file_chat_history_repository.reset_for_tests()
     clear_execution_state()
     clear_provider_caches()
 
@@ -84,9 +93,11 @@ def isolated_runtime_state(tmp_path: Path) -> Iterator[None]:
         yield
     finally:
         workflow_repository.reset_for_tests()
+        file_chat_history_repository.reset_for_tests()
         clear_execution_state()
         clear_provider_caches()
         workflow_repository.restore_default_storage_for_tests()
+        file_chat_history_repository.restore_default_storage_for_tests()
 
 
 # -----------------------------------------------------------------------------
