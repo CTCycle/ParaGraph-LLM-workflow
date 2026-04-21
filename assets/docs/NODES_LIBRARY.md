@@ -10,6 +10,7 @@ Source of truth for shipped nodes: `ParaGraph/resources/nodes/*.json`.
 | `web` | `API_CALL`, `FETCH_HTML` |
 | `prompt` | `PROMPT`, `PROMPT_TEMPLATE` |
 | `model` | `MODEL_PROVIDER`, `LLM_CHAT`, `LLM_STRUCTURED` |
+| `memory` | `CHAT_HISTORY_MEMORY`, `CHAT_HISTORY_PERSISTED` |
 | `embeddings` | `TEXT_EMBEDDING` |
 | `retrieval` | `SIMILARITY_SEARCH`, `RERANK_RESULTS` |
 | `serialization` | `LOAD_DOCUMENTS`, `LOAD_TEXT`, `SAVE_AS_FILE`, `SAVE_AS_FOLDER` |
@@ -25,6 +26,8 @@ Source of truth for shipped nodes: `ParaGraph/resources/nodes/*.json`.
 - `MODEL_PROVIDER`: emits typed model handle for generation nodes.
 - `LLM_CHAT`: text generation node.
 - `LLM_STRUCTURED`: structured generation node with JSON-schema validation after generation.
+- `CHAT_HISTORY_MEMORY`: emits `CHAT_HISTORY_HANDLE` backed by in-memory storage.
+- `CHAT_HISTORY_PERSISTED`: emits `CHAT_HISTORY_HANDLE` backed by `file` or `database` storage.
 - `TEXT_EMBEDDING`: creates vectors from text/documents/chunks.
 - `VECTOR_STORE`: persists vectors to selected backend.
 - `SIMILARITY_SEARCH`: retrieves scored hits from vector store.
@@ -105,6 +108,19 @@ Important:
 - Hugging Face structured output remains best-effort generation + JSON validation.
 - Hugging Face metadata indicates no streaming/tool-calling support.
 - Claude embeddings are unsupported by provider capabilities.
+
+## 8.1 Chat History Contract
+
+- `LLM_CHAT` and `LLM_STRUCTURED` accept optional `history` controller input of type `CHAT_HISTORY_HANDLE`.
+- History node parameters:
+  - `max_messages` (minimum `1`)
+  - `separator`
+  - `keep_prompt_type`
+  - persisted node only: `storage_backend` (`file` or `database`)
+- Persisted file storage path:
+  - `ParaGraph/resources/chat_history/<workflow_id>/<execution_session_id>/<node_id>.json`
+- Persisted database storage:
+  - one row per message in `chat_history_messages` with workflow/session/node identifiers, role, content, and timestamp.
 
 ## 11. `SIMILARITY_SEARCH` Contract Matrix
 

@@ -42,6 +42,10 @@ ParaGraph desktop packaging is available via Tauri. See `assets/docs/PACKAGING_A
 6. Start execution.
 7. Monitor status and view outputs/events.
 
+For conversational workflows:
+- keep re-running with the same execution session (default behavior while the page stays open),
+- use **Reset Session** in the toolbar to start a new isolated conversation history.
+
 ### 3.2 Configure providers and profiles
 
 1. Open Configurations.
@@ -109,6 +113,11 @@ ParaGraph desktop packaging is available via Tauri. See `assets/docs/PACKAGING_A
 7. `RERANK_RESULTS` (optional but recommended)
 8. `PROMPT_TEMPLATE` for answer synthesis
 9. `LLM_CHAT` or `LLM_STRUCTURED`
+
+Optional conversational memory branch:
+- add `CHAT_HISTORY_MEMORY` (temporary) or `CHAT_HISTORY_PERSISTED` (durable),
+- connect its `history` controller to `LLM_CHAT`/`LLM_STRUCTURED`,
+- configure `max_messages`, `separator`, `keep_prompt_type`, and for persisted nodes `storage_backend`.
 
 ## 6. Key Features
 

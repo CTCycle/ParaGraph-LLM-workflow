@@ -36,6 +36,14 @@
       "accepts_multiple": false,
       "description": "Required model controller provided by a MODEL_PROVIDER node.",
       "scope": "target"
+    },
+    {
+      "name": "history",
+      "data_type": "CHAT_HISTORY_HANDLE",
+      "required": false,
+      "accepts_multiple": false,
+      "description": "Optional chat history handle controller provided by a chat history node.",
+      "scope": "target"
     }
   ],
   "parameters": [

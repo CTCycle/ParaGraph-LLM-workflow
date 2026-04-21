@@ -9,11 +9,14 @@ import httpx
 
 from pydantic import ValidationError
 
+from ParaGraph.server.domain.chat_history import ChatHistoryHandle
 from ParaGraph.server.domain.node_handler_core import (
     ChatParameters,
     EmbeddingParameters,
     ImageInputParameters,
+    InMemoryChatHistoryParameters,
     ModelProviderParameters,
+    PersistedChatHistoryParameters,
     PromptParameters,
     PromptTemplateParameters,
     RerankParameters,
@@ -34,6 +37,10 @@ from ParaGraph.server.domain.workflow_payloads import (
 )
 from ParaGraph.server.services.configuration import configuration_service
 from ParaGraph.server.services.workflow.node_handlers.base import NodeHandler
+from ParaGraph.server.services.workflow.node_handlers.core.chat_history import (
+    execute_chat_history_memory,
+    execute_chat_history_persisted,
+)
 from ParaGraph.server.services.workflow.node_handlers.core.huggingface_runtime import (
     load_huggingface_embedding_modules,
     load_huggingface_modules,
@@ -59,6 +66,7 @@ from ParaGraph.server.services.workflow.node_handlers.common import (
     validate_json_against_schema,
 )
 from ParaGraph.server.services.workflow.provider import provider_service
+from ParaGraph.server.services.workflow.chat_history import chat_history_service
 from ParaGraph.server.services.workflow.node_handlers.ingestion import (
     load_file_text,
     resolve_local_path,
@@ -214,12 +222,9 @@ def _image_input_executor(
 
 
 # -----------------------------------------------------------------------------
-def _build_messages(
-    parameters: dict[str, Any],
-    inputs: dict[str, Any],
-    *,
-    structured_schema: dict[str, Any] | None = None,
-) -> list[dict[str, Any]]:
+def _extract_prompt_inputs(
+    parameters: dict[str, Any], inputs: dict[str, Any]
+) -> tuple[str, str, str]:
     user_prompt = coerce_text(
         inputs.get("user_prompt")
         or parameters.get("prompt")
@@ -233,11 +238,24 @@ def _build_messages(
     image_path = coerce_text(
         image_input.get("path") if isinstance(image_input, dict) else ""
     ).strip()
+    return user_prompt, system_prompt, image_path
+
+
+def _build_messages(
+    parameters: dict[str, Any],
+    inputs: dict[str, Any],
+    *,
+    structured_schema: dict[str, Any] | None = None,
+    history_text: str = "",
+) -> list[dict[str, Any]]:
+    user_prompt, system_prompt, image_path = _extract_prompt_inputs(parameters, inputs)
 
     if not user_prompt and not image_path:
         raise ValueError("Model nodes require a user prompt or an image input")
 
     messages: list[dict[str, Any]] = []
+    if history_text:
+        messages.append({"role": "system", "content": history_text})
     if system_prompt:
         messages.append({"role": "system", "content": system_prompt})
 
@@ -351,7 +369,26 @@ def _execute_model_node(
     timeout_s: float | None,
 ) -> dict[str, Any]:
     schema = parameters.get("response_schema") if structured_output else None
-    messages = _build_messages(parameters, inputs, structured_schema=schema)
+    history_handle_input = inputs.get("history")
+    history_handle: ChatHistoryHandle | None = None
+    if history_handle_input is not None:
+        try:
+            history_handle = ChatHistoryHandle.model_validate(history_handle_input)
+        except ValidationError as exc:
+            raise ValueError("history controller must be a valid chat history handle") from exc
+
+    history_text = (
+        chat_history_service.format_history_for_prompt(history_handle)
+        if history_handle is not None
+        else ""
+    )
+    user_prompt, system_prompt, _image_path = _extract_prompt_inputs(parameters, inputs)
+    messages = _build_messages(
+        parameters,
+        inputs,
+        structured_schema=schema,
+        history_text=history_text,
+    )
     include_context_window = provider in {"ollama", "huggingface"}
     options = _build_generation_options(
         parameters, include_context_window=include_context_window
@@ -403,7 +440,21 @@ def _execute_model_node(
         if not isinstance(schema, dict):
             raise ValueError("Structured response schema is required")
         validate_json_against_schema(parsed, schema)
+        if history_handle is not None:
+            chat_history_service.append_exchange(
+                history_handle,
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                assistant_output=chat_history_service.serialize_structured_output(parsed),
+            )
         return {"result": parsed}
+    if history_handle is not None:
+        chat_history_service.append_exchange(
+            history_handle,
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            assistant_output=text,
+        )
     return {"response": text}
 
 
@@ -1006,4 +1057,12 @@ CORE_HANDLERS = {
     ),
     "if": NodeHandler(executor=_if_executor),
     "router": NodeHandler(executor=_router_executor, parameter_model=RouterParameters),
+    "chat_history_memory": NodeHandler(
+        executor=execute_chat_history_memory,
+        parameter_model=InMemoryChatHistoryParameters,
+    ),
+    "chat_history_persisted": NodeHandler(
+        executor=execute_chat_history_persisted,
+        parameter_model=PersistedChatHistoryParameters,
+    ),
 }

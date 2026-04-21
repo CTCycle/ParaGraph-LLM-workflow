@@ -190,6 +190,26 @@ type WorkflowTextEditorBinding = {
     editable: boolean
     parameterName: string | null
 }
+
+export function createExecutionSessionId(): string {
+    const cryptoApi = window.crypto
+    if (cryptoApi && typeof cryptoApi.randomUUID === 'function') {
+        return cryptoApi.randomUUID()
+    }
+    return `sess_${Date.now()}_${Math.round(Math.random() * 1_000_000)}`
+}
+
+export function resolveExecutionSessionId(
+    currentId: string | null,
+    options?: { reset?: boolean; idFactory?: () => string },
+): string {
+    const reset = options?.reset === true
+    if (!reset && currentId) {
+        return currentId
+    }
+    return (options?.idFactory ?? createExecutionSessionId)()
+}
+
 const NODE_MIN_WIDTH = 240
 const NODE_MAX_WIDTH = 680
 const NODE_MIN_HEIGHT = 140
@@ -2436,6 +2456,7 @@ function WorkflowEditor() {
     const [executionErrorModal, setExecutionErrorModal] = useState<WorkflowExecutionErrorModal | null>(null)
     const [isRunning, setIsRunning] = useState(false)
     const [activeRun, setActiveRun] = useState<PersistedActiveExecution | null>(null)
+    const [executionSessionId, setExecutionSessionId] = useState<string>(() => resolveExecutionSessionId(null))
     const [resumeRunSnapshot, setResumeRunSnapshot] = useState<PersistedActiveExecution | null>(null)
     const [search, setSearch] = useState('')
     const [isLibraryVisible, setIsLibraryVisible] = useState(false)
@@ -3991,7 +4012,7 @@ function WorkflowEditor() {
             }
 
             activePlanRef.current = compileResponse.plan
-            const execution = await startExecution(compileResponse.plan)
+            const execution = await startExecution(compileResponse.plan, undefined, executionSessionId)
             const runSnapshot: PersistedActiveExecution = {
                 run_id: execution.run_id,
                 poll_interval: execution.poll_interval,
@@ -4031,6 +4052,15 @@ function WorkflowEditor() {
         }
     }
 
+    function resetExecutionSession(): void {
+        if (isRunning) {
+            return
+        }
+        const nextSessionId = resolveExecutionSessionId(executionSessionId, { reset: true })
+        setExecutionSessionId(nextSessionId)
+        setStatusText('Execution session reset')
+    }
+
     return (
         <section className="workflow-shell" ref={workflowShellRef}>
             <div className="workflow-toolbar" role="navigation" aria-label="Workflow actions">
@@ -4060,6 +4090,9 @@ function WorkflowEditor() {
                     </button>
                     <button type="button" onClick={() => setEdges([])}>
                         Clear Links
+                    </button>
+                    <button type="button" onClick={resetExecutionSession} disabled={isRunning}>
+                        Reset Session
                     </button>
                     <button
                         type="button"
