@@ -1244,10 +1244,10 @@ function isWorkflowConnectionPayload(value: unknown): value is WorkflowConnectio
         typeof value.from_node === 'string' &&
         typeof value.to_node === 'string' &&
         isValidConnectionType &&
-        (value.from_output === undefined || typeof value.from_output === 'string') &&
-        (value.to_input === undefined || typeof value.to_input === 'string') &&
-        (value.from_controller === undefined || typeof value.from_controller === 'string') &&
-        (value.to_controller === undefined || typeof value.to_controller === 'string')
+        (value.from_output === undefined || value.from_output === null || typeof value.from_output === 'string') &&
+        (value.to_input === undefined || value.to_input === null || typeof value.to_input === 'string') &&
+        (value.from_controller === undefined || value.from_controller === null || typeof value.from_controller === 'string') &&
+        (value.to_controller === undefined || value.to_controller === null || typeof value.to_controller === 'string')
     )
 }
 
@@ -1324,7 +1324,15 @@ function isWorkflowOpenIntentPayload(value: unknown): value is WorkflowOpenInten
         return typeof value.node_id === 'string' && isFiniteNumber(value.node_version)
     }
     if (value.type === 'load-template') {
-        return isWorkflowTemplatePayload(value.template)
+        if (isWorkflowTemplatePayload(value.template)) {
+            return true
+        }
+        return (
+            typeof value.template_name === 'string' &&
+            (value.template_id === undefined || typeof value.template_id === 'string') &&
+            isWorkflowDefinitionPayload(value.definition) &&
+            isVisualGraphPayload(value.visual_graph)
+        )
     }
     return false
 }
@@ -3041,16 +3049,28 @@ function WorkflowEditor() {
             return
         }
 
-        const template = rawIntent.template
-        const requiredManifestKeys = new Set(template.required_nodes.map((manifest) => manifestKey(manifest)))
-        const manifestsForHydration = catalog.filter((manifest) => requiredManifestKeys.has(manifestKey(manifest)))
-        const missing = template.required_nodes.filter(
-            (requiredNode) => !manifestsForHydration.some((manifest) => manifest.id === requiredNode.id && manifest.version === requiredNode.version),
+        const templateName = rawIntent.template?.name ?? rawIntent.template_name
+        const templateDefinition = rawIntent.template?.definition ?? rawIntent.definition
+        const templateVisualGraph = rawIntent.template?.visual_graph ?? rawIntent.visual_graph
+        if (!templateName || !templateDefinition || !templateVisualGraph) {
+            setStatusText('Unable to load template payload from navigation state')
+            clearIntentState()
+            return
+        }
+
+        const requiredManifestKeys = new Set(
+            templateDefinition.nodes.map((node) => `${resolveManifestId(node.node_type)}:${node.node_version}`),
         )
+        const manifestsForHydration = catalog.filter((manifest) => requiredManifestKeys.has(manifestKey(manifest)))
+        const foundManifestKeys = new Set(manifestsForHydration.map((manifest) => manifestKey(manifest)))
+        const missing = Array.from(requiredManifestKeys).filter((key) => !foundManifestKeys.has(key))
         if (missing.length > 0) {
             setStatusText(
-                `Template "${template.name}" requires missing node manifests: ${missing
-                    .map((manifest) => `${manifest.id} v${manifest.version}`)
+                `Template "${templateName}" requires missing node manifests: ${missing
+                    .map((entry) => {
+                        const [id, version] = entry.split(':')
+                        return `${id} v${version}`
+                    })
                     .join(', ')}`,
             )
             clearIntentState()
@@ -3059,14 +3079,14 @@ function WorkflowEditor() {
 
         hydrateWorkflowFromPayload(
             {
-                name: template.name,
-                definition: template.definition,
-                visualGraph: template.visual_graph,
-                requiredNodes: template.required_nodes,
+                name: templateName,
+                definition: templateDefinition,
+                visualGraph: templateVisualGraph,
+                requiredNodes: manifestsForHydration,
             },
             manifestsForHydration,
         )
-        setStatusText(`Loaded template "${template.name}"`)
+        setStatusText(`Loaded template "${templateName}"`)
         clearIntentState()
     }, [catalog, loading, location.pathname, location.state, navigate, screenToFlowPosition])
 
@@ -4058,7 +4078,7 @@ function WorkflowEditor() {
         }
         const nextSessionId = resolveExecutionSessionId(executionSessionId, { reset: true })
         setExecutionSessionId(nextSessionId)
-        setStatusText('Execution session reset')
+        setStatusText('Run session ID reset (workflow graph unchanged)')
     }
 
     return (
@@ -4091,8 +4111,8 @@ function WorkflowEditor() {
                     <button type="button" onClick={() => setEdges([])}>
                         Clear Links
                     </button>
-                    <button type="button" onClick={resetExecutionSession} disabled={isRunning}>
-                        Reset Session
+                    <button type="button" onClick={resetExecutionSession} disabled={isRunning} title="Reset run session ID only">
+                        Reset Run ID
                     </button>
                     <button
                         type="button"

@@ -4,6 +4,7 @@ from ParaGraph.server.domain.configuration import (
     AppConfigurationPayload,
     ConfigurationProfileListResponse,
     OllamaStatusResponse,
+    is_masked_api_key,
 )
 from ParaGraph.server.domain.node_catalog import NodeManifest
 from ParaGraph.server.repositories.configuration import (
@@ -27,9 +28,25 @@ class ConfigurationService:
     def save_configuration(
         self, payload: AppConfigurationPayload
     ) -> AppConfigurationPayload:
+        existing_payload = self._repository.load_configuration(
+            session_name=payload.session_name
+        )
+        existing = AppConfigurationPayload.model_validate(existing_payload)
+        existing_by_provider = {
+            item.provider: item for item in existing.access_keys
+        }
+
+        resolved_access_keys = []
+        for item in payload.access_keys:
+            incoming = item.model_dump(mode="json")
+            if is_masked_api_key(item.api_key):
+                current = existing_by_provider.get(item.provider)
+                incoming["api_key"] = current.api_key if current else None
+            resolved_access_keys.append(incoming)
+
         stored = self._repository.save_configuration(
             session_name=payload.session_name,
-            access_keys=[item.model_dump(mode="json") for item in payload.access_keys],
+            access_keys=resolved_access_keys,
             ollama=payload.ollama.model_dump(mode="json"),
         )
         return AppConfigurationPayload.model_validate(stored)
@@ -63,10 +80,13 @@ class ConfigurationService:
         payload: AppConfigurationPayload,
     ) -> AppConfigurationPayload:
         stored = self.save_configuration(payload)
+        raw_configuration = self._repository.load_configuration(
+            session_name=stored.session_name
+        )
         self._repository.save_configuration_profile(
             session_name=stored.session_name,
             profile_name=profile_name,
-            configuration_json=stored.model_dump(mode="json"),
+            configuration_json=raw_configuration,
         )
         return stored
 

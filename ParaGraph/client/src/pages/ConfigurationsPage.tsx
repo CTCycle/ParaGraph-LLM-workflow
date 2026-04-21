@@ -33,6 +33,8 @@ type ConfigurationFormValues = {
 type InlineStatusTone = 'neutral' | 'success' | 'error'
 
 const DEFAULT_SESSION_NAME = 'default'
+const MASKED_API_KEY_VALUE = '__PG_MASKED_API_KEY__'
+const MASKED_API_KEY_DISPLAY = '********'
 const CLOUD_PROVIDER_OPTIONS: Array<{ value: CloudProvider; label: string }> = [
     { value: 'openai', label: 'OpenAI' },
     { value: 'gemini', label: 'Gemini' },
@@ -54,6 +56,17 @@ function toCloudProvider(value: string): CloudProvider {
         return value
     }
     return 'openai'
+}
+
+function normalizeApiKeyField(value: string | null | undefined): string {
+    const normalized = normalizeText(value)
+    if (!normalized) {
+        return ''
+    }
+    if (normalized === MASKED_API_KEY_VALUE) {
+        return MASKED_API_KEY_DISPLAY
+    }
+    return normalized
 }
 
 function formatOllamaStatusMessage(message: string, baseUrl: string): string {
@@ -79,15 +92,15 @@ function mapPayloadToForm(payload: AppConfigurationPayload): ConfigurationFormVa
 
     payload.access_keys.forEach((item) => {
         if (item.provider === 'huggingface') {
-            huggingFaceKey = normalizeText(item.api_key)
+            huggingFaceKey = normalizeApiKeyField(item.api_key)
             return
         }
 
         const provider = toCloudProvider(item.provider)
         cloudCredentials[provider] = {
-            apiKey: normalizeText(item.api_key),
+            apiKey: normalizeApiKeyField(item.api_key),
         }
-        if (normalizeText(item.api_key)) {
+        if (normalizeApiKeyField(item.api_key)) {
             selectedCloudProvider = provider
         }
     })
@@ -165,16 +178,27 @@ export default function ConfigurationsPage() {
     }, [])
 
     function buildPayload(): AppConfigurationPayload {
+        function toApiPayload(value: string): string | null {
+            const normalized = normalizeText(value)
+            if (!normalized) {
+                return null
+            }
+            if (normalized === MASKED_API_KEY_DISPLAY) {
+                return MASKED_API_KEY_VALUE
+            }
+            return normalized
+        }
+
         const accessKeys: AccessKeyConfiguration[] = CLOUD_PROVIDER_OPTIONS.map((option) => ({
             provider: option.value,
-            api_key: normalizeText(cloudCredentials[option.value].apiKey) || null,
+            api_key: toApiPayload(cloudCredentials[option.value].apiKey),
             base_url: null,
             metadata: {},
         }))
 
         accessKeys.push({
             provider: 'huggingface',
-            api_key: normalizeText(huggingFaceKey) || null,
+            api_key: toApiPayload(huggingFaceKey),
             base_url: null,
             metadata: {},
         })
@@ -361,17 +385,11 @@ export default function ConfigurationsPage() {
 
                     <form
                         className="config-panel-fields"
+                        autoComplete="off"
                         onSubmit={(event) => {
                             event.preventDefault()
                         }}
                     >
-                        <input
-                            type="text"
-                            className="config-hidden-username"
-                            autoComplete="username"
-                            tabIndex={-1}
-                            aria-hidden="true"
-                        />
                         <label>
                             <span>Cloud Provider</span>
                             <select
@@ -392,7 +410,7 @@ export default function ConfigurationsPage() {
                                 type="password"
                                 value={currentCloudCredentials.apiKey}
                                 placeholder="sk-..."
-                                autoComplete="current-password"
+                                autoComplete="new-password"
                                 onChange={(event) => updateCurrentCloudCredential('apiKey', event.target.value)}
                             />
                         </label>
@@ -403,7 +421,7 @@ export default function ConfigurationsPage() {
                                 type="password"
                                 value={huggingFaceKey}
                                 placeholder="hf_..."
-                                autoComplete="current-password"
+                                autoComplete="new-password"
                                 onChange={(event) => setHuggingFaceKey(event.target.value)}
                             />
                         </label>
