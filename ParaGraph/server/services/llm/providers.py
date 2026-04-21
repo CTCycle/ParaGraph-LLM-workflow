@@ -349,7 +349,13 @@ class CloudLLMClient:
             if "top_p" in options:
                 payload["top_p"] = options["top_p"]
             if "max_output_tokens" in options:
-                payload["max_tokens"] = options["max_output_tokens"]
+                max_output_tokens = options["max_output_tokens"]
+                normalized_model = model.strip().lower()
+                # Newer OpenAI model families reject max_tokens and expect max_completion_tokens.
+                if normalized_model.startswith(("gpt-5", "o1", "o3", "o4")):
+                    payload["max_completion_tokens"] = max_output_tokens
+                else:
+                    payload["max_tokens"] = max_output_tokens
         if format == "json":
             payload["response_format"] = {"type": "json_object"}
 

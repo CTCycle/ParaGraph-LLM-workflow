@@ -189,7 +189,11 @@ export interface WorkflowOpenIntentAddNode {
 
 export interface WorkflowOpenIntentLoadTemplate {
     type: 'load-template'
-    template: WorkflowTemplate
+    template?: WorkflowTemplate
+    template_id?: string
+    template_name?: string
+    definition?: WorkflowDefinition
+    visual_graph?: VisualGraph
 }
 
 export type WorkflowOpenIntent = WorkflowOpenIntentAddNode | WorkflowOpenIntentLoadTemplate

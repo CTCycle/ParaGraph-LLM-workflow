@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field, field_validator
 
 DEFAULT_SESSION_NAME = "default"
 SESSION_NAME_PATTERN = r"^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$"
+MASKED_API_KEY_VALUE = "__PG_MASKED_API_KEY__"
 
 
 ###############################################################################
@@ -41,6 +42,14 @@ class AccessKeyConfiguration(BaseModel):
             return None
         text = str(value).strip()
         return text or None
+
+
+###############################################################################
+def is_masked_api_key(value: str | None) -> bool:
+    if value is None:
+        return False
+    normalized = value.strip()
+    return normalized in {MASKED_API_KEY_VALUE, "********"}
 
 
 ###############################################################################

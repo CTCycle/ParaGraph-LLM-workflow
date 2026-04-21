@@ -511,7 +511,10 @@ export default function NodesPage() {
                                                     onClick={() =>
                                                         navigateToWorkflow({
                                                             type: 'load-template',
-                                                            template,
+                                                            template_id: template.id,
+                                                            template_name: template.name,
+                                                            definition: template.definition,
+                                                            visual_graph: template.visual_graph,
                                                         })
                                                     }
                                                 >
