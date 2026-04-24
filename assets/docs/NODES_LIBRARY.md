@@ -45,6 +45,15 @@ A node manifest includes:
 
 Runtime validation occurs through backend node registry logic before use in execution plans.
 
+## Similarity Search Contract
+
+- `search_mode`
+  - options: `vector`, `hybrid`
+- `search_engine`
+  - options: `native`, `faiss_augmented`
+- `similarity_strategy`
+  - options: `cosine`, `euclidean`, `dot`
+
 ## Importing Custom Nodes
 
 ### API
