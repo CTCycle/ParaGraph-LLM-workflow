@@ -6,10 +6,18 @@ import {
 } from '../../workflow/schema/types'
 import { getApiBase, requestJson } from './api'
 
-export function startExecution(plan: CompiledExecutionPlan, workflowId?: string): Promise<StartExecutionResponse> {
+export function startExecution(
+  plan: CompiledExecutionPlan,
+  workflowId?: string,
+  executionSessionId?: string,
+): Promise<StartExecutionResponse> {
   return requestJson<StartExecutionResponse>('/executions', {
     method: 'POST',
-    body: JSON.stringify({ workflow_id: workflowId ?? null, plan }),
+    body: JSON.stringify({
+      workflow_id: workflowId ?? null,
+      execution_session_id: executionSessionId ?? null,
+      plan,
+    }),
   })
 }
 
@@ -27,7 +35,7 @@ function sleep(ms: number, signal?: AbortSignal): Promise<void> {
   if (!signal) return new Promise((resolve) => setTimeout(resolve, ms))
   if (signal.aborted) return Promise.reject(createAbortError())
   return new Promise((resolve, reject) => {
-    const timer = globalThis.setTimeout(() => {
+    const timer = window.setTimeout(() => {
       cleanup()
       resolve()
     }, ms)
@@ -36,7 +44,7 @@ function sleep(ms: number, signal?: AbortSignal): Promise<void> {
       reject(createAbortError())
     }
     const cleanup = (): void => {
-      globalThis.clearTimeout(timer)
+      window.clearTimeout(timer)
       signal.removeEventListener('abort', handleAbort)
     }
     signal.addEventListener('abort', handleAbort, { once: true })

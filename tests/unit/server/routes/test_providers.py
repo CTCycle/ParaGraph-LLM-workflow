@@ -7,12 +7,13 @@ from ParaGraph.server.services.workflow import provider_service
 from ParaGraph.server.services.workflow.provider import ProviderApiError
 
 
-
 def _raise_provider_error(message: str, status_code: int):
     raise ProviderApiError(message, status_code=status_code)
 
 
-def test_provider_errors_are_mapped_to_http_status_codes(client: TestClient, monkeypatch) -> None:
+def test_provider_errors_are_mapped_to_http_status_codes(
+    client: TestClient, monkeypatch
+) -> None:
     monkeypatch.setattr(
         provider_service,
         "list_ollama_library_models",
@@ -45,7 +46,9 @@ def test_provider_errors_are_mapped_to_http_status_codes(client: TestClient, mon
         "download_huggingface_model",
         lambda **kwargs: _raise_provider_error("repo not found", 404),
     )
-    hf_download_response = client.post("/providers/huggingface/download", json={"repo_id": "org/model"})
+    hf_download_response = client.post(
+        "/providers/huggingface/download", json={"repo_id": "org/model"}
+    )
     assert hf_download_response.status_code == 404
     assert hf_download_response.json()["detail"] == "repo not found"
 
@@ -68,8 +71,12 @@ def test_provider_errors_are_mapped_to_http_status_codes(client: TestClient, mon
     assert hf_cancel_response.json()["detail"] == "cannot cancel"
 
 
-def test_provider_models_include_embedding_capabilities(client: TestClient, monkeypatch) -> None:
-    monkeypatch.setattr(provider_service, "_ollama_models", lambda session_name="default": ())
+def test_provider_models_include_embedding_capabilities(
+    client: TestClient, monkeypatch
+) -> None:
+    monkeypatch.setattr(
+        provider_service, "_ollama_models", lambda session_name="default": ()
+    )
     monkeypatch.setattr(provider_service, "_downloaded_huggingface_models", lambda: ())
 
     response = client.get("/providers/models")
@@ -77,20 +84,38 @@ def test_provider_models_include_embedding_capabilities(client: TestClient, monk
     assert response.status_code == 200
     payload = response.json()
     models = payload["models"]
-    embedding_models = [item for item in models if item.get("supports_embeddings") is True]
-    assert embedding_models, "Expected at least one embedding-capable model in /providers/models"
+    embedding_models = [
+        item for item in models if item.get("supports_embeddings") is True
+    ]
+    assert embedding_models, (
+        "Expected at least one embedding-capable model in /providers/models"
+    )
 
-    by_provider = {provider: [] for provider in ("openai", "gemini", "ollama", "huggingface")}
+    by_provider = {
+        provider: [] for provider in ("openai", "gemini", "ollama", "huggingface")
+    }
     for item in embedding_models:
         provider = item.get("provider")
         if provider in by_provider:
             by_provider[provider].append(item)
 
-    assert by_provider["openai"], "OpenAI embedding models should be exposed by /providers/models"
-    assert by_provider["gemini"], "Gemini embedding models should be exposed by /providers/models"
-    assert by_provider["ollama"], "Ollama embedding models should be exposed by /providers/models"
-    assert by_provider["huggingface"], "Hugging Face embedding models should be exposed by /providers/models"
-    assert not [item for item in models if item.get("provider") == "claude" and item.get("supports_embeddings") is True]
+    assert by_provider["openai"], (
+        "OpenAI embedding models should be exposed by /providers/models"
+    )
+    assert by_provider["gemini"], (
+        "Gemini embedding models should be exposed by /providers/models"
+    )
+    assert by_provider["ollama"], (
+        "Ollama embedding models should be exposed by /providers/models"
+    )
+    assert by_provider["huggingface"], (
+        "Hugging Face embedding models should be exposed by /providers/models"
+    )
+    assert not [
+        item
+        for item in models
+        if item.get("provider") == "claude" and item.get("supports_embeddings") is True
+    ]
 
 
 def test_provider_model_definition_propagates_supports_embeddings_flag() -> None:

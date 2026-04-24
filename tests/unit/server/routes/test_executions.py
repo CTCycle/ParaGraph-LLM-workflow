@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import time
+
 from fastapi.testclient import TestClient
 
 
@@ -134,7 +136,9 @@ def test_compile_flags_missing_ports_and_controllers(client: TestClient) -> None
         ],
         "metadata": {},
     }
-    response_source = client.post("/executions/compile", json={"definition": missing_source_port})
+    response_source = client.post(
+        "/executions/compile", json={"definition": missing_source_port}
+    )
     source_codes = {item["code"] for item in response_source.json()["diagnostics"]}
     assert "missing_source_port" in source_codes
 
@@ -164,7 +168,9 @@ def test_compile_flags_missing_ports_and_controllers(client: TestClient) -> None
         ],
         "metadata": {},
     }
-    response_target = client.post("/executions/compile", json={"definition": missing_target_port})
+    response_target = client.post(
+        "/executions/compile", json={"definition": missing_target_port}
+    )
     target_codes = {item["code"] for item in response_target.json()["diagnostics"]}
     assert "missing_target_port" in target_codes
 
@@ -181,7 +187,11 @@ def test_compile_flags_missing_ports_and_controllers(client: TestClient) -> None
                 "node_id": "chat_1",
                 "node_type": "LLM_CHAT",
                 "node_version": 1,
-                "parameters": {"context_window": 0, "max_tokens": 16, "use_reasoning": False},
+                "parameters": {
+                    "context_window": 0,
+                    "max_tokens": 16,
+                    "use_reasoning": False,
+                },
             },
         ],
         "connections": [
@@ -194,9 +204,16 @@ def test_compile_flags_missing_ports_and_controllers(client: TestClient) -> None
         ],
         "metadata": {},
     }
-    response_controller = client.post("/executions/compile", json={"definition": missing_controller})
-    controller_codes = {item["code"] for item in response_controller.json()["diagnostics"]}
-    assert "missing_required_controller" in controller_codes or "missing_model_selection" in controller_codes
+    response_controller = client.post(
+        "/executions/compile", json={"definition": missing_controller}
+    )
+    controller_codes = {
+        item["code"] for item in response_controller.json()["diagnostics"]
+    }
+    assert (
+        "missing_required_controller" in controller_codes
+        or "missing_model_selection" in controller_codes
+    )
 
 
 def test_get_execution_returns_404_for_unknown_run(client: TestClient) -> None:
@@ -204,3 +221,43 @@ def test_get_execution_returns_404_for_unknown_run(client: TestClient) -> None:
 
     assert response.status_code == 404
     assert response.json()["detail"] == "Run not found: run-missing"
+
+
+def test_execution_session_id_round_trips_through_execution_endpoints(
+    client: TestClient,
+) -> None:
+    compile_response = client.post(
+        "/executions/compile", json={"definition": _basic_prompt_output_definition()}
+    )
+    assert compile_response.status_code == 200
+    payload = compile_response.json()
+    assert payload["valid"] is True
+    plan = payload["plan"]
+    assert isinstance(plan, dict)
+
+    session_id = "session-route-test"
+    start_response = client.post(
+        "/executions",
+        json={
+            "workflow_id": "wf-route-test",
+            "execution_session_id": session_id,
+            "plan": plan,
+        },
+    )
+    assert start_response.status_code == 202
+    started = start_response.json()
+    assert started["execution_session_id"] == session_id
+
+    run_id = started["run_id"]
+    deadline = time.monotonic() + 2.0
+    last_payload: dict[str, object] | None = None
+    while time.monotonic() < deadline:
+        run_response = client.get(f"/executions/{run_id}")
+        if run_response.status_code == 200:
+            last_payload = run_response.json()
+            if last_payload.get("execution_session_id") == session_id:
+                break
+        time.sleep(0.01)
+
+    assert last_payload is not None
+    assert last_payload["execution_session_id"] == session_id

@@ -5,13 +5,19 @@ from collections import defaultdict
 from queue import Queue
 from typing import Any
 
-from ParaGraph.server.domain.execution import ExecutionEventEnvelope, EventHistoryResponse
+from ParaGraph.server.domain.execution import (
+    ExecutionEventEnvelope,
+    EventHistoryResponse,
+)
+
 
 ###############################################################################
 class EventService:
     def __init__(self) -> None:
         self._lock = threading.Lock()
-        self._subscribers: dict[str, list[Queue[ExecutionEventEnvelope]]] = defaultdict(list)
+        self._subscribers: dict[str, list[Queue[ExecutionEventEnvelope]]] = defaultdict(
+            list
+        )
         self._history: dict[str, list[ExecutionEventEnvelope]] = defaultdict(list)
         self._sequence: dict[str, int] = defaultdict(int)
 
@@ -61,6 +67,13 @@ class EventService:
         with self._lock:
             events = list(self._history.get(run_id, []))
         return EventHistoryResponse(run_id=run_id, events=events)
+
+    # -------------------------------------------------------------------------
+    def reset_for_tests(self) -> None:
+        with self._lock:
+            self._subscribers.clear()
+            self._history.clear()
+            self._sequence.clear()
 
 
 execution_event_service = EventService()

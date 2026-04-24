@@ -20,7 +20,9 @@ def _write_template(path: Path, payload: dict[str, object]) -> None:
     path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
 
-def test_template_service_rejects_missing_required_node_manifest(tmp_path: Path, monkeypatch) -> None:
+def test_template_service_rejects_missing_required_node_manifest(
+    tmp_path: Path, monkeypatch
+) -> None:
     monkeypatch.setattr(templates_module, "TEMPLATE_ROOT", tmp_path)
     service = WorkflowTemplateService()
 
@@ -74,7 +76,9 @@ def test_template_service_rejects_missing_required_node_manifest(tmp_path: Path,
         service.list_templates()
 
 
-def test_template_service_rejects_non_compiling_definition(tmp_path: Path, monkeypatch) -> None:
+def test_template_service_rejects_non_compiling_definition(
+    tmp_path: Path, monkeypatch
+) -> None:
     monkeypatch.setattr(templates_module, "TEMPLATE_ROOT", tmp_path)
     service = WorkflowTemplateService()
 

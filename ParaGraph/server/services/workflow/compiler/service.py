@@ -3,10 +3,20 @@ from __future__ import annotations
 from collections import defaultdict, deque
 from uuid import uuid4
 
-from ParaGraph.server.domain.execution import CompiledExecutionPlan, ExecutionBinding, ExecutionStepPlan
-from ParaGraph.server.domain.workflow_model import CompilerDiagnostic, CompileWorkflowResponse, WorkflowConnection, WorkflowDefinition
+from ParaGraph.server.domain.execution import (
+    CompiledExecutionPlan,
+    ExecutionBinding,
+    ExecutionStepPlan,
+)
+from ParaGraph.server.domain.workflow_model import (
+    CompilerDiagnostic,
+    CompileWorkflowResponse,
+    WorkflowConnection,
+    WorkflowDefinition,
+)
 from ParaGraph.server.services.workflow.nodes import node_registry
 from ParaGraph.server.services.workflow.provider import provider_service
+from ParaGraph.server.services.workflow.vector_stores import get_vector_store_adapter
 
 
 MODEL_NODE_TYPES = {"LLM_CHAT", "LLM_STRUCTURED"}
@@ -20,8 +30,6 @@ GLOBAL_CONTROLLER_KINDS: dict[str, str] = {
 
 def _resolve_provider(parameters: dict[str, object], default: str = "ollama") -> str:
     provider = str(parameters.get("provider", default)).strip().lower()
-    if provider == "anthropic":
-        return "claude"
     return provider or default
 
 
@@ -32,19 +40,26 @@ def _binding_sort_key(connection: WorkflowConnection) -> tuple[str, str, str]:
 
 
 class CompilerService:
-    def _active_definition(self, definition: WorkflowDefinition) -> tuple[WorkflowDefinition, list[str]]:
+    def _active_definition(
+        self, definition: WorkflowDefinition
+    ) -> tuple[WorkflowDefinition, list[str]]:
         skipped_node_ids = [node.node_id for node in definition.nodes if node.skipped]
         if not skipped_node_ids:
             return definition, []
 
-        active_node_ids = {node.node_id for node in definition.nodes if not node.skipped}
+        active_node_ids = {
+            node.node_id for node in definition.nodes if not node.skipped
+        }
         active_definition = definition.model_copy(
             update={
-                "nodes": [node for node in definition.nodes if node.node_id in active_node_ids],
+                "nodes": [
+                    node for node in definition.nodes if node.node_id in active_node_ids
+                ],
                 "connections": [
                     connection
                     for connection in definition.connections
-                    if connection.from_node in active_node_ids and connection.to_node in active_node_ids
+                    if connection.from_node in active_node_ids
+                    and connection.to_node in active_node_ids
                 ],
             }
         )
@@ -52,11 +67,17 @@ class CompilerService:
 
     def compile(self, definition: WorkflowDefinition) -> CompileWorkflowResponse:
         active_definition, skipped_node_ids = self._active_definition(definition)
-        effective_definition = self._inject_global_controller_connections(active_definition)
+        effective_definition = self._inject_global_controller_connections(
+            active_definition
+        )
 
-        diagnostics, validated_parameters = self._collect_diagnostics(effective_definition)
+        diagnostics, validated_parameters = self._collect_diagnostics(
+            effective_definition
+        )
         if diagnostics:
-            return CompileWorkflowResponse(valid=False, diagnostics=diagnostics, plan=None)
+            return CompileWorkflowResponse(
+                valid=False, diagnostics=diagnostics, plan=None
+            )
 
         ordered_node_ids = self._topological_order(effective_definition)
         incoming: dict[str, list[WorkflowConnection]] = defaultdict(list)
@@ -65,11 +86,15 @@ class CompilerService:
 
         steps: list[ExecutionStepPlan] = []
         for node_id in ordered_node_ids:
-            node = next(item for item in effective_definition.nodes if item.node_id == node_id)
+            node = next(
+                item for item in effective_definition.nodes if item.node_id == node_id
+            )
             manifest = node_registry.get(node.node_type, node.node_version)
             if manifest is None:
                 continue
-            sorted_connections = sorted(incoming.get(node.node_id, []), key=_binding_sort_key)
+            sorted_connections = sorted(
+                incoming.get(node.node_id, []), key=_binding_sort_key
+            )
             bindings: list[ExecutionBinding] = []
             for connection in sorted_connections:
                 if connection.connection_type == "controller":
@@ -105,7 +130,10 @@ class CompilerService:
                 )
             )
 
-        plan_metadata: dict[str, object] = {"schema_version": definition.schema_version, **definition.metadata}
+        plan_metadata: dict[str, object] = {
+            "schema_version": definition.schema_version,
+            **definition.metadata,
+        }
         if skipped_node_ids:
             plan_metadata["skipped_node_ids"] = skipped_node_ids
 
@@ -120,7 +148,9 @@ class CompilerService:
             ),
         )
 
-    def _inject_global_controller_connections(self, definition: WorkflowDefinition) -> WorkflowDefinition:
+    def _inject_global_controller_connections(
+        self, definition: WorkflowDefinition
+    ) -> WorkflowDefinition:
         if not definition.nodes:
             return definition
 
@@ -136,7 +166,15 @@ class CompilerService:
                 continue
             source_name = connection.from_controller or ""
             target_name = connection.to_controller or ""
-            existing_keys.add((connection.connection_type, connection.from_node, source_name, connection.to_node, target_name))
+            existing_keys.add(
+                (
+                    connection.connection_type,
+                    connection.from_node,
+                    source_name,
+                    connection.to_node,
+                    target_name,
+                )
+            )
             inbound_controller_counts[(connection.to_node, target_name)] += 1
 
         injected: list[WorkflowConnection] = []
@@ -161,15 +199,25 @@ class CompilerService:
                 source_node = node_by_id.get(global_node_id)
                 if source_node is None:
                     continue
-                source_manifest = node_registry.get(source_node.node_type, source_node.node_version)
+                source_manifest = node_registry.get(
+                    source_node.node_type, source_node.node_version
+                )
                 if source_manifest is None:
                     continue
 
-                source_controller_name = self._resolve_global_source_controller_name(source_manifest, controller.data_type)
+                source_controller_name = self._resolve_global_source_controller_name(
+                    source_manifest, controller.data_type
+                )
                 if source_controller_name is None:
                     continue
 
-                connection_key = ("controller", global_node_id, source_controller_name, node.node_id, controller.name)
+                connection_key = (
+                    "controller",
+                    global_node_id,
+                    source_controller_name,
+                    node.node_id,
+                    controller.name,
+                )
                 if connection_key in existing_keys:
                     continue
                 existing_keys.add(connection_key)
@@ -186,9 +234,13 @@ class CompilerService:
 
         if not injected:
             return definition
-        return definition.model_copy(update={"connections": [*definition.connections, *injected]})
+        return definition.model_copy(
+            update={"connections": [*definition.connections, *injected]}
+        )
 
-    def _resolve_global_source_controller_name(self, source_manifest, target_data_type: str) -> str | None:
+    def _resolve_global_source_controller_name(
+        self, source_manifest, target_data_type: str
+    ) -> str | None:
         for controller in source_manifest.controllers:
             scope = self._controller_scope(controller.scope)
             if scope == "target":
@@ -213,17 +265,10 @@ class CompilerService:
             return {}
 
         normalized: dict[str, str] = {}
-        aliases = {
-            "model_provider": "model_provider",
-            "model": "model_provider",
-            "database_provider": "database_provider",
-            "database": "database_provider",
-            "vector_store": "vector_store",
-            "vector_storage": "vector_store",
-        }
+        allowed_keys = {"model_provider", "database_provider", "vector_store"}
         for raw_key, raw_node_id in raw_globals.items():
-            key = aliases.get(str(raw_key).strip().lower())
-            if key is None or not isinstance(raw_node_id, str):
+            key = str(raw_key).strip().lower()
+            if key not in allowed_keys or not isinstance(raw_node_id, str):
                 continue
             node_id = raw_node_id.strip()
             if node_id and node_id in node_by_id:
@@ -236,20 +281,29 @@ class CompilerService:
             return scope
         return "target"
 
-    def _collect_diagnostics(self, definition: WorkflowDefinition) -> tuple[list[CompilerDiagnostic], dict[str, dict[str, object]]]:
+    def _collect_diagnostics(
+        self, definition: WorkflowDefinition
+    ) -> tuple[list[CompilerDiagnostic], dict[str, dict[str, object]]]:
         diagnostics: list[CompilerDiagnostic] = []
         validated_parameters_by_node: dict[str, dict[str, object]] = {}
         node_ids_seen: set[str] = set()
         node_by_id = {node.node_id: node for node in definition.nodes}
         connection_keys: set[tuple[str, str, str, str, str]] = set()
         inbound_counts: dict[tuple[str, str], int] = defaultdict(int)
-        inbound_by_node_input: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
+        inbound_by_node_input: dict[str, dict[str, int]] = defaultdict(
+            lambda: defaultdict(int)
+        )
         model_binding_by_node: dict[str, WorkflowConnection] = {}
+        similarity_store_binding_by_node: dict[str, WorkflowConnection] = {}
 
         for node in definition.nodes:
             if node.node_id in node_ids_seen:
                 diagnostics.append(
-                    CompilerDiagnostic(code="duplicate_node_id", message=f"Duplicate node id: {node.node_id}", node_id=node.node_id)
+                    CompilerDiagnostic(
+                        code="duplicate_node_id",
+                        message=f"Duplicate node id: {node.node_id}",
+                        node_id=node.node_id,
+                    )
                 )
             node_ids_seen.add(node.node_id)
 
@@ -266,7 +320,11 @@ class CompilerService:
 
             for parameter in manifest.parameters:
                 required = bool(parameter.constraints.get("required"))
-                if required and parameter.name not in node.parameters and parameter.default is None:
+                if (
+                    required
+                    and parameter.name not in node.parameters
+                    and parameter.default is None
+                ):
                     diagnostics.append(
                         CompilerDiagnostic(
                             code="missing_parameter",
@@ -276,14 +334,18 @@ class CompilerService:
                     )
 
             try:
-                validated_parameters_by_node[node.node_id] = node_registry.validate_parameters(
-                    node.node_type,
-                    node.node_version,
-                    node.parameters,
+                validated_parameters_by_node[node.node_id] = (
+                    node_registry.validate_parameters(
+                        node.node_type,
+                        node.node_version,
+                        node.parameters,
+                    )
                 )
             except ValueError as exc:
                 diagnostic_code = "invalid_parameter"
-                if node.node_type in STRUCTURED_NODE_TYPES and "response_schema" in str(exc):
+                if node.node_type in STRUCTURED_NODE_TYPES and "response_schema" in str(
+                    exc
+                ):
                     diagnostic_code = "invalid_response_schema"
                 diagnostics.append(
                     CompilerDiagnostic(
@@ -294,12 +356,30 @@ class CompilerService:
                 )
 
         for connection in definition.connections:
-            source_name = connection.from_output if connection.connection_type == "data" else connection.from_controller
-            target_name = connection.to_input if connection.connection_type == "data" else connection.to_controller
-            connection_key = (connection.connection_type, connection.from_node, source_name or "", connection.to_node, target_name or "")
+            source_name = (
+                connection.from_output
+                if connection.connection_type == "data"
+                else connection.from_controller
+            )
+            target_name = (
+                connection.to_input
+                if connection.connection_type == "data"
+                else connection.to_controller
+            )
+            connection_key = (
+                connection.connection_type,
+                connection.from_node,
+                source_name or "",
+                connection.to_node,
+                target_name or "",
+            )
             if connection_key in connection_keys:
                 diagnostics.append(
-                    CompilerDiagnostic(code="duplicate_connection", message="Duplicate connection detected", connection=connection)
+                    CompilerDiagnostic(
+                        code="duplicate_connection",
+                        message="Duplicate connection detected",
+                        connection=connection,
+                    )
                 )
             connection_keys.add(connection_key)
 
@@ -333,18 +413,30 @@ class CompilerService:
                 )
                 continue
 
-            source_manifest = node_registry.get(source_node.node_type, source_node.node_version)
-            target_manifest = node_registry.get(target_node.node_type, target_node.node_version)
+            source_manifest = node_registry.get(
+                source_node.node_type, source_node.node_version
+            )
+            target_manifest = node_registry.get(
+                target_node.node_type, target_node.node_version
+            )
             if source_manifest is None or target_manifest is None:
                 continue
 
             if connection.connection_type == "controller":
                 source_port = next(
-                    (port for port in source_manifest.controllers if port.name == (connection.from_controller or "")),
+                    (
+                        port
+                        for port in source_manifest.controllers
+                        if port.name == (connection.from_controller or "")
+                    ),
                     None,
                 )
                 target_port = next(
-                    (port for port in target_manifest.controllers if port.name == (connection.to_controller or "")),
+                    (
+                        port
+                        for port in target_manifest.controllers
+                        if port.name == (connection.to_controller or "")
+                    ),
                     None,
                 )
                 source_label = "controller"
@@ -352,8 +444,22 @@ class CompilerService:
                 source_name = connection.from_controller or ""
                 target_name = connection.to_controller or ""
             else:
-                source_port = next((port for port in source_manifest.outputs if port.name == (connection.from_output or "")), None)
-                target_port = next((port for port in target_manifest.inputs if port.name == (connection.to_input or "")), None)
+                source_port = next(
+                    (
+                        port
+                        for port in source_manifest.outputs
+                        if port.name == (connection.from_output or "")
+                    ),
+                    None,
+                )
+                target_port = next(
+                    (
+                        port
+                        for port in target_manifest.inputs
+                        if port.name == (connection.to_input or "")
+                    ),
+                    None,
+                )
                 source_label = "output"
                 target_label = "input"
                 source_name = connection.from_output or ""
@@ -401,7 +507,14 @@ class CompilerService:
                 inbound_by_node_input[connection.to_node][target_name] += 1
             if connection.connection_type == "controller" and target_name == "model":
                 model_binding_by_node.setdefault(connection.to_node, connection)
-            if inbound_counts[(connection.to_node, target_name)] > 1 and not target_port.accepts_multiple:
+            if connection.connection_type == "controller" and target_name == "store":
+                similarity_store_binding_by_node.setdefault(
+                    connection.to_node, connection
+                )
+            if (
+                inbound_counts[(connection.to_node, target_name)] > 1
+                and not target_port.accepts_multiple
+            ):
                 diagnostics.append(
                     CompilerDiagnostic(
                         code="input_multiplicity",
@@ -425,7 +538,10 @@ class CompilerService:
                         )
                     )
             for controller in manifest.controllers:
-                if controller.required and inbound_counts[(node.node_id, controller.name)] == 0:
+                if (
+                    controller.required
+                    and inbound_counts[(node.node_id, controller.name)] == 0
+                ):
                     diagnostics.append(
                         CompilerDiagnostic(
                             code="missing_required_controller",
@@ -450,12 +566,18 @@ class CompilerService:
                     provider_service.get_model_metadata(provider, model_name)
                 except ValueError as exc:
                     diagnostics.append(
-                        CompilerDiagnostic(code="invalid_model_selection", message=str(exc), node_id=node.node_id)
+                        CompilerDiagnostic(
+                            code="invalid_model_selection",
+                            message=str(exc),
+                            node_id=node.node_id,
+                        )
                     )
                 continue
 
             if node.node_type in MODEL_NODE_TYPES:
-                user_prompt_count = inbound_by_node_input[node.node_id].get("user_prompt", 0)
+                user_prompt_count = inbound_by_node_input[node.node_id].get(
+                    "user_prompt", 0
+                )
                 image_count = inbound_by_node_input[node.node_id].get("image", 0)
                 if user_prompt_count == 0 and image_count == 0:
                     diagnostics.append(
@@ -472,9 +594,13 @@ class CompilerService:
                 if model_binding is not None:
                     source_node = node_by_id.get(model_binding.from_node)
                     if source_node is not None:
-                        source_parameters = validated_parameters_by_node.get(source_node.node_id, source_node.parameters)
+                        source_parameters = validated_parameters_by_node.get(
+                            source_node.node_id, source_node.parameters
+                        )
                         provider = _resolve_provider(source_parameters)
-                        model_name = str(source_parameters.get("model_name") or "").strip()
+                        model_name = str(
+                            source_parameters.get("model_name") or ""
+                        ).strip()
 
                 if not model_name:
                     diagnostics.append(
@@ -496,17 +622,92 @@ class CompilerService:
                     )
                 except ValueError as exc:
                     diagnostics.append(
-                        CompilerDiagnostic(code="provider_capability_error", message=str(exc), node_id=node.node_id)
+                        CompilerDiagnostic(
+                            code="provider_capability_error",
+                            message=str(exc),
+                            node_id=node.node_id,
+                        )
                     )
 
-            if node.node_type == "EMBEDDING_MODEL":
-                provider = str(parameters.get("provider", "ollama")).lower()
-                try:
-                    provider_service.assert_capabilities(provider, embeddings=True)
-                except ValueError as exc:
-                    diagnostics.append(
-                        CompilerDiagnostic(code="provider_capability_error", message=str(exc), node_id=node.node_id)
-                    )
+            if node.node_type == "SIMILARITY_SEARCH":
+                store_binding = similarity_store_binding_by_node.get(node.node_id)
+                if store_binding is not None:
+                    source_node = node_by_id.get(store_binding.from_node)
+                    if (
+                        source_node is not None
+                        and source_node.node_type == "VECTOR_STORE"
+                    ):
+                        source_parameters = validated_parameters_by_node.get(
+                            source_node.node_id, source_node.parameters
+                        )
+                        backend = (
+                            str(source_parameters.get("provider") or "lancedb")
+                            .strip()
+                            .lower()
+                        )
+
+                        similarity_metric = (
+                            str(parameters.get("similarity_strategy") or "cosine")
+                            .strip()
+                            .lower()
+                        )
+                        if similarity_metric == "euclidean":
+                            similarity_metric = "l2"
+                        store_metric = (
+                            str(source_parameters.get("distance_metric") or "cosine")
+                            .strip()
+                            .lower()
+                        )
+                        if store_metric == "euclidean":
+                            store_metric = "l2"
+                        if similarity_metric != store_metric:
+                            diagnostics.append(
+                                CompilerDiagnostic(
+                                    code="similarity_metric_mismatch",
+                                    message=(
+                                        f"Node '{node.node_id}' similarity_strategy '{similarity_metric}' does not match "
+                                        f"connected VECTOR_STORE distance_metric '{store_metric}'."
+                                    ),
+                                    node_id=node.node_id,
+                                )
+                            )
+
+                        search_mode = (
+                            str(parameters.get("search_mode") or "vector")
+                            .strip()
+                            .lower()
+                        )
+                        search_engine = (
+                            str(parameters.get("search_engine") or "native")
+                            .strip()
+                            .lower()
+                        )
+                        try:
+                            capabilities = get_vector_store_adapter(
+                                backend
+                            ).describe_capabilities()
+                        except ValueError:
+                            capabilities = {}
+                        if search_mode == "hybrid" and not bool(
+                            capabilities.get("supports_hybrid_search", False)
+                        ):
+                            diagnostics.append(
+                                CompilerDiagnostic(
+                                    code="unsupported_similarity_mode",
+                                    message=f"Backend '{backend}' does not support SIMILARITY_SEARCH search_mode='hybrid'.",
+                                    node_id=node.node_id,
+                                )
+                            )
+                        if search_engine == "faiss_augmented" and not bool(
+                            capabilities.get("supports_faiss_augmentation", False)
+                        ):
+                            diagnostics.append(
+                                CompilerDiagnostic(
+                                    code="unsupported_similarity_engine",
+                                    message=f"Backend '{backend}' does not support SIMILARITY_SEARCH search_engine='faiss_augmented'.",
+                                    node_id=node.node_id,
+                                )
+                            )
 
         try:
             self._topological_order(definition)
@@ -521,12 +722,17 @@ class CompilerService:
         adjacency: dict[str, list[str]] = defaultdict(list)
 
         for connection in definition.connections:
-            if connection.from_node not in indegree or connection.to_node not in indegree:
+            if (
+                connection.from_node not in indegree
+                or connection.to_node not in indegree
+            ):
                 continue
             adjacency[connection.from_node].append(connection.to_node)
             indegree[connection.to_node] += 1
 
-        queue = deque(sorted(node_id for node_id, count in indegree.items() if count == 0))
+        queue = deque(
+            sorted(node_id for node_id, count in indegree.items() if count == 0)
+        )
         ordered: list[str] = []
 
         while queue:

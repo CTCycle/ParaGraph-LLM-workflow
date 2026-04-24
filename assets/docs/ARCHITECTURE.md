@@ -1,96 +1,177 @@
-# ParaGraph Architecture
-Last updated: 2026-04-08
+# ARCHITECTURE
 
-ParaGraph is a local-first workflow system built from:
-- FastAPI backend (`ParaGraph/server`)
-- React + TypeScript frontend (`ParaGraph/client`)
-- Manifest-driven node catalog (`ParaGraph/resources/nodes`)
+Last updated: 2026-04-24
 
-## 1. High-Level Structure
+## System Summary
 
-- `ParaGraph/server`
-  - `app.py`: FastAPI app composition and router registration
-  - `api/`: route modules (`workflows`, `executions`, `nodes`, `providers`, `configurations`, `ws`)
-  - `domain/`: typed request/response and runtime contracts
-  - `services/`: orchestration for workflows, providers, runtime events, jobs, and persistence-facing logic
-- `ParaGraph/client`
-  - `src/pages/WorkflowPage.tsx`: workflow authoring, compile/run, and execution monitoring
-  - `src/pages/NodesPage.tsx`: node catalog browsing and manifest import
-  - `src/pages/ModelsPage.tsx`: provider model browsing, Ollama pulls, Hugging Face downloads
-  - `src/pages/ConfigurationsPage.tsx`: session/profile configuration management
+ParaGraph is a local-first workflow platform composed of:
 
-## 2. Active API Surface
+- FastAPI backend (`ParaGraph/server`) for compile/execute APIs, node catalog, provider integrations, configuration management, and execution event streaming.
+- React + TypeScript frontend (`ParaGraph/client/src`) for workflow editing, node/template browsing, model catalog operations, and runtime monitoring.
+- Optional Tauri desktop wrapper (`ParaGraph/client/src-tauri`) that launches the backend process and loads the web UI in a desktop window.
 
-Routers are mounted in `ParaGraph/server/app.py`.
+## Repository Structure
 
-- Workflows (`/workflows`)
-  - `GET /workflows`
-  - `POST /workflows`
-  - `GET /workflows/{workflow_id}`
-  - `PUT /workflows/{workflow_id}`
-  - `GET /workflows/{workflow_id}/versions`
-- Executions (`/executions`)
-  - `POST /executions/compile`
-  - `POST /executions`
-  - `GET /executions/{run_id}`
-  - `GET /executions/{run_id}/events`
-- Nodes (`/nodes`)
-  - `GET /nodes/catalog`
-  - `POST /nodes/import`
-  - `POST /nodes/uploads/directory`
-  - `POST /nodes/check-database-connection`
-  - `POST /nodes/check-vector-store-connection`
-- Providers (`/providers`)
-  - `GET /providers/catalog`
-  - `GET /providers/models`
-  - `GET /providers/ollama/library`
-  - `POST /providers/ollama/pull`
-  - `GET /providers/huggingface/models`
-  - `POST /providers/huggingface/download`
-  - `GET /providers/huggingface/download/{job_id}`
-  - `DELETE /providers/huggingface/download/{job_id}`
-- Configurations (`/configurations`)
-  - `GET /configurations`
-  - `PUT /configurations`
-  - `GET /configurations/profiles`
-  - `GET /configurations/profiles/{profile_name}`
-  - `PUT /configurations/profiles/{profile_name}`
-  - `POST /configurations/ollama/ping`
-- Websocket
-  - `WS /executions/ws/runs/{run_id}` (supports replay by default)
+The project includes source code plus generated/runtime-heavy folders. Expanded structure below focuses on authoritative implementation files and runtime-critical artifacts.
 
-## 3. Runtime Lifecycle
+```text
+.
+|- assets/
+|  |- docs/
+|  |  |- ARCHITECTURE.md
+|  |  |- CODING_RULES.md
+|  |  |- PROJECT_OVERVIEW.md
+|  |  |- RUNTIME_MODES.md
+|  |  `- UI_STANDARDS.md
+|- ParaGraph/
+|  |- client/
+|  |  |- src/
+|  |  |  |- App.tsx
+|  |  |  |- main.tsx
+|  |  |  |- index.css
+|  |  |  |- app/services/ (API clients)
+|  |  |  |- components/ (layout + reusable UI)
+|  |  |  |- pages/ (Workflow, Nodes, Models, Configurations)
+|  |  |  `- workflow/ (schema + hooks)
+|  |  |- src-tauri/
+|  |  |  |- src/main.rs
+|  |  |  |- tauri.conf.json
+|  |  |  `- Cargo.toml
+|  |  |- package.json
+|  |  `- vite.config.ts
+|  |- server/
+|  |  |- app.py
+|  |  |- api/ (FastAPI routers)
+|  |  |- configurations/ (env + runtime config loading)
+|  |  |- domain/ (Pydantic/domain models)
+|  |  |- services/ (business logic)
+|  |  |- repositories/ (file/db persistence)
+|  |  `- common/ (constants, security, logging)
+|  |- resources/ (runtime data: db, logs, models, nodes, workflows, artifacts)
+|  |- settings/ (.env variants + configurations.json)
+|  |- scripts/ (maintenance/init scripts)
+|  |- start_on_windows.bat
+|  `- setup_and_maintenance.bat
+|- release/
+|  |- tauri/ (desktop build scripts)
+|  `- windows/ (packaged artifacts)
+|- runtimes/ (portable Python/uv/Node + .venv + uv.lock)
+|- tests/
+|  |- unit/server/...
+|  `- e2e/server/...
+|- pyproject.toml
+|- uv.lock
+`- README.md
+```
 
-1. User builds graph in the workflow editor.
-2. UI compiles with `POST /executions/compile`.
-3. Backend validates node contracts, links, and execution plan.
-4. UI starts run with `POST /executions`.
-5. Runtime executes steps and publishes event updates.
-6. UI monitors state through polling (`GET /executions/{run_id}`), event history, and websocket stream.
+## Application Entry Points
 
-## 4. Node and Contract Model
+- Backend app factory: `ParaGraph/server/app.py` (`create_app`, exported as `app`).
+- Backend process startup:
+  - Launcher-managed: `ParaGraph/start_on_windows.bat` runs `python -m uvicorn ParaGraph.server.app:app`.
+  - Manual: run `uvicorn` against `ParaGraph.server.app:app`.
+- Frontend entry: `ParaGraph/client/src/main.tsx` -> `App.tsx` (React Router shell).
+- Desktop entry: `ParaGraph/client/src-tauri/src/main.rs` (spawns backend, waits for readiness, opens UI URL).
 
-- Node schemas are loaded from manifests in `ParaGraph/resources/nodes`.
-- Frontend forms are manifest-driven and keep parameter editing aligned with node contracts.
-- Backend executes nodes via registered runtime handlers and typed domain models.
-- Data links and controller links are distinct and validated at compile/runtime boundaries.
+## API Endpoints
 
-## 5. Providers and Model Capabilities
+### Root
 
-- Provider catalog is exposed through `/providers/catalog`.
-- Model inventory is exposed through `/providers/models`.
-- Capabilities are used by the UI/runtime for compatibility checks (for example embeddings support).
-- Operational provider paths include:
-  - Ollama library listing and pull operations
-  - Hugging Face model listing with filters and async download jobs
+- `GET /` (redirects to `/docs` when not cloud mode; returns JSON health in cloud mode)
 
-Known capability constraints in current runtime:
-- Claude embeddings are not supported.
-- Hugging Face image-input generation is rejected in the local generation path.
-- Hugging Face structured output remains best-effort generation with JSON validation.
+### Workflows
 
-## 6. Execution Events and Background Work
+- `GET /workflows`
+- `POST /workflows`
+- `GET /workflows/templates`
+- `GET /workflows/{workflow_id}`
+- `PUT /workflows/{workflow_id}`
 
-- Execution state/events are available via run polling, event history, and websocket stream.
-- Long-running provider jobs (for example Hugging Face downloads) use job-style async status endpoints.
-- Download cancellation is supported through `DELETE /providers/huggingface/download/{job_id}`.
+### Executions
+
+- `POST /executions/compile`
+- `POST /executions`
+- `GET /executions/{run_id}`
+- `GET /executions/{run_id}/events`
+- `WS /executions/ws/runs/{run_id}`
+
+### Nodes
+
+- `GET /nodes/catalog`
+- `POST /nodes/import`
+- `POST /nodes/uploads/directory` (multipart upload)
+- `POST /nodes/check-database-connection`
+- `POST /nodes/check-vector-store-connection`
+
+### Providers
+
+- `GET /providers/catalog`
+- `GET /providers/models`
+- `GET /providers/ollama/library`
+- `POST /providers/ollama/pull`
+- `GET /providers/huggingface/models`
+- `POST /providers/huggingface/download`
+- `GET /providers/huggingface/download/{job_id}`
+- `DELETE /providers/huggingface/download/{job_id}`
+
+### Configurations
+
+- `GET /configurations`
+- `PUT /configurations`
+- `GET /configurations/profiles`
+- `GET /configurations/profiles/{profile_name}`
+- `PUT /configurations/profiles/{profile_name}`
+- `POST /configurations/ollama/ping`
+
+## Layered Architecture
+
+Typical backend flow follows endpoint -> service -> repository:
+
+- Workflows:
+  `api/workflows.py` -> `services/workflow/workflow.py` -> `repositories/workflow/workflow.py`
+- Execution lifecycle:
+  `api/executions.py` -> `services/workflow/compiler/service.py` + `services/workflow/execution.py` -> in-memory run/event repositories
+- Configurations:
+  `api/configurations.py` -> `services/configuration.py` -> `repositories/configuration.py` -> SQLAlchemy models in `repositories/schemas/models.py`
+- Provider catalogs/downloads:
+  `api/providers.py` -> `services/workflow/provider/service.py`, with provider helper and mixin modules under `services/workflow/provider/` (+ jobs/event systems)
+
+## Responsibilities of Key Modules
+
+- `server/api/*`: HTTP/WebSocket boundary, request validation, HTTP status mapping.
+- `server/domain/*`: request/response models, workflow schema, execution/event models.
+- `server/services/workflow/compiler/service.py`: graph validation, diagnostics, topological planning.
+- `server/services/workflow/execution.py`: step orchestration, cache, output shaping, event publishing.
+- `server/services/workflow/provider/service.py`: provider facade, model metadata, and download orchestration.
+- `server/services/workflow/provider/helpers.py`: shared provider metadata/constants and coercion helpers.
+- `server/services/workflow/provider/ollama.py`: Ollama library service adapter plus cache/fetch mixin.
+- `server/services/workflow/provider/huggingface_catalog.py`: Hugging Face catalog adapter plus catalog/cache/local metadata mixin.
+- `server/services/jobs.py`: thread-based background job manager.
+- `server/services/runtime/events.py`: in-memory event bus + per-run history.
+- `server/repositories/workflow/workflow.py`: filesystem workflow storage + index.
+- `server/repositories/configuration.py`: session/profile/access-key persistence in SQL database.
+- `client/src/pages/WorkflowPage.tsx`: visual workflow editor and execution control surface.
+- `client/src/app/services/*.ts`: typed frontend API clients.
+
+## Data Persistence
+
+- File-based:
+  - Workflows persisted under `ParaGraph/resources/workflows`.
+  - Workflow templates loaded from `ParaGraph/resources/workflow_templates`.
+  - Node manifests/plugins and artifacts stored under `ParaGraph/resources/nodes` and `ParaGraph/resources/artifacts`.
+- Database:
+  - Default embedded SQLite at `ParaGraph/resources/database.db`.
+  - Optional external PostgreSQL via `settings/configurations.json`.
+  - SQLAlchemy tables include `user_sessions`, `access_keys`, `configuration_profiles`, `nodes`, and `chat_history_messages`.
+- In-memory runtime stores:
+  - Execution runs (`repositories/workflow/execution_run.py`).
+  - Execution event history/subscribers (`services/runtime/events.py`).
+
+## Async vs Sync Behavior
+
+- Mostly synchronous REST handlers (`def`) for CRUD/listing/compile operations.
+- Explicit async endpoints:
+  - `POST /nodes/uploads/directory` (`async def`) for multipart file uploads.
+  - `WS /executions/ws/runs/{run_id}` for streaming run events.
+- Long-running execution is offloaded to background threads through `JobManager`.
+- Async handlers avoid CPU-heavy loops directly; blocking node execution happens in job threads, not in request handlers.

@@ -25,7 +25,7 @@ def coerce_int(
 ) -> int:
     try:
         candidate = int(value)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         candidate = default
     if minimum is not None and candidate < minimum:
         candidate = minimum
@@ -43,7 +43,7 @@ def coerce_float(
 ) -> float:
     try:
         candidate = float(value)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         candidate = default
     if minimum is not None and candidate < minimum:
         candidate = minimum
