@@ -1,143 +1,100 @@
-# ParaGraph User Manual
-Last updated: 2026-04-10
+# USER_MANUAL
 
-## 1. What ParaGraph Is
+Last updated: 2026-04-24
 
-ParaGraph is a local-first application for designing and running deterministic LLM workflows.
+## Overview
 
-Core experience:
-- Build workflows in a visual node editor.
-- Configure providers and runtime profiles.
-- Compile and run workflows.
-- Monitor progress and inspect outputs.
+ParaGraph is a local-first application for building and executing LLM workflows through a visual node canvas.
 
-## 2. Getting Started
+Primary UI areas:
 
-### 2.1 Start the application (Windows)
+- Workflow (`/`): build, connect, compile, run, and monitor workflows.
+- Nodes (`/nodes`): browse node catalog, templates, and import custom nodes.
+- Models (`/models`): explore Ollama and Hugging Face model catalogs.
+- Configurations (`/config`): manage runtime/provider settings and saved profiles.
 
-1. Open the repository root.
-2. Run `ParaGraph\start_on_windows.bat`.
-3. Wait for backend and frontend services to become available.
+## Starting the Application
 
-### 2.2 Verify startup
+Recommended (Windows):
 
-- Frontend opens in your browser using `UI_HOST` and `UI_PORT`.
-- Backend serves API routes using `FASTAPI_HOST` and `FASTAPI_PORT`.
+```bat
+ParaGraph\start_on_windows.bat
+```
 
-If this is the first run, setup can take longer due to dependency/runtime bootstrap.
+This launcher prepares runtimes/dependencies, starts backend + frontend, and opens the UI.
 
-### 2.3 Desktop packaged mode (Tauri)
+## Main User Flow
 
-ParaGraph desktop packaging is available via Tauri. See `assets/docs/PACKAGING_AND_RUNTIME_MODES.md` for the full build/runtime contract.
+1. Open `Configurations` and set required provider/runtime credentials.
+2. Open `Workflow` and add nodes from the node library.
+3. Connect node ports/controllers to build a valid execution graph.
+4. Compile the workflow.
+5. Start execution.
+6. Monitor progress and outputs via run status and event updates.
 
-## 3. Main User Journeys
+## Workflow Editor Basics
 
-### 3.1 Build and run a workflow
+- Drag nodes from the left node tree to the canvas.
+- Connect output handles to compatible input handles.
+- Use context menu actions (for example: clone, skip, set global, remove).
+- Use import/export controls for workflow JSON where needed.
+- Use compile diagnostics to fix graph errors before running.
 
-1. Open the Workflow page.
-2. Add nodes from the catalog.
-3. Configure node parameters.
-4. Connect nodes using data and controller links.
-5. Compile the workflow.
-6. Start execution.
-7. Monitor status and view outputs/events.
+## Configurations Page
 
-### 3.2 Configure providers and profiles
+Manage:
 
-1. Open Configurations.
-2. Enter provider credentials and runtime values.
-3. Save configuration or named profile.
-4. Optionally test Ollama connectivity.
+- Ollama base URL and connectivity checks.
+- Cloud provider keys (OpenAI/Gemini/Claude as configured in UI).
+- Hugging Face key.
+- Named configuration profiles (save/load).
 
-### 3.3 Browse/manage models
+Configuration APIs are backed by `/configurations` and `/configurations/profiles` endpoints.
 
-1. Open Models.
-2. Check provider catalog/model availability.
-3. Pull Ollama models when needed.
-4. Search/download Hugging Face models and track download status.
+## Models Page
 
-### 3.4 Manage node library
+Ollama section:
 
-1. Open Nodes.
-2. Browse shipped node catalog.
-3. Import custom manifests through the node import flow.
+- Browse available library models.
+- Pull missing models into local runtime.
 
-## 4. Primary Commands
+Hugging Face section:
 
-### 4.1 Launch and setup
+- Search/filter/sort catalog.
+- Start, monitor, or cancel model downloads.
+- Open model cards in browser.
 
-- Standard launcher:
-  - `ParaGraph\start_on_windows.bat`
-- Optional maintenance:
-  - `ParaGraph\setup_and_maintenance.bat`
-- Switch runtime profile to local mode:
-  - `copy /Y ParaGraph\settings\.env.local.example ParaGraph\settings\.env`
-- Switch runtime profile to local Tauri mode:
-  - `copy /Y ParaGraph\settings\.env.local.tauri.example ParaGraph\settings\.env`
-- Build desktop artifacts (Windows):
-  - `release\tauri\build_with_tauri.bat`
+## Nodes Page
 
-### 4.2 Testing commands
+- Filter node catalog by category and search query.
+- Review node input/output/parameter summaries.
+- Load predefined workflow templates into the workflow editor.
+- Import custom manifest JSON.
 
-- Backend tests:
-  - `.\runtimes\.venv\Scripts\python.exe -m pytest tests/unit tests/e2e -v`
-- Frontend unit tests:
-  - `cd ParaGraph\client && npm run test:unit`
-- Frontend E2E:
-  - `cd ParaGraph\client && npm run test:e2e`
-- Combined orchestration:
-  - `tests\run_tests.bat`
+## Execution Monitoring
 
-## 5. Usage Patterns
+Execution uses:
 
-### 5.1 General workflow pattern
+- Polling endpoint: `GET /executions/{run_id}`
+- Event history endpoint: `GET /executions/{run_id}/events`
+- WebSocket stream: `WS /executions/ws/runs/{run_id}`
 
-1. Configure runtime/provider access first.
-2. Build graph structure.
-3. Compile before each run to validate links/contracts.
-4. Start execution and monitor events.
-5. Inspect outputs and iterate.
+Common statuses include queued, running, completed, failed, and cancelled.
 
-### 5.2 Typical RAG pattern
+## Troubleshooting
 
-1. `LOAD_DOCUMENTS`
-2. One or more chunking nodes
-3. `TEXT_EMBEDDING`
-4. `VECTOR_STORE`
-5. `PROMPT_TEMPLATE` for retrieval query creation
-6. `SIMILARITY_SEARCH`
-7. `RERANK_RESULTS` (optional but recommended)
-8. `PROMPT_TEMPLATE` for answer synthesis
-9. `LLM_CHAT` or `LLM_STRUCTURED`
+- If startup fails, rerun `ParaGraph\start_on_windows.bat` and check console output.
+- If APIs are unreachable, verify configured host/port values in `ParaGraph/settings/.env`.
+- If model operations fail, verify provider credentials and network reachability.
+- If compile fails, inspect diagnostics and fix missing inputs/controllers or type mismatches.
 
-## 6. Key Features
+## Data Location
 
-- Manifest-driven node catalog and parameter forms.
-- Compile-time and runtime validation for deterministic execution flow.
-- Execution monitoring through:
-  - run polling (`/executions/{run_id}`)
-  - event history (`/executions/{run_id}/events`)
-  - live websocket stream (`/executions/ws/runs/{run_id}`)
-- Provider integrations for model discovery and operations:
-  - `/providers/catalog`
-  - `/providers/models`
-  - Ollama pull flow
-  - Hugging Face browse/download/cancel flow
+Runtime data is stored under `ParaGraph/resources`, including:
 
-## 7. Troubleshooting
-
-- Compile fails with missing controller/value:
-  - verify required links and required parameters.
-- Embedding options unavailable:
-  - confirm provider configuration and model capability support.
-- Vector store connection checks fail:
-  - verify provider-specific required fields (local path vs endpoint URL).
-- Hugging Face image input fails:
-  - expected in current local generation path.
-
-## 8. Practical Tips
-
-- Keep workflows modular and test incrementally.
-- Use profiles for different provider/runtime setups.
-- Prefer explicit connections over implicit assumptions for reproducibility.
-- For packaged desktop mode, always re-run `ParaGraph\start_on_windows.bat` before `release\tauri\build_with_tauri.bat` if runtimes were updated.
+- Local database
+- Logs
+- Workflow persistence
+- Node assets/plugins
+- Downloaded model artifacts
+- Browser upload artifacts

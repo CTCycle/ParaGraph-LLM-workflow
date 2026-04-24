@@ -8,7 +8,7 @@ on:
   pull_request:
 
 jobs:
-  python-sanity:
+  backend-validation:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -19,7 +19,17 @@ jobs:
         with:
           python-version: "3.14"
 
-      - name: Python sanity
-        run: |
-          python --version
-          python -c "print('python sanity ok')"
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Sync Test Dependencies
+        run: uv sync --extra test
+
+      - name: Lint Backend
+        run: uv run ruff check ParaGraph/server tests
+
+      - name: Compile Backend
+        run: uv run python -m compileall ParaGraph/server
+
+      - name: Run Backend Tests
+        run: uv run pytest tests/unit/server tests/e2e/server/test_execution_lifecycle.py

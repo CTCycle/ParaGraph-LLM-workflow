@@ -35,7 +35,9 @@ class ExecutionRunRepository:
             self._runs[run_id] = updated
             return updated.model_copy(deep=True)
 
-    def set_steps(self, run_id: str, steps: list[ExecutionStepState]) -> ExecutionRunState | None:
+    def set_steps(
+        self, run_id: str, steps: list[ExecutionStepState]
+    ) -> ExecutionRunState | None:
         with self._lock:
             run = self._runs.get(run_id)
             if run is None:
@@ -46,6 +48,10 @@ class ExecutionRunRepository:
             updated = ExecutionRunState.model_validate(data)
             self._runs[run_id] = updated
             return updated.model_copy(deep=True)
+
+    def reset_for_tests(self) -> None:
+        with self._lock:
+            self._runs.clear()
 
 
 execution_run_repository = ExecutionRunRepository()

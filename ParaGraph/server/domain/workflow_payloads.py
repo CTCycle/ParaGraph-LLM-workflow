@@ -4,15 +4,16 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, field_validator
 
+from ParaGraph.server.domain.chat_history import ChatHistoryHandle
 from ParaGraph.server.domain.node_catalog import NodeDataType, ProviderModelDefinition
 
-
+###############################################################################
 class ImagePayload(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     path: str
 
-
+###############################################################################
 class DocumentRecord(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -22,7 +23,7 @@ class DocumentRecord(BaseModel):
     mime_type: str
     metadata: dict[str, Any] = Field(default_factory=dict)
 
-
+###############################################################################
 class DatabaseConnectionHandle(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -36,7 +37,7 @@ class DatabaseConnectionHandle(BaseModel):
     read_only: bool = True
     options: dict[str, Any] = Field(default_factory=dict)
 
-
+###############################################################################
 class ChunkRecord(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -55,7 +56,7 @@ class ChunkRecord(BaseModel):
             raise ValueError("chunk metadata values must be non-negative")
         return value
 
-
+###############################################################################
 class VectorPoint(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -76,7 +77,7 @@ class VectorPoint(BaseModel):
             raise ValueError("vector points must include at least one dimension")
         return value
 
-
+###############################################################################
 class VectorStoreHandle(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -96,7 +97,7 @@ class VectorStoreHandle(BaseModel):
             raise ValueError("vector store dimensions must be greater than zero")
         return value
 
-
+###############################################################################
 class RetrievalHit(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -108,7 +109,7 @@ class RetrievalHit(BaseModel):
     score: float
     metadata: dict[str, Any] = Field(default_factory=dict)
 
-
+###############################################################################
 class RetrievalResults(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -133,12 +134,13 @@ DATA_TYPE_ADAPTERS: dict[NodeDataType, TypeAdapter[Any]] = {
     "TOKEN_IDS": TypeAdapter(list[int]),
     "JSON": TypeAdapter(dict[str, Any] | list[Any] | str | int | float | bool | None),
     "MODEL_HANDLE": TypeAdapter(ProviderModelDefinition),
+    "CHAT_HISTORY_HANDLE": TypeAdapter(ChatHistoryHandle),
     "DATASET": TypeAdapter(dict[str, Any]),
     "BOOLEAN": TypeAdapter(bool),
     "ANY": TypeAdapter(Any),
 }
 
-
+###############################################################################
 def _normalize_validated_value(value: Any) -> Any:
     if isinstance(value, BaseModel):
         return value.model_dump(mode="json")
@@ -148,6 +150,8 @@ def _normalize_validated_value(value: Any) -> Any:
         return {key: _normalize_validated_value(item) for key, item in value.items()}
     return value
 
-
+###############################################################################
 def validate_data_type(data_type: NodeDataType, value: Any) -> Any:
-    return _normalize_validated_value(DATA_TYPE_ADAPTERS[data_type].validate_python(value))
+    return _normalize_validated_value(
+        DATA_TYPE_ADAPTERS[data_type].validate_python(value)
+    )

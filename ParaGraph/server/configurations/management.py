@@ -7,7 +7,10 @@ from typing import Any
 from pydantic import ValidationError
 
 from ParaGraph.server.common.constants import CONFIGURATION_FILE
-from ParaGraph.server.domain.settings import RuntimeConfigurationSettings, ServerSettings
+from ParaGraph.server.domain.settings import (
+    RuntimeConfigurationSettings,
+    ServerSettings,
+)
 
 
 ###############################################################################
@@ -23,17 +26,23 @@ class RuntimeConfigurationManager:
         return self._configuration_file
 
     # -------------------------------------------------------------------------
-    def load(self, configuration_file: str | None = None) -> RuntimeConfigurationSettings:
+    def load(
+        self, configuration_file: str | None = None
+    ) -> RuntimeConfigurationSettings:
         if configuration_file:
             self._configuration_file = Path(configuration_file)
 
         if not self._configuration_file.exists():
-            raise RuntimeError(f"Configuration file not found: {self._configuration_file}")
+            raise RuntimeError(
+                f"Configuration file not found: {self._configuration_file}"
+            )
 
         try:
             payload = json.loads(self._configuration_file.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError) as exc:
-            raise RuntimeError(f"Unable to load configuration from {self._configuration_file}") from exc
+            raise RuntimeError(
+                f"Unable to load configuration from {self._configuration_file}"
+            ) from exc
 
         if not isinstance(payload, dict):
             raise RuntimeError("Configuration must be a JSON object.")
@@ -77,4 +86,3 @@ class RuntimeConfigurationManager:
     def get_value(self, block_name: str, key: str, default: Any = None) -> Any:
         block = self.get_block(block_name)
         return block.get(key, default)
-

@@ -237,7 +237,7 @@ export default function ModelsPage() {
     const [hfDownloads, setHfDownloads] = useState<Record<string, HuggingFaceDownloadState>>({})
     const { mark: markCancellingHfJob, clear: clearCancellingHfJob, has: hasCancellingHfJob } = useKeyedFlags()
 
-    const hfAbortRef = useRef<AbortController | null>(null)
+    const hfRequestVersionRef = useRef(0)
     const hfCacheRef = useRef<Map<string, Map<number, HuggingFaceModelCatalogResponse>>>(new Map())
     const hfDownloadTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
     const hfDownloadPollGenerationRef = useRef<Record<string, number>>({})
@@ -321,19 +321,18 @@ export default function ModelsPage() {
             }
             setHfError(null)
 
-            hfAbortRef.current?.abort()
-            const controller = new AbortController()
-            hfAbortRef.current = controller
+            const requestVersion = hfRequestVersionRef.current + 1
+            hfRequestVersionRef.current = requestVersion
 
             try {
-                const payload = await fetchHuggingFaceModels(
-                    {
-                        ...hfQuery,
-                        page: targetPage,
-                        refresh,
-                    },
-                    { signal: controller.signal },
-                )
+                const payload = await fetchHuggingFaceModels({
+                    ...hfQuery,
+                    page: targetPage,
+                    refresh,
+                })
+                if (requestVersion !== hfRequestVersionRef.current) {
+                    return
+                }
 
                 const nextQueryCache = refresh ? new Map<number, HuggingFaceModelCatalogResponse>() : queryCache || new Map()
                 nextQueryCache.set(targetPage, payload)
@@ -348,13 +347,13 @@ export default function ModelsPage() {
                 setHfLibraryOptions(mergeFilterOptions(payload.available_libraries, hfLibrary))
                 setHfPage(targetPage)
             } catch (error) {
-                if (error instanceof DOMException && error.name === 'AbortError') {
+                if (requestVersion !== hfRequestVersionRef.current) {
                     return
                 }
                 setHfError(formatCatalogError(error, 'Hugging Face'))
             } finally {
-                if (hfAbortRef.current === controller) {
-                    hfAbortRef.current = null
+                if (requestVersion !== hfRequestVersionRef.current) {
+                    return
                 }
                 setHfLoading(false)
                 setHfLoadingMore(false)
@@ -384,7 +383,7 @@ export default function ModelsPage() {
 
     useEffect(() => {
         return () => {
-            hfAbortRef.current?.abort()
+            hfRequestVersionRef.current += 1
             for (const timer of Object.values(hfDownloadTimersRef.current)) {
                 clearTimeout(timer)
             }

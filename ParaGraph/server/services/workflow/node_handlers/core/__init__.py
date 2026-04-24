@@ -2,8 +2,6 @@ from __future__ import annotations
 
 import json
 import re
-import shutil
-from pathlib import Path
 from typing import Any
 from uuid import NAMESPACE_URL, uuid5
 
@@ -11,13 +9,14 @@ import httpx
 
 from pydantic import ValidationError
 
-from ParaGraph.server.common.constants import RESOURCES_PATH
-from ParaGraph.server.common.security import ensure_path_within_root, is_cloud_deployment
+from ParaGraph.server.domain.chat_history import ChatHistoryHandle
 from ParaGraph.server.domain.node_handler_core import (
     ChatParameters,
     EmbeddingParameters,
     ImageInputParameters,
+    InMemoryChatHistoryParameters,
     ModelProviderParameters,
+    PersistedChatHistoryParameters,
     PromptParameters,
     PromptTemplateParameters,
     RerankParameters,
@@ -31,16 +30,32 @@ from ParaGraph.server.domain.node_handler_core import (
     VectorStoreParameters,
 )
 from ParaGraph.server.domain.node_catalog import ProviderModelDefinition
-from ParaGraph.server.domain.workflow_payloads import RetrievalResults, VectorPoint
+from ParaGraph.server.domain.workflow_payloads import (
+    RetrievalResults,
+    VectorPoint,
+    VectorStoreHandle,
+)
 from ParaGraph.server.services.configuration import configuration_service
 from ParaGraph.server.services.workflow.node_handlers.base import NodeHandler
-from ParaGraph.server.services.workflow.node_handlers.core.constants import (
-    SAVE_AS_FILE_CHUNK_SEPARATOR,
-    SAVE_AS_FOLDER_INDEX_WIDTH,
+from ParaGraph.server.services.workflow.node_handlers.core.chat_history import (
+    execute_chat_history_memory,
+    execute_chat_history_persisted,
 )
 from ParaGraph.server.services.workflow.node_handlers.core.huggingface_runtime import (
     load_huggingface_embedding_modules,
     load_huggingface_modules,
+)
+from ParaGraph.server.services.workflow.node_handlers.core.routing import (
+    _if_executor,
+    _router_executor,
+    _text_split_executor,
+    _tokenize_executor,
+)
+from ParaGraph.server.services.workflow.node_handlers.core.storage import (
+    _extract_text_from_payload,
+    _load_text_executor as _load_text_executor_impl,
+    _save_as_file_executor,
+    _save_as_folder_executor,
 )
 from ParaGraph.server.services.workflow.node_handlers.common import (
     coerce_bool,
@@ -49,16 +64,19 @@ from ParaGraph.server.services.workflow.node_handlers.common import (
     normalize_provider_name,
     parse_json_value,
     validate_json_against_schema,
-    validate_schema_definition,
 )
 from ParaGraph.server.services.workflow.provider import provider_service
-from ParaGraph.server.services.workflow.node_handlers.ingestion.files import load_file_text, resolve_local_path
+from ParaGraph.server.services.workflow.chat_history import chat_history_service
+from ParaGraph.server.services.workflow.node_handlers.ingestion import (
+    load_file_text,
+    resolve_local_path,
+)
 from ParaGraph.server.services.workflow.vector_stores import get_vector_store_adapter
 
 
-ARTIFACT_ROOT = Path(RESOURCES_PATH) / "artifacts"
 _HF_MODEL_CACHE: dict[str, tuple[Any, Any]] = {}
 _HF_EMBEDDING_CACHE: dict[str, tuple[Any, Any, Any]] = {}
+
 
 # -----------------------------------------------------------------------------
 def _load_huggingface_modules() -> tuple[Any, Any, Any]:
@@ -75,49 +93,36 @@ def _normalize_embedding_vector(vector: list[float]) -> list[float]:
         return vector
     return [float(item / magnitude) for item in vector]
 
-# -----------------------------------------------------------------------------
-def _resolve_storage_path(
-    raw_path: Any,
-    *,
-    label: str,
-    relative_to_artifacts_root: bool = False,
-) -> Path:
-    storage_path = coerce_text(raw_path).strip()
-    if not storage_path:
-        raise ValueError(f"{label} is required. Select a local path.")
-    candidate = Path(storage_path).expanduser()
-    artifact_root = ARTIFACT_ROOT.resolve()
-    if candidate.is_absolute():
-        resolved = candidate.resolve()
-        if is_cloud_deployment():
-            return ensure_path_within_root(resolved, artifact_root, label=label)
-        return resolved
-
-    if relative_to_artifacts_root:
-        resolved = (ARTIFACT_ROOT / candidate).resolve()
-        return ensure_path_within_root(resolved, artifact_root, label=label)
-
-    resolved = candidate.resolve()
-    if is_cloud_deployment():
-        return ensure_path_within_root(resolved, artifact_root, label=label)
-    return resolved
 
 # -----------------------------------------------------------------------------
-def _to_artifact_path(path: Path) -> str:
-    artifact_root = ARTIFACT_ROOT.resolve()
-    try:
-        return str(path.resolve().relative_to(artifact_root))
-    except ValueError:
-        return str(path.resolve())
+def _load_text_executor(
+    parameters: dict[str, Any], inputs: dict[str, Any]
+) -> dict[str, Any]:
+    return _load_text_executor_impl(
+        parameters,
+        inputs,
+        text_loader=load_file_text,
+    )
+
 
 # -----------------------------------------------------------------------------
-def _prompt_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
+
+
+# -----------------------------------------------------------------------------
+
+
+# -----------------------------------------------------------------------------
+def _prompt_executor(
+    parameters: dict[str, Any], inputs: dict[str, Any]
+) -> dict[str, Any]:
     _ = inputs
     return {"text": coerce_text(parameters.get("prompt_text", "")).strip()}
 
 
 def _extract_template_record_text(record: dict[str, Any]) -> str:
-    candidate = coerce_text(record.get("text") or record.get("content") or record.get("chunk") or "")
+    candidate = coerce_text(
+        record.get("text") or record.get("content") or record.get("chunk") or ""
+    )
     return candidate
 
 
@@ -168,12 +173,16 @@ def _collect_prompt_template_variable_maps(raw_variables: Any) -> list[dict[str,
         if candidate is None:
             continue
         if not isinstance(candidate, dict):
-            raise ValueError(f"PROMPT_TEMPLATE variables input #{index} must be an object")
+            raise ValueError(
+                f"PROMPT_TEMPLATE variables input #{index} must be an object"
+            )
         variable_maps.append(candidate)
     return variable_maps
 
 
-def _prompt_template_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
+def _prompt_template_executor(
+    parameters: dict[str, Any], inputs: dict[str, Any]
+) -> dict[str, Any]:
     parsed = PromptTemplateParameters.model_validate(parameters)
     variable_maps = _collect_prompt_template_variable_maps(inputs.get("variables"))
     merged_variables: dict[str, str] = {}
@@ -184,13 +193,19 @@ def _prompt_template_executor(parameters: dict[str, Any], inputs: dict[str, Any]
             if not variable_name:
                 raise ValueError("PROMPT_TEMPLATE variables must use non-empty keys")
             if variable_name in merged_variables:
-                raise ValueError(f"PROMPT_TEMPLATE duplicate variable key: {variable_name}")
+                raise ValueError(
+                    f"PROMPT_TEMPLATE duplicate variable key: {variable_name}"
+                )
             merged_variables[variable_name] = _coerce_template_value(raw_value)
 
     referenced_variables = set(_PROMPT_TEMPLATE_PATTERN.findall(parsed.template))
-    missing_variables = sorted(name for name in referenced_variables if name not in merged_variables)
+    missing_variables = sorted(
+        name for name in referenced_variables if name not in merged_variables
+    )
     if missing_variables:
-        raise ValueError(f"PROMPT_TEMPLATE missing variable values for: {', '.join(missing_variables)}")
+        raise ValueError(
+            f"PROMPT_TEMPLATE missing variable values for: {', '.join(missing_variables)}"
+        )
 
     rendered = _PROMPT_TEMPLATE_PATTERN.sub(
         lambda match: merged_variables[match.group(1)],
@@ -199,21 +214,48 @@ def _prompt_template_executor(parameters: dict[str, Any], inputs: dict[str, Any]
     return {"text": rendered}
 
 
-def _image_input_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
+def _image_input_executor(
+    parameters: dict[str, Any], inputs: dict[str, Any]
+) -> dict[str, Any]:
     _ = inputs
     return {"image": {"path": coerce_text(parameters.get("file_path", "")).strip()}}
 
+
 # -----------------------------------------------------------------------------
-def _build_messages(parameters: dict[str, Any], inputs: dict[str, Any], *, structured_schema: dict[str, Any] | None = None) -> list[dict[str, Any]]:
-    user_prompt = coerce_text(inputs.get("user_prompt") or parameters.get("prompt") or parameters.get("prompt_text") or "").strip()
-    system_prompt = coerce_text(inputs.get("system_prompt") or parameters.get("system_prompt") or "").strip()
+def _extract_prompt_inputs(
+    parameters: dict[str, Any], inputs: dict[str, Any]
+) -> tuple[str, str, str]:
+    user_prompt = coerce_text(
+        inputs.get("user_prompt")
+        or parameters.get("prompt")
+        or parameters.get("prompt_text")
+        or ""
+    ).strip()
+    system_prompt = coerce_text(
+        inputs.get("system_prompt") or parameters.get("system_prompt") or ""
+    ).strip()
     image_input = inputs.get("image")
-    image_path = coerce_text(image_input.get("path") if isinstance(image_input, dict) else "").strip()
+    image_path = coerce_text(
+        image_input.get("path") if isinstance(image_input, dict) else ""
+    ).strip()
+    return user_prompt, system_prompt, image_path
+
+
+def _build_messages(
+    parameters: dict[str, Any],
+    inputs: dict[str, Any],
+    *,
+    structured_schema: dict[str, Any] | None = None,
+    history_text: str = "",
+) -> list[dict[str, Any]]:
+    user_prompt, system_prompt, image_path = _extract_prompt_inputs(parameters, inputs)
 
     if not user_prompt and not image_path:
         raise ValueError("Model nodes require a user prompt or an image input")
 
     messages: list[dict[str, Any]] = []
+    if history_text:
+        messages.append({"role": "system", "content": history_text})
     if system_prompt:
         messages.append({"role": "system", "content": system_prompt})
 
@@ -246,8 +288,11 @@ def _build_messages(parameters: dict[str, Any], inputs: dict[str, Any], *, struc
         messages.append({"role": "user", "content": user_content})
     return messages
 
+
 # -----------------------------------------------------------------------------
-def _build_generation_options(parameters: dict[str, Any], *, include_context_window: bool) -> dict[str, Any]:
+def _build_generation_options(
+    parameters: dict[str, Any], *, include_context_window: bool
+) -> dict[str, Any]:
     max_tokens = max(1, coerce_int(parameters.get("max_tokens"), 512))
     options: dict[str, Any] = {"max_output_tokens": max_tokens}
     if include_context_window:
@@ -256,8 +301,11 @@ def _build_generation_options(parameters: dict[str, Any], *, include_context_win
             options["num_ctx"] = context_window
     return options
 
+
 # -----------------------------------------------------------------------------
-def _resolve_model_selection(parameters: dict[str, Any], inputs: dict[str, Any]) -> ProviderModelDefinition:
+def _resolve_model_selection(
+    parameters: dict[str, Any], inputs: dict[str, Any]
+) -> ProviderModelDefinition:
     _ = parameters
     model_input = inputs.get("model")
     if model_input is None:
@@ -266,6 +314,7 @@ def _resolve_model_selection(parameters: dict[str, Any], inputs: dict[str, Any])
         return ProviderModelDefinition.model_validate(model_input)
     except ValidationError as exc:
         raise ValueError("model controller must be a valid model handle") from exc
+
 
 # -----------------------------------------------------------------------------
 def _run_huggingface_chat(
@@ -283,7 +332,9 @@ def _run_huggingface_chat(
         model = auto_model_for_causal_lm.from_pretrained(
             model_name,
             token=access_token,
-            torch_dtype=torch_module.float16 if torch_module.cuda.is_available() else torch_module.float32,
+            torch_dtype=torch_module.float16
+            if torch_module.cuda.is_available()
+            else torch_module.float32,
             device_map="auto" if torch_module.cuda.is_available() else None,
         )
         _HF_MODEL_CACHE[model_name] = (tokenizer, model)
@@ -303,8 +354,9 @@ def _run_huggingface_chat(
     generated = model.generate(**encoded, max_new_tokens=max_tokens)
     decoded = tokenizer.decode(generated[0], skip_special_tokens=True)
     if decoded.startswith(prompt_text):
-        return decoded[len(prompt_text):].strip()
+        return decoded[len(prompt_text) :].strip()
     return decoded.strip()
+
 
 # -----------------------------------------------------------------------------
 def _execute_model_node(
@@ -317,13 +369,38 @@ def _execute_model_node(
     timeout_s: float | None,
 ) -> dict[str, Any]:
     schema = parameters.get("response_schema") if structured_output else None
-    messages = _build_messages(parameters, inputs, structured_schema=schema)
+    history_handle_input = inputs.get("history")
+    history_handle: ChatHistoryHandle | None = None
+    if history_handle_input is not None:
+        try:
+            history_handle = ChatHistoryHandle.model_validate(history_handle_input)
+        except ValidationError as exc:
+            raise ValueError("history controller must be a valid chat history handle") from exc
+
+    history_text = (
+        chat_history_service.format_history_for_prompt(history_handle)
+        if history_handle is not None
+        else ""
+    )
+    user_prompt, system_prompt, _image_path = _extract_prompt_inputs(parameters, inputs)
+    messages = _build_messages(
+        parameters,
+        inputs,
+        structured_schema=schema,
+        history_text=history_text,
+    )
     include_context_window = provider in {"ollama", "huggingface"}
-    options = _build_generation_options(parameters, include_context_window=include_context_window)
+    options = _build_generation_options(
+        parameters, include_context_window=include_context_window
+    )
     max_tokens = int(options.get("max_output_tokens", 512))
     context_window = int(options.get("num_ctx", 0))
     image_input = inputs.get("image")
-    requires_image = bool(coerce_text(image_input.get("path") if isinstance(image_input, dict) else "").strip())
+    requires_image = bool(
+        coerce_text(
+            image_input.get("path") if isinstance(image_input, dict) else ""
+        ).strip()
+    )
     use_reasoning = coerce_bool(parameters.get("use_reasoning", False))
 
     provider_service.validate_model_request(
@@ -363,18 +440,36 @@ def _execute_model_node(
         if not isinstance(schema, dict):
             raise ValueError("Structured response schema is required")
         validate_json_against_schema(parsed, schema)
+        if history_handle is not None:
+            chat_history_service.append_exchange(
+                history_handle,
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                assistant_output=chat_history_service.serialize_structured_output(parsed),
+            )
         return {"result": parsed}
+    if history_handle is not None:
+        chat_history_service.append_exchange(
+            history_handle,
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            assistant_output=text,
+        )
     return {"response": text}
 
 
-def _model_provider_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
+def _model_provider_executor(
+    parameters: dict[str, Any], inputs: dict[str, Any]
+) -> dict[str, Any]:
     _ = inputs
     parsed = ModelProviderParameters.model_validate(parameters)
     provider = normalize_provider_name(parsed.provider, default="ollama")
     model_name = coerce_text(parsed.model_name).strip()
     timeout_seconds = float(parsed.timeout_seconds)
     if not model_name and provider == "ollama":
-        model_name = coerce_text(configuration_service.load_configuration().ollama.chat_model).strip()
+        model_name = coerce_text(
+            configuration_service.load_configuration().ollama.chat_model
+        ).strip()
     if not model_name:
         raise ValueError("MODEL_PROVIDER requires a model_name")
     return {
@@ -386,7 +481,9 @@ def _model_provider_executor(parameters: dict[str, Any], inputs: dict[str, Any])
     }
 
 
-def _llm_chat_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
+def _llm_chat_executor(
+    parameters: dict[str, Any], inputs: dict[str, Any]
+) -> dict[str, Any]:
     selection = _resolve_model_selection(parameters, inputs)
     return _execute_model_node(
         provider=selection.provider,
@@ -398,7 +495,9 @@ def _llm_chat_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> di
     )
 
 
-def _llm_structured_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
+def _llm_structured_executor(
+    parameters: dict[str, Any], inputs: dict[str, Any]
+) -> dict[str, Any]:
     selection = _resolve_model_selection(parameters, inputs)
     return _execute_model_node(
         provider=selection.provider,
@@ -410,10 +509,18 @@ def _llm_structured_executor(parameters: dict[str, Any], inputs: dict[str, Any])
     )
 
 
-def _load_document_text_content(document: dict[str, Any], *, fallback_index: int) -> tuple[str, str, dict[str, Any]]:
-    metadata = document.get("metadata") if isinstance(document.get("metadata"), dict) else {}
+def _load_document_text_content(
+    document: dict[str, Any], *, fallback_index: int
+) -> tuple[str, str, dict[str, Any]]:
+    metadata = (
+        document.get("metadata") if isinstance(document.get("metadata"), dict) else {}
+    )
     text_content = _extract_text_from_payload(document, ("text", "content", "chunk"))
-    source_uri = coerce_text(document.get("source_uri") or metadata.get("file_path") or f"document:{fallback_index}").strip()
+    source_uri = coerce_text(
+        document.get("source_uri")
+        or metadata.get("file_path")
+        or f"document:{fallback_index}"
+    ).strip()
     if not text_content.strip():
         path_candidate = coerce_text(metadata.get("file_path") or source_uri).strip()
         if path_candidate:
@@ -425,9 +532,20 @@ def _load_document_text_content(document: dict[str, Any], *, fallback_index: int
 
 def _embed_text_with_gemini(*, model_name: str, text: str) -> list[float]:
     config = configuration_service.load_configuration()
-    access_key = next((item for item in config.access_keys if normalize_provider_name(item.provider, default="") == "gemini"), None)
+    access_key = next(
+        (
+            item
+            for item in config.access_keys
+            if normalize_provider_name(item.provider, default="") == "gemini"
+        ),
+        None,
+    )
     api_key = access_key.api_key if access_key else None
-    base_url = (access_key.base_url if access_key and access_key.base_url else "https://generativelanguage.googleapis.com/v1beta").rstrip("/")
+    base_url = (
+        access_key.base_url
+        if access_key and access_key.base_url
+        else "https://generativelanguage.googleapis.com/v1beta"
+    ).rstrip("/")
     if not api_key:
         raise ValueError("Provider 'gemini' requires an access key in Configurations")
 
@@ -452,7 +570,14 @@ def _embed_text_with_gemini(*, model_name: str, text: str) -> list[float]:
 def _embed_text_with_huggingface(*, model_name: str, text: str) -> list[float]:
     torch_module, auto_model, auto_tokenizer = _load_huggingface_embedding_modules()
     config = configuration_service.load_configuration()
-    access_key = next((item for item in config.access_keys if normalize_provider_name(item.provider, default="") == "huggingface"), None)
+    access_key = next(
+        (
+            item
+            for item in config.access_keys
+            if normalize_provider_name(item.provider, default="") == "huggingface"
+        ),
+        None,
+    )
     access_token = access_key.api_key if access_key and access_key.api_key else None
 
     if model_name not in _HF_EMBEDDING_CACHE:
@@ -470,16 +595,29 @@ def _embed_text_with_huggingface(*, model_name: str, text: str) -> list[float]:
         outputs = model(**encoded)
         last_hidden_state = getattr(outputs, "last_hidden_state", None)
         if last_hidden_state is None:
-            raise ValueError("Hugging Face embedding model did not return a hidden state")
-        attention_mask = encoded["attention_mask"].unsqueeze(-1).expand(last_hidden_state.size()).float()
-        pooled = (last_hidden_state * attention_mask).sum(dim=1) / attention_mask.sum(dim=1).clamp(min=1.0)
+            raise ValueError(
+                "Hugging Face embedding model did not return a hidden state"
+            )
+        attention_mask = (
+            encoded["attention_mask"]
+            .unsqueeze(-1)
+            .expand(last_hidden_state.size())
+            .float()
+        )
+        pooled = (last_hidden_state * attention_mask).sum(dim=1) / attention_mask.sum(
+            dim=1
+        ).clamp(min=1.0)
         vector = pooled[0].detach().cpu().tolist()
     return _normalize_embedding_vector([float(item) for item in vector])
 
 
-def _embed_text_for_text_embedding_node(*, provider: str, model_name: str, text: str) -> list[float]:
+def _embed_text_for_text_embedding_node(
+    *, provider: str, model_name: str, text: str
+) -> list[float]:
     if provider in {"openai", "ollama"}:
-        return provider_service.embed_text(provider=provider, model=model_name, text=text)
+        return provider_service.embed_text(
+            provider=provider, model=model_name, text=text
+        )
     if provider == "gemini":
         return _embed_text_with_gemini(model_name=model_name, text=text)
     if provider == "huggingface":
@@ -504,21 +642,29 @@ def _collect_embedding_points(
                 "document_id": document_id,
                 "text": text_payload,
                 "source_uri": "inline:text",
-                "vector": _embed_text_for_text_embedding_node(provider=provider, model_name=model_name, text=text_payload),
+                "vector": _embed_text_for_text_embedding_node(
+                    provider=provider, model_name=model_name, text=text_payload
+                ),
                 "embedding_provider": provider,
                 "embedding_model": model_name,
                 "metadata": {"origin": "text"},
             }
         )
 
-    documents = inputs.get("documents") if isinstance(inputs.get("documents"), list) else []
+    documents = (
+        inputs.get("documents") if isinstance(inputs.get("documents"), list) else []
+    )
     for index, document in enumerate(documents, start=1):
         if not isinstance(document, dict):
             continue
-        text_content, source_uri, metadata = _load_document_text_content(document, fallback_index=index)
+        text_content, source_uri, metadata = _load_document_text_content(
+            document, fallback_index=index
+        )
         if not text_content:
             continue
-        document_id = coerce_text(document.get("id") or "").strip() or str(uuid5(NAMESPACE_URL, source_uri))
+        document_id = coerce_text(document.get("id") or "").strip() or str(
+            uuid5(NAMESPACE_URL, source_uri)
+        )
         points.append(
             {
                 "id": str(uuid5(NAMESPACE_URL, f"point:{document_id}")),
@@ -526,7 +672,9 @@ def _collect_embedding_points(
                 "document_id": document_id,
                 "text": text_content,
                 "source_uri": source_uri,
-                "vector": _embed_text_for_text_embedding_node(provider=provider, model_name=model_name, text=text_content),
+                "vector": _embed_text_for_text_embedding_node(
+                    provider=provider, model_name=model_name, text=text_content
+                ),
                 "embedding_provider": provider,
                 "embedding_model": model_name,
                 "metadata": {**metadata, "origin": "document"},
@@ -537,13 +685,21 @@ def _collect_embedding_points(
     for index, chunk in enumerate(chunks, start=1):
         if not isinstance(chunk, dict):
             continue
-        text_content = _extract_text_from_payload(chunk, ("text", "content", "chunk")).strip()
+        text_content = _extract_text_from_payload(
+            chunk, ("text", "content", "chunk")
+        ).strip()
         if not text_content:
             continue
-        chunk_id = coerce_text(chunk.get("id") or "").strip() or str(uuid5(NAMESPACE_URL, f"chunk:{index}:{text_content}"))
-        document_id = coerce_text(chunk.get("document_id") or "").strip() or str(uuid5(NAMESPACE_URL, chunk_id))
+        chunk_id = coerce_text(chunk.get("id") or "").strip() or str(
+            uuid5(NAMESPACE_URL, f"chunk:{index}:{text_content}")
+        )
+        document_id = coerce_text(chunk.get("document_id") or "").strip() or str(
+            uuid5(NAMESPACE_URL, chunk_id)
+        )
         source_uri = coerce_text(chunk.get("source_uri") or f"chunk:{chunk_id}").strip()
-        metadata = chunk.get("metadata") if isinstance(chunk.get("metadata"), dict) else {}
+        metadata = (
+            chunk.get("metadata") if isinstance(chunk.get("metadata"), dict) else {}
+        )
         points.append(
             {
                 "id": chunk_id,
@@ -551,7 +707,9 @@ def _collect_embedding_points(
                 "document_id": document_id,
                 "text": text_content,
                 "source_uri": source_uri,
-                "vector": _embed_text_for_text_embedding_node(provider=provider, model_name=model_name, text=text_content),
+                "vector": _embed_text_for_text_embedding_node(
+                    provider=provider, model_name=model_name, text=text_content
+                ),
                 "embedding_provider": provider,
                 "embedding_model": model_name,
                 "metadata": {**metadata, "origin": "chunk"},
@@ -561,16 +719,24 @@ def _collect_embedding_points(
     return points
 
 
-def _embedding_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
+def _embedding_executor(
+    parameters: dict[str, Any], inputs: dict[str, Any]
+) -> dict[str, Any]:
     parsed = EmbeddingParameters.model_validate(parameters)
     model_name = coerce_text(parsed.model_name).strip()
     if not model_name:
         raise ValueError("TEXT_EMBEDDING requires a model_name")
     provider = normalize_provider_name(parsed.provider, default="openai")
-    points = _collect_embedding_points(inputs=inputs, provider=provider, model_name=model_name)
+    points = _collect_embedding_points(
+        inputs=inputs, provider=provider, model_name=model_name
+    )
     if not points:
-        raise ValueError("TEXT_EMBEDDING requires at least one non-empty text, document, or chunk")
-    vectors = [VectorPoint.model_validate(point).model_dump(mode="json") for point in points]
+        raise ValueError(
+            "TEXT_EMBEDDING requires at least one non-empty text, document, or chunk"
+        )
+    vectors = [
+        VectorPoint.model_validate(point).model_dump(mode="json") for point in points
+    ]
     return {
         "vectors": vectors,
         "embedding": {
@@ -595,8 +761,14 @@ def _flatten_vector_point_inputs(raw_points: Any) -> list[dict[str, Any]]:
     return []
 
 
-def _flatten_embedding_controller_inputs(raw_embedding_payload: Any) -> list[dict[str, Any]]:
-    values = raw_embedding_payload if isinstance(raw_embedding_payload, list) else [raw_embedding_payload]
+def _flatten_embedding_controller_inputs(
+    raw_embedding_payload: Any,
+) -> list[dict[str, Any]]:
+    values = (
+        raw_embedding_payload
+        if isinstance(raw_embedding_payload, list)
+        else [raw_embedding_payload]
+    )
     points: list[dict[str, Any]] = []
     for value in values:
         if not isinstance(value, dict):
@@ -625,7 +797,9 @@ def _canonical_similarity_metric(value: str) -> str:
     return normalized
 
 
-def _vector_store_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
+def _vector_store_executor(
+    parameters: dict[str, Any], inputs: dict[str, Any]
+) -> dict[str, Any]:
     parsed = VectorStoreParameters.model_validate(parameters)
     points = [
         *_flatten_vector_point_inputs(inputs.get("vectors")),
@@ -651,7 +825,9 @@ def _vector_store_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -
     return {"store": store_payload}
 
 
-def _similarity_search_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
+def _similarity_search_executor(
+    parameters: dict[str, Any], inputs: dict[str, Any]
+) -> dict[str, Any]:
     parsed = SimilaritySearchParameters.model_validate(parameters)
     query = coerce_text(inputs.get("query") or "").strip()
     if not query:
@@ -659,14 +835,26 @@ def _similarity_search_executor(parameters: dict[str, Any], inputs: dict[str, An
 
     embedding_payload = inputs.get("embedding")
     provider, model_name = _extract_embedding_source(embedding_payload)
-    query_vector = _embed_text_for_text_embedding_node(provider=provider, model_name=model_name, text=query)
+    query_vector = _embed_text_for_text_embedding_node(
+        provider=provider, model_name=model_name, text=query
+    )
 
-    store_payload = inputs.get("store")
-    if not isinstance(store_payload, dict):
+    raw_store_payload = inputs.get("store")
+    if not isinstance(raw_store_payload, dict):
         raise ValueError("SIMILARITY_SEARCH requires a vector store controller input")
+    try:
+        store_payload = VectorStoreHandle.model_validate(raw_store_payload).model_dump(
+            mode="json"
+        )
+    except ValidationError as exc:
+        raise ValueError(
+            "SIMILARITY_SEARCH received an invalid vector store controller payload"
+        ) from exc
 
     requested_metric = _canonical_similarity_metric(parsed.similarity_strategy)
-    store_metric = _canonical_similarity_metric(coerce_text(store_payload.get("metric") or "cosine"))
+    store_metric = _canonical_similarity_metric(
+        coerce_text(store_payload.get("metric") or "cosine")
+    )
     if requested_metric != store_metric:
         raise ValueError(
             "SIMILARITY_SEARCH similarity_strategy must match the connected vector store metric "
@@ -675,7 +863,36 @@ def _similarity_search_executor(parameters: dict[str, Any], inputs: dict[str, An
 
     backend = coerce_text(store_payload.get("backend") or "lancedb").strip().lower()
     adapter = get_vector_store_adapter(backend)
-    raw_filter_spec = parsed.metadata_filter if isinstance(parsed.metadata_filter, dict) else None
+    capabilities = adapter.describe_capabilities()
+    if parsed.search_mode == "hybrid" and not bool(
+        capabilities.get("supports_hybrid_search")
+    ):
+        raise ValueError(
+            f"SIMILARITY_SEARCH backend '{backend}' does not support hybrid mode"
+        )
+    if parsed.search_engine == "faiss_augmented" and not bool(
+        capabilities.get("supports_faiss_augmentation")
+    ):
+        raise ValueError(
+            f"SIMILARITY_SEARCH backend '{backend}' does not support faiss_augmented engine"
+        )
+
+    raw_filter_spec = (
+        parsed.metadata_filter if isinstance(parsed.metadata_filter, dict) else None
+    )
+    if raw_filter_spec and not bool(
+        capabilities.get("supports_metadata_filtering", True)
+    ):
+        raise ValueError(
+            f"SIMILARITY_SEARCH backend '{backend}' does not support metadata filtering"
+        )
+
+    effective_search_engine = parsed.search_engine
+    if effective_search_engine == "faiss_augmented":
+        # The runtime currently reuses backend-native search while preserving
+        # explicit compatibility validation for optional faiss augmentation mode.
+        effective_search_engine = "native"
+
     hits = adapter.search(
         store=store_payload,
         query_vector=query_vector,
@@ -688,6 +905,7 @@ def _similarity_search_executor(parameters: dict[str, Any], inputs: dict[str, An
         keyword_query=coerce_text(parsed.keyword_query).strip() or None,
         vector_weight=float(parsed.vector_weight),
         keyword_weight=float(parsed.keyword_weight),
+        search_engine=effective_search_engine,
     )
 
     return {
@@ -725,7 +943,9 @@ def _metadata_match_score(
     return 1.0 if actual == expected else 0.0
 
 
-def _rerank_results_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
+def _rerank_results_executor(
+    parameters: dict[str, Any], inputs: dict[str, Any]
+) -> dict[str, Any]:
     parsed = RerankParameters.model_validate(parameters)
     raw_results = inputs.get("results")
     if not isinstance(raw_results, dict):
@@ -746,7 +966,9 @@ def _rerank_results_executor(parameters: dict[str, Any], inputs: dict[str, Any])
         metadata = hit.metadata if isinstance(hit.metadata, dict) else {}
 
         term_overlap = _term_overlap_score(query_tokens, text_tokens)
-        exact_phrase = 1.0 if normalized_query and normalized_query in normalized_text else 0.0
+        exact_phrase = (
+            1.0 if normalized_query and normalized_query in normalized_text else 0.0
+        )
         metadata_match = _metadata_match_score(
             metadata=metadata,
             metadata_field=parsed.metadata_field,
@@ -777,282 +999,70 @@ def _rerank_results_executor(parameters: dict[str, Any], inputs: dict[str, Any])
         hit_payload["score"] = float(final_score)
         scored_hits.append((float(final_score), hit_payload))
 
-    reranked_hits = [payload for _, payload in sorted(scored_hits, key=lambda item: item[0], reverse=True)]
+    reranked_hits = [
+        payload
+        for _, payload in sorted(scored_hits, key=lambda item: item[0], reverse=True)
+    ]
     if parsed.top_k > 0:
         reranked_hits = reranked_hits[: parsed.top_k]
 
     return {
-        "results": RetrievalResults(query=retrieval_results.query, hits=reranked_hits).model_dump(mode="json"),
+        "results": RetrievalResults(
+            query=retrieval_results.query, hits=reranked_hits
+        ).model_dump(mode="json"),
     }
-
-
-def _tokenize_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
-    _ = parameters
-    text = coerce_text(inputs.get("text") or "")
-    tokens = [index for index, part in enumerate(text.split(), start=1) if part]
-    return {"tokens": tokens}
-
-
-def _text_split_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
-    text = coerce_text(inputs.get("text") or "")
-    delimiter = coerce_text(parameters.get("delimiter") or "\n")
-    return {"segments": [segment.strip() for segment in text.split(delimiter) if segment.strip()]}
-
-
-def _safe_file_stem(raw_name: str, fallback: str) -> str:
-    cleaned = re.sub(r"[^A-Za-z0-9._-]+", "_", raw_name).strip("._-")
-    return cleaned or fallback
-
-
-def _derive_item_name_from_source(source_uri: str, fallback: str) -> str:
-    source = source_uri.strip()
-    if not source:
-        return fallback
-    candidate = Path(source)
-    if candidate.name:
-        return candidate.stem or candidate.name
-    return fallback
-
-
-def _extract_text_from_payload(payload: dict[str, Any], candidate_keys: tuple[str, ...]) -> str:
-    for key in candidate_keys:
-        if key not in payload:
-            continue
-        raw_value = payload.get(key)
-        if isinstance(raw_value, dict):
-            nested = coerce_text(raw_value.get("text") or raw_value.get("content") or raw_value.get("chunk") or "")
-            if nested.strip():
-                return nested
-            continue
-        text_value = coerce_text(raw_value or "")
-        if text_value.strip():
-            return text_value
-    return ""
-
-
-def _collect_save_items(inputs: dict[str, Any]) -> list[dict[str, str]]:
-    items: list[dict[str, str]] = []
-    text_payload = coerce_text(inputs.get("text") or "")
-    if text_payload.strip():
-        items.append({"name": "text_output", "text": text_payload})
-
-    documents = inputs.get("documents") if isinstance(inputs.get("documents"), list) else []
-    for index, document in enumerate(documents, start=1):
-        if not isinstance(document, dict):
-            continue
-        metadata = document.get("metadata") if isinstance(document.get("metadata"), dict) else {}
-        text_content = _extract_text_from_payload(document, ("text", "content", "chunk"))
-        if not text_content.strip():
-            path_candidate = coerce_text(metadata.get("file_path") or document.get("source_uri") or "").strip()
-            if path_candidate:
-                path = resolve_local_path(path_candidate)
-                if path.exists() and path.is_file():
-                    text_content, _mime_type = load_file_text(path)
-        if not text_content.strip():
-            continue
-        file_name = coerce_text(metadata.get("file_name") or "")
-        source_uri = coerce_text(document.get("source_uri") or "")
-        derived = Path(file_name).stem if file_name else _derive_item_name_from_source(source_uri, f"document_{index}")
-        items.append({"name": derived or f"document_{index}", "text": text_content})
-
-    chunks = inputs.get("chunks") if isinstance(inputs.get("chunks"), list) else []
-    for index, chunk in enumerate(chunks, start=1):
-        if not isinstance(chunk, dict):
-            continue
-        text_content = _extract_text_from_payload(chunk, ("text", "content", "chunk"))
-        if not text_content.strip():
-            continue
-        document_id = coerce_text(chunk.get("document_id") or "").strip()
-        chunk_index = chunk.get("chunk_index")
-        if isinstance(chunk_index, int) and chunk_index >= 0:
-            derived = f"{document_id or 'chunk'}_{chunk_index}"
-        else:
-            derived = document_id or f"chunk_{index}"
-        items.append({"name": derived, "text": text_content})
-
-    return items
-
-# -----------------------------------------------------------------------------
-def _ensure_extension(path: Path, extension: str) -> Path:
-    if path.suffix.lower() == extension:
-        return path
-    if path.suffix:
-        return path.with_suffix(extension)
-    return Path(f"{path.as_posix()}{extension}")
-
-# -----------------------------------------------------------------------------
-def _prepare_directory(path: Path) -> None:
-    if path.exists() and path.is_file():
-        path.unlink()
-    path.mkdir(parents=True, exist_ok=True)
-
-# -----------------------------------------------------------------------------
-def _prepare_file_destination(path: Path) -> None:
-    if path.exists() and path.is_dir():
-        shutil.rmtree(path)
-    path.parent.mkdir(parents=True, exist_ok=True)
-
-# -----------------------------------------------------------------------------
-def _build_client_side_save_as_file_artifact(
-    parsed: SaveAsFileParameters,
-    item_texts: list[str],
-) -> dict[str, Any]:
-    output_path = coerce_text(parsed.output_path).strip()
-    if not output_path:
-        raise ValueError("output_path is required. Select a local path.")
-
-    destination = _ensure_extension(Path(output_path).expanduser(), parsed.extension)
-    resolved_path = str(destination)
-    return {
-        "artifact": {
-            "path": resolved_path,
-            "files": [resolved_path],
-            "count": 1,
-            "extension": parsed.extension,
-            "item_texts": item_texts,
-        }
-    }
-
-# -----------------------------------------------------------------------------
-def _save_as_file_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
-    parsed = SaveAsFileParameters.model_validate(parameters)
-    items = _collect_save_items(inputs)
-    if not items:
-        raise ValueError("SAVE_AS_FILE requires at least one non-empty text, documents, or chunks input")
-
-    item_texts = [item["text"] for item in items]
-
-    if parsed.client_side_write and not is_cloud_deployment():
-        return _build_client_side_save_as_file_artifact(
-            parsed,
-            item_texts,
-        )
-
-    target_root = _resolve_storage_path(parsed.output_path, label="output_path", relative_to_artifacts_root=True)
-    destination = _ensure_extension(target_root, parsed.extension)
-    _prepare_file_destination(destination)
-    with destination.open("w", encoding="utf-8") as stream:
-        for index, item_text in enumerate(item_texts):
-            if index > 0:
-                stream.write(SAVE_AS_FILE_CHUNK_SEPARATOR)
-            stream.write(item_text)
-    resolved_path = _to_artifact_path(destination)
-    return {
-        "artifact": {
-            "path": resolved_path,
-            "files": [resolved_path],
-            "count": 1,
-            "extension": parsed.extension,
-        }
-    }
-
-# -----------------------------------------------------------------------------
-def _build_client_side_save_as_folder_artifact(
-    parsed: SaveAsFolderParameters,
-    item_count: int,
-    item_texts: list[str],
-) -> dict[str, Any]:
-    output_path = coerce_text(parsed.output_path).strip()
-    if not output_path:
-        raise ValueError("output_path is required. Select a local path.")
-
-    destination_dir = Path(output_path).expanduser()
-    base_stem = _safe_file_stem(destination_dir.name, "output")
-    files = [
-        str(destination_dir / f"{base_stem}_{index:0{SAVE_AS_FOLDER_INDEX_WIDTH}d}{parsed.extension}")
-        for index in range(1, item_count + 1)
-    ]
-    return {
-        "artifact": {
-            "path": str(destination_dir),
-            "files": files,
-            "count": len(files),
-            "extension": parsed.extension,
-            "item_texts": item_texts,
-        }
-    }
-
-# -----------------------------------------------------------------------------
-def _save_as_folder_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
-    parsed = SaveAsFolderParameters.model_validate(parameters)
-    items = _collect_save_items(inputs)
-    if not items:
-        raise ValueError("SAVE_AS_FOLDER requires at least one non-empty text, documents, or chunks input")
-
-    item_texts = [item["text"] for item in items]
-    if parsed.client_side_write and not is_cloud_deployment():
-        return _build_client_side_save_as_folder_artifact(
-            parsed,
-            len(items),
-            item_texts,
-        )
-
-    destination_dir = _resolve_storage_path(parsed.output_path, label="output_path", relative_to_artifacts_root=True)
-    _prepare_directory(destination_dir)
-    base_stem = _safe_file_stem(destination_dir.name, "output")
-    written_files: list[str] = []
-    for index, item in enumerate(items, start=1):
-        candidate_name = f"{base_stem}_{index:0{SAVE_AS_FOLDER_INDEX_WIDTH}d}{parsed.extension}"
-        destination = destination_dir / candidate_name
-        destination.write_text(item["text"], encoding="utf-8")
-        written_files.append(_to_artifact_path(destination))
-
-    return {
-        "artifact": {
-            "path": _to_artifact_path(destination_dir),
-            "files": written_files,
-            "count": len(written_files),
-            "extension": parsed.extension,
-        }
-    }
-
-# -----------------------------------------------------------------------------
-def _load_text_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
-    _ = inputs
-    source = _resolve_storage_path(parameters.get("storage_path"), label="storage_path")
-    if not source.exists():
-        raise ValueError(f"Text file not found: {source}")
-    if not source.is_file():
-        raise ValueError(f"storage_path must point to a file: {source}")
-    text_content, _mime_type = load_file_text(source)
-    return {"text": text_content}
-
-# -----------------------------------------------------------------------------
-def _if_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
-    _ = parameters
-    return {"result": inputs.get("true_value") if bool(inputs.get("condition")) else inputs.get("false_value")}
-
-
-def _router_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
-    value = inputs.get("value")
-    expected = coerce_text(parameters.get("expected_value") or "")
-    if coerce_text(value) == expected:
-        return {"matched": value, "unmatched": None}
-    return {"matched": None, "unmatched": value}
 
 
 CORE_HANDLERS = {
     "prompt": NodeHandler(executor=_prompt_executor, parameter_model=PromptParameters),
-    "prompt_template": NodeHandler(executor=_prompt_template_executor, parameter_model=PromptTemplateParameters),
-    "user_prompt": NodeHandler(executor=_prompt_executor, parameter_model=PromptParameters),
-    "system_prompt": NodeHandler(executor=_prompt_executor, parameter_model=PromptParameters),
-    "image_input": NodeHandler(executor=_image_input_executor, parameter_model=ImageInputParameters),
-    "model_provider": NodeHandler(executor=_model_provider_executor, parameter_model=ModelProviderParameters),
-    "llm_chat": NodeHandler(executor=_llm_chat_executor, parameter_model=ChatParameters),
-    "llm_structured": NodeHandler(executor=_llm_structured_executor, parameter_model=StructuredParameters),
-    "embedding_model": NodeHandler(executor=_embedding_executor, parameter_model=EmbeddingParameters),
-    "text_embedding": NodeHandler(executor=_embedding_executor, parameter_model=EmbeddingParameters),
-    "vector_store": NodeHandler(executor=_vector_store_executor, parameter_model=VectorStoreParameters),
-    "lance_db": NodeHandler(executor=_vector_store_executor, parameter_model=VectorStoreParameters),
-    "similarity_search": NodeHandler(executor=_similarity_search_executor, parameter_model=SimilaritySearchParameters),
-    "rerank_results": NodeHandler(executor=_rerank_results_executor, parameter_model=RerankParameters),
+    "prompt_template": NodeHandler(
+        executor=_prompt_template_executor, parameter_model=PromptTemplateParameters
+    ),
+    "image_input": NodeHandler(
+        executor=_image_input_executor, parameter_model=ImageInputParameters
+    ),
+    "model_provider": NodeHandler(
+        executor=_model_provider_executor, parameter_model=ModelProviderParameters
+    ),
+    "llm_chat": NodeHandler(
+        executor=_llm_chat_executor, parameter_model=ChatParameters
+    ),
+    "llm_structured": NodeHandler(
+        executor=_llm_structured_executor, parameter_model=StructuredParameters
+    ),
+    "text_embedding": NodeHandler(
+        executor=_embedding_executor, parameter_model=EmbeddingParameters
+    ),
+    "vector_store": NodeHandler(
+        executor=_vector_store_executor, parameter_model=VectorStoreParameters
+    ),
+    "similarity_search": NodeHandler(
+        executor=_similarity_search_executor, parameter_model=SimilaritySearchParameters
+    ),
+    "rerank_results": NodeHandler(
+        executor=_rerank_results_executor, parameter_model=RerankParameters
+    ),
     "tokenize": NodeHandler(executor=_tokenize_executor),
-    "text_split": NodeHandler(executor=_text_split_executor, parameter_model=TextSplitParameters),
-    "save_as_file": NodeHandler(executor=_save_as_file_executor, parameter_model=SaveAsFileParameters),
-    "save_as_folder": NodeHandler(executor=_save_as_folder_executor, parameter_model=SaveAsFolderParameters),
-    "load_text": NodeHandler(executor=_load_text_executor, parameter_model=StorageParameters),
+    "text_split": NodeHandler(
+        executor=_text_split_executor, parameter_model=TextSplitParameters
+    ),
+    "save_as_file": NodeHandler(
+        executor=_save_as_file_executor, parameter_model=SaveAsFileParameters
+    ),
+    "save_as_folder": NodeHandler(
+        executor=_save_as_folder_executor, parameter_model=SaveAsFolderParameters
+    ),
+    "load_text": NodeHandler(
+        executor=_load_text_executor, parameter_model=StorageParameters
+    ),
     "if": NodeHandler(executor=_if_executor),
     "router": NodeHandler(executor=_router_executor, parameter_model=RouterParameters),
+    "chat_history_memory": NodeHandler(
+        executor=execute_chat_history_memory,
+        parameter_model=InMemoryChatHistoryParameters,
+    ),
+    "chat_history_persisted": NodeHandler(
+        executor=execute_chat_history_persisted,
+        parameter_model=PersistedChatHistoryParameters,
+    ),
 }
-
-

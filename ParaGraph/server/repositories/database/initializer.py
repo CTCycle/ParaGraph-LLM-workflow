@@ -9,6 +9,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from ParaGraph.server.common.utils.logger import logger
 from ParaGraph.server.configurations.startup import get_server_settings
 from ParaGraph.server.domain.settings import DatabaseSettings
+from ParaGraph.server.repositories.database.factory import DatabaseRepositoryFactory
 from ParaGraph.server.repositories.database.postgres import PostgresRepository
 from ParaGraph.server.repositories.database.sqlite import SQLiteRepository
 from ParaGraph.server.repositories.database.utils import normalize_postgres_engine
@@ -66,14 +67,20 @@ def ensure_postgres_database(settings: DatabaseSettings) -> str:
     )
 
     with admin_engine.connect() as conn:
-        catalog = Table("pg_database", MetaData(), schema="pg_catalog", autoload_with=admin_engine)
+        catalog = Table(
+            "pg_database", MetaData(), schema="pg_catalog", autoload_with=admin_engine
+        )
         exists = conn.execute(
-            select(catalog.c.datname).where(catalog.c.datname == target_database).limit(1)
+            select(catalog.c.datname)
+            .where(catalog.c.datname == target_database)
+            .limit(1)
         ).scalar_one_or_none()
         if not exists:
             safe_database = target_database.replace('"', '""')
             # CREATE DATABASE is a PostgreSQL DDL command that is not representable through SQLAlchemy ORM constructs.
-            conn.exec_driver_sql(f'CREATE DATABASE "{safe_database}" WITH ENCODING \'UTF8\' TEMPLATE template0')
+            conn.exec_driver_sql(
+                f"CREATE DATABASE \"{safe_database}\" WITH ENCODING 'UTF8' TEMPLATE template0"
+            )
             logger.info("Created PostgreSQL database %s", target_database)
 
     repository = PostgresRepository(settings)
@@ -85,13 +92,11 @@ def ensure_postgres_database(settings: DatabaseSettings) -> str:
 # -----------------------------------------------------------------------------
 def run_database_initialization() -> None:
     settings = get_server_settings().database
-    if settings.embedded_database:
+    repository = DatabaseRepositoryFactory().build(settings)
+    if isinstance(repository, SQLiteRepository):
         initialize_sqlite_database(settings)
         return
 
-    engine_name = normalize_postgres_engine(settings.engine).lower()
-    if engine_name not in {"postgres", "postgresql", "postgresql+psycopg", "postgresql+psycopg2"}:
-        raise ValueError(f"Unsupported database engine: {settings.engine}")
     ensure_postgres_database(settings)
 
 
@@ -105,4 +110,3 @@ def initialize_database() -> None:
     except Exception as exc:
         logger.exception("Unexpected error during database initialization.")
         raise SystemExit(1) from exc
-

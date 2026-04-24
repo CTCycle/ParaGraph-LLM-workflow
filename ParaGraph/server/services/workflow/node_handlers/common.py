@@ -31,7 +31,7 @@ class NodeValueService:
             return default
         try:
             return int(float(value))
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             return default
 
     @staticmethod
@@ -40,7 +40,7 @@ class NodeValueService:
             return default
         try:
             return float(value)
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             return default
 
     @staticmethod
@@ -58,8 +58,6 @@ class NodeValueService:
     @classmethod
     def normalize_provider_name(cls, provider: Any, default: str = "ollama") -> str:
         normalized = cls.coerce_text(provider or default).strip().lower()
-        if normalized == "anthropic":
-            return "claude"
         return normalized or default
 
     @staticmethod
@@ -76,13 +74,30 @@ class JsonSchemaService:
         if not isinstance(schema, dict):
             raise ValueError("response_schema must be a JSON object")
 
-        allowed_keys = {"type", "properties", "required", "items", "additionalProperties", "enum"}
+        allowed_keys = {
+            "type",
+            "properties",
+            "required",
+            "items",
+            "additionalProperties",
+            "enum",
+        }
         unsupported = sorted(set(schema) - allowed_keys)
         if unsupported:
-            raise ValueError(f"Unsupported JSON Schema keys at {path}: {', '.join(unsupported)}")
+            raise ValueError(
+                f"Unsupported JSON Schema keys at {path}: {', '.join(unsupported)}"
+            )
 
         schema_type = schema.get("type")
-        if schema_type is not None and schema_type not in {"object", "array", "string", "number", "integer", "boolean", "null"}:
+        if schema_type is not None and schema_type not in {
+            "object",
+            "array",
+            "string",
+            "number",
+            "integer",
+            "boolean",
+            "null",
+        }:
             raise ValueError(f"Unsupported JSON Schema type at {path}: {schema_type}")
 
         properties = schema.get("properties")
@@ -94,14 +109,18 @@ class JsonSchemaService:
 
         required = schema.get("required")
         if required is not None:
-            if not isinstance(required, list) or not all(isinstance(item, str) for item in required):
+            if not isinstance(required, list) or not all(
+                isinstance(item, str) for item in required
+            ):
                 raise ValueError(f"required at {path} must be an array of strings")
 
         if "items" in schema:
             cls.validate_schema_definition(schema["items"], f"{path}.items")
 
         additional_properties = schema.get("additionalProperties")
-        if additional_properties is not None and not isinstance(additional_properties, bool):
+        if additional_properties is not None and not isinstance(
+            additional_properties, bool
+        ):
             raise ValueError(f"additionalProperties at {path} must be a boolean")
 
         enum = schema.get("enum")
@@ -109,7 +128,9 @@ class JsonSchemaService:
             raise ValueError(f"enum at {path} must be an array")
 
     @classmethod
-    def validate_json_against_schema(cls, value: Any, schema: dict[str, Any], path: str = "$") -> None:
+    def validate_json_against_schema(
+        cls, value: Any, schema: dict[str, Any], path: str = "$"
+    ) -> None:
         schema_type = schema.get("type")
         if schema_type == "object":
             if not isinstance(value, dict):
@@ -119,21 +140,29 @@ class JsonSchemaService:
             additional_properties = schema.get("additionalProperties", True)
             for key in required:
                 if key not in value:
-                    raise ValueError(f"Structured output is missing required property '{key}' at {path}")
+                    raise ValueError(
+                        f"Structured output is missing required property '{key}' at {path}"
+                    )
             if additional_properties is False:
                 extra = sorted(set(value) - set(properties))
                 if extra:
-                    raise ValueError(f"Structured output contains unexpected properties at {path}: {', '.join(extra)}")
+                    raise ValueError(
+                        f"Structured output contains unexpected properties at {path}: {', '.join(extra)}"
+                    )
             for key, child_schema in properties.items():
                 if key in value:
-                    cls.validate_json_against_schema(value[key], child_schema, f"{path}.{key}")
+                    cls.validate_json_against_schema(
+                        value[key], child_schema, f"{path}.{key}"
+                    )
         elif schema_type == "array":
             if not isinstance(value, list):
                 raise ValueError(f"Structured output at {path} must be an array")
             item_schema = schema.get("items")
             if item_schema is not None:
                 for index, item in enumerate(value):
-                    cls.validate_json_against_schema(item, item_schema, f"{path}[{index}]")
+                    cls.validate_json_against_schema(
+                        item, item_schema, f"{path}[{index}]"
+                    )
         elif schema_type == "string":
             if not isinstance(value, str):
                 raise ValueError(f"Structured output at {path} must be a string")
@@ -151,7 +180,9 @@ class JsonSchemaService:
                 raise ValueError(f"Structured output at {path} must be null")
 
         if "enum" in schema and value not in schema["enum"]:
-            raise ValueError(f"Structured output at {path} must match one of the allowed enum values")
+            raise ValueError(
+                f"Structured output at {path} must match one of the allowed enum values"
+            )
 
 
 node_value_service = NodeValueService()
@@ -190,5 +221,7 @@ def validate_schema_definition(schema: Any, path: str = "$") -> None:
     return json_schema_service.validate_schema_definition(schema, path)
 
 
-def validate_json_against_schema(value: Any, schema: dict[str, Any], path: str = "$") -> None:
+def validate_json_against_schema(
+    value: Any, schema: dict[str, Any], path: str = "$"
+) -> None:
     return json_schema_service.validate_json_against_schema(value, schema, path)

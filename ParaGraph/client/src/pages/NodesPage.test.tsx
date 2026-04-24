@@ -142,7 +142,10 @@ describe('NodesPage', () => {
             state: {
                 workflow_intent: {
                     type: 'load-template',
-                    template: expect.objectContaining({ id: 'template-1' }),
+                    template_id: 'template-1',
+                    template_name: 'Simple Chat',
+                    definition: expect.any(Object),
+                    visual_graph: expect.any(Object),
                 },
             },
         })
@@ -164,5 +167,49 @@ describe('NodesPage', () => {
 
         expect(screen.getByRole('checkbox', { name: /Prompt/i })).toBeInTheDocument()
         expect(screen.getByRole('checkbox', { name: /Text Segmentation/i })).toBeInTheDocument()
+    })
+
+    it('renders full descriptions and explicit controller chips', async () => {
+        const fetchNodeCatalogMock = vi.mocked(nodesApi.fetchNodeCatalog)
+        const fetchWorkflowTemplatesMock = vi.mocked(workflowsApi.fetchWorkflowTemplates)
+        fetchNodeCatalogMock.mockResolvedValue({
+            nodes: [
+                createNodeManifest({
+                    id: 'SIMILARITY_SEARCH',
+                    name: 'Similarity Search',
+                    category: 'retrieval',
+                    description:
+                        'Search similar vectors for a query text using a connected embedding source and vector store controller.',
+                    controllers: [
+                        {
+                            name: 'embedding',
+                            data_type: 'JSON',
+                            required: true,
+                            accepts_multiple: false,
+                            scope: 'target',
+                            description: 'Embedding controller',
+                        },
+                        {
+                            name: 'store',
+                            data_type: 'VECTOR_STORE_HANDLE',
+                            required: true,
+                            accepts_multiple: false,
+                            scope: 'target',
+                            description: 'Store controller',
+                        },
+                    ],
+                }),
+            ],
+        })
+        fetchWorkflowTemplatesMock.mockResolvedValue({ templates: [] })
+
+        render(<NodesPage />)
+
+        await screen.findByText(
+            'Search similar vectors for a query text using a connected embedding source and vector store controller.',
+        )
+        expect(screen.getByText('Controllers')).toBeInTheDocument()
+        expect(screen.getByText('embedding')).toBeInTheDocument()
+        expect(screen.getByText('store')).toBeInTheDocument()
     })
 })

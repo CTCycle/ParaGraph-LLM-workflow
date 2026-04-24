@@ -190,6 +190,26 @@ type WorkflowTextEditorBinding = {
     editable: boolean
     parameterName: string | null
 }
+
+export function createExecutionSessionId(): string {
+    const cryptoApi = window.crypto
+    if (cryptoApi && typeof cryptoApi.randomUUID === 'function') {
+        return cryptoApi.randomUUID()
+    }
+    return `sess_${Date.now()}_${Math.round(Math.random() * 1_000_000)}`
+}
+
+export function resolveExecutionSessionId(
+    currentId: string | null,
+    options?: { reset?: boolean; idFactory?: () => string },
+): string {
+    const reset = options?.reset === true
+    if (!reset && currentId) {
+        return currentId
+    }
+    return (options?.idFactory ?? createExecutionSessionId)()
+}
+
 const NODE_MIN_WIDTH = 240
 const NODE_MAX_WIDTH = 680
 const NODE_MIN_HEIGHT = 140
@@ -254,7 +274,7 @@ function pickWorkflowJsonFromBrowser(): Promise<SelectedWorkflowJson | null> {
                 return
             }
             settled = true
-            globalThis.removeEventListener('focus', handleWindowFocus)
+            window.removeEventListener('focus', handleWindowFocus)
             resolve(value)
         }
 
@@ -263,12 +283,12 @@ function pickWorkflowJsonFromBrowser(): Promise<SelectedWorkflowJson | null> {
                 return
             }
             settled = true
-            globalThis.removeEventListener('focus', handleWindowFocus)
+            window.removeEventListener('focus', handleWindowFocus)
             reject(error)
         }
 
         const handleWindowFocus = (): void => {
-            globalThis.setTimeout(() => {
+            window.setTimeout(() => {
                 if (!settled && !changeHandled && !input.files?.length) {
                     settle(null)
                 }
@@ -292,7 +312,7 @@ function pickWorkflowJsonFromBrowser(): Promise<SelectedWorkflowJson | null> {
                 })
         })
 
-        globalThis.addEventListener('focus', handleWindowFocus, { once: true })
+        window.addEventListener('focus', handleWindowFocus, { once: true })
         input.click()
     })
 }
@@ -404,14 +424,14 @@ function registerPickerCancelHandler(
     }
 
     const handleWindowFocus = (): void => {
-        globalThis.setTimeout(() => {
+        window.setTimeout(() => {
             if (!wasChangeHandled() && !input.files?.length) {
                 settleAsCancelled()
             }
         }, BROWSER_PICKER_CANCEL_GUARD_MS)
     }
-    globalThis.addEventListener('focus', handleWindowFocus, { once: true })
-    return () => globalThis.removeEventListener('focus', handleWindowFocus)
+    window.addEventListener('focus', handleWindowFocus, { once: true })
+    return () => window.removeEventListener('focus', handleWindowFocus)
 }
 
 function inferSelectedFolderName(files: File[]): string {
@@ -492,7 +512,7 @@ function pickFilesFromBrowser(options: { multiple: boolean }): Promise<BrowserFi
 }
 
 async function pickDirectoryHandleFromBrowser(): Promise<BrowserDirectoryHandleSelection | null> {
-    const browserWindow = globalThis.window as WindowWithDirectoryPicker
+    const browserWindow = window as WindowWithDirectoryPicker
     const picker = browserWindow.showDirectoryPicker
     if (typeof picker !== 'function') {
         throw new TypeError('Directory picker is not supported in this browser')
@@ -536,7 +556,7 @@ function readBaseFileNameFromPath(pathValue: string): string {
 }
 
 async function pickSaveFileFromBrowser(options: SaveFilePickerOptions): Promise<SaveFileSelection | null> {
-    const browserWindow = globalThis.window as WindowWithSaveFilePicker
+    const browserWindow = window as WindowWithSaveFilePicker
     const picker = browserWindow.showSaveFilePicker
     if (typeof picker !== 'function') {
         throw new TypeError('Save As is not supported in this browser')
@@ -862,32 +882,24 @@ function getControllers(manifest: NodeManifest): NonNullable<NodeManifest['contr
 }
 
 function getControllerScope(
-    manifest: NodeManifest,
     controller: { scope?: ControllerScope },
 ): ControllerScope {
-    if (controller.scope) {
-        return controller.scope
-    }
-    // Backward-compatible fallback for manifests loaded before scope metadata existed.
-    if (manifest.id === 'MODEL_PROVIDER') {
-        return 'source'
-    }
-    return 'target'
+    return controller.scope ?? 'target'
 }
 
 function supportsControllerSource(
-    manifest: NodeManifest,
+    _manifest: NodeManifest,
     controller: { scope?: ControllerScope },
 ): boolean {
-    const scope = getControllerScope(manifest, controller)
+    const scope = getControllerScope(controller)
     return scope === 'source' || scope === 'both'
 }
 
 function supportsControllerTarget(
-    manifest: NodeManifest,
+    _manifest: NodeManifest,
     controller: { scope?: ControllerScope },
 ): boolean {
-    const scope = getControllerScope(manifest, controller)
+    const scope = getControllerScope(controller)
     return scope === 'target' || scope === 'both'
 }
 function toHandleId(kind: HandleKind, name: string): string {
@@ -1148,12 +1160,12 @@ function createDefaultExpandedCategoriesState(): CategoryExpansionState {
 
 function createExpandedCategoriesState(): CategoryExpansionState {
     const fallback = createDefaultExpandedCategoriesState()
-    if (typeof globalThis.window === 'undefined') {
+    if (typeof window === 'undefined') {
         return fallback
     }
 
     try {
-        const raw = globalThis.localStorage.getItem(WORKFLOW_TREE_STATE_STORAGE_KEY)
+        const raw = window.localStorage.getItem(WORKFLOW_TREE_STATE_STORAGE_KEY)
         if (!raw) {
             return fallback
         }
@@ -1232,10 +1244,10 @@ function isWorkflowConnectionPayload(value: unknown): value is WorkflowConnectio
         typeof value.from_node === 'string' &&
         typeof value.to_node === 'string' &&
         isValidConnectionType &&
-        (value.from_output === undefined || typeof value.from_output === 'string') &&
-        (value.to_input === undefined || typeof value.to_input === 'string') &&
-        (value.from_controller === undefined || typeof value.from_controller === 'string') &&
-        (value.to_controller === undefined || typeof value.to_controller === 'string')
+        (value.from_output === undefined || value.from_output === null || typeof value.from_output === 'string') &&
+        (value.to_input === undefined || value.to_input === null || typeof value.to_input === 'string') &&
+        (value.from_controller === undefined || value.from_controller === null || typeof value.from_controller === 'string') &&
+        (value.to_controller === undefined || value.to_controller === null || typeof value.to_controller === 'string')
     )
 }
 
@@ -1312,7 +1324,15 @@ function isWorkflowOpenIntentPayload(value: unknown): value is WorkflowOpenInten
         return typeof value.node_id === 'string' && isFiniteNumber(value.node_version)
     }
     if (value.type === 'load-template') {
-        return isWorkflowTemplatePayload(value.template)
+        if (isWorkflowTemplatePayload(value.template)) {
+            return true
+        }
+        return (
+            typeof value.template_name === 'string' &&
+            (value.template_id === undefined || typeof value.template_id === 'string') &&
+            isWorkflowDefinitionPayload(value.definition) &&
+            isVisualGraphPayload(value.visual_graph)
+        )
     }
     return false
 }
@@ -1363,12 +1383,12 @@ function readImportedWorkflowPayload(value: unknown): ImportedWorkflowPayload {
 }
 
 function readPersistedWorkflowState(): PersistedWorkflowState | null {
-    if (typeof globalThis.window === 'undefined') {
+    if (typeof window === 'undefined') {
         return null
     }
 
     try {
-        const raw = globalThis.localStorage.getItem(WORKFLOW_STATE_STORAGE_KEY)
+        const raw = window.localStorage.getItem(WORKFLOW_STATE_STORAGE_KEY)
         if (!raw) {
             return null
         }
@@ -1461,10 +1481,10 @@ function readPersistedWorkflowState(): PersistedWorkflowState | null {
 }
 
 function persistWorkflowState(state: PersistedWorkflowState): void {
-    if (typeof globalThis.window === 'undefined') {
+    if (typeof window === 'undefined') {
         return
     }
-    globalThis.localStorage.setItem(WORKFLOW_STATE_STORAGE_KEY, JSON.stringify(state))
+    window.localStorage.setItem(WORKFLOW_STATE_STORAGE_KEY, JSON.stringify(state))
 }
 
 function buildNodeSummary(manifest: NodeManifest): string {
@@ -2444,6 +2464,7 @@ function WorkflowEditor() {
     const [executionErrorModal, setExecutionErrorModal] = useState<WorkflowExecutionErrorModal | null>(null)
     const [isRunning, setIsRunning] = useState(false)
     const [activeRun, setActiveRun] = useState<PersistedActiveExecution | null>(null)
+    const [executionSessionId, setExecutionSessionId] = useState<string>(() => resolveExecutionSessionId(null))
     const [resumeRunSnapshot, setResumeRunSnapshot] = useState<PersistedActiveExecution | null>(null)
     const [search, setSearch] = useState('')
     const [isLibraryVisible, setIsLibraryVisible] = useState(false)
@@ -2462,6 +2483,7 @@ function WorkflowEditor() {
     const stopEventsRef = useRef<(() => void) | null>(null)
     const pollingAbortRef = useRef<AbortController | null>(null)
     const activePlanRef = useRef<CompiledExecutionPlan | null>(null)
+    const runWorkflowLockRef = useRef(false)
     const saveNodeBrowseSelectionsRef = useRef<Record<string, SaveNodeBrowserSelection>>({})
     const hasHydratedWorkflowRef = useRef(false)
     const draggedManifestKeyRef = useRef<string | null>(null)
@@ -2471,7 +2493,7 @@ function WorkflowEditor() {
     const canvasColumnRef = useRef<HTMLDivElement | null>(null)
     const workflowShellRef = useRef<HTMLElement | null>(null)
     const editorResizeOriginRef = useRef<{ startY: number; startHeight: number } | null>(null)
-    const { fitView, getZoom, screenToFlowPosition, zoomIn, zoomTo } = useReactFlow<Node<WorkflowNodeData>, Edge>()
+    const { getZoom, screenToFlowPosition, zoomIn, zoomTo } = useReactFlow<Node<WorkflowNodeData>, Edge>()
     const glowLevelByNodeId = useMemo(
         () => buildNodeGlowLevelMap(activeNodeId, glowTrailNodeIds),
         [activeNodeId, glowTrailNodeIds],
@@ -2546,12 +2568,12 @@ function WorkflowEditor() {
             return
         }
 
-        const clearTimer = globalThis.setTimeout(() => {
+        const clearTimer = window.setTimeout(() => {
             setGlowTrailNodeIds([])
         }, NODE_GLOW_CLEAR_DELAY_MS)
 
         return () => {
-            globalThis.clearTimeout(clearTimer)
+            window.clearTimeout(clearTimer)
         }
     }, [activeNodeId, glowTrailNodeIds])
 
@@ -2587,14 +2609,14 @@ function WorkflowEditor() {
             setIsEditorResizing(false)
         }
 
-        globalThis.addEventListener('pointermove', handlePointerMove)
-        globalThis.addEventListener('pointerup', stopResize)
-        globalThis.addEventListener('pointercancel', stopResize)
+        window.addEventListener('pointermove', handlePointerMove)
+        window.addEventListener('pointerup', stopResize)
+        window.addEventListener('pointercancel', stopResize)
 
         return () => {
-            globalThis.removeEventListener('pointermove', handlePointerMove)
-            globalThis.removeEventListener('pointerup', stopResize)
-            globalThis.removeEventListener('pointercancel', stopResize)
+            window.removeEventListener('pointermove', handlePointerMove)
+            window.removeEventListener('pointerup', stopResize)
+            window.removeEventListener('pointercancel', stopResize)
         }
     }, [isEditorResizing])
 
@@ -2603,8 +2625,8 @@ function WorkflowEditor() {
             setEditorPanelHeight((current) => clampEditorPanelHeight(current))
         }
 
-        globalThis.addEventListener('resize', handleResize)
-        return () => globalThis.removeEventListener('resize', handleResize)
+        window.addEventListener('resize', handleResize)
+        return () => window.removeEventListener('resize', handleResize)
     }, [])
 
     useEffect(() => {
@@ -2690,11 +2712,11 @@ function WorkflowEditor() {
             }
         }
 
-        globalThis.addEventListener('pointerdown', closeNodeContextMenu)
-        globalThis.addEventListener('keydown', handleEscape)
+        window.addEventListener('pointerdown', closeNodeContextMenu)
+        window.addEventListener('keydown', handleEscape)
         return () => {
-            globalThis.removeEventListener('pointerdown', closeNodeContextMenu)
-            globalThis.removeEventListener('keydown', handleEscape)
+            window.removeEventListener('pointerdown', closeNodeContextMenu)
+            window.removeEventListener('keydown', handleEscape)
         }
     }, [nodeContextMenu])
 
@@ -2711,8 +2733,8 @@ function WorkflowEditor() {
             setExecutionErrorModal(null)
         }
 
-        globalThis.addEventListener('keydown', handleEscape)
-        return () => globalThis.removeEventListener('keydown', handleEscape)
+        window.addEventListener('keydown', handleEscape)
+        return () => window.removeEventListener('keydown', handleEscape)
     }, [executionErrorModal])
     useEffect(() => {
         function handleKeyboardShortcuts(event: KeyboardEvent): void {
@@ -2818,15 +2840,15 @@ function WorkflowEditor() {
             }
         }
 
-        globalThis.addEventListener('keydown', handleKeyboardShortcuts)
+        window.addEventListener('keydown', handleKeyboardShortcuts)
         return () => {
-            globalThis.removeEventListener('keydown', handleKeyboardShortcuts)
+            window.removeEventListener('keydown', handleKeyboardShortcuts)
         }
     }, [edges, nodes, setEdges, setNodes])
 
     useEffect(() => {
         try {
-            globalThis.localStorage.setItem(WORKFLOW_TREE_STATE_STORAGE_KEY, JSON.stringify(expandedCategories))
+            window.localStorage.setItem(WORKFLOW_TREE_STATE_STORAGE_KEY, JSON.stringify(expandedCategories))
         } catch {
             // Ignore local storage persistence errors.
         }
@@ -2966,6 +2988,7 @@ function WorkflowEditor() {
         })).filter((group) => group.nodes.length > 0)
     }, [filteredCatalog])
     const hasRunnableNodes = useMemo(() => nodes.some((node) => !node.data.skipped), [nodes])
+    const isExecutionErrorModalOpen = executionErrorModal !== null
 
     const selectedManifest = useMemo(() => {
         if (selectedManifestKey) {
@@ -3026,16 +3049,28 @@ function WorkflowEditor() {
             return
         }
 
-        const template = rawIntent.template
-        const requiredManifestKeys = new Set(template.required_nodes.map((manifest) => manifestKey(manifest)))
-        const manifestsForHydration = catalog.filter((manifest) => requiredManifestKeys.has(manifestKey(manifest)))
-        const missing = template.required_nodes.filter(
-            (requiredNode) => !manifestsForHydration.some((manifest) => manifest.id === requiredNode.id && manifest.version === requiredNode.version),
+        const templateName = rawIntent.template?.name ?? rawIntent.template_name
+        const templateDefinition = rawIntent.template?.definition ?? rawIntent.definition
+        const templateVisualGraph = rawIntent.template?.visual_graph ?? rawIntent.visual_graph
+        if (!templateName || !templateDefinition || !templateVisualGraph) {
+            setStatusText('Unable to load template payload from navigation state')
+            clearIntentState()
+            return
+        }
+
+        const requiredManifestKeys = new Set(
+            templateDefinition.nodes.map((node) => `${resolveManifestId(node.node_type)}:${node.node_version}`),
         )
+        const manifestsForHydration = catalog.filter((manifest) => requiredManifestKeys.has(manifestKey(manifest)))
+        const foundManifestKeys = new Set(manifestsForHydration.map((manifest) => manifestKey(manifest)))
+        const missing = Array.from(requiredManifestKeys).filter((key) => !foundManifestKeys.has(key))
         if (missing.length > 0) {
             setStatusText(
-                `Template "${template.name}" requires missing node manifests: ${missing
-                    .map((manifest) => `${manifest.id} v${manifest.version}`)
+                `Template "${templateName}" requires missing node manifests: ${missing
+                    .map((entry) => {
+                        const [id, version] = entry.split(':')
+                        return `${id} v${version}`
+                    })
                     .join(', ')}`,
             )
             clearIntentState()
@@ -3044,14 +3079,14 @@ function WorkflowEditor() {
 
         hydrateWorkflowFromPayload(
             {
-                name: template.name,
-                definition: template.definition,
-                visualGraph: template.visual_graph,
-                requiredNodes: template.required_nodes,
+                name: templateName,
+                definition: templateDefinition,
+                visualGraph: templateVisualGraph,
+                requiredNodes: manifestsForHydration,
             },
             manifestsForHydration,
         )
-        setStatusText(`Loaded template "${template.name}"`)
+        setStatusText(`Loaded template "${templateName}"`)
         clearIntentState()
     }, [catalog, loading, location.pathname, location.state, navigate, screenToFlowPosition])
 
@@ -3910,6 +3945,7 @@ function WorkflowEditor() {
         const snapshot = resumeRunSnapshot
         setResumeRunSnapshot(null)
         setExecutionErrorModal(null)
+        runWorkflowLockRef.current = true
         setIsRunning(true)
         clearExecutionHighlight()
         setGlowTrailNodeIds([])
@@ -3943,6 +3979,7 @@ function WorkflowEditor() {
                 setActiveRun(null)
             } finally {
                 if (!keepRunTracking) {
+                    runWorkflowLockRef.current = false
                     setIsRunning(false)
                     activePlanRef.current = null
                 }
@@ -3951,7 +3988,11 @@ function WorkflowEditor() {
     }, [isRunning, resumeRunSnapshot])
 
     async function runWorkflow(): Promise<void> {
-        if (isRunning) {
+        if (isRunning || runWorkflowLockRef.current) {
+            return
+        }
+        if (executionErrorModal) {
+            setStatusText('Close the execution error dialog before starting a new run')
             return
         }
         if (!hasRunnableNodes) {
@@ -3960,6 +4001,7 @@ function WorkflowEditor() {
         }
         setExecutionErrorModal(null)
         setResumeRunSnapshot(null)
+        runWorkflowLockRef.current = true
         setIsRunning(true)
         clearExecutionHighlight()
         setGlowTrailNodeIds([])
@@ -3990,7 +4032,7 @@ function WorkflowEditor() {
             }
 
             activePlanRef.current = compileResponse.plan
-            const execution = await startExecution(compileResponse.plan)
+            const execution = await startExecution(compileResponse.plan, undefined, executionSessionId)
             const runSnapshot: PersistedActiveExecution = {
                 run_id: execution.run_id,
                 poll_interval: execution.poll_interval,
@@ -4022,6 +4064,7 @@ function WorkflowEditor() {
             setActiveRun(null)
         } finally {
             if (!keepRunTracking) {
+                runWorkflowLockRef.current = false
                 clearExecutionHighlight()
                 setIsRunning(false)
                 activePlanRef.current = null
@@ -4029,12 +4072,21 @@ function WorkflowEditor() {
         }
     }
 
+    function resetExecutionSession(): void {
+        if (isRunning) {
+            return
+        }
+        const nextSessionId = resolveExecutionSessionId(executionSessionId, { reset: true })
+        setExecutionSessionId(nextSessionId)
+        setStatusText('Run session ID reset (workflow graph unchanged)')
+    }
+
     return (
         <section className="workflow-shell" ref={workflowShellRef}>
             <div className="workflow-toolbar" role="navigation" aria-label="Workflow actions">
                 <div className="workflow-toolbar-status">
                     <span className="workflow-toolbar-status-label">Status</span>
-                    <strong title={statusText}>{statusText}</strong>
+                    <strong>{statusText}</strong>
                 </div>
                 <div className="workflow-toolbar-actions">
                     <button type="button" onClick={() => void exportWorkflowBundle()}>
@@ -4059,7 +4111,15 @@ function WorkflowEditor() {
                     <button type="button" onClick={() => setEdges([])}>
                         Clear Links
                     </button>
-                    <button type="button" className="workflow-run" onClick={() => void runWorkflow()} disabled={isRunning || !hasRunnableNodes}>
+                    <button type="button" onClick={resetExecutionSession} disabled={isRunning} title="Reset run session ID only">
+                        Reset Run ID
+                    </button>
+                    <button
+                        type="button"
+                        className="workflow-run"
+                        onClick={() => void runWorkflow()}
+                        disabled={isRunning || !hasRunnableNodes || isExecutionErrorModalOpen}
+                    >
                         {isRunning ? 'Running...' : 'Run Workflow'}
                     </button>
                 </div>
@@ -4265,18 +4325,11 @@ function WorkflowEditor() {
                                 +
                             </ControlButton>
                             <ControlButton
-                                title="Fit view"
-                                aria-label="Fit view"
-                                onClick={() => void fitView({ padding: 0.2, duration: 180 })}
-                            >
-                                []
-                            </ControlButton>
-                            <ControlButton
                                 title={isGridVisible ? 'Hide grid' : 'Show grid'}
                                 aria-label={isGridVisible ? 'Hide grid' : 'Show grid'}
                                 onClick={() => setIsGridVisible((visible) => !visible)}
                             >
-                                {isGridVisible ? '##' : '..'}
+                                {isGridVisible ? '⊞' : '⊟'}
                             </ControlButton>
                         </Controls>
                         {isGridVisible && (
@@ -4383,7 +4436,7 @@ function WorkflowEditor() {
                                         return
                                     }
                                     const currentName = getNodeOutputName(contextMenuNode.data.parameters) ?? ''
-                                    const nextName = globalThis.prompt('Rename output', currentName)
+                                    const nextName = window.prompt('Rename output', currentName)
                                     if (nextName === null) {
                                         return
                                     }

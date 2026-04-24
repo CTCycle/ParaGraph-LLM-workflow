@@ -16,7 +16,6 @@ export function compileWorkflow(definition: WorkflowDefinition): Promise<Compile
 export interface WorkflowListItemResponse {
   workflow_id: string
   name: string
-  latest_version: number
   updated_at: string
 }
 

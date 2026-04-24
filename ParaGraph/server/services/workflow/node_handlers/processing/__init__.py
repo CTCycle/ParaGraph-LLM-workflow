@@ -16,7 +16,10 @@ from ParaGraph.server.domain.node_handler_processing import (
     SentenceWindowChunksParameters,
 )
 from ParaGraph.server.services.workflow.node_handlers.base import NodeHandler
-from ParaGraph.server.services.workflow.node_handlers.ingestion.files import load_file_text, resolve_local_path
+from ParaGraph.server.services.workflow.node_handlers.ingestion import (
+    load_file_text,
+    resolve_local_path,
+)
 
 
 _SENTENCE_BOUNDARY_PATTERN = re.compile(r"(?<=[.!?])\s+")
@@ -37,7 +40,11 @@ _DELIMITER_PRESETS: dict[str, str] = {
 
 
 def _hydrate_document_text(document: dict[str, Any]) -> tuple[str, dict[str, Any]]:
-    metadata = dict(document.get("metadata", {})) if isinstance(document.get("metadata"), dict) else {}
+    metadata = (
+        dict(document.get("metadata", {}))
+        if isinstance(document.get("metadata"), dict)
+        else {}
+    )
     text = str(document.get("text", ""))
     if text.strip():
         return text, metadata
@@ -120,12 +127,18 @@ def _iter_sources(inputs: dict[str, Any]) -> Iterator[dict[str, Any]]:
 
     for parent_chunk in _iter_mapping_payload(inputs.get("chunks")):
         parent_chunk_id = str(parent_chunk.get("id", "")).strip()
-        parent_document_id = str(parent_chunk.get("document_id", "")).strip() or parent_chunk_id
+        parent_document_id = (
+            str(parent_chunk.get("document_id", "")).strip() or parent_chunk_id
+        )
         source_uri = str(parent_chunk.get("source_uri", "")).strip()
         text = str(parent_chunk.get("text", ""))
         if not text.strip():
             continue
-        metadata = dict(parent_chunk.get("metadata", {})) if isinstance(parent_chunk.get("metadata"), dict) else {}
+        metadata = (
+            dict(parent_chunk.get("metadata", {}))
+            if isinstance(parent_chunk.get("metadata"), dict)
+            else {}
+        )
         yield {
             "scope": "chunk",
             "scope_id": parent_chunk_id,
@@ -187,14 +200,24 @@ def _build_chunk_records(
     metadata_updates = metadata_updates or {}
     chunks: list[dict[str, Any]] = []
     base_metadata = dict(source.get("metadata", {}))
-    for chunk_index, chunk_text in enumerate(fragment for fragment in fragments if fragment.strip()):
-        record_metadata = {**base_metadata, **metadata_updates, "fragmentation_strategy": strategy_name}
+    for chunk_index, chunk_text in enumerate(
+        fragment for fragment in fragments if fragment.strip()
+    ):
+        record_metadata = {
+            **base_metadata,
+            **metadata_updates,
+            "fragmentation_strategy": strategy_name,
+        }
         if source.get("scope") == "chunk":
-            parent_chunk_id = str(source.get("parent_chunk_id") or source.get("scope_id") or "").strip()
+            parent_chunk_id = str(
+                source.get("parent_chunk_id") or source.get("scope_id") or ""
+            ).strip()
             record_metadata["fragmentation_parent_chunk_id"] = parent_chunk_id
             chunk_id_seed = f"chunk:{parent_chunk_id}:{chunk_index}:{chunk_text}"
         else:
-            record_metadata.setdefault("mime_type", source.get("mime_type", "text/plain"))
+            record_metadata.setdefault(
+                "mime_type", source.get("mime_type", "text/plain")
+            )
             chunk_id_seed = f"{source.get('scope')}:{source.get('scope_id')}:{chunk_index}:{chunk_text}"
 
         chunks.append(
@@ -239,7 +262,9 @@ def _resolve_delimiter(raw_delimiter: str) -> str:
     return decoded
 
 
-def _iter_split_by_delimiter(text: str, delimiter: str, *, keep_delimiter: bool) -> Iterator[str]:
+def _iter_split_by_delimiter(
+    text: str, delimiter: str, *, keep_delimiter: bool
+) -> Iterator[str]:
     if delimiter == "":
         yield text
         return
@@ -258,7 +283,9 @@ def _iter_split_by_regex(text: str, pattern: str) -> Iterator[str]:
     try:
         compiled = re.compile(pattern)
     except re.error as exc:
-        raise ValueError(f"Invalid regex pattern for REGEX_SPLIT_CHUNKS: {exc}") from exc
+        raise ValueError(
+            f"Invalid regex pattern for REGEX_SPLIT_CHUNKS: {exc}"
+        ) from exc
     for fragment in compiled.split(text):
         cleaned = fragment.strip()
         if cleaned:
@@ -335,7 +362,9 @@ def _iter_structure_segments(text: str, strategy: str) -> Iterator[str]:
     if heading_blocks:
         for heading, content in heading_blocks:
             if strategy == "heading_and_content":
-                candidate = "\n".join(part for part in [heading.strip(), content.strip()] if part).strip()
+                candidate = "\n".join(
+                    part for part in [heading.strip(), content.strip()] if part
+                ).strip()
             else:
                 candidate = content.strip() or heading.strip()
             if candidate:
@@ -409,8 +438,12 @@ def _iter_recursive_splits(
         )
 
 
-def _iter_sentence_windows(text: str, *, sentences_per_chunk: int, sentence_overlap: int) -> Iterator[str]:
-    sentences = [part.strip() for part in _SENTENCE_BOUNDARY_PATTERN.split(text) if part.strip()]
+def _iter_sentence_windows(
+    text: str, *, sentences_per_chunk: int, sentence_overlap: int
+) -> Iterator[str]:
+    sentences = [
+        part.strip() for part in _SENTENCE_BOUNDARY_PATTERN.split(text) if part.strip()
+    ]
     if not sentences:
         return
 
@@ -427,7 +460,9 @@ def _iter_sentence_windows(text: str, *, sentences_per_chunk: int, sentence_over
         start += step
 
 
-def _fixed_size_chunks_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
+def _fixed_size_chunks_executor(
+    parameters: dict[str, Any], inputs: dict[str, Any]
+) -> dict[str, Any]:
     parsed = FixedSizeChunksParameters.model_validate(parameters)
     chunks: list[dict[str, Any]] = []
     for source in _iter_sources(inputs):
@@ -449,11 +484,15 @@ def _fixed_size_chunks_executor(parameters: dict[str, Any], inputs: dict[str, An
             )
         )
     if not chunks:
-        raise ValueError("FIXED_SIZE_CHUNKS requires at least one document, chunk, or text input containing text")
+        raise ValueError(
+            "FIXED_SIZE_CHUNKS requires at least one document, chunk, or text input containing text"
+        )
     return {"chunks": chunks}
 
 
-def _by_delimiter_chunks_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
+def _by_delimiter_chunks_executor(
+    parameters: dict[str, Any], inputs: dict[str, Any]
+) -> dict[str, Any]:
     parsed = ByDelimiterChunksParameters.model_validate(parameters)
     delimiter = _resolve_delimiter(parsed.delimiter)
     max_chunk_size = _resolve_max_chunk_size(parsed.max_chunk_size)
@@ -493,11 +532,15 @@ def _by_delimiter_chunks_executor(parameters: dict[str, Any], inputs: dict[str, 
         )
 
     if not chunks:
-        raise ValueError("BY_DELIMITER_CHUNKS requires at least one document, chunk, or text input containing text")
+        raise ValueError(
+            "BY_DELIMITER_CHUNKS requires at least one document, chunk, or text input containing text"
+        )
     return {"chunks": chunks}
 
 
-def _by_structure_chunks_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
+def _by_structure_chunks_executor(
+    parameters: dict[str, Any], inputs: dict[str, Any]
+) -> dict[str, Any]:
     parsed = ByStructureChunksParameters.model_validate(parameters)
     max_chunk_size = _resolve_max_chunk_size(parsed.max_chunk_size)
 
@@ -530,11 +573,15 @@ def _by_structure_chunks_executor(parameters: dict[str, Any], inputs: dict[str, 
         )
 
     if not chunks:
-        raise ValueError("BY_STRUCTURE_CHUNKS requires at least one document, chunk, or text input containing text")
+        raise ValueError(
+            "BY_STRUCTURE_CHUNKS requires at least one document, chunk, or text input containing text"
+        )
     return {"chunks": chunks}
 
 
-def _recursive_split_chunks_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
+def _recursive_split_chunks_executor(
+    parameters: dict[str, Any], inputs: dict[str, Any]
+) -> dict[str, Any]:
     parsed = RecursiveSplitChunksParameters.model_validate(parameters)
     chunks: list[dict[str, Any]] = []
     for source in _iter_sources(inputs):
@@ -562,11 +609,15 @@ def _recursive_split_chunks_executor(parameters: dict[str, Any], inputs: dict[st
         )
 
     if not chunks:
-        raise ValueError("RECURSIVE_SPLIT_CHUNKS requires at least one document, chunk, or text input containing text")
+        raise ValueError(
+            "RECURSIVE_SPLIT_CHUNKS requires at least one document, chunk, or text input containing text"
+        )
     return {"chunks": chunks}
 
 
-def _regex_split_chunks_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
+def _regex_split_chunks_executor(
+    parameters: dict[str, Any], inputs: dict[str, Any]
+) -> dict[str, Any]:
     parsed = RegexSplitChunksParameters.model_validate(parameters)
     chunks: list[dict[str, Any]] = []
     for source in _iter_sources(inputs):
@@ -580,11 +631,15 @@ def _regex_split_chunks_executor(parameters: dict[str, Any], inputs: dict[str, A
         )
 
     if not chunks:
-        raise ValueError("REGEX_SPLIT_CHUNKS requires at least one document, chunk, or text input containing text")
+        raise ValueError(
+            "REGEX_SPLIT_CHUNKS requires at least one document, chunk, or text input containing text"
+        )
     return {"chunks": chunks}
 
 
-def _sentence_window_chunks_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
+def _sentence_window_chunks_executor(
+    parameters: dict[str, Any], inputs: dict[str, Any]
+) -> dict[str, Any]:
     parsed = SentenceWindowChunksParameters.model_validate(parameters)
     max_chunk_size = _resolve_max_chunk_size(parsed.max_chunk_size)
     chunks: list[dict[str, Any]] = []
@@ -619,7 +674,9 @@ def _sentence_window_chunks_executor(parameters: dict[str, Any], inputs: dict[st
         )
 
     if not chunks:
-        raise ValueError("SENTENCE_WINDOW_CHUNKS requires at least one document, chunk, or text input containing text")
+        raise ValueError(
+            "SENTENCE_WINDOW_CHUNKS requires at least one document, chunk, or text input containing text"
+        )
     return {"chunks": chunks}
 
 
@@ -629,7 +686,9 @@ def _iter_merge_fragments(inputs: dict[str, Any]) -> Iterator[dict[str, Any]]:
             "document_id": str(source.get("document_id", "")).strip(),
             "source_uri": str(source.get("source_uri", "")).strip(),
             "text": str(source.get("text", "")),
-            "metadata": dict(source.get("metadata", {})) if isinstance(source.get("metadata"), dict) else {},
+            "metadata": dict(source.get("metadata", {}))
+            if isinstance(source.get("metadata"), dict)
+            else {},
         }
 
 
@@ -647,7 +706,13 @@ def _flush_current_merged_chunk(
     merged_chunks: list[dict[str, Any]],
 ) -> tuple[list[str], int, dict[str, Any], str, int]:
     if not current_parts or current_document_id is None:
-        return current_parts, current_size, current_metadata, current_source_uri, current_merged_count
+        return (
+            current_parts,
+            current_size,
+            current_metadata,
+            current_source_uri,
+            current_merged_count,
+        )
 
     chunk_text = joiner.join(part for part in current_parts if part).strip()
     if not chunk_text:
@@ -657,7 +722,12 @@ def _flush_current_merged_chunk(
     next_index_by_document[current_document_id] = chunk_index + 1
     merged_chunks.append(
         {
-            "id": str(uuid5(NAMESPACE_URL, f"merge:{current_document_id}:{chunk_index}:{chunk_text}")),
+            "id": str(
+                uuid5(
+                    NAMESPACE_URL,
+                    f"merge:{current_document_id}:{chunk_index}:{chunk_text}",
+                )
+            ),
             "document_id": current_document_id,
             "text": chunk_text,
             "source_uri": current_source_uri,
@@ -678,7 +748,9 @@ def _flush_current_merged_chunk(
     return [], 0, {}, "", 0
 
 
-def _merge_small_chunks_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
+def _merge_small_chunks_executor(
+    parameters: dict[str, Any], inputs: dict[str, Any]
+) -> dict[str, Any]:
     parsed = MergeSmallChunksParameters.model_validate(parameters)
     hard_limit = _resolve_max_chunk_size(parsed.max_chunk_size)
     joiner = "\n\n" if parsed.preserve_boundaries else " "
@@ -700,8 +772,17 @@ def _merge_small_chunks_executor(parameters: dict[str, Any], inputs: dict[str, A
         fragment_source_uri = str(fragment.get("source_uri", "")).strip()
         fragment_size = _measure_text_size(fragment_text, parsed.unit)
 
-        if current_document_id is not None and fragment_document_id != current_document_id:
-            current_parts, current_size, current_metadata, current_source_uri, current_merged_count = _flush_current_merged_chunk(
+        if (
+            current_document_id is not None
+            and fragment_document_id != current_document_id
+        ):
+            (
+                current_parts,
+                current_size,
+                current_metadata,
+                current_source_uri,
+                current_merged_count,
+            ) = _flush_current_merged_chunk(
                 current_document_id=current_document_id,
                 current_parts=current_parts,
                 current_size=current_size,
@@ -718,14 +799,24 @@ def _merge_small_chunks_executor(parameters: dict[str, Any], inputs: dict[str, A
             current_document_id = fragment_document_id
         current_source_uri = current_source_uri or fragment_source_uri
         if not current_metadata:
-            current_metadata = dict(fragment.get("metadata", {})) if isinstance(fragment.get("metadata"), dict) else {}
+            current_metadata = (
+                dict(fragment.get("metadata", {}))
+                if isinstance(fragment.get("metadata"), dict)
+                else {}
+            )
 
         if not current_parts:
             current_parts = [fragment_text]
             current_size = fragment_size
             current_merged_count = 1
             if hard_limit is not None and current_size >= hard_limit:
-                current_parts, current_size, current_metadata, current_source_uri, current_merged_count = _flush_current_merged_chunk(
+                (
+                    current_parts,
+                    current_size,
+                    current_metadata,
+                    current_source_uri,
+                    current_merged_count,
+                ) = _flush_current_merged_chunk(
                     current_document_id=current_document_id,
                     current_parts=current_parts,
                     current_size=current_size,
@@ -738,8 +829,17 @@ def _merge_small_chunks_executor(parameters: dict[str, Any], inputs: dict[str, A
                     merged_chunks=merged_chunks,
                 )
                 current_document_id = None
-            elif parsed.merge_strategy == "sequential" and current_size >= parsed.target_chunk_size:
-                current_parts, current_size, current_metadata, current_source_uri, current_merged_count = _flush_current_merged_chunk(
+            elif (
+                parsed.merge_strategy == "sequential"
+                and current_size >= parsed.target_chunk_size
+            ):
+                (
+                    current_parts,
+                    current_size,
+                    current_metadata,
+                    current_source_uri,
+                    current_merged_count,
+                ) = _flush_current_merged_chunk(
                     current_document_id=current_document_id,
                     current_parts=current_parts,
                     current_size=current_size,
@@ -759,7 +859,13 @@ def _merge_small_chunks_executor(parameters: dict[str, Any], inputs: dict[str, A
         candidate_size = _measure_text_size(candidate_text, parsed.unit)
 
         if hard_limit is not None and candidate_size > hard_limit:
-            current_parts, current_size, current_metadata, current_source_uri, current_merged_count = _flush_current_merged_chunk(
+            (
+                current_parts,
+                current_size,
+                current_metadata,
+                current_source_uri,
+                current_merged_count,
+            ) = _flush_current_merged_chunk(
                 current_document_id=current_document_id,
                 current_parts=current_parts,
                 current_size=current_size,
@@ -773,12 +879,22 @@ def _merge_small_chunks_executor(parameters: dict[str, Any], inputs: dict[str, A
             )
             current_document_id = fragment_document_id
             current_source_uri = fragment_source_uri
-            current_metadata = dict(fragment.get("metadata", {})) if isinstance(fragment.get("metadata"), dict) else {}
+            current_metadata = (
+                dict(fragment.get("metadata", {}))
+                if isinstance(fragment.get("metadata"), dict)
+                else {}
+            )
             current_parts = [fragment_text]
             current_size = fragment_size
             current_merged_count = 1
             if hard_limit is not None and current_size >= hard_limit:
-                current_parts, current_size, current_metadata, current_source_uri, current_merged_count = _flush_current_merged_chunk(
+                (
+                    current_parts,
+                    current_size,
+                    current_metadata,
+                    current_source_uri,
+                    current_merged_count,
+                ) = _flush_current_merged_chunk(
                     current_document_id=current_document_id,
                     current_parts=current_parts,
                     current_size=current_size,
@@ -794,7 +910,10 @@ def _merge_small_chunks_executor(parameters: dict[str, Any], inputs: dict[str, A
             continue
 
         add_fragment = True
-        if parsed.merge_strategy == "greedy" and candidate_size > parsed.target_chunk_size:
+        if (
+            parsed.merge_strategy == "greedy"
+            and candidate_size > parsed.target_chunk_size
+        ):
             current_gap = abs(parsed.target_chunk_size - current_size)
             candidate_gap = abs(parsed.target_chunk_size - candidate_size)
             if candidate_gap > current_gap:
@@ -804,8 +923,17 @@ def _merge_small_chunks_executor(parameters: dict[str, Any], inputs: dict[str, A
             current_parts.append(fragment_text)
             current_size = candidate_size
             current_merged_count += 1
-            if parsed.merge_strategy == "sequential" and current_size >= parsed.target_chunk_size:
-                current_parts, current_size, current_metadata, current_source_uri, current_merged_count = _flush_current_merged_chunk(
+            if (
+                parsed.merge_strategy == "sequential"
+                and current_size >= parsed.target_chunk_size
+            ):
+                (
+                    current_parts,
+                    current_size,
+                    current_metadata,
+                    current_source_uri,
+                    current_merged_count,
+                ) = _flush_current_merged_chunk(
                     current_document_id=current_document_id,
                     current_parts=current_parts,
                     current_size=current_size,
@@ -820,7 +948,13 @@ def _merge_small_chunks_executor(parameters: dict[str, Any], inputs: dict[str, A
                 current_document_id = None
             continue
 
-        current_parts, current_size, current_metadata, current_source_uri, current_merged_count = _flush_current_merged_chunk(
+        (
+            current_parts,
+            current_size,
+            current_metadata,
+            current_source_uri,
+            current_merged_count,
+        ) = _flush_current_merged_chunk(
             current_document_id=current_document_id,
             current_parts=current_parts,
             current_size=current_size,
@@ -834,7 +968,11 @@ def _merge_small_chunks_executor(parameters: dict[str, Any], inputs: dict[str, A
         )
         current_document_id = fragment_document_id
         current_source_uri = fragment_source_uri
-        current_metadata = dict(fragment.get("metadata", {})) if isinstance(fragment.get("metadata"), dict) else {}
+        current_metadata = (
+            dict(fragment.get("metadata", {}))
+            if isinstance(fragment.get("metadata"), dict)
+            else {}
+        )
         current_parts = [fragment_text]
         current_size = fragment_size
         current_merged_count = 1
@@ -853,17 +991,38 @@ def _merge_small_chunks_executor(parameters: dict[str, Any], inputs: dict[str, A
     )
 
     if not merged_chunks:
-        raise ValueError("MERGE_SMALL_CHUNKS requires at least one document, chunk, or text input containing text")
+        raise ValueError(
+            "MERGE_SMALL_CHUNKS requires at least one document, chunk, or text input containing text"
+        )
     return {"chunks": merged_chunks}
 
 
 PROCESSING_HANDLERS = {
-    "fixed_size_chunks": NodeHandler(executor=_fixed_size_chunks_executor, parameter_model=FixedSizeChunksParameters),
-    "by_delimiter_chunks": NodeHandler(executor=_by_delimiter_chunks_executor, parameter_model=ByDelimiterChunksParameters),
-    "by_structure_chunks": NodeHandler(executor=_by_structure_chunks_executor, parameter_model=ByStructureChunksParameters),
-    "regex_split_chunks": NodeHandler(executor=_regex_split_chunks_executor, parameter_model=RegexSplitChunksParameters),
-    "recursive_split_chunks": NodeHandler(executor=_recursive_split_chunks_executor, parameter_model=RecursiveSplitChunksParameters),
-    "sentence_window_chunks": NodeHandler(executor=_sentence_window_chunks_executor, parameter_model=SentenceWindowChunksParameters),
-    "merge_small_chunks": NodeHandler(executor=_merge_small_chunks_executor, parameter_model=MergeSmallChunksParameters),
+    "fixed_size_chunks": NodeHandler(
+        executor=_fixed_size_chunks_executor, parameter_model=FixedSizeChunksParameters
+    ),
+    "by_delimiter_chunks": NodeHandler(
+        executor=_by_delimiter_chunks_executor,
+        parameter_model=ByDelimiterChunksParameters,
+    ),
+    "by_structure_chunks": NodeHandler(
+        executor=_by_structure_chunks_executor,
+        parameter_model=ByStructureChunksParameters,
+    ),
+    "regex_split_chunks": NodeHandler(
+        executor=_regex_split_chunks_executor,
+        parameter_model=RegexSplitChunksParameters,
+    ),
+    "recursive_split_chunks": NodeHandler(
+        executor=_recursive_split_chunks_executor,
+        parameter_model=RecursiveSplitChunksParameters,
+    ),
+    "sentence_window_chunks": NodeHandler(
+        executor=_sentence_window_chunks_executor,
+        parameter_model=SentenceWindowChunksParameters,
+    ),
+    "merge_small_chunks": NodeHandler(
+        executor=_merge_small_chunks_executor,
+        parameter_model=MergeSmallChunksParameters,
+    ),
 }
-

@@ -8,7 +8,8 @@ from typing import Any, Protocol
 
 import httpx
 
-from ParaGraph.server.configurations.startup import get_llm_timeout_seconds
+from ParaGraph.server.configurations.startup import get_configuration_runtime
+
 
 ###############################################################################
 class OllamaError(RuntimeError):
@@ -52,15 +53,7 @@ class CloudProvider(str, Enum):
 def _get_timeout(timeout_s: float | None) -> float:
     if timeout_s is not None:
         return timeout_s
-    return get_llm_timeout_seconds()
-
-
-# -----------------------------------------------------------------------------
-def _normalize_provider_name(provider: str) -> str:
-    normalized = provider.strip().lower()
-    if normalized == "anthropic":
-        return "claude"
-    return normalized
+    return get_configuration_runtime().environment().get_float("LLM_TIMEOUT_S", 30.0)
 
 
 # -----------------------------------------------------------------------------
@@ -99,16 +92,6 @@ def _flatten_content(content: Any) -> str:
 
 
 # -----------------------------------------------------------------------------
-def messages_to_prompt(messages: list[dict[str, Any]]) -> str:
-    lines: list[str] = []
-    for message in messages:
-        role = str(message.get("role", "user")).upper()
-        content = _flatten_content(message.get("content", ""))
-        if content:
-            lines.append(f"{role}: {content}")
-    return "\n\n".join(lines)
-
-
 # -----------------------------------------------------------------------------
 def _content_blocks(value: Any) -> list[dict[str, Any]]:
     if isinstance(value, list):
@@ -136,7 +119,9 @@ def _to_openai_content(value: Any) -> str | list[dict[str, Any]]:
             content.append({"type": "text", "text": str(block.get("text", ""))})
         elif block_type == "image_path":
             image = _read_image_payload(str(block.get("path", "")))
-            content.append({"type": "image_url", "image_url": {"url": image["data_url"]}})
+            content.append(
+                {"type": "image_url", "image_url": {"url": image["data_url"]}}
+            )
     return content
 
 
@@ -205,7 +190,9 @@ def _to_claude_blocks(value: Any) -> list[dict[str, Any]]:
 
 ###############################################################################
 class OllamaClient:
-    def __init__(self, base_url: str | None = None, timeout_s: float | None = None) -> None:
+    def __init__(
+        self, base_url: str | None = None, timeout_s: float | None = None
+    ) -> None:
         self.base_url = (base_url or "http://127.0.0.1:11434").rstrip("/")
         self.timeout = _get_timeout(timeout_s)
 
@@ -232,7 +219,9 @@ class OllamaClient:
         if allow_404 and response.status_code == 404:
             return response
         if response.is_error:
-            raise OllamaError(f"Ollama request failed ({response.status_code}): {response.text}")
+            raise OllamaError(
+                f"Ollama request failed ({response.status_code}): {response.text}"
+            )
         return response
 
     # -------------------------------------------------------------------------
@@ -273,39 +262,14 @@ class OllamaClient:
         if options:
             payload["options"] = options
 
-        response = self._request("POST", "/api/chat", payload=payload, allow_404=True)
-        if response.status_code != 404:
-            data = response.json()
-            message = data.get("message", {}) if isinstance(data, dict) else {}
-            content = message.get("content") if isinstance(message, dict) else None
-            text = _flatten_content(content)
-            if text:
-                return text
-            raise OllamaError("Invalid /api/chat response shape")
-
-        generate_payload: dict[str, Any] = {
-            "model": model,
-            "prompt": messages_to_prompt(messages),
-            "stream": False,
-        }
-        images: list[str] = []
-        for message in messages:
-            transformed = _to_ollama_message(message)
-            images.extend(transformed.get("images", []))
-        if images:
-            generate_payload["images"] = images
-        if format:
-            generate_payload["format"] = format
-        if options:
-            generate_payload["options"] = options
-
-        fallback_response = self._request("POST", "/api/generate", payload=generate_payload)
-        fallback_data = fallback_response.json()
-        generated = fallback_data.get("response") if isinstance(fallback_data, dict) else None
-        text = _flatten_content(generated)
+        response = self._request("POST", "/api/chat", payload=payload)
+        data = response.json()
+        message = data.get("message", {}) if isinstance(data, dict) else {}
+        content = message.get("content") if isinstance(message, dict) else None
+        text = _flatten_content(content)
         if text:
             return text
-        raise OllamaError("Invalid /api/generate response shape")
+        raise OllamaError("Invalid /api/chat response shape")
 
 
 ###############################################################################
@@ -317,7 +281,7 @@ class CloudLLMClient:
         base_url: str | None = None,
         timeout_s: float | None = None,
     ) -> None:
-        normalized_provider = _normalize_provider_name(provider)
+        normalized_provider = provider.strip().lower()
         self.provider = CloudProvider(normalized_provider)
         self.timeout = _get_timeout(timeout_s)
 
@@ -338,14 +302,18 @@ class CloudLLMClient:
         headers: dict[str, str],
     ) -> dict[str, Any]:
         try:
-            response = httpx.post(url, json=payload, headers=headers, timeout=self.timeout)
+            response = httpx.post(
+                url, json=payload, headers=headers, timeout=self.timeout
+            )
         except httpx.TimeoutException as exc:
             raise LLMTimeout(f"{self.provider.value} request timed out") from exc
         except httpx.RequestError as exc:
             raise LLMError(f"Unable to reach {self.provider.value}: {exc}") from exc
 
         if response.is_error:
-            raise LLMError(f"{self.provider.value} request failed ({response.status_code}): {response.text}")
+            raise LLMError(
+                f"{self.provider.value} request failed ({response.status_code}): {response.text}"
+            )
 
         data = response.json()
         if not isinstance(data, dict):
@@ -361,7 +329,9 @@ class CloudLLMClient:
         options: dict[str, Any] | None,
     ) -> str:
         if not self.api_key:
-            raise LLMError("OpenAI provider is not configured. Add an API key in Configurations.")
+            raise LLMError(
+                "OpenAI provider is not configured. Add an API key in Configurations."
+            )
 
         payload: dict[str, Any] = {
             "model": model,
@@ -379,7 +349,13 @@ class CloudLLMClient:
             if "top_p" in options:
                 payload["top_p"] = options["top_p"]
             if "max_output_tokens" in options:
-                payload["max_tokens"] = options["max_output_tokens"]
+                max_output_tokens = options["max_output_tokens"]
+                normalized_model = model.strip().lower()
+                # Newer OpenAI model families reject max_tokens and expect max_completion_tokens.
+                if normalized_model.startswith(("gpt-5", "o1", "o3", "o4")):
+                    payload["max_completion_tokens"] = max_output_tokens
+                else:
+                    payload["max_tokens"] = max_output_tokens
         if format == "json":
             payload["response_format"] = {"type": "json_object"}
 
@@ -410,7 +386,9 @@ class CloudLLMClient:
         options: dict[str, Any] | None,
     ) -> str:
         if not self.api_key:
-            raise LLMError("Gemini provider is not configured. Add an API key in Configurations.")
+            raise LLMError(
+                "Gemini provider is not configured. Add an API key in Configurations."
+            )
 
         contents: list[dict[str, Any]] = []
         system_parts: list[dict[str, Any]] = []
@@ -474,7 +452,9 @@ class CloudLLMClient:
         options: dict[str, Any] | None,
     ) -> str:
         if not self.api_key:
-            raise LLMError("Claude provider is not configured. Add an API key in Configurations.")
+            raise LLMError(
+                "Claude provider is not configured. Add an API key in Configurations."
+            )
 
         system_texts: list[str] = []
         api_messages: list[dict[str, Any]] = []
@@ -488,10 +468,12 @@ class CloudLLMClient:
             blocks = _to_claude_blocks(message.get("content", ""))
             if not blocks:
                 continue
-            api_messages.append({
-                "role": "assistant" if role in {"assistant", "model"} else "user",
-                "content": blocks,
-            })
+            api_messages.append(
+                {
+                    "role": "assistant" if role in {"assistant", "model"} else "user",
+                    "content": blocks,
+                }
+            )
 
         max_tokens = 512
         if options and options.get("max_output_tokens"):
@@ -519,7 +501,11 @@ class CloudLLMClient:
         content = data.get("content", [])
         if not isinstance(content, list):
             raise LLMError("Claude response does not include content")
-        text_parts = [item.get("text", "") for item in content if isinstance(item, dict) and item.get("type") == "text"]
+        text_parts = [
+            item.get("text", "")
+            for item in content
+            if isinstance(item, dict) and item.get("type") == "text"
+        ]
         text = "\n".join(part for part in text_parts if isinstance(part, str)).strip()
         if text:
             return text
@@ -534,9 +520,13 @@ class CloudLLMClient:
         options: dict[str, Any] | None = None,
     ) -> str:
         if self.provider == CloudProvider.OPENAI:
-            return self._chat_openai(model=model, messages=messages, format=format, options=options)
+            return self._chat_openai(
+                model=model, messages=messages, format=format, options=options
+            )
         if self.provider == CloudProvider.GEMINI:
-            return self._chat_gemini(model=model, messages=messages, format=format, options=options)
+            return self._chat_gemini(
+                model=model, messages=messages, format=format, options=options
+            )
         if self.provider == CloudProvider.CLAUDE:
             return self._chat_claude(model=model, messages=messages, options=options)
         raise LLMError(f"Unsupported cloud provider: {self.provider.value}")
@@ -544,14 +534,18 @@ class CloudLLMClient:
 
 # -----------------------------------------------------------------------------
 def select_llm_provider(provider: str, **kwargs: Any) -> SupportsChat:
-    normalized = _normalize_provider_name(provider)
-    if normalized in {"ollama", "local"}:
+    normalized = provider.strip().lower()
+    if normalized == "ollama":
         return OllamaClient(
             base_url=kwargs.get("base_url"),
             timeout_s=kwargs.get("timeout_s"),
         )
 
-    if normalized in {CloudProvider.OPENAI.value, CloudProvider.GEMINI.value, CloudProvider.CLAUDE.value}:
+    if normalized in {
+        CloudProvider.OPENAI.value,
+        CloudProvider.GEMINI.value,
+        CloudProvider.CLAUDE.value,
+    }:
         return CloudLLMClient(
             provider=normalized,
             api_key=kwargs.get("api_key"),
@@ -560,4 +554,3 @@ def select_llm_provider(provider: str, **kwargs: Any) -> SupportsChat:
         )
 
     raise LLMError(f"Unsupported provider: {provider}")
-

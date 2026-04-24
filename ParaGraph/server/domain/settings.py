@@ -85,7 +85,9 @@ class JsonDatabaseSettings(BaseModel):
 
         if missing:
             joined = ", ".join(missing)
-            raise ValueError(f"External database mode requires configuration keys: {joined}")
+            raise ValueError(
+                f"External database mode requires configuration keys: {joined}"
+            )
         return self
 
 
@@ -103,7 +105,9 @@ class JsonJobsSettings(BaseModel):
 class RuntimeConfigurationSettings(BaseModel):
     model_config = ConfigDict(extra="ignore", populate_by_name=True)
     database: JsonDatabaseSettings = Field(default_factory=JsonDatabaseSettings)
-    global_settings: JsonGlobalSettings = Field(default_factory=JsonGlobalSettings, alias="global")
+    global_settings: JsonGlobalSettings = Field(
+        default_factory=JsonGlobalSettings, alias="global"
+    )
     jobs: JsonJobsSettings = Field(default_factory=JsonJobsSettings)
 
     # -------------------------------------------------------------------------

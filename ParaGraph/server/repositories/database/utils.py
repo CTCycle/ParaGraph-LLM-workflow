@@ -1,18 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
-
 import pandas as pd
-
-
-UPSERT_CONFLICT_COLUMNS: dict[str, tuple[str, ...]] = {
-    "datasets": ("name",),
-    "dataset_records": ("dataset_id", "asset_name"),
-    "checkpoints": ("name",),
-    "inference_runs": ("request_id",),
-    "inference_reports": ("inference_run_id", "input_name"),
-}
-
 
 # -----------------------------------------------------------------------------
 def normalize_postgres_engine(engine: str | None) -> str:
@@ -25,42 +13,14 @@ def normalize_postgres_engine(engine: str | None) -> str:
 
 
 # -----------------------------------------------------------------------------
-def resolve_conflict_columns(
-    table_name: str,
-    payload_columns: list[str],
-) -> tuple[list[str], list[str]]:
-    configured = list(UPSERT_CONFLICT_COLUMNS.get(table_name, ()))
-    if not configured:
-        return [], []
-    missing_columns = [column for column in configured if column not in payload_columns]
-    if missing_columns:
-        return [], missing_columns
-    return configured, []
-
-
-# -----------------------------------------------------------------------------
 def normalize_string_columns(df: pd.DataFrame) -> pd.DataFrame:
     normalized = df.copy()
     for column in normalized.columns:
-        if pd.api.types.is_string_dtype(normalized[column]) or pd.api.types.is_object_dtype(normalized[column]):
+        if pd.api.types.is_string_dtype(
+            normalized[column]
+        ) or pd.api.types.is_object_dtype(normalized[column]):
             object_series = normalized[column].astype(object)
             normalized[column] = object_series.where(object_series.notna(), None)
     return normalized
 
 
-# -----------------------------------------------------------------------------
-def validate_unique_key_values(
-    records: list[dict[Any, Any]],
-    unique_columns: list[str],
-    table_name: str,
-) -> None:
-    if not unique_columns:
-        return
-    for unique_column in unique_columns:
-        for index, record in enumerate(records):
-            value = record.get(unique_column)
-            if value is None:
-                raise ValueError(
-                    f"Missing value for conflict column '{unique_column}' "
-                    f"in table '{table_name}' at record index {index}"
-                )

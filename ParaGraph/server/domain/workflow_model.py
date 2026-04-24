@@ -29,7 +29,9 @@ class WorkflowConnection(BaseModel):
     def validate_connection_type_contract(self) -> WorkflowConnection:
         if self.connection_type == "controller":
             if not self.from_controller or not self.to_controller:
-                raise ValueError("Controller connections require from_controller and to_controller")
+                raise ValueError(
+                    "Controller connections require from_controller and to_controller"
+                )
             self.from_output = None
             self.to_input = None
             return self
@@ -71,7 +73,6 @@ class VisualGraph(BaseModel):
 class WorkflowDocument(BaseModel):
     workflow_id: str
     name: str
-    latest_version: int
     definition: WorkflowDefinition
     visual_graph: VisualGraph
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
@@ -111,14 +112,8 @@ class UpdateWorkflowRequest(BaseModel):
 class WorkflowListItem(BaseModel):
     workflow_id: str
     name: str
-    latest_version: int
     updated_at: datetime
 
 
 class WorkflowListResponse(BaseModel):
     workflows: list[WorkflowListItem] = Field(default_factory=list)
-
-
-class WorkflowVersionListResponse(BaseModel):
-    workflow_id: str
-    versions: list[int] = Field(default_factory=list)

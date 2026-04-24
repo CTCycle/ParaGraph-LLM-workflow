@@ -56,6 +56,20 @@
       "description": "Retrieval mode. Hybrid may not be supported by every backend."
     },
     {
+      "name": "search_engine",
+      "data_type": "TEXT",
+      "default": "native",
+      "constraints": {
+        "required": true,
+        "options": [
+          "native",
+          "faiss_augmented"
+        ]
+      },
+      "ui_control": "select",
+      "description": "Search execution engine. Native uses the connected vector store backend; FAISS augmentation is optional and backend-dependent."
+    },
+    {
       "name": "similarity_strategy",
       "data_type": "TEXT",
       "default": "cosine",

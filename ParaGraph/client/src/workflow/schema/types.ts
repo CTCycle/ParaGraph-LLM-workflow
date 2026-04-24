@@ -3,6 +3,7 @@ export type NodeCategory =
     | 'web'
     | 'prompt'
     | 'model'
+    | 'memory'
     | 'processing'
     | 'retrieval'
     | 'embeddings'
@@ -29,6 +30,7 @@ export type NodeDataType =
     | 'TOKEN_IDS'
     | 'JSON'
     | 'MODEL_HANDLE'
+    | 'CHAT_HISTORY_HANDLE'
     | 'DATASET'
     | 'BOOLEAN'
     | 'ANY'
@@ -146,7 +148,6 @@ export interface VisualGraph {
 export interface WorkflowDocument {
     workflow_id: string
     name: string
-    latest_version: number
     definition: WorkflowDefinition
     visual_graph: VisualGraph
     created_at: string
@@ -188,7 +189,11 @@ export interface WorkflowOpenIntentAddNode {
 
 export interface WorkflowOpenIntentLoadTemplate {
     type: 'load-template'
-    template: WorkflowTemplate
+    template?: WorkflowTemplate
+    template_id?: string
+    template_name?: string
+    definition?: WorkflowDefinition
+    visual_graph?: VisualGraph
 }
 
 export type WorkflowOpenIntent = WorkflowOpenIntentAddNode | WorkflowOpenIntentLoadTemplate
@@ -243,6 +248,7 @@ export interface CompileWorkflowResponse {
 export interface StartExecutionResponse {
     run_id: string
     status: string
+    execution_session_id?: string | null
     poll_interval: number
 }
 
@@ -262,6 +268,7 @@ export interface ExecutionStepState {
 export interface ExecutionRunState {
     run_id: string
     workflow_id?: string | null
+    execution_session_id?: string | null
     plan_id: string
     status: ExecutionStatus
     created_at: string

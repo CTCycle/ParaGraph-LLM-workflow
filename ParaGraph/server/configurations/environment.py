@@ -10,21 +10,20 @@ from ParaGraph.server.common.constants import ENV_FILE_PATH as DEFAULT_ENV_FILE_
 from ParaGraph.server.common.utils.logger import logger
 
 
-ENV_FILE_PATH = DEFAULT_ENV_FILE_PATH
 _TRUE_VALUES = {"1", "true", "yes", "on"}
 
 
 ###############################################################################
 class EnvironmentLoader:
     def __init__(self, env_file_path: str | None = None) -> None:
-        self._env_file_path = env_file_path
+        self._env_file_path = env_file_path or DEFAULT_ENV_FILE_PATH
         self._lock = Lock()
         self._bootstrapped = False
 
     # -------------------------------------------------------------------------
     def ensure_loaded(self, *, force: bool = False) -> Path | None:
         with self._lock:
-            env_path = Path(self._env_file_path or ENV_FILE_PATH)
+            env_path = Path(self._env_file_path)
             if self._bootstrapped and not force:
                 return env_path if env_path.exists() else None
 
@@ -75,18 +74,3 @@ class EnvironmentLoader:
         if not normalized:
             return default
         return normalized in _TRUE_VALUES
-
-
-_default_environment_loader = EnvironmentLoader()
-
-
-###############################################################################
-def ensure_environment_loaded(*, force: bool = False) -> Path | None:
-    _default_environment_loader._env_file_path = ENV_FILE_PATH  # noqa: SLF001
-    return _default_environment_loader.ensure_loaded(force=force)
-
-
-# -----------------------------------------------------------------------------
-def reset_environment_loader_for_tests() -> None:
-    _default_environment_loader._env_file_path = ENV_FILE_PATH  # noqa: SLF001
-    _default_environment_loader.reset_for_tests()

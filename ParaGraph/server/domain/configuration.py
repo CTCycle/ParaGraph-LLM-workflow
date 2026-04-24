@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field, field_validator
 
 DEFAULT_SESSION_NAME = "default"
 SESSION_NAME_PATTERN = r"^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$"
+MASKED_API_KEY_VALUE = "__PG_MASKED_API_KEY__"
 
 
 ###############################################################################
@@ -44,6 +45,14 @@ class AccessKeyConfiguration(BaseModel):
 
 
 ###############################################################################
+def is_masked_api_key(value: str | None) -> bool:
+    if value is None:
+        return False
+    normalized = value.strip()
+    return normalized in {MASKED_API_KEY_VALUE, "********"}
+
+
+###############################################################################
 class AppConfigurationPayload(BaseModel):
     session_name: str = Field(default=DEFAULT_SESSION_NAME, max_length=120)
     access_keys: list[AccessKeyConfiguration] = Field(default_factory=list)
@@ -55,7 +64,9 @@ class AppConfigurationPayload(BaseModel):
         text = str(value or "").strip()
         normalized = text or DEFAULT_SESSION_NAME
         if not re.fullmatch(SESSION_NAME_PATTERN, normalized):
-            raise ValueError("session_name may include only letters, numbers, dot, underscore, and dash")
+            raise ValueError(
+                "session_name may include only letters, numbers, dot, underscore, and dash"
+            )
         return normalized
 
 
