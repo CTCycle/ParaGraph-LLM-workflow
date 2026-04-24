@@ -1,83 +1,104 @@
-# UI Standards (Frontend)
-Last updated: 2026-04-08
+# UI_STANDARDS
 
-Date: 2026-03-28  
-Scope: `ParaGraph/client`
+Last updated: 2026-04-24
 
-## Spacing Scale
+## Typography
 
-- Base rhythm: 4px
-- Tokens:
-  - `--space-1`: 4px
-  - `--space-2`: 8px
-  - `--space-3`: 12px
-  - `--space-4`: 16px
-  - `--space-5`: 24px
-- Page container spacing:
-  - `--page-padding`: `clamp(16px, 2vw, 28px)`
-- Top bar:
-  - `--topbar-height`: `56px`
+- Base font stack: `'Inter', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif` (`src/index.css`).
+- Monospace content (JSON, runtime output, text editor): `'Cascadia Mono', 'Consolas', 'Courier New', monospace`.
+- Typical scale in implementation:
+  - Page titles: ~`0.95rem` to `1rem` equivalent headings.
+  - Body/form text: `0.8rem` to `0.9rem`.
+  - Meta labels/captions: `0.7rem` to `0.78rem`.
+- Default line-height: `1.4` body; tighter values used for dense metadata blocks.
 
-## Typography Scale
+## Layout and Spacing
 
-- Keep heading hierarchy semantic (`h1 > h2 > h3`).
-- Prefer a compact app scale:
-  - Page title: `clamp(1.35rem, 1.85vw, 1.75rem)`
-  - Section heading: `~1rem`
-  - Body: `0.84rem - 1rem`
-  - Supporting/meta text: `0.72rem - 0.86rem`
-- Global baseline line-height: `1.4`.
+- Global spacing tokens:
+  - `--space-1: 4px`
+  - `--space-2: 8px`
+  - `--space-3: 12px`
+  - `--space-4: 16px`
+  - `--space-5: 24px`
+- App shell uses a fixed top bar (`--topbar-height: 56px`) and full-height content area.
+- Workflow page uses a two-column grid in desktop (`node library + canvas`) and collapses to single-column at smaller breakpoints.
+- Border radius tokens:
+  - `--radius-sm: 8px`
+  - `--radius-md: 12px`
+  - `--radius-lg: 14px`
 
 ## Color System
 
-- Core app/background:
-  - `--color-bg-app`: `#020617`
-  - `--color-bg-surface`: `#0f172a`
-- Text:
-  - `--color-text-primary`: `#eef6ff`
-  - `--color-text-muted`: `#a9bfda`
-- Borders/focus:
-  - `--color-border-subtle`: `#334155`
-  - `--focus-ring-color`: `rgba(96, 165, 250, 0.9)`
-  - `--focus-ring-shadow`: `0 0 0 2px rgba(96, 165, 250, 0.45)`
+- Dark theme is the default and enforced (`color-scheme: dark`).
+- Core tokens:
+  - App background: `--color-bg-app: #020617`
+  - Surface background: `--color-bg-surface: #0f172a`
+  - Primary text: `--color-text-primary: #eef6ff`
+  - Muted text: `--color-text-muted: #a9bfda`
+  - Border subtle: `--color-border-subtle: #334155`
+- Semantic feedback patterns:
+  - Success: green-tinted border/glow states.
+  - Error: red/pink-tinted border/glow + alert text.
+  - Warning/attention: amber/yellow accents.
 
-## Global Baseline Rules
+## Components and Patterns
 
-- Root font stack currently uses Inter-based fallback stack.
-- `color-scheme` is dark.
-- `:focus-visible` styles are required for `button`, `input`, `select`, `textarea`, and links.
-- Reduced-motion handling must be preserved via `prefers-reduced-motion`.
+- Navigation: top bar with active route underline and hover background.
+- Primary application surfaces:
+  - Workflow canvas + node tree + node cards.
+  - Models explorer split columns (Ollama/Hugging Face).
+  - Configuration forms with modal load/save flows.
+  - Nodes catalog + template cards + import modal.
+- Interaction states explicitly styled:
+  - hover, active, selected, disabled, focus-visible.
+  - workflow node runtime states: running, active, selected, skipped, pinged.
+- Form controls use inherited typography and consistent dark field styling.
 
-## Component Usage Rules
+## Page Structure
 
-- Controls:
-  - Use tokenized heights:
-    - `--control-height-sm`: 32px
-    - `--control-height-md`: 36px
-    - `--control-height-lg`: 40px
-  - Use tokenized radii:
-    - `--radius-sm`: 8px
-    - `--radius-md`: 12px
-    - `--radius-lg`: 14px
-- Focus/interaction:
-  - All interactive elements must expose visible `:focus-visible`.
-  - Hover styles must never be the only affordance.
-  - Disabled state must use both visual dimming and disabled semantics.
-- Modals:
-  - Must include `role="dialog"` and `aria-modal="true"`.
-  - Must provide title/description association (`aria-labelledby` + `aria-describedby`).
-  - Must support Escape close unless an in-progress blocking state is active.
+Main route map:
 
-## Do / Don't
+- `/` -> Workflow editor
+- `/nodes` -> Node library + templates
+- `/models` -> Model catalogs
+- `/config` -> Runtime/access configuration
 
-- Do:
-  - Reuse global tokens before adding one-off values.
-  - Keep layout and interaction changes incremental and testable.
-  - Add explicit labels/`aria-label` to icon-only or placeholder-driven inputs.
-  - Respect `prefers-reduced-motion`.
+Shared composition:
 
-- Don't:
-  - Introduce new arbitrary spacing/radius/font values when existing tokens fit.
-  - Rely on color alone to communicate status.
-  - Remove keyboard accessibility to simplify pointer interactions.
-  - Mix multiple near-identical variants of buttons/inputs without a clear purpose.
+- `MainLayout` wraps page routes.
+- Each page uses a consistent header + content panel strategy.
+- Workflow page is the deepest interaction surface and defines the main operational template.
+
+## User Experience Rules
+
+- Prefer clear system status communication (`status text`, inline notices, banners, modals).
+- Keep action buttons close to affected content (toolbar actions, row actions, node-local actions).
+- Provide explicit loading and empty states in list/canvas contexts.
+- Surface recoverable errors with actionable copy and retry affordances.
+
+## Responsiveness
+
+Implemented breakpoints:
+
+- `max-width: 1120px`:
+  - workflow toolbar stacks vertically.
+  - workflow grid collapses to single column.
+- `max-width: 760px`:
+  - topbar becomes horizontally scrollable.
+  - workflow action buttons become a compact grid.
+  - bottom editor panel is hidden to preserve viewport space.
+
+## Accessibility
+
+- Global `:focus-visible` outlines + shadow ring are implemented for keyboard navigation.
+- Reduced motion is supported via `prefers-reduced-motion` media query.
+- Navigation includes `aria-label` on primary nav and many actionable controls.
+- Modal/dialog surfaces use roles and label/description IDs where implemented.
+- Color usage should preserve contrast against dark backgrounds; avoid low-contrast muted text for critical states.
+
+## Design Principles
+
+- Preserve consistency across pages through shared tokens and common interaction language.
+- Prioritize readability and operational clarity over decorative variance.
+- Use dense layouts only where task efficiency requires it (workflow canvas/editor contexts).
+- Keep visual complexity intentional: gradients and glow effects should communicate hierarchy/state, not decoration alone.

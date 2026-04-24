@@ -1,171 +1,84 @@
-# Nodes Library
-Last updated: 2026-04-15
+# NODES_LIBRARY
 
-Source of truth for shipped nodes: `ParaGraph/resources/nodes/*.json`.
+Last updated: 2026-04-24
 
-## 1. Current Node Inventory
+## Purpose
 
-| Category | Node IDs |
-| --- | --- |
-| `web` | `API_CALL`, `FETCH_HTML` |
-| `prompt` | `PROMPT`, `PROMPT_TEMPLATE` |
-| `model` | `MODEL_PROVIDER`, `LLM_CHAT`, `LLM_STRUCTURED` |
-| `memory` | `CHAT_HISTORY_MEMORY`, `CHAT_HISTORY_PERSISTED` |
-| `embeddings` | `TEXT_EMBEDDING` |
-| `retrieval` | `SIMILARITY_SEARCH`, `RERANK_RESULTS` |
-| `serialization` | `LOAD_DOCUMENTS`, `LOAD_TEXT`, `SAVE_AS_FILE`, `SAVE_AS_FOLDER` |
-| `text_segmentation` | `FIXED_SIZE_CHUNKS`, `BY_DELIMITER_CHUNKS`, `BY_STRUCTURE_CHUNKS`, `RECURSIVE_SPLIT_CHUNKS`, `REGEX_SPLIT_CHUNKS`, `SENTENCE_WINDOW_CHUNKS`, `MERGE_SMALL_CHUNKS` |
-| `database` | `SQL_DATABASE`, `SQL_FILE_DATABASE` |
-| `vector_storage` | `VECTOR_STORE` |
-| `output` | `TEXT_OUTPUT`, `JSON_OUTPUT` |
+This document describes the node system used by ParaGraph workflows, how nodes are cataloged, and how custom node manifests are imported.
 
-## 2. Node Summary
+## Node Catalog Sources
 
-- `PROMPT`: emits fixed text.
-- `PROMPT_TEMPLATE`: renders prompt text from template placeholders + variables.
-- `MODEL_PROVIDER`: emits typed model handle for generation nodes.
-- `LLM_CHAT`: text generation node.
-- `LLM_STRUCTURED`: structured generation node with JSON-schema validation after generation.
-- `CHAT_HISTORY_MEMORY`: emits `CHAT_HISTORY_HANDLE` backed by in-memory storage.
-- `CHAT_HISTORY_PERSISTED`: emits `CHAT_HISTORY_HANDLE` backed by `file` or `database` storage.
-- `TEXT_EMBEDDING`: creates vectors from text/documents/chunks.
-- `VECTOR_STORE`: persists vectors to selected backend.
-- `SIMILARITY_SEARCH`: retrieves scored hits from vector store.
-- `RERANK_RESULTS`: deterministic reranking over `RETRIEVAL_RESULTS`.
-- `LOAD_DOCUMENTS` / `LOAD_TEXT`: local ingestion nodes.
-- `SAVE_AS_FILE` / `SAVE_AS_FOLDER`: artifact serialization nodes.
-- Chunking nodes: segmentation utilities for RAG ingestion.
+- Built-in node manifests are loaded from `ParaGraph/resources/nodes`.
+- Custom node manifests can be imported at runtime from the Nodes page (`/nodes`) using JSON payloads.
+- The backend catalog API is `GET /nodes/catalog`.
 
-## 3. Core Contracts
+## Core Node Categories
 
-- Manifest-driven validation covers ports, controllers, parameters, and runtime metadata.
-- Data links and controller links are distinct and type-checked.
-- `accepts_multiple` inputs/controllers are aggregated at runtime.
-- Output nodes publish terminal outputs.
+The frontend and backend organize nodes by category (for example):
 
-## 4. Embedding And Provider Matrix
+- `input`
+- `web`
+- `prompt`
+- `model`
+- `memory`
+- `retrieval`
+- `embeddings`
+- `processing`
+- `text_segmentation`
+- `output`
+- `serialization`
+- `database`
+- `vector_storage`
+- `control`
 
-`TEXT_EMBEDDING` providers are explicit:
-- `openai`
-- `gemini`
-- `huggingface`
-- `ollama`
+Category labels and ordering are defined in `ParaGraph/client/src/workflow/schema/nodeCategory.ts`.
 
-`cloud` bucket is not used.
+## Node Manifest Model
 
-Model options are provider-catalog driven via `/providers/models` and filtered by `supports_embeddings=true`.
+A node manifest includes:
 
-Claude must never be used for embeddings.
+- Identity: `id`, `version`, `name`, `category`, `description`
+- Interface: `inputs`, `outputs`, optional `controllers`
+- Parameters: typed parameter definitions and optional constraints/defaults
+- UI metadata: visual defaults such as width/accent/icon/collapsed state
+- Runtime metadata: executor key, cacheability, determinism, side effects, and optional plugin metadata
 
-## 5. Vector Store Provider Matrix
+Runtime validation occurs through backend node registry logic before use in execution plans.
 
-`VECTOR_STORE` provider options:
-- `lancedb`
-- `qdrant`
-- `pinecone`
-- `weaviate`
-- `milvus`
-- `chroma`
-- `faiss`
+## Importing Custom Nodes
 
-Critical parameter rules:
-- Local providers (`lancedb`, `chroma`, `faiss`) require `storage_path`.
-- Remote providers (`qdrant`, `pinecone`, `weaviate`, `milvus`) require `endpoint_url`.
+### API
 
-## 6. Retrieval And RAG Chain
+- Endpoint: `POST /nodes/import`
+- Request body: node manifest JSON
+- Response: imported manifest
+- Validation failures return HTTP 422
 
-Recommended RAG flow:
-1. `LOAD_DOCUMENTS`
-2. Chunking node(s)
-3. `TEXT_EMBEDDING`
-4. `VECTOR_STORE`
-5. `PROMPT_TEMPLATE` (query construction)
-6. `SIMILARITY_SEARCH`
-7. `RERANK_RESULTS`
-8. `PROMPT_TEMPLATE` (answer synthesis)
-9. `LLM_CHAT` or `LLM_STRUCTURED`
+### UI flow
 
-Important:
-- Query construction is handled by `PROMPT_TEMPLATE`.
-- No dedicated query-prompt node is required or shipped.
+- Open `/nodes`
+- Use the custom node import modal
+- Paste/validate manifest JSON
+- Submit import
+- Reload catalog to make the node available in the workflow editor
 
-## 7. `RERANK_RESULTS` Contract
+## Workflow Integration
 
-- Node ID: `RERANK_RESULTS`
-- Input: `results` (`RETRIEVAL_RESULTS`, required), `query` (`TEXT`, optional)
-- Output: `results` (`RETRIEVAL_RESULTS`)
-- Runtime key: `rerank_results`
-- Deterministic local scoring strategies:
-  - `original_score`
-  - `term_overlap`
-  - `exact_phrase`
-  - `metadata_match`
-  - `weighted_composite`
+- Workflow editor (`/`) fetches the catalog and allows drag/drop node placement.
+- Compiler validates node existence, version, ports/controllers compatibility, and required inputs.
+- Execution resolves node handlers by manifest metadata through the registry.
 
-## 8. Compatibility Constraints
+## Connectivity Checks
 
-- Hugging Face image input is explicitly rejected in current local generation runtime path.
-- Hugging Face structured output remains best-effort generation + JSON validation.
-- Hugging Face metadata indicates no streaming/tool-calling support.
-- Claude embeddings are unsupported by provider capabilities.
+Node-level connectivity endpoints:
 
-## 8.1 Chat History Contract
+- `POST /nodes/check-database-connection`
+- `POST /nodes/check-vector-store-connection`
 
-- `LLM_CHAT` and `LLM_STRUCTURED` accept optional `history` controller input of type `CHAT_HISTORY_HANDLE`.
-- History node parameters:
-  - `max_messages` (minimum `1`)
-  - `separator`
-  - `keep_prompt_type`
-  - persisted node only: `storage_backend` (`file` or `database`)
-- Persisted file storage path:
-  - `ParaGraph/resources/chat_history/<workflow_id>/<execution_session_id>/<node_id>.json`
-- Persisted database storage:
-  - one row per message in `chat_history_messages` with workflow/session/node identifiers, role, content, and timestamp.
+These are used by database/vector-store nodes to validate runtime connection settings before execution.
 
-## 11. `SIMILARITY_SEARCH` Contract Matrix
+## Operational Notes
 
-- Node ID: `SIMILARITY_SEARCH`
-- Input: `query` (`TEXT`, required)
-- Output: `results` (`RETRIEVAL_RESULTS`)
-- Required controllers:
-  - `embedding` (`JSON`, target)
-  - `store` (`VECTOR_STORE_HANDLE`, target)
-- Runtime key: `similarity_search`
-
-Parameter matrix:
-- `search_mode`
-  - options: `vector`, `hybrid`
-  - default: `vector`
-- `search_engine`
-  - options: `native`, `faiss_augmented`
-  - default: `native`
-  - `native` is the default and preferred mode
-  - `faiss_augmented` is optional and backend-dependent
-- `similarity_strategy`
-  - options: `cosine`, `euclidean`, `dot`
-  - default: `cosine`
-
-Execution constraints:
-- Native vector store indexing/query must be used by default.
-- Metric must remain compatible with connected `VECTOR_STORE.distance_metric`.
-- Unsupported mode/backend combinations must be rejected before execution.
-
-## 9. Workflow Templates
-
-Workflow templates are manifest-driven and loaded from:
-- `ParaGraph/resources/workflow_templates/*.json`
-
-Templates are validated at load time against:
-- typed template schema
-- node catalog manifest availability (`required_nodes`)
-- compiler validity (`definition` + `visual_graph`)
-
-Shipped templates:
-- `system_user_llm_structured_output_v1`
-- `system_user_llm_chat_output_v1`
-- `load_documents_chunk_embed_store_v1`
-
-## 10. Node Catalog Scope For This Release
-
-- No new node IDs were introduced.
-- Existing node contracts and execution handlers remain the source of truth.
+- Node manifests are contract-critical: changes to IDs, versions, or ports affect existing workflows.
+- Prefer introducing new versions instead of breaking existing version semantics.
+- Keep manifest descriptions explicit so the Nodes page remains understandable to end users.
