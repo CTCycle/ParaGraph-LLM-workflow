@@ -1,0 +1,62 @@
+{
+  "id": "CRUD_CREATE",
+  "version": 1,
+  "name": "Create",
+  "category": "database",
+  "description": "Insert a row into an existing database table using configured or connected JSON values.",
+  "inputs": [
+    {
+      "name": "values",
+      "data_type": "JSON",
+      "required": false,
+      "description": "Optional JSON object of column values. Overrides configured values when connected."
+    }
+  ],
+  "outputs": [
+    {
+      "name": "dataset",
+      "data_type": "DATASET",
+      "required": true
+    }
+  ],
+  "controllers": [
+    {
+      "name": "connection",
+      "data_type": "DATABASE_CONNECTION",
+      "required": true,
+      "accepts_multiple": false,
+      "scope": "target",
+      "description": "Database connection controller from a database node."
+    }
+  ],
+  "parameters": [
+    {
+      "name": "table",
+      "data_type": "TEXT",
+      "default": "",
+      "constraints": {
+        "required": true
+      },
+      "ui_control": "text",
+      "description": "Existing table to insert into."
+    },
+    {
+      "name": "values",
+      "data_type": "JSON",
+      "default": {},
+      "ui_control": "json",
+      "description": "JSON object of column names to inserted values."
+    }
+  ],
+  "ui": {
+    "default_width": 340,
+    "accent_color": "#2f9b7a",
+    "collapsed_by_default": false
+  },
+  "runtime": {
+    "executor_key": "crud_create",
+    "cacheable": false,
+    "deterministic": false,
+    "side_effecting": true
+  }
+}

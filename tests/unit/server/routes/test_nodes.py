@@ -2,8 +2,42 @@ from __future__ import annotations
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import Integer, String, create_engine
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 from ParaGraph.server.api import nodes as nodes_api
+
+
+class SchemaRouteBase(DeclarativeBase):
+    pass
+
+
+class SchemaRouteItem(SchemaRouteBase):
+    __tablename__ = "schema_items"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String, nullable=False)
+
+
+def test_database_schema_endpoint_returns_sqlite_schema(client: TestClient, tmp_path) -> None:
+    database_path = tmp_path / "schema.sqlite"
+    engine = create_engine(f"sqlite:///{database_path}")
+    SchemaRouteBase.metadata.create_all(engine)
+    engine.dispose()
+
+    response = client.post(
+        "/nodes/database-schema",
+        json={
+            "node_type": "SQL_FILE_DATABASE",
+            "node_version": 1,
+            "parameters": {"db_path": str(database_path), "db_connect_timeout": 30},
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["tables"][0]["name"] == "schema_items"
+    assert payload["tables"][0]["columns"][0]["name"] == "id"
 
 
 def test_check_vector_store_connection_calls_adapter_validate(

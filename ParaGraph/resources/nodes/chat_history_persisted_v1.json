@@ -1,9 +1,9 @@
 {
   "id": "CHAT_HISTORY_PERSISTED",
   "version": 1,
-  "name": "Chat History Persisted",
+  "name": "Persisted Chat History",
   "category": "memory",
-  "description": "Build a persisted chat history handle that stores conversation history in file or database storage.",
+  "description": "Build a persisted chat history controller that stores conversation context on disk by default for connected LLM nodes.",
   "inputs": [],
   "outputs": [],
   "controllers": [

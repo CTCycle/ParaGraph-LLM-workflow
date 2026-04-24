@@ -1,0 +1,62 @@
+{
+  "id": "CRUD_DELETE",
+  "version": 1,
+  "name": "Delete",
+  "category": "database",
+  "description": "Delete rows from an existing database table using required equality filters.",
+  "inputs": [
+    {
+      "name": "filters",
+      "data_type": "JSON",
+      "required": false,
+      "description": "Optional JSON object of equality filters. Overrides configured filters when connected."
+    }
+  ],
+  "outputs": [
+    {
+      "name": "dataset",
+      "data_type": "DATASET",
+      "required": true
+    }
+  ],
+  "controllers": [
+    {
+      "name": "connection",
+      "data_type": "DATABASE_CONNECTION",
+      "required": true,
+      "accepts_multiple": false,
+      "scope": "target",
+      "description": "Database connection controller from a database node."
+    }
+  ],
+  "parameters": [
+    {
+      "name": "table",
+      "data_type": "TEXT",
+      "default": "",
+      "constraints": {
+        "required": true
+      },
+      "ui_control": "text",
+      "description": "Existing table to delete from."
+    },
+    {
+      "name": "filters",
+      "data_type": "JSON",
+      "default": {},
+      "ui_control": "json",
+      "description": "Required JSON object of column names to equality filter values."
+    }
+  ],
+  "ui": {
+    "default_width": 340,
+    "accent_color": "#c2410c",
+    "collapsed_by_default": false
+  },
+  "runtime": {
+    "executor_key": "crud_delete",
+    "cacheable": false,
+    "deterministic": false,
+    "side_effecting": true
+  }
+}

@@ -506,6 +506,44 @@ export interface DatabaseConnectionCheckResponse {
     message: string
 }
 
+export interface DatabaseSchemaColumn {
+    name: string
+    type: string
+    nullable: boolean
+    default: unknown
+    primary_key: boolean
+}
+
+export interface DatabaseSchemaPrimaryKey {
+    name: string | null
+    columns: string[]
+}
+
+export interface DatabaseSchemaForeignKey {
+    name: string | null
+    columns: string[]
+    referred_table: string | null
+    referred_columns: string[]
+}
+
+export interface DatabaseSchemaIndex {
+    name: string | null
+    columns: string[]
+    unique: boolean
+}
+
+export interface DatabaseSchemaTable {
+    name: string
+    columns: DatabaseSchemaColumn[]
+    primary_key: DatabaseSchemaPrimaryKey
+    foreign_keys: DatabaseSchemaForeignKey[]
+    indexes: DatabaseSchemaIndex[]
+}
+
+export interface DatabaseSchemaResponse {
+    tables: DatabaseSchemaTable[]
+}
+
 
 export interface VectorStoreConnectionCheckResponse {
     ok: boolean
