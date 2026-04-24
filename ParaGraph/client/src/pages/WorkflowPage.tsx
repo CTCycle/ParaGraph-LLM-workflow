@@ -3009,6 +3009,7 @@ function WorkflowEditor() {
     }, [nodeContextMenu, nodes])
     const contextMenuNodeIsExpandable = contextMenuNode ? isNodeItemExpandable(contextMenuNode.data.manifest) : false
     const contextMenuNodeGlobalKind = contextMenuNode ? getGlobalNodeKind(contextMenuNode.data.manifest) : null
+    const contextMenuNodeCanViewSchema = contextMenuNode ? isSqlConnectionNode(contextMenuNode.data.manifest) : false
 
     useEffect(() => {
         const navigationState = location.state as WorkflowNavigationState | null
@@ -4386,6 +4387,24 @@ function WorkflowEditor() {
                             >
                                 Reset config
                             </button>
+                            {contextMenuNodeCanViewSchema && (
+                                <button
+                                    type="button"
+                                    className="workflow-node-context-menu-item" role="menuitem"
+                                    onClick={() => {
+                                        navigate(`/database-schema/${encodeURIComponent(contextMenuNode.id)}`, {
+                                            state: {
+                                                nodeId: contextMenuNode.id,
+                                                manifest: contextMenuNode.data.manifest,
+                                                parameters: contextMenuNode.data.parameters,
+                                            },
+                                        })
+                                        setNodeContextMenu(null)
+                                    }}
+                                >
+                                    View schema
+                                </button>
+                            )}
                             <button
                                 type="button"
                                 className={`workflow-node-context-menu-item ${contextMenuNodeIsExpandable ? '' : 'workflow-node-context-menu-item-disabled'}`}

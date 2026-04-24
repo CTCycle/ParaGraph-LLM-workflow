@@ -1,0 +1,75 @@
+{
+  "id": "CRUD_UPDATE",
+  "version": 1,
+  "name": "Update",
+  "category": "database",
+  "description": "Update rows in an existing database table using JSON values and required equality filters.",
+  "inputs": [
+    {
+      "name": "values",
+      "data_type": "JSON",
+      "required": false,
+      "description": "Optional JSON object of updated column values. Overrides configured values when connected."
+    },
+    {
+      "name": "filters",
+      "data_type": "JSON",
+      "required": false,
+      "description": "Optional JSON object of equality filters. Overrides configured filters when connected."
+    }
+  ],
+  "outputs": [
+    {
+      "name": "dataset",
+      "data_type": "DATASET",
+      "required": true
+    }
+  ],
+  "controllers": [
+    {
+      "name": "connection",
+      "data_type": "DATABASE_CONNECTION",
+      "required": true,
+      "accepts_multiple": false,
+      "scope": "target",
+      "description": "Database connection controller from a database node."
+    }
+  ],
+  "parameters": [
+    {
+      "name": "table",
+      "data_type": "TEXT",
+      "default": "",
+      "constraints": {
+        "required": true
+      },
+      "ui_control": "text",
+      "description": "Existing table to update."
+    },
+    {
+      "name": "values",
+      "data_type": "JSON",
+      "default": {},
+      "ui_control": "json",
+      "description": "JSON object of column names to updated values."
+    },
+    {
+      "name": "filters",
+      "data_type": "JSON",
+      "default": {},
+      "ui_control": "json",
+      "description": "Required JSON object of column names to equality filter values."
+    }
+  ],
+  "ui": {
+    "default_width": 360,
+    "accent_color": "#b7791f",
+    "collapsed_by_default": false
+  },
+  "runtime": {
+    "executor_key": "crud_update",
+    "cacheable": false,
+    "deterministic": false,
+    "side_effecting": true
+  }
+}

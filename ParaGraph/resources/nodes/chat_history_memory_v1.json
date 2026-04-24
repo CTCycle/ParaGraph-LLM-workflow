@@ -1,9 +1,9 @@
 {
   "id": "CHAT_HISTORY_MEMORY",
   "version": 1,
-  "name": "Chat History Memory",
+  "name": "In-Memory Chat History",
   "category": "memory",
-  "description": "Build an in-memory chat history handle for repeated conversational workflow runs in the same execution session.",
+  "description": "Build an in-memory chat history controller that supplies accumulated conversation context to connected LLM nodes.",
   "inputs": [],
   "outputs": [],
   "controllers": [

@@ -9,6 +9,11 @@ import rerankManifestJson from '../../../resources/nodes/rerank_results_v1.json'
 import similaritySearchManifestJson from '../../../resources/nodes/similarity_search_v1.json'
 import chatHistoryMemoryManifestJson from '../../../resources/nodes/chat_history_memory_v1.json'
 import chatHistoryPersistedManifestJson from '../../../resources/nodes/chat_history_persisted_v1.json'
+import crudCreateManifestJson from '../../../resources/nodes/crud_create_v1.json'
+import crudReadManifestJson from '../../../resources/nodes/crud_read_v1.json'
+import crudUpdateManifestJson from '../../../resources/nodes/crud_update_v1.json'
+import crudDeleteManifestJson from '../../../resources/nodes/crud_delete_v1.json'
+import customSqlQueryManifestJson from '../../../resources/nodes/custom_sql_query_v1.json'
 
 const textEmbeddingManifest = textEmbeddingManifestJson as NodeManifest
 const vectorStoreManifest = vectorStoreManifestJson as NodeManifest
@@ -16,6 +21,13 @@ const rerankManifest = rerankManifestJson as NodeManifest
 const similaritySearchManifest = similaritySearchManifestJson as NodeManifest
 const chatHistoryMemoryManifest = chatHistoryMemoryManifestJson as NodeManifest
 const chatHistoryPersistedManifest = chatHistoryPersistedManifestJson as NodeManifest
+const databaseOperationManifests = [
+    crudCreateManifestJson,
+    crudReadManifestJson,
+    crudUpdateManifestJson,
+    crudDeleteManifestJson,
+    customSqlQueryManifestJson,
+] as NodeManifest[]
 
 function getOptions(manifest: NodeManifest, parameterName: string): string[] {
     const parameter = manifest.parameters.find((item) => item.name === parameterName)
@@ -72,6 +84,21 @@ describe('WorkflowPage manifest-driven provider and retrieval behavior', () => {
             'keep_prompt_type',
             'storage_backend',
         ])
+    })
+
+    it('database operation manifests expose connection controllers and dataset outputs', () => {
+        for (const manifest of databaseOperationManifests) {
+            expect(manifest.category).toBe('database')
+            expect(manifest.controllers?.map((controller) => controller.name)).toContain('connection')
+            expect(manifest.controllers?.find((controller) => controller.name === 'connection')?.data_type).toBe('DATABASE_CONNECTION')
+            expect(manifest.outputs).toEqual([
+                {
+                    name: 'dataset',
+                    data_type: 'DATASET',
+                    required: true,
+                },
+            ])
+        }
     })
 
     it('embedding model options are provider-catalog driven and update on provider switch', () => {

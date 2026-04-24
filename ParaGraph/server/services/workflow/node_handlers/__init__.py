@@ -1,4 +1,5 @@
 from ParaGraph.server.services.workflow.node_handlers.core import CORE_HANDLERS
+from ParaGraph.server.services.workflow.node_handlers.database import DATABASE_HANDLERS
 from ParaGraph.server.services.workflow.node_handlers.ingestion import (
     INGESTION_HANDLERS,
 )
@@ -9,6 +10,7 @@ from ParaGraph.server.services.workflow.node_handlers.processing import (
 
 NODE_HANDLERS = {
     **CORE_HANDLERS,
+    **DATABASE_HANDLERS,
     **INGESTION_HANDLERS,
     **PROCESSING_HANDLERS,
     **OUTPUT_HANDLERS,

@@ -9,7 +9,7 @@ from uuid import NAMESPACE_URL, uuid5
 from bs4 import BeautifulSoup
 from docx import Document
 from pypdf import PdfReader
-from sqlalchemy import URL, create_engine, select
+from sqlalchemy import create_engine, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -21,14 +21,13 @@ from ParaGraph.server.domain.node_handler_ingestion import (
     SQLDatabaseParameters,
     SQLFileDatabaseParameters,
     SUPPORTED_DOCUMENT_EXTENSIONS,
-    normalize_database_engine,
 )
 from ParaGraph.server.services.workflow.node_handlers.base import NodeHandler
 from ParaGraph.server.services.workflow.node_handlers.common import (
     coerce_bool,
-    coerce_int,
     coerce_text,
 )
+from ParaGraph.server.services.workflow.database import build_database_url
 
 
 def resolve_local_path(path_value: str) -> Path:
@@ -112,44 +111,6 @@ def _build_document(
         "mime_type": mime_type,
         "metadata": metadata,
     }
-
-
-def _build_database_url(payload: dict[str, Any]) -> tuple[str | URL, dict[str, Any]]:
-    engine = normalize_database_engine(payload.get("engine"), label="engine")
-    options = payload.get("options") if isinstance(payload.get("options"), dict) else {}
-    if engine == "sqlite":
-        file_path = str(payload.get("file_path") or "").strip()
-        if not file_path:
-            raise ValueError("sqlite connections require file_path")
-        resolved_file = resolve_local_path(file_path)
-        if not resolved_file.exists() or not resolved_file.is_file():
-            raise ValueError(f"SQLite database file not found: {resolved_file}")
-        return f"sqlite:///{resolved_file.as_posix()}", {}
-
-    database_name = str(payload.get("database_name") or "").strip()
-    host = str(payload.get("host") or "").strip()
-    username = str(payload.get("username") or "").strip()
-    password = str(payload.get("password") or "")
-    port = payload.get("port")
-    if not database_name or not host or not username or port is None:
-        raise ValueError(
-            f"{engine} connections require host, database_name, username, and port"
-        )
-
-    query = {str(key): str(value) for key, value in options.items()}
-    driver = "postgresql+psycopg" if engine == "postgresql" else "mysql+pymysql"
-    return (
-        URL.create(
-            driver,
-            username=username,
-            password=password or None,
-            host=host,
-            port=int(port),
-            database=database_name,
-            query=query,
-        ),
-        {"connect_timeout": coerce_int(payload.get("connect_timeout_s"), 5)},
-    )
 
 
 def _directory_loader_executor(
@@ -281,7 +242,7 @@ def _validate_and_build_database_connection(
     parameters: dict[str, Any],
 ) -> dict[str, Any]:
     parsed = DatabaseConnectionParameters.model_validate(parameters)
-    database_url, connect_args = _build_database_url(parsed.model_dump(mode="json"))
+    database_url, connect_args = build_database_url(parsed.model_dump(mode="json"))
     engine = create_engine(
         database_url, future=True, pool_pre_ping=True, connect_args=connect_args
     )
@@ -308,7 +269,7 @@ def _validate_and_build_database_connection(
             "username": parsed.username or None,
             "password": parsed.password or None,
             "file_path": resolved_file_path,
-            "read_only": True,
+            "read_only": False,
             "options": {
                 **parsed.options,
                 "connect_timeout_s": parsed.connect_timeout_s,

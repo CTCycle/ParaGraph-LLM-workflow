@@ -130,7 +130,7 @@ def test_sql_file_database_node_roundtrip(tmp_path: Path) -> None:
 
     assert connection_payload["connection"]["engine"] == "sqlite"
     assert connection_payload["connection"]["file_path"] == str(database_path.resolve())
-    assert connection_payload["connection"]["read_only"] is True
+    assert connection_payload["connection"]["read_only"] is False
     assert connection_payload["connection"]["database_name"] == "file_dataset"
 
 

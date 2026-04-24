@@ -1,5 +1,6 @@
 import {
   DatabaseConnectionCheckResponse,
+  DatabaseSchemaResponse,
   NodeCatalogResponse,
   NodeManifest,
   VectorStoreConnectionCheckResponse,
@@ -67,6 +68,21 @@ export function checkDatabaseConnection(
   parameters: Record<string, unknown>,
 ): Promise<DatabaseConnectionCheckResponse> {
   return requestJson<DatabaseConnectionCheckResponse>('/nodes/check-database-connection', {
+    method: 'POST',
+    body: JSON.stringify({
+      node_type: nodeType,
+      node_version: nodeVersion,
+      parameters,
+    }),
+  })
+}
+
+export function inspectDatabaseSchema(
+  nodeType: 'SQL_DATABASE' | 'SQL_FILE_DATABASE',
+  nodeVersion: number,
+  parameters: Record<string, unknown>,
+): Promise<DatabaseSchemaResponse> {
+  return requestJson<DatabaseSchemaResponse>('/nodes/database-schema', {
     method: 'POST',
     body: JSON.stringify({
       node_type: nodeType,

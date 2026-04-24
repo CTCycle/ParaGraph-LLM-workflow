@@ -1,0 +1,87 @@
+{
+  "id": "CRUD_READ",
+  "version": 1,
+  "name": "Read",
+  "category": "database",
+  "description": "Read rows from an existing database table with simple column selection and equality filters.",
+  "inputs": [
+    {
+      "name": "filters",
+      "data_type": "JSON",
+      "required": false,
+      "description": "Optional JSON object of equality filters. Overrides configured filters when connected."
+    }
+  ],
+  "outputs": [
+    {
+      "name": "dataset",
+      "data_type": "DATASET",
+      "required": true
+    }
+  ],
+  "controllers": [
+    {
+      "name": "connection",
+      "data_type": "DATABASE_CONNECTION",
+      "required": true,
+      "accepts_multiple": false,
+      "scope": "target",
+      "description": "Database connection controller from a database node."
+    }
+  ],
+  "parameters": [
+    {
+      "name": "table",
+      "data_type": "TEXT",
+      "default": "",
+      "constraints": {
+        "required": true
+      },
+      "ui_control": "text",
+      "description": "Existing table to read from."
+    },
+    {
+      "name": "columns",
+      "data_type": "TEXT",
+      "default": "",
+      "ui_control": "text",
+      "description": "Optional comma-separated columns. Leave empty to return all columns."
+    },
+    {
+      "name": "filters",
+      "data_type": "JSON",
+      "default": {},
+      "ui_control": "json",
+      "description": "JSON object of column names to equality filter values."
+    },
+    {
+      "name": "limit",
+      "data_type": "JSON",
+      "default": 100,
+      "constraints": {
+        "min": 1,
+        "max": 10000
+      },
+      "ui_control": "number",
+      "description": "Maximum number of rows returned."
+    },
+    {
+      "name": "order_by",
+      "data_type": "TEXT",
+      "default": "",
+      "ui_control": "text",
+      "description": "Optional column name used for ascending ordering."
+    }
+  ],
+  "ui": {
+    "default_width": 360,
+    "accent_color": "#2877c7",
+    "collapsed_by_default": false
+  },
+  "runtime": {
+    "executor_key": "crud_read",
+    "cacheable": false,
+    "deterministic": false,
+    "side_effecting": false
+  }
+}
