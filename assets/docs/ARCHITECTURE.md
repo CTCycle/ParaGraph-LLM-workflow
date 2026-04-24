@@ -134,7 +134,7 @@ Typical backend flow follows endpoint -> service -> repository:
 - Configurations:
   `api/configurations.py` -> `services/configuration.py` -> `repositories/configuration.py` -> SQLAlchemy models in `repositories/schemas/models.py`
 - Provider catalogs/downloads:
-  `api/providers.py` -> `services/workflow/provider/service.py` (+ jobs/event systems)
+  `api/providers.py` -> `services/workflow/provider/service.py`, with provider helper and mixin modules under `services/workflow/provider/` (+ jobs/event systems)
 
 ## Responsibilities of Key Modules
 
@@ -142,6 +142,10 @@ Typical backend flow follows endpoint -> service -> repository:
 - `server/domain/*`: request/response models, workflow schema, execution/event models.
 - `server/services/workflow/compiler/service.py`: graph validation, diagnostics, topological planning.
 - `server/services/workflow/execution.py`: step orchestration, cache, output shaping, event publishing.
+- `server/services/workflow/provider/service.py`: provider facade, model metadata, and download orchestration.
+- `server/services/workflow/provider/helpers.py`: shared provider metadata/constants and coercion helpers.
+- `server/services/workflow/provider/ollama.py`: Ollama library service adapter plus cache/fetch mixin.
+- `server/services/workflow/provider/huggingface_catalog.py`: Hugging Face catalog adapter plus catalog/cache/local metadata mixin.
 - `server/services/jobs.py`: thread-based background job manager.
 - `server/services/runtime/events.py`: in-memory event bus + per-run history.
 - `server/repositories/workflow/workflow.py`: filesystem workflow storage + index.
