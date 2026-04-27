@@ -192,7 +192,7 @@ type WorkflowTextEditorBinding = {
 }
 
 export function createExecutionSessionId(): string {
-    const cryptoApi = window.crypto
+    const cryptoApi = globalThis.crypto
     if (cryptoApi && typeof cryptoApi.randomUUID === 'function') {
         return cryptoApi.randomUUID()
     }
@@ -274,7 +274,7 @@ function pickWorkflowJsonFromBrowser(): Promise<SelectedWorkflowJson | null> {
                 return
             }
             settled = true
-            window.removeEventListener('focus', handleWindowFocus)
+            globalThis.removeEventListener('focus', handleWindowFocus)
             resolve(value)
         }
 
@@ -283,12 +283,12 @@ function pickWorkflowJsonFromBrowser(): Promise<SelectedWorkflowJson | null> {
                 return
             }
             settled = true
-            window.removeEventListener('focus', handleWindowFocus)
+            globalThis.removeEventListener('focus', handleWindowFocus)
             reject(error)
         }
 
         const handleWindowFocus = (): void => {
-            window.setTimeout(() => {
+            globalThis.setTimeout(() => {
                 if (!settled && !changeHandled && !input.files?.length) {
                     settle(null)
                 }
@@ -312,7 +312,7 @@ function pickWorkflowJsonFromBrowser(): Promise<SelectedWorkflowJson | null> {
                 })
         })
 
-        window.addEventListener('focus', handleWindowFocus, { once: true })
+        globalThis.addEventListener('focus', handleWindowFocus, { once: true })
         input.click()
     })
 }
@@ -424,20 +424,32 @@ function registerPickerCancelHandler(
     }
 
     const handleWindowFocus = (): void => {
-        window.setTimeout(() => {
+        globalThis.setTimeout(() => {
             if (!wasChangeHandled() && !input.files?.length) {
                 settleAsCancelled()
             }
         }, BROWSER_PICKER_CANCEL_GUARD_MS)
     }
-    window.addEventListener('focus', handleWindowFocus, { once: true })
-    return () => window.removeEventListener('focus', handleWindowFocus)
+    globalThis.addEventListener('focus', handleWindowFocus, { once: true })
+    return () => globalThis.removeEventListener('focus', handleWindowFocus)
 }
 
 function inferSelectedFolderName(files: File[]): string {
     const firstRelativePath = files[0]?.webkitRelativePath || files[0]?.name || ''
     const root = firstRelativePath.split('/').find(Boolean)
     return root || 'selected folder'
+}
+
+function createPickerSettle<T>(resolve: (value: T) => void, onSettle: () => void): (value: T) => void {
+    let settled = false
+    return (value: T): void => {
+        if (settled) {
+            return
+        }
+        settled = true
+        onSettle()
+        resolve(value)
+    }
 }
 
 function pickDirectoryFromBrowser(): Promise<BrowserDirectorySelection | null> {
@@ -449,16 +461,8 @@ function pickDirectoryFromBrowser(): Promise<BrowserDirectorySelection | null> {
         input.setAttribute('directory', '')
         let changeHandled = false
 
-        let settled = false
         let unregisterCancelHandler = (): void => {}
-        const settle = (value: BrowserDirectorySelection | null): void => {
-            if (settled) {
-                return
-            }
-            settled = true
-            unregisterCancelHandler()
-            resolve(value)
-        }
+        const settle = createPickerSettle<BrowserDirectorySelection | null>(resolve, () => unregisterCancelHandler())
 
         input.addEventListener('change', () => {
             changeHandled = true
@@ -485,16 +489,8 @@ function pickFilesFromBrowser(options: { multiple: boolean }): Promise<BrowserFi
         input.multiple = options.multiple
         let changeHandled = false
 
-        let settled = false
         let unregisterCancelHandler = (): void => {}
-        const settle = (value: BrowserFileSelection | null): void => {
-            if (settled) {
-                return
-            }
-            settled = true
-            unregisterCancelHandler()
-            resolve(value)
-        }
+        const settle = createPickerSettle<BrowserFileSelection | null>(resolve, () => unregisterCancelHandler())
 
         input.addEventListener('change', () => {
             changeHandled = true
@@ -512,7 +508,7 @@ function pickFilesFromBrowser(options: { multiple: boolean }): Promise<BrowserFi
 }
 
 async function pickDirectoryHandleFromBrowser(): Promise<BrowserDirectoryHandleSelection | null> {
-    const browserWindow = window as WindowWithDirectoryPicker
+    const browserWindow = globalThis as unknown as WindowWithDirectoryPicker
     const picker = browserWindow.showDirectoryPicker
     if (typeof picker !== 'function') {
         throw new TypeError('Directory picker is not supported in this browser')
@@ -556,7 +552,7 @@ function readBaseFileNameFromPath(pathValue: string): string {
 }
 
 async function pickSaveFileFromBrowser(options: SaveFilePickerOptions): Promise<SaveFileSelection | null> {
-    const browserWindow = window as WindowWithSaveFilePicker
+    const browserWindow = globalThis as unknown as WindowWithSaveFilePicker
     const picker = browserWindow.showSaveFilePicker
     if (typeof picker !== 'function') {
         throw new TypeError('Save As is not supported in this browser')
@@ -796,12 +792,21 @@ function collectNodeItemsFromPayloadValue(value: unknown): NodeItemRecord[] {
         items.push({ key: `text:${textPayload.slice(0, 32)}`, label: 'Text', preview: textPayload })
     }
 
-    if (isRecord(value)) {
-        items.push(...collectDatasetRowItems(value))
-        items.push(...collectRetrievalHitItems(value))
+    const payloadRecord = isRecord(value) ? value : null
+    if (payloadRecord) {
+        items.push(...collectDatasetRowItems(payloadRecord))
+        items.push(...collectRetrievalHitItems(payloadRecord))
     }
 
-    const documents = (Array.isArray(isRecord(value) ? value.documents : undefined) ? (isRecord(value) ? value.documents : []) : []) as unknown[]
+    const readArrayField = (fieldName: string): unknown[] => {
+        if (!payloadRecord) {
+            return []
+        }
+        const candidate = payloadRecord[fieldName]
+        return Array.isArray(candidate) ? candidate : []
+    }
+
+    const documents = readArrayField('documents')
     for (const [index, document] of documents.entries()) {
         if (!isRecord(document)) {
             continue
@@ -817,7 +822,7 @@ function collectNodeItemsFromPayloadValue(value: unknown): NodeItemRecord[] {
         items.push({ key, label, preview: text })
     }
 
-    const chunks = (Array.isArray(isRecord(value) ? value.chunks : undefined) ? (isRecord(value) ? value.chunks : []) : []) as unknown[]
+    const chunks = readArrayField('chunks')
     for (const [index, chunk] of chunks.entries()) {
         if (!isRecord(chunk)) {
             continue
@@ -832,7 +837,7 @@ function collectNodeItemsFromPayloadValue(value: unknown): NodeItemRecord[] {
         items.push({ key, label, preview: text })
     }
 
-    const vectors = (Array.isArray(isRecord(value) ? value.vectors : undefined) ? (isRecord(value) ? value.vectors : []) : []) as unknown[]
+    const vectors = readArrayField('vectors')
     for (const [index, vectorPoint] of vectors.entries()) {
         if (!isRecord(vectorPoint)) {
             continue
@@ -1215,12 +1220,12 @@ function createDefaultExpandedCategoriesState(): CategoryExpansionState {
 
 function createExpandedCategoriesState(): CategoryExpansionState {
     const fallback = createDefaultExpandedCategoriesState()
-    if (typeof window === 'undefined') {
+    if (typeof globalThis.localStorage === 'undefined') {
         return fallback
     }
 
     try {
-        const raw = window.localStorage.getItem(WORKFLOW_TREE_STATE_STORAGE_KEY)
+        const raw = globalThis.localStorage.getItem(WORKFLOW_TREE_STATE_STORAGE_KEY)
         if (!raw) {
             return fallback
         }
@@ -1397,7 +1402,7 @@ function isWorkflowShareBundlePayload(value: unknown): value is WorkflowShareBun
         return false
     }
 
-    const workflow = value.workflow as Record<string, unknown>
+    const workflow = value.workflow
     return (
         isFiniteNumber(value.bundle_version) &&
         typeof value.app === 'string' &&
@@ -1438,12 +1443,12 @@ function readImportedWorkflowPayload(value: unknown): ImportedWorkflowPayload {
 }
 
 function readPersistedWorkflowState(): PersistedWorkflowState | null {
-    if (typeof window === 'undefined') {
+    if (typeof globalThis.localStorage === 'undefined') {
         return null
     }
 
     try {
-        const raw = window.localStorage.getItem(WORKFLOW_STATE_STORAGE_KEY)
+        const raw = globalThis.localStorage.getItem(WORKFLOW_STATE_STORAGE_KEY)
         if (!raw) {
             return null
         }
@@ -1536,10 +1541,10 @@ function readPersistedWorkflowState(): PersistedWorkflowState | null {
 }
 
 function persistWorkflowState(state: PersistedWorkflowState): void {
-    if (typeof window === 'undefined') {
+    if (typeof globalThis.localStorage === 'undefined') {
         return
     }
-    window.localStorage.setItem(WORKFLOW_STATE_STORAGE_KEY, JSON.stringify(state))
+    globalThis.localStorage.setItem(WORKFLOW_STATE_STORAGE_KEY, JSON.stringify(state))
 }
 
 function buildNodeSummary(manifest: NodeManifest): string {
@@ -1587,7 +1592,7 @@ function formatRuntimeOutput(value: Record<string, unknown> | null): string {
     try {
         return JSON.stringify(value, null, 2)
     } catch {
-        return String(value)
+        return '[unserializable runtime output]'
     }
 }
 
@@ -1611,7 +1616,7 @@ function formatJsonOutputRuntime(value: Record<string, unknown> | null): string 
     try {
         return JSON.stringify(candidate, null, 2)
     } catch {
-        return String(candidate)
+        return '[unserializable JSON output]'
     }
 }
 export function normalizeStringList(value: unknown, options: { trimItems?: boolean } = {}): string[] {
@@ -2644,12 +2649,12 @@ function WorkflowEditor() {
             return
         }
 
-        const clearTimer = window.setTimeout(() => {
+        const clearTimer = globalThis.setTimeout(() => {
             setGlowTrailNodeIds([])
         }, NODE_GLOW_CLEAR_DELAY_MS)
 
         return () => {
-            window.clearTimeout(clearTimer)
+            globalThis.clearTimeout(clearTimer)
         }
     }, [activeNodeId, glowTrailNodeIds])
 
@@ -2685,14 +2690,14 @@ function WorkflowEditor() {
             setIsEditorResizing(false)
         }
 
-        window.addEventListener('pointermove', handlePointerMove)
-        window.addEventListener('pointerup', stopResize)
-        window.addEventListener('pointercancel', stopResize)
+        globalThis.addEventListener('pointermove', handlePointerMove)
+        globalThis.addEventListener('pointerup', stopResize)
+        globalThis.addEventListener('pointercancel', stopResize)
 
         return () => {
-            window.removeEventListener('pointermove', handlePointerMove)
-            window.removeEventListener('pointerup', stopResize)
-            window.removeEventListener('pointercancel', stopResize)
+            globalThis.removeEventListener('pointermove', handlePointerMove)
+            globalThis.removeEventListener('pointerup', stopResize)
+            globalThis.removeEventListener('pointercancel', stopResize)
         }
     }, [isEditorResizing])
 
@@ -2701,8 +2706,8 @@ function WorkflowEditor() {
             setEditorPanelHeight((current) => clampEditorPanelHeight(current))
         }
 
-        window.addEventListener('resize', handleResize)
-        return () => window.removeEventListener('resize', handleResize)
+        globalThis.addEventListener('resize', handleResize)
+        return () => globalThis.removeEventListener('resize', handleResize)
     }, [])
 
     useEffect(() => {
@@ -2788,11 +2793,11 @@ function WorkflowEditor() {
             }
         }
 
-        window.addEventListener('pointerdown', closeNodeContextMenu)
-        window.addEventListener('keydown', handleEscape)
+        globalThis.addEventListener('pointerdown', closeNodeContextMenu)
+        globalThis.addEventListener('keydown', handleEscape)
         return () => {
-            window.removeEventListener('pointerdown', closeNodeContextMenu)
-            window.removeEventListener('keydown', handleEscape)
+            globalThis.removeEventListener('pointerdown', closeNodeContextMenu)
+            globalThis.removeEventListener('keydown', handleEscape)
         }
     }, [nodeContextMenu])
 
@@ -2809,8 +2814,8 @@ function WorkflowEditor() {
             setExecutionErrorModal(null)
         }
 
-        window.addEventListener('keydown', handleEscape)
-        return () => window.removeEventListener('keydown', handleEscape)
+        globalThis.addEventListener('keydown', handleEscape)
+        return () => globalThis.removeEventListener('keydown', handleEscape)
     }, [executionErrorModal])
     useEffect(() => {
         function handleKeyboardShortcuts(event: KeyboardEvent): void {
@@ -2916,15 +2921,15 @@ function WorkflowEditor() {
             }
         }
 
-        window.addEventListener('keydown', handleKeyboardShortcuts)
+        globalThis.addEventListener('keydown', handleKeyboardShortcuts)
         return () => {
-            window.removeEventListener('keydown', handleKeyboardShortcuts)
+            globalThis.removeEventListener('keydown', handleKeyboardShortcuts)
         }
     }, [edges, nodes, setEdges, setNodes])
 
     useEffect(() => {
         try {
-            window.localStorage.setItem(WORKFLOW_TREE_STATE_STORAGE_KEY, JSON.stringify(expandedCategories))
+            globalThis.localStorage.setItem(WORKFLOW_TREE_STATE_STORAGE_KEY, JSON.stringify(expandedCategories))
         } catch {
             // Ignore local storage persistence errors.
         }
@@ -4161,7 +4166,7 @@ function WorkflowEditor() {
 
     return (
         <section className="workflow-shell" ref={workflowShellRef}>
-            <div className="workflow-toolbar" role="navigation" aria-label="Workflow actions">
+            <nav className="workflow-toolbar" aria-label="Workflow actions">
                 <div className="workflow-toolbar-status">
                     <span className="workflow-toolbar-status-label">Status</span>
                     <strong>{statusText}</strong>
@@ -4201,19 +4206,18 @@ function WorkflowEditor() {
                         {isRunning ? 'Running...' : 'Run Workflow'}
                     </button>
                 </div>
-            </div>
+            </nav>
 
             {executionErrorModal && (
                 <div
                     className="workflow-error-modal-backdrop"
-                    role="presentation"
                     onMouseDown={(event) => {
                         if (event.target === event.currentTarget) {
                             setExecutionErrorModal(null)
                         }
                     }}
                 >
-                    <div className="workflow-error-modal" role="dialog" aria-modal="true" aria-label="Workflow execution error" onMouseDown={(event) => event.stopPropagation()}>
+                    <dialog className="workflow-error-modal" open aria-label="Workflow execution error">
                         <button
                             type="button"
                             className="workflow-error-modal-close"
@@ -4224,7 +4228,7 @@ function WorkflowEditor() {
                         </button>
                         <h3>{executionErrorModal.title}</h3>
                         <pre>{executionErrorModal.message}</pre>
-                    </div>
+                    </dialog>
                 </div>
             )}
 
@@ -4532,7 +4536,7 @@ function WorkflowEditor() {
                                         return
                                     }
                                     const currentName = getNodeOutputName(contextMenuNode.data.parameters) ?? ''
-                                    const nextName = window.prompt('Rename output', currentName)
+                                    const nextName = globalThis.prompt('Rename output', currentName)
                                     if (nextName === null) {
                                         return
                                     }
@@ -4553,7 +4557,7 @@ function WorkflowEditor() {
                             >
                                 Rename output
                             </button>
-                            <div className="workflow-node-context-menu-separator" role="separator" />
+                            <hr className="workflow-node-context-menu-separator" />
                             <button
                                 type="button"
                                 className="workflow-node-context-menu-item workflow-node-context-menu-item-danger" role="menuitem"
@@ -4625,6 +4629,7 @@ export default function WorkflowPage() {
         </ReactFlowProvider>
     )
 }
+
 
 
 
