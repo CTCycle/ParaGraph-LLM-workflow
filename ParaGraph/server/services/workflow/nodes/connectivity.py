@@ -7,9 +7,12 @@ from ParaGraph.server.domain.node_handler_core import VectorStoreParameters
 from ParaGraph.server.domain.nodes import (
     DatabaseConnectionCheckRequest,
     DatabaseConnectionCheckResponse,
+    DatabaseSchemaRequest,
+    DatabaseSchemaResponse,
     VectorStoreConnectionCheckRequest,
     VectorStoreConnectionCheckResponse,
 )
+from ParaGraph.server.services.workflow.database import inspect_database_schema
 from ParaGraph.server.services.workflow.nodes.registry import node_registry
 from ParaGraph.server.services.workflow.vector_stores import get_vector_store_adapter
 
@@ -37,15 +40,28 @@ class NodeConnectivityService:
                 ok=False, message="Database connection check failed."
             )
 
+    def get_database_schema(
+        self, request: DatabaseSchemaRequest
+    ) -> DatabaseSchemaResponse:
+        connection_payload = node_registry.execute(
+            request.node_type,
+            request.node_version,
+            request.parameters,
+            {},
+        )
+        schema = inspect_database_schema(connection_payload["connection"])
+        return DatabaseSchemaResponse.model_validate(schema)
+
     def check_vector_store_connection(
         self,
         request: VectorStoreConnectionCheckRequest,
         *,
-        adapter_resolver: Callable[[str], Any] = get_vector_store_adapter,
+        adapter_resolver: Callable[[str], Any] | None = None,
     ) -> VectorStoreConnectionCheckResponse:
         try:
             parsed = VectorStoreParameters.model_validate(request.parameters)
-            adapter = adapter_resolver(parsed.provider)
+            resolver = adapter_resolver or get_vector_store_adapter
+            adapter = resolver(parsed.provider)
             adapter.validate_connection(
                 index_name=parsed.index_name,
                 storage_directory=parsed.storage_path,

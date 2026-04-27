@@ -15,8 +15,6 @@ from ParaGraph.server.domain.nodes import (
 from ParaGraph.server.services.workflow import node_registry
 from ParaGraph.server.services.workflow.nodes import node_connectivity_service
 from ParaGraph.server.services.workflow.browser_uploads import browser_upload_service
-from ParaGraph.server.services.workflow.database import inspect_database_schema
-from ParaGraph.server.services.workflow.vector_stores import get_vector_store_adapter
 
 
 router = APIRouter(prefix="/nodes", tags=["nodes"])
@@ -70,14 +68,7 @@ def check_database_connection(
 @router.post("/database-schema", response_model=DatabaseSchemaResponse)
 def get_database_schema(request: DatabaseSchemaRequest) -> DatabaseSchemaResponse:
     try:
-        connection_payload = node_registry.execute(
-            request.node_type,
-            request.node_version,
-            request.parameters,
-            {},
-        )
-        schema = inspect_database_schema(connection_payload["connection"])
-        return DatabaseSchemaResponse.model_validate(schema)
+        return node_connectivity_service.get_database_schema(request)
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
@@ -91,7 +82,4 @@ def get_database_schema(request: DatabaseSchemaRequest) -> DatabaseSchemaRespons
 def check_vector_store_connection(
     request: VectorStoreConnectionCheckRequest,
 ) -> VectorStoreConnectionCheckResponse:
-    return node_connectivity_service.check_vector_store_connection(
-        request,
-        adapter_resolver=get_vector_store_adapter,
-    )
+    return node_connectivity_service.check_vector_store_connection(request)

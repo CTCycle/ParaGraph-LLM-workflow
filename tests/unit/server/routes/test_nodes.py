@@ -5,7 +5,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import Integer, String, create_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
-from ParaGraph.server.api import nodes as nodes_api
+from ParaGraph.server.services.workflow.nodes import connectivity as node_connectivity_module
 
 
 class SchemaRouteBase(DeclarativeBase):
@@ -50,7 +50,9 @@ def test_check_vector_store_connection_calls_adapter_validate(
             calls.update(kwargs)
 
     monkeypatch.setattr(
-        nodes_api, "get_vector_store_adapter", lambda provider: FakeAdapter()
+        node_connectivity_module,
+        "get_vector_store_adapter",
+        lambda provider: FakeAdapter(),
     )
 
     response = client.post(
@@ -97,7 +99,9 @@ def test_check_vector_store_connection_local_providers_require_storage_path(
             calls.update(kwargs)
 
     monkeypatch.setattr(
-        nodes_api, "get_vector_store_adapter", lambda backend: FakeAdapter()
+        node_connectivity_module,
+        "get_vector_store_adapter",
+        lambda backend: FakeAdapter(),
     )
     response = client.post(
         "/nodes/check-vector-store-connection",
@@ -138,7 +142,9 @@ def test_check_vector_store_connection_remote_providers_require_endpoint(
             calls.update(kwargs)
 
     monkeypatch.setattr(
-        nodes_api, "get_vector_store_adapter", lambda backend: FakeAdapter()
+        node_connectivity_module,
+        "get_vector_store_adapter",
+        lambda backend: FakeAdapter(),
     )
     response = client.post(
         "/nodes/check-vector-store-connection",
