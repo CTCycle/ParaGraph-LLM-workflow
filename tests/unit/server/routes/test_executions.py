@@ -261,3 +261,49 @@ def test_execution_session_id_round_trips_through_execution_endpoints(
 
     assert last_payload is not None
     assert last_payload["execution_session_id"] == session_id
+
+
+def test_execution_request_id_correlates_response_run_and_events(
+    client: TestClient,
+) -> None:
+    compile_response = client.post(
+        "/executions/compile", json={"definition": _basic_prompt_output_definition()}
+    )
+    assert compile_response.status_code == 200
+    plan = compile_response.json()["plan"]
+
+    request_id = "qa-request-123"
+    start_response = client.post(
+        "/executions",
+        headers={"X-Request-ID": request_id},
+        json={
+            "workflow_id": "wf-request-id-test",
+            "execution_session_id": "session-request-id-test",
+            "plan": plan,
+        },
+    )
+
+    assert start_response.status_code == 202
+    assert start_response.headers["X-Request-ID"] == request_id
+    started = start_response.json()
+    assert started["request_id"] == request_id
+
+    run_id = started["run_id"]
+    deadline = time.monotonic() + 2.0
+    run_payload: dict[str, object] | None = None
+    while time.monotonic() < deadline:
+        run_response = client.get(f"/executions/{run_id}")
+        assert run_response.status_code == 200
+        run_payload = run_response.json()
+        if run_payload["status"] == "completed":
+            break
+        time.sleep(0.01)
+
+    assert run_payload is not None
+    assert run_payload["request_id"] == request_id
+
+    events_response = client.get(f"/executions/{run_id}/events")
+    assert events_response.status_code == 200
+    events_payload = events_response.json()
+    assert events_payload["request_id"] == request_id
+    assert {event["request_id"] for event in events_payload["events"]} == {request_id}

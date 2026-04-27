@@ -27,6 +27,7 @@ class ExecutionService:
         plan: CompiledExecutionPlan,
         workflow_id: str | None = None,
         execution_session_id: str | None = None,
+        request_id: str | None = None,
     ) -> str:
         return job_manager.start_job(
             job_type="workflow",
@@ -35,6 +36,7 @@ class ExecutionService:
                 "plan": plan,
                 "workflow_id": workflow_id,
                 "execution_session_id": execution_session_id,
+                "request_id": request_id,
             },
         )
 
@@ -43,14 +45,17 @@ class ExecutionService:
         plan: CompiledExecutionPlan,
         workflow_id: str | None = None,
         execution_session_id: str | None = None,
+        request_id: str | None = None,
     ) -> StartExecutionResponse:
         run_id = self.start_execution(
             plan,
             workflow_id=workflow_id,
             execution_session_id=execution_session_id,
+            request_id=request_id,
         )
         return StartExecutionResponse(
             run_id=run_id,
+            request_id=request_id,
             status="running",
             execution_session_id=execution_session_id,
             poll_interval=get_server_settings().jobs.polling_interval,
@@ -65,8 +70,11 @@ class ExecutionService:
         workflow_id: str | None,
         job_id: str,
         execution_session_id: str | None = None,
+        request_id: str | None = None,
     ) -> dict[str, Any]:
-        self._initialize_run(plan, workflow_id, execution_session_id, job_id)
+        self._initialize_run(
+            plan, workflow_id, execution_session_id, job_id, request_id=request_id
+        )
         outputs_by_step: dict[str, dict[str, Any]] = {}
         output_payload: dict[str, dict[str, Any]] = {}
         cache: dict[str, dict[str, Any]] = {}
@@ -103,6 +111,7 @@ class ExecutionService:
         execution_event_service.publish(
             run_id=job_id,
             event_type="execution.completed",
+            request_id=request_id,
             payload={"outputs": output_payload},
         )
         return {"outputs": output_payload}
@@ -113,6 +122,8 @@ class ExecutionService:
         workflow_id: str | None,
         execution_session_id: str | None,
         job_id: str,
+        *,
+        request_id: str | None,
     ) -> None:
         steps_state = [
             ExecutionStepState(
@@ -122,6 +133,7 @@ class ExecutionService:
         ]
         run = ExecutionRunState(
             run_id=job_id,
+            request_id=request_id,
             workflow_id=workflow_id,
             execution_session_id=execution_session_id,
             plan_id=plan.plan_id,
@@ -132,12 +144,14 @@ class ExecutionService:
         execution_event_service.publish(
             run_id=job_id,
             event_type="execution.queued",
+            request_id=request_id,
             payload={"plan_id": plan.plan_id},
         )
         execution_run_repository.update_run(job_id, status="running", progress=0.0)
         execution_event_service.publish(
             run_id=job_id,
             event_type="execution.started",
+            request_id=request_id,
             payload={"plan_id": plan.plan_id},
         )
 
@@ -158,6 +172,7 @@ class ExecutionService:
             run_id=job_id,
             event_type="execution.step.started",
             step_id=step.step_id,
+            request_id=self._request_id_for_run(job_id),
             payload={"node_type": step.node_type, "node_id": step.node_id},
         )
 
@@ -255,6 +270,7 @@ class ExecutionService:
             run_id=job_id,
             event_type="execution.step.completed",
             step_id=step_id,
+            request_id=self._request_id_for_run(job_id),
             payload={"output": output_state_public, "progress": progress},
         )
 
@@ -271,13 +287,19 @@ class ExecutionService:
             run_id=job_id,
             event_type="execution.step.failed",
             step_id=step_id,
+            request_id=self._request_id_for_run(job_id),
             payload={"error": message},
         )
         execution_event_service.publish(
             run_id=job_id,
             event_type="execution.failed",
+            request_id=self._request_id_for_run(job_id),
             payload={"error": message},
         )
+
+    def _request_id_for_run(self, run_id: str) -> str | None:
+        run = execution_run_repository.get_run(run_id)
+        return run.request_id if run is not None else None
 
     def _resolve_inputs(
         self,

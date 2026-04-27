@@ -29,12 +29,14 @@ class EventService:
         event_type: str,
         payload: dict[str, Any],
         step_id: str | None = None,
+        request_id: str | None = None,
     ) -> ExecutionEventEnvelope:
         with self._lock:
             self._sequence[run_id] += 1
             event = ExecutionEventEnvelope(
                 event_type=event_type,
                 run_id=run_id,
+                request_id=request_id,
                 step_id=step_id,
                 sequence=self._sequence[run_id],
                 payload=payload,
@@ -66,7 +68,8 @@ class EventService:
     def get_history(self, run_id: str) -> EventHistoryResponse:
         with self._lock:
             events = list(self._history.get(run_id, []))
-        return EventHistoryResponse(run_id=run_id, events=events)
+        request_id = events[0].request_id if events else None
+        return EventHistoryResponse(run_id=run_id, request_id=request_id, events=events)
 
     # -------------------------------------------------------------------------
     def reset_for_tests(self) -> None:

@@ -157,8 +157,9 @@ class StructuredParameters(ChatParameters):
 
 ###############################################################################
 class EmbeddingParameters(BaseModel):
-    provider: str = "openai"
+    provider: str = "ollama"
     model_name: str = "nomic-embed-text"
+    tokenizer_name: str = ""
 
     @field_validator("provider")
     @classmethod
@@ -170,6 +171,11 @@ class EmbeddingParameters(BaseModel):
                 "provider must be one of: openai, gemini, huggingface, ollama"
             )
         return normalized
+
+    @field_validator("model_name", "tokenizer_name")
+    @classmethod
+    def normalize_model_reference(cls, value: str) -> str:
+        return str(value or "").strip()
 
 ###############################################################################
 class SimilaritySearchParameters(BaseModel):

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, Path, status
+import logging
+
+from fastapi import APIRouter, HTTPException, Path, Request, status
 
 from ParaGraph.server.domain.execution import (
     EventHistoryResponse,
@@ -18,6 +20,7 @@ from ParaGraph.server.services.workflow import compiler_service, execution_servi
 
 router = APIRouter(prefix="/executions", tags=["executions"])
 RUN_ID_PATTERN = r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"
+logger = logging.getLogger(__name__)
 
 ###############################################################################
 @router.post("/compile", response_model=CompileWorkflowResponse)
@@ -28,11 +31,22 @@ def compile_workflow(request: CompileWorkflowRequest) -> CompileWorkflowResponse
 @router.post(
     "", response_model=StartExecutionResponse, status_code=status.HTTP_202_ACCEPTED
 )
-def start_execution(request: StartExecutionRequest) -> StartExecutionResponse:
+def start_execution(
+    payload: StartExecutionRequest, request: Request
+) -> StartExecutionResponse:
+    request_id = getattr(request.state, "request_id", None)
+    logger.info(
+        "Starting execution request_id=%s workflow_id=%s session_id=%s plan_id=%s",
+        request_id,
+        payload.workflow_id,
+        payload.execution_session_id,
+        payload.plan.plan_id,
+    )
     return execution_service.start_execution_response(
-        request.plan,
-        workflow_id=request.workflow_id,
-        execution_session_id=request.execution_session_id,
+        payload.plan,
+        workflow_id=payload.workflow_id,
+        execution_session_id=payload.execution_session_id,
+        request_id=request_id,
     )
 
 ###############################################################################
