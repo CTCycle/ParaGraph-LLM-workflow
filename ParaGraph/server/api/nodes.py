@@ -13,8 +13,8 @@ from ParaGraph.server.domain.nodes import (
     VectorStoreConnectionCheckResponse,
 )
 from ParaGraph.server.services.workflow import node_registry
-from ParaGraph.server.services.workflow.nodes import node_connectivity_service
 from ParaGraph.server.services.workflow.browser_uploads import browser_upload_service
+from ParaGraph.server.services.workflow.nodes import node_connectivity_service
 
 
 router = APIRouter(prefix="/nodes", tags=["nodes"])
@@ -33,7 +33,7 @@ def import_node_manifest(manifest: NodeManifest) -> NodeManifest:
         return node_registry.import_manifest(manifest)
     except ValueError as exc:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)
         ) from exc
 
 
@@ -52,7 +52,7 @@ async def upload_directory(
         )
     except ValueError as exc:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)
         ) from exc
 
 ###############################################################################
@@ -71,7 +71,7 @@ def get_database_schema(request: DatabaseSchemaRequest) -> DatabaseSchemaRespons
         return node_connectivity_service.get_database_schema(request)
     except ValueError as exc:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)
         ) from exc
 
 

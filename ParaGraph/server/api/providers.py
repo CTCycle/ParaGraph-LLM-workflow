@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Path, Query
 
-from ParaGraph.server.domain.configuration import DEFAULT_SESSION_NAME
+from ParaGraph.server.domain.configuration import DEFAULT_SESSION_NAME, SESSION_NAME_PATTERN
+from ParaGraph.server.domain.jobs import JOB_ID_PATTERN
 from ParaGraph.server.domain.node_catalog import (
     HuggingFaceModelCatalogResponse,
     HuggingFaceModelDownloadCancelResponse,
@@ -22,8 +23,6 @@ from ParaGraph.server.services.workflow.provider import ProviderApiError
 
 
 router = APIRouter(prefix="/providers", tags=["providers"])
-SESSION_NAME_PATTERN = r"^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$"
-JOB_ID_PATTERN = r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"
 
 
 @router.get("/catalog", response_model=ProviderCatalogResponse)
