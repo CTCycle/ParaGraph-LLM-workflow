@@ -6,29 +6,15 @@ from ParaGraph.server.domain.configuration import (
     AppConfigurationPayload,
     ConfigurationProfileListResponse,
     DEFAULT_SESSION_NAME,
-    MASKED_API_KEY_VALUE,
     OllamaPingRequest,
     OllamaStatusResponse,
+    PROFILE_NAME_PATTERN,
+    SESSION_NAME_PATTERN,
 )
 from ParaGraph.server.services.configuration import configuration_service
 
 
 router = APIRouter(prefix="/configurations", tags=["configurations"])
-SESSION_NAME_PATTERN = r"^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$"
-PROFILE_NAME_PATTERN = r"^[A-Za-z0-9][A-Za-z0-9._ -]{0,119}$"
-
-
-def _sanitize_payload(payload: AppConfigurationPayload) -> AppConfigurationPayload:
-    sanitized = payload.model_copy(deep=True)
-    sanitized.access_keys = [
-        item.model_copy(
-            update={
-                "api_key": MASKED_API_KEY_VALUE if item.api_key else None
-            }
-        )
-        for item in sanitized.access_keys
-    ]
-    return sanitized
 
 
 @router.get("", response_model=AppConfigurationPayload)
@@ -40,14 +26,12 @@ def load_configurations(
         pattern=SESSION_NAME_PATTERN,
     ),
 ) -> AppConfigurationPayload:
-    payload = configuration_service.load_configuration(session_name=session_name)
-    return _sanitize_payload(payload)
+    return configuration_service.load_public_configuration(session_name=session_name)
 
 
 @router.put("", response_model=AppConfigurationPayload)
 def save_configurations(payload: AppConfigurationPayload) -> AppConfigurationPayload:
-    stored = configuration_service.save_configuration(payload)
-    return _sanitize_payload(stored)
+    return configuration_service.save_public_configuration(payload)
 
 
 @router.get("/profiles", response_model=ConfigurationProfileListResponse)
@@ -75,10 +59,9 @@ def load_configuration_profile(
     ),
 ) -> AppConfigurationPayload:
     try:
-        payload = configuration_service.load_configuration_profile(
+        return configuration_service.load_public_configuration_profile(
             session_name=session_name, profile_name=profile_name
         )
-        return _sanitize_payload(payload)
     except KeyError as exc:
         detail = exc.args[0] if exc.args else str(exc)
         raise HTTPException(status_code=404, detail=detail) from exc
@@ -92,10 +75,9 @@ def save_configuration_profile(
     ),
 ) -> AppConfigurationPayload:
     try:
-        stored = configuration_service.save_configuration_profile(
+        return configuration_service.save_public_configuration_profile(
             profile_name=profile_name, payload=payload
         )
-        return _sanitize_payload(stored)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 

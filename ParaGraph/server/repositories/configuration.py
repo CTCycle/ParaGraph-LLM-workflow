@@ -8,7 +8,10 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from ParaGraph.server.configurations.startup import get_server_settings
-from ParaGraph.server.domain.configuration import DEFAULT_SESSION_NAME
+from ParaGraph.server.domain.configuration import (
+    DEFAULT_SESSION_NAME,
+    PROFILE_NAME_PATTERN,
+)
 from ParaGraph.server.repositories.database.factory import DatabaseRepositoryFactory
 from ParaGraph.server.repositories.schemas import (
     AccessKey,
@@ -20,8 +23,6 @@ from ParaGraph.server.repositories.schemas import (
 
 ###############################################################################
 class ConfigurationRepository:
-    _profile_name_pattern = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._ -]{0,119}$")
-
     def __init__(
         self, database_factory: DatabaseRepositoryFactory | None = None
     ) -> None:
@@ -39,7 +40,7 @@ class ConfigurationRepository:
         normalized = profile_name.strip()
         if not normalized:
             raise ValueError("Profile name is required")
-        if not self._profile_name_pattern.fullmatch(normalized):
+        if not re.fullmatch(PROFILE_NAME_PATTERN, normalized):
             raise ValueError(
                 "Profile name may include only letters, numbers, spaces, dot, underscore, and dash"
             )

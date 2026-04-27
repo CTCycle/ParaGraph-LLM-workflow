@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field, field_validator
 
 DEFAULT_SESSION_NAME = "default"
 SESSION_NAME_PATTERN = r"^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$"
+PROFILE_NAME_PATTERN = r"^[A-Za-z0-9][A-Za-z0-9._ -]{0,119}$"
 MASKED_API_KEY_VALUE = "__PG_MASKED_API_KEY__"
 
 

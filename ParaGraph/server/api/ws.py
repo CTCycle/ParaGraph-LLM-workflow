@@ -7,18 +7,19 @@ import re
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from starlette.websockets import WebSocketState
 
+from ParaGraph.server.domain.execution import RUN_ID_PATTERN
 from ParaGraph.server.services.runtime.events import execution_event_service
 
 
 router = APIRouter(tags=["execution-ws"])
-RUN_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
+RUN_ID_PATTERN_RE = re.compile(RUN_ID_PATTERN)
 
 
 @router.websocket("/executions/ws/runs/{run_id}")
 async def execution_run_events(
     websocket: WebSocket, run_id: str, replay: bool = True
 ) -> None:
-    if not RUN_ID_PATTERN.fullmatch(run_id):
+    if not RUN_ID_PATTERN_RE.fullmatch(run_id):
         await websocket.close(code=1008, reason="Invalid run identifier")
         return
     await websocket.accept()
