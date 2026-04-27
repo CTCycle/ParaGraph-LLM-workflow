@@ -50,7 +50,7 @@
     {
       "name": "provider",
       "data_type": "TEXT",
-      "default": "openai",
+      "default": "ollama",
       "constraints": {
         "required": true,
         "options": [
@@ -61,18 +61,32 @@
         ]
       },
       "ui_control": "select",
-      "description": "Embedding provider."
+      "description": "Embedding provider. Ollama with nomic-embed-text is the local default; OpenAI and Gemini embedding models are available when configured."
     },
     {
       "name": "model_name",
       "data_type": "TEXT",
-      "default": "",
+      "default": "nomic-embed-text",
       "constraints": {
         "required": true,
         "provider_source": "provider"
       },
       "ui_control": "select",
       "description": "Embedding model available for the selected provider."
+    },
+    {
+      "name": "tokenizer_name",
+      "data_type": "TEXT",
+      "default": "",
+      "constraints": {
+        "required": false,
+        "provider_source": "provider",
+        "visible_when": {
+          "provider": "huggingface"
+        }
+      },
+      "ui_control": "select",
+      "description": "Optional Hugging Face tokenizer repository. Leave blank to use the embedding model repository tokenizer."
     }
   ],
   "ui": {

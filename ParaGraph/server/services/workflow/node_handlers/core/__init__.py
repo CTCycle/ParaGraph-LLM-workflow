@@ -567,7 +567,9 @@ def _embed_text_with_gemini(*, model_name: str, text: str) -> list[float]:
     return [float(item) for item in values]
 
 
-def _embed_text_with_huggingface(*, model_name: str, text: str) -> list[float]:
+def _embed_text_with_huggingface(
+    *, model_name: str, text: str, tokenizer_name: str = ""
+) -> list[float]:
     torch_module, auto_model, auto_tokenizer = _load_huggingface_embedding_modules()
     config = configuration_service.load_configuration()
     access_key = next(
@@ -580,12 +582,17 @@ def _embed_text_with_huggingface(*, model_name: str, text: str) -> list[float]:
     )
     access_token = access_key.api_key if access_key and access_key.api_key else None
 
-    if model_name not in _HF_EMBEDDING_CACHE:
-        tokenizer = auto_tokenizer.from_pretrained(model_name, token=access_token)
-        model = auto_model.from_pretrained(model_name, token=access_token)
-        _HF_EMBEDDING_CACHE[model_name] = (torch_module, tokenizer, model)
+    tokenizer_model_name = tokenizer_name.strip() or model_name
+    cache_key = f"{model_name}\u0000{tokenizer_model_name}"
 
-    cached_torch, tokenizer, model = _HF_EMBEDDING_CACHE[model_name]
+    if cache_key not in _HF_EMBEDDING_CACHE:
+        tokenizer = auto_tokenizer.from_pretrained(tokenizer_model_name, token=access_token)
+        if getattr(tokenizer, "pad_token", None) is None:
+            tokenizer.pad_token = tokenizer.eos_token
+        model = auto_model.from_pretrained(model_name, token=access_token)
+        _HF_EMBEDDING_CACHE[cache_key] = (torch_module, tokenizer, model)
+
+    cached_torch, tokenizer, model = _HF_EMBEDDING_CACHE[cache_key]
     encoded = tokenizer([text], padding=True, truncation=True, return_tensors="pt")
     target_device = getattr(model, "device", None)
     if target_device is not None:
@@ -612,7 +619,7 @@ def _embed_text_with_huggingface(*, model_name: str, text: str) -> list[float]:
 
 
 def _embed_text_for_text_embedding_node(
-    *, provider: str, model_name: str, text: str
+    *, provider: str, model_name: str, text: str, tokenizer_name: str = ""
 ) -> list[float]:
     if provider in {"openai", "ollama"}:
         return provider_service.embed_text(
@@ -621,7 +628,9 @@ def _embed_text_for_text_embedding_node(
     if provider == "gemini":
         return _embed_text_with_gemini(model_name=model_name, text=text)
     if provider == "huggingface":
-        return _embed_text_with_huggingface(model_name=model_name, text=text)
+        return _embed_text_with_huggingface(
+            model_name=model_name, text=text, tokenizer_name=tokenizer_name
+        )
     raise ValueError(f"Unsupported embedding provider: {provider}")
 
 
@@ -630,6 +639,7 @@ def _collect_embedding_points(
     inputs: dict[str, Any],
     provider: str,
     model_name: str,
+    tokenizer_name: str = "",
 ) -> list[dict[str, Any]]:
     points: list[dict[str, Any]] = []
     text_payload = coerce_text(inputs.get("text") or "").strip()
@@ -643,7 +653,10 @@ def _collect_embedding_points(
                 "text": text_payload,
                 "source_uri": "inline:text",
                 "vector": _embed_text_for_text_embedding_node(
-                    provider=provider, model_name=model_name, text=text_payload
+                    provider=provider,
+                    model_name=model_name,
+                    tokenizer_name=tokenizer_name,
+                    text=text_payload,
                 ),
                 "embedding_provider": provider,
                 "embedding_model": model_name,
@@ -673,7 +686,10 @@ def _collect_embedding_points(
                 "text": text_content,
                 "source_uri": source_uri,
                 "vector": _embed_text_for_text_embedding_node(
-                    provider=provider, model_name=model_name, text=text_content
+                    provider=provider,
+                    model_name=model_name,
+                    tokenizer_name=tokenizer_name,
+                    text=text_content,
                 ),
                 "embedding_provider": provider,
                 "embedding_model": model_name,
@@ -708,7 +724,10 @@ def _collect_embedding_points(
                 "text": text_content,
                 "source_uri": source_uri,
                 "vector": _embed_text_for_text_embedding_node(
-                    provider=provider, model_name=model_name, text=text_content
+                    provider=provider,
+                    model_name=model_name,
+                    tokenizer_name=tokenizer_name,
+                    text=text_content,
                 ),
                 "embedding_provider": provider,
                 "embedding_model": model_name,
@@ -726,9 +745,13 @@ def _embedding_executor(
     model_name = coerce_text(parsed.model_name).strip()
     if not model_name:
         raise ValueError("TEXT_EMBEDDING requires a model_name")
-    provider = normalize_provider_name(parsed.provider, default="openai")
+    provider = normalize_provider_name(parsed.provider, default="ollama")
+    tokenizer_name = coerce_text(parsed.tokenizer_name).strip()
     points = _collect_embedding_points(
-        inputs=inputs, provider=provider, model_name=model_name
+        inputs=inputs,
+        provider=provider,
+        model_name=model_name,
+        tokenizer_name=tokenizer_name,
     )
     if not points:
         raise ValueError(
@@ -742,6 +765,7 @@ def _embedding_executor(
         "embedding": {
             "provider": provider,
             "model": model_name,
+            "tokenizer_model": tokenizer_name or model_name,
             "vectors": vectors,
         },
     }
@@ -778,14 +802,15 @@ def _flatten_embedding_controller_inputs(
     return points
 
 
-def _extract_embedding_source(payload: Any) -> tuple[str, str]:
+def _extract_embedding_source(payload: Any) -> tuple[str, str, str]:
     if not isinstance(payload, dict):
         raise ValueError("SIMILARITY_SEARCH requires an embedding controller payload")
     provider = coerce_text(payload.get("provider") or "").strip().lower()
     model_name = coerce_text(payload.get("model") or "").strip()
     if not provider or not model_name:
         raise ValueError("Embedding controller payload must include provider and model")
-    return provider, model_name
+    tokenizer_name = coerce_text(payload.get("tokenizer_model") or "").strip()
+    return provider, model_name, tokenizer_name
 
 
 def _canonical_similarity_metric(value: str) -> str:
@@ -834,9 +859,9 @@ def _similarity_search_executor(
         raise ValueError("SIMILARITY_SEARCH requires a query input")
 
     embedding_payload = inputs.get("embedding")
-    provider, model_name = _extract_embedding_source(embedding_payload)
+    provider, model_name, tokenizer_name = _extract_embedding_source(embedding_payload)
     query_vector = _embed_text_for_text_embedding_node(
-        provider=provider, model_name=model_name, text=query
+        provider=provider, model_name=model_name, tokenizer_name=tokenizer_name, text=query
     )
 
     raw_store_payload = inputs.get("store")

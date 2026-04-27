@@ -17,6 +17,7 @@ from ParaGraph.server.api.configurations import router as configurations_router
 from ParaGraph.server.api.executions import router as executions_router
 from ParaGraph.server.api.nodes import router as nodes_router
 from ParaGraph.server.api.providers import router as providers_router
+from ParaGraph.server.api.request_id import request_id_middleware
 from ParaGraph.server.api.root import router as root_router
 from ParaGraph.server.api.workflows import router as workflows_router
 from ParaGraph.server.api.ws import router as ws_router
@@ -45,6 +46,7 @@ def create_app() -> FastAPI:
 
     app.state.cloud_mode = cloud_mode
     app.state.tauri_mode = tauri_mode
+    app.middleware("http")(request_id_middleware)
 
     app.include_router(workflows_router)
     app.include_router(executions_router)

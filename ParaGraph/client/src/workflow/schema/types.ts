@@ -247,6 +247,7 @@ export interface CompileWorkflowResponse {
 
 export interface StartExecutionResponse {
     run_id: string
+    request_id?: string | null
     status: string
     execution_session_id?: string | null
     poll_interval: number
@@ -267,6 +268,7 @@ export interface ExecutionStepState {
 
 export interface ExecutionRunState {
     run_id: string
+    request_id?: string | null
     workflow_id?: string | null
     execution_session_id?: string | null
     plan_id: string
@@ -292,6 +294,7 @@ export type ExecutionEventType =
 export interface ExecutionEventEnvelope {
     event_type: ExecutionEventType
     run_id: string
+    request_id?: string | null
     step_id: string | null
     sequence: number
     timestamp: string

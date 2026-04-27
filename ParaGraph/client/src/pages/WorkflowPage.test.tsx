@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
 import type { NodeManifest, ProviderModelDefinition } from '../workflow/schema/types'
-import { getDynamicModelOptions, resolveExecutionSessionId } from './WorkflowPage'
+import {
+    collectNodeItems,
+    getDynamicModelOptions,
+    getDynamicTokenizerOptions,
+    resolveExecutionSessionId,
+} from './WorkflowPage'
 
 import textEmbeddingManifestJson from '../../../resources/nodes/text_embedding_v1.json'
 import vectorStoreManifestJson from '../../../resources/nodes/vector_store_v1.json'
@@ -40,6 +45,14 @@ describe('WorkflowPage manifest-driven provider and retrieval behavior', () => {
         const providerOptions = getOptions(textEmbeddingManifest, 'provider')
         expect(providerOptions).toEqual(['openai', 'gemini', 'huggingface', 'ollama'])
         expect(providerOptions).not.toContain('cloud')
+        expect(textEmbeddingManifest.parameters.find((item) => item.name === 'provider')?.default).toBe('ollama')
+        expect(textEmbeddingManifest.parameters.find((item) => item.name === 'model_name')?.default).toBe('nomic-embed-text')
+    })
+
+    it('TEXT_EMBEDDING exposes a Hugging Face tokenizer selector only for Hugging Face', () => {
+        const tokenizerParameter = textEmbeddingManifest.parameters.find((item) => item.name === 'tokenizer_name')
+        expect(tokenizerParameter?.ui_control).toBe('select')
+        expect(tokenizerParameter?.constraints.visible_when).toEqual({ provider: 'huggingface' })
     })
 
     it('VECTOR_STORE provider options include faiss', () => {
@@ -101,8 +114,57 @@ describe('WorkflowPage manifest-driven provider and retrieval behavior', () => {
         }
     })
 
+    it('node item previews include database dataset rows', () => {
+        const items = collectNodeItems(crudReadManifestJson as NodeManifest, {}, {
+            ports: {
+                dataset: {
+                    columns: ['id', 'label', 'status'],
+                    rows: [
+                        { id: 1, label: 'alpha', status: 'updated' },
+                    ],
+                },
+            },
+        })
+
+        expect(items).toHaveLength(1)
+        expect(items[0].label).toBe('Row 1')
+        expect(items[0].preview).toContain('"status":"updated"')
+    })
+
+    it('node item previews include retrieval hits with source labels and scores', () => {
+        const items = collectNodeItems(similaritySearchManifest, {}, {
+            ports: {
+                results: {
+                    query: 'drug induced liver injury',
+                    hits: [
+                        {
+                            id: 'hit-1',
+                            score: 0.8754,
+                            text: 'DILI relevant passage',
+                            source_uri: 'C:\\docs\\study.pdf',
+                            metadata: { file_name: 'study.pdf' },
+                        },
+                    ],
+                },
+            },
+        })
+
+        expect(items).toHaveLength(1)
+        expect(items[0].label).toBe('study.pdf (0.875)')
+        expect(items[0].preview).toBe('DILI relevant passage')
+    })
+
     it('embedding model options are provider-catalog driven and update on provider switch', () => {
         const providerModels: ProviderModelDefinition[] = [
+            {
+                provider: 'ollama',
+                model: 'nomic-embed-text',
+                label: 'nomic-embed-text',
+                supports_image: false,
+                supports_embeddings: true,
+                supports_reasoning: false,
+                supports_structured_output: false,
+            },
             {
                 provider: 'openai',
                 model: 'custom-openai-embed',
@@ -132,11 +194,56 @@ describe('WorkflowPage manifest-driven provider and retrieval behavior', () => {
             },
         ]
 
+        const ollamaModels = getDynamicModelOptions(textEmbeddingManifest, { provider: 'ollama' }, providerModels)
         const openaiModels = getDynamicModelOptions(textEmbeddingManifest, { provider: 'openai' }, providerModels)
         const geminiModels = getDynamicModelOptions(textEmbeddingManifest, { provider: 'gemini' }, providerModels)
 
+        expect(ollamaModels.map((item) => item.model)).toEqual(['nomic-embed-text'])
         expect(openaiModels.map((item) => item.model)).toEqual(['custom-openai-embed'])
         expect(geminiModels.map((item) => item.model)).toEqual(['gemini-embedding-001'])
+    })
+
+    it('Hugging Face tokenizer options include non-embedding Hugging Face models', () => {
+        const providerModels: ProviderModelDefinition[] = [
+            {
+                provider: 'huggingface',
+                model: 'sentence-transformers/all-MiniLM-L6-v2',
+                label: 'all-MiniLM-L6-v2',
+                supports_image: false,
+                supports_embeddings: true,
+                supports_reasoning: false,
+                supports_structured_output: false,
+            },
+            {
+                provider: 'huggingface',
+                model: 'bert-base-uncased',
+                label: 'bert-base-uncased',
+                supports_image: false,
+                supports_embeddings: false,
+                supports_reasoning: false,
+                supports_structured_output: false,
+            },
+            {
+                provider: 'openai',
+                model: 'text-embedding-3-small',
+                label: 'Text Embedding 3 Small',
+                supports_image: false,
+                supports_embeddings: true,
+                supports_reasoning: false,
+                supports_structured_output: false,
+            },
+        ]
+
+        const embeddingModels = getDynamicModelOptions(textEmbeddingManifest, { provider: 'huggingface' }, providerModels)
+        const tokenizerModels = getDynamicTokenizerOptions(textEmbeddingManifest, { provider: 'huggingface' }, providerModels)
+        const nonHfTokenizerModels = getDynamicTokenizerOptions(textEmbeddingManifest, { provider: 'openai' }, providerModels)
+
+        expect(embeddingModels.map((item) => item.model)).toEqual(['sentence-transformers/all-MiniLM-L6-v2'])
+        expect(tokenizerModels.map((item) => item.model)).toEqual([
+            'sentence-transformers/all-MiniLM-L6-v2',
+            'bert-base-uncased',
+        ])
+        expect(nonHfTokenizerModels).toEqual([])
     })
 
     it('execution session id stays stable until reset', () => {

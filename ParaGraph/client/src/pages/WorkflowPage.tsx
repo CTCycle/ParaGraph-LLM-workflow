@@ -178,7 +178,7 @@ type EditorSelectionNode = {
     runtimeOutput: Record<string, unknown> | null
 }
 
-type NodeItemRecord = {
+export type NodeItemRecord = {
     key: string
     label: string
     preview: string
@@ -739,11 +739,66 @@ function toNodeItemPreview(value: string): string {
     return compact.slice(0, 177) + '...'
 }
 
+function stringifyPreviewValue(value: unknown): string {
+    if (typeof value === 'string') {
+        return value
+    }
+    try {
+        return JSON.stringify(value)
+    } catch {
+        return coerceTextPayload(value)
+    }
+}
+
+function collectDatasetRowItems(value: Record<string, unknown>): NodeItemRecord[] {
+    const dataset = isRecord(value.dataset) ? value.dataset : value
+    const rows = Array.isArray(dataset.rows) ? dataset.rows : []
+    return rows
+        .filter((row): row is Record<string, unknown> => isRecord(row))
+        .slice(0, 50)
+        .map((row, index) => {
+            const labelValue = coerceTextPayload(row.id) || coerceTextPayload(row.name) || coerceTextPayload(row.label)
+            return {
+                key: `dataset-row:${index}:${labelValue || stringifyPreviewValue(row).slice(0, 32)}`,
+                label: labelValue ? `Row ${labelValue}` : `Row ${index + 1}`,
+                preview: stringifyPreviewValue(row),
+            }
+        })
+}
+
+function collectRetrievalHitItems(value: Record<string, unknown>): NodeItemRecord[] {
+    const results = isRecord(value.results) ? value.results : value
+    const hits = Array.isArray(results.hits) ? results.hits : []
+    return hits
+        .filter((hit): hit is Record<string, unknown> => isRecord(hit))
+        .slice(0, 50)
+        .map((hit, index) => {
+            const metadata = isRecord(hit.metadata) ? hit.metadata : {}
+            const rawLabel =
+                coerceTextPayload(metadata.file_name)
+                || coerceTextPayload(hit.source_uri)
+                || coerceTextPayload(hit.document_id)
+                || `Hit ${index + 1}`
+            const label = basenameOnly(rawLabel) || rawLabel
+            const score = typeof hit.score === 'number' ? ` (${hit.score.toFixed(3)})` : ''
+            return {
+                key: coerceTextPayload(hit.id) || `retrieval-hit:${index}`,
+                label: `${label}${score}`,
+                preview: coerceTextPayload(hit.text) || stringifyPreviewValue(hit),
+            }
+        })
+}
+
 function collectNodeItemsFromPayloadValue(value: unknown): NodeItemRecord[] {
     const items: NodeItemRecord[] = []
     const textPayload = coerceTextPayload((isRecord(value) ? value.text : undefined) ?? value)
     if (textPayload.trim()) {
         items.push({ key: `text:${textPayload.slice(0, 32)}`, label: 'Text', preview: textPayload })
+    }
+
+    if (isRecord(value)) {
+        items.push(...collectDatasetRowItems(value))
+        items.push(...collectRetrievalHitItems(value))
     }
 
     const documents = (Array.isArray(isRecord(value) ? value.documents : undefined) ? (isRecord(value) ? value.documents : []) : []) as unknown[]
@@ -833,7 +888,7 @@ function collectNodeItemsFromParameters(manifest: NodeManifest, parameters: Reco
     return items
 }
 
-function collectNodeItems(manifest: NodeManifest, parameters: Record<string, unknown>, runtimeStepOutput: Record<string, unknown> | null): NodeItemRecord[] {
+export function collectNodeItems(manifest: NodeManifest, parameters: Record<string, unknown>, runtimeStepOutput: Record<string, unknown> | null): NodeItemRecord[] {
     const runtimePorts = isRecord(runtimeStepOutput?.ports) ? collectNodeItemsFromPayloadValue(runtimeStepOutput.ports) : []
     if (runtimePorts.length > 0) {
         return runtimePorts
@@ -1705,6 +1760,21 @@ export function getDynamicModelOptions(
     return []
 }
 
+export function getDynamicTokenizerOptions(
+    manifest: NodeManifest,
+    parameters: Record<string, unknown>,
+    providerModels: ProviderModelDefinition[],
+): ProviderModelDefinition[] {
+    if (manifest.id !== 'TEXT_EMBEDDING') {
+        return []
+    }
+    const provider = normalizeProvider(parameters.provider ?? 'ollama') || 'ollama'
+    if (provider !== 'huggingface') {
+        return []
+    }
+    return providerModels.filter((item) => item.provider === 'huggingface')
+}
+
 function buildInitialNodeParameters(
     manifest: NodeManifest,
     providerModels: ProviderModelDefinition[],
@@ -1741,6 +1811,12 @@ function getParameterOptions(
 ): Array<{ value: string; label: string }> {
     if (parameter.name === 'model_name') {
         return getDynamicModelOptions(manifest, parameters, providerModels).map((item) => ({
+            value: item.model,
+            label: item.label,
+        }))
+    }
+    if (parameter.name === 'tokenizer_name') {
+        return getDynamicTokenizerOptions(manifest, parameters, providerModels).map((item) => ({
             value: item.model,
             label: item.label,
         }))
@@ -4039,7 +4115,8 @@ function WorkflowEditor() {
                 poll_interval: execution.poll_interval,
             }
             setActiveRun(runSnapshot)
-            setStatusText('Running workflow...')
+            const requestLabel = execution.request_id ? `, request ${execution.request_id}` : ''
+            setStatusText(`Running workflow ${execution.run_id}${requestLabel}...`)
 
             const finalState = await monitorExecutionRun(runSnapshot.run_id, runSnapshot.poll_interval)
             if (!finalState) {

@@ -62,6 +62,7 @@ class ExecutionStepState(BaseModel):
 ###############################################################################
 class ExecutionRunState(BaseModel):
     run_id: str
+    request_id: str | None = None
     workflow_id: str | None = None
     execution_session_id: str | None = None
     plan_id: str
@@ -77,6 +78,7 @@ class ExecutionRunState(BaseModel):
 class ExecutionEventEnvelope(BaseModel):
     event_type: ExecutionEventType
     run_id: str
+    request_id: str | None = None
     step_id: str | None = None
     sequence: int
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
@@ -91,6 +93,7 @@ class StartExecutionRequest(BaseModel):
 ###############################################################################
 class StartExecutionResponse(BaseModel):
     run_id: str
+    request_id: str | None = None
     status: ExecutionStatus
     execution_session_id: str | None = None
     poll_interval: float = 1.0
@@ -98,4 +101,5 @@ class StartExecutionResponse(BaseModel):
 ###############################################################################
 class EventHistoryResponse(BaseModel):
     run_id: str
+    request_id: str | None = None
     events: list[ExecutionEventEnvelope] = Field(default_factory=list)
