@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useState } from 'react'
+import { FormEvent, useMemo, useState } from 'react'
 import {
     ArrowDownToLine,
     ArrowUpToLine,
@@ -23,10 +23,12 @@ import { usePageMetadata } from '../app/hooks/usePageMetadata'
 import SectionHeading from '../components/SectionHeading'
 import StatusBanner from '../components/StatusBanner'
 import { importNodeManifest } from '../app/services/nodesApi'
-import { fetchWorkflowTemplates } from '../app/services/workflowsApi'
 import { useNodeCatalog } from '../workflow/hooks/useNodeCatalog'
 import { NODE_CATEGORY_LABELS, NODE_CATEGORY_ORDER } from '../workflow/schema/nodeCategory'
 import { NodeCategory, NodeManifest, WorkflowNavigationState, WorkflowOpenIntent, WorkflowTemplate } from '../workflow/schema/types'
+import NodePreviewCard from './nodes/NodePreviewCard'
+import { type NodePreviewDetailItem } from './nodes/types'
+import { useWorkflowTemplates } from './nodes/useWorkflowTemplates'
 import './NodesPage.css'
 
 const NODE_MANIFEST_TEMPLATE = `{
@@ -156,7 +158,7 @@ function buildNodeExplanation(node: NodeManifest): string {
     return description || 'No description provided.'
 }
 
-function buildNodeDetails(node: NodeManifest): Array<{ label: string; value: string }> {
+function buildNodeDetails(node: NodeManifest): NodePreviewDetailItem[] {
     const parameterNames = node.parameters.map((parameter) => parameter.name)
 
     return [
@@ -193,15 +195,13 @@ export default function NodesPage() {
     const navigate = useNavigate()
     const [search, setSearch] = useState('')
     const [templateSearch, setTemplateSearch] = useState('')
-    const [templates, setTemplates] = useState<WorkflowTemplate[]>([])
-    const [templatesLoading, setTemplatesLoading] = useState(false)
-    const [templatesError, setTemplatesError] = useState<string | null>(null)
     const [selectedCategories, setSelectedCategories] = useState<NodeCategory[]>(() => [...NODE_CATEGORY_ORDER])
     const [jsonText, setJsonText] = useState('')
     const [importStatus, setImportStatus] = useState<string | null>(null)
     const [isImporting, setIsImporting] = useState(false)
     const [isImportModalOpen, setIsImportModalOpen] = useState(false)
     const getErrorMessage = useErrorMessage()
+    const { templates, templatesLoading, templatesError } = useWorkflowTemplates({ getErrorMessage })
     const importModalTitleId = 'nodes-import-modal-title'
     const importModalDescriptionId = 'nodes-import-modal-description'
     const pageBannerMessage = error || templatesError
@@ -236,33 +236,6 @@ export default function NodesPage() {
             return haystack.includes(normalized)
         })
     }, [templateSearch, templates])
-
-    useEffect(() => {
-        let active = true
-        setTemplatesLoading(true)
-        void fetchWorkflowTemplates()
-            .then((payload) => {
-                if (!active) {
-                    return
-                }
-                setTemplates(payload.templates)
-                setTemplatesError(null)
-            })
-            .catch((loadError) => {
-                if (!active) {
-                    return
-                }
-                setTemplatesError(getErrorMessage(loadError, 'Failed to load workflow templates'))
-            })
-            .finally(() => {
-                if (active) {
-                    setTemplatesLoading(false)
-                }
-            })
-        return () => {
-            active = false
-        }
-    }, [getErrorMessage])
 
     useEscapeToClose({
         enabled: isImportModalOpen && !isImporting,
@@ -420,55 +393,22 @@ export default function NodesPage() {
                                         const detailItems = buildNodeDetails(node)
                                         const controllerNames = getNodeControllers(node)
                                         return (
-                                            <article key={`${node.id}-${node.version}`} className="nodes-preview-row" role="listitem">
-                                                <div className="nodes-preview-row-header">
-                                                    <div className="nodes-preview-icon">
-                                                        <Icon size={17} strokeWidth={1.8} />
-                                                    </div>
-                                                    <div className="nodes-preview-title-group">
-                                                        <div className="nodes-preview-title-row">
-                                                            <h3>{node.name}</h3>
-                                                            <span>{NODE_CATEGORY_LABELS[node.category]}</span>
-                                                            <button
-                                                                type="button"
-                                                                className="nodes-node-add-button"
-                                                                aria-label={`Add ${node.name} to canvas`}
-                                                                title="Add to canvas"
-                                                                onClick={() =>
-                                                                    navigateToWorkflow({
-                                                                        type: 'add-node',
-                                                                        node_id: node.id,
-                                                                        node_version: node.version,
-                                                                    })
-                                                                }
-                                                            >
-                                                                <Plus size={14} strokeWidth={2.1} />
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <p className="nodes-preview-summary">{buildNodeExplanation(node)}</p>
-                                                {controllerNames.length > 0 && (
-                                                    <div className="nodes-preview-controllers" aria-label={`${node.name} controllers`}>
-                                                        <span className="nodes-preview-controllers-label">Controllers</span>
-                                                        <div className="nodes-preview-controller-chips">
-                                                            {controllerNames.map((controllerName) => (
-                                                                <span key={`${node.id}-ctrl-${controllerName}`} className="nodes-preview-controller-chip">
-                                                                    {controllerName}
-                                                                </span>
-                                                            ))}
-                                                        </div>
-                                                    </div>
-                                                )}
-                                                <dl className="nodes-preview-meta" aria-label={`${node.name} metadata`}>
-                                                    {detailItems.map((item) => (
-                                                        <div key={`${node.id}-${item.label}`} className="nodes-preview-meta-item">
-                                                            <dt>{item.label}</dt>
-                                                            <dd>{item.value}</dd>
-                                                        </div>
-                                                    ))}
-                                                </dl>
-                                            </article>
+                                            <NodePreviewCard
+                                                key={`${node.id}-${node.version}`}
+                                                node={node}
+                                                categoryLabel={NODE_CATEGORY_LABELS[node.category]}
+                                                icon={Icon}
+                                                summary={buildNodeExplanation(node)}
+                                                detailItems={detailItems}
+                                                controllerNames={controllerNames}
+                                                onAddNode={(manifest) =>
+                                                    navigateToWorkflow({
+                                                        type: 'add-node',
+                                                        node_id: manifest.id,
+                                                        node_version: manifest.version,
+                                                    })
+                                                }
+                                            />
                                         )
                                     })}
                             </div>
