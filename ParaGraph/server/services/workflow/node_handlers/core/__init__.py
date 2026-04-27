@@ -157,7 +157,7 @@ def _coerce_template_value(value: Any) -> str:
         return str(value)
 
 
-_PROMPT_TEMPLATE_PATTERN = re.compile(r"\{([A-Za-z_][A-Za-z0-9_]*)\}")
+_PROMPT_TEMPLATE_PATTERN = re.compile(r"\{([A-Za-z_]\w*)\}")
 
 
 def _collect_prompt_template_variable_maps(raw_variables: Any) -> list[dict[str, Any]]:
