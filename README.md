@@ -31,7 +31,7 @@ Primary capabilities include:
 
 ### 2.1 Windows (Recommended Launcher)
 
-1. Navigate to `ParaGraph`.
+1. Navigate to the repository root.
 2. Run `start_on_windows.bat`.
 
 What the launcher does:
@@ -52,7 +52,7 @@ Minimum requirements:
 
 At a high level:
 - Install backend dependencies and run the FastAPI service.
-- Install frontend dependencies from `ParaGraph/client` and start/build the UI.
+- Install frontend dependencies from `app/client` and start/build the UI.
 
 ### 2.3 Desktop Packaging (Windows, Tauri)
 
@@ -71,8 +71,8 @@ Generated artifacts:
 
 ### 3.1 Launching
 
-- Run `ParaGraph/start_on_windows.bat` for the standard local workflow.
-- The app serves backend and frontend using values from `ParaGraph/settings/.env`.
+- Run `start_on_windows.bat` for the standard local workflow.
+- The app serves backend and frontend using values from `settings/.env`.
 - For packaged desktop mode, Tauri launches the backend directly and serves the built frontend from backend static assets.
 
 ### 3.2 Typical User Workflow
@@ -128,11 +128,11 @@ This runner executes available backend and frontend suites in sequence.
 ## 5. Configuration
 
 Primary runtime configuration files:
-- `ParaGraph/settings/.env`
-- `ParaGraph/settings/.env.local.example`
-- `ParaGraph/settings/.env.local.tauri.example`
-- `ParaGraph/settings/.env.tauri`
-- `ParaGraph/settings/configurations.json`
+- `settings/.env`
+- `settings/.env.local.example`
+- `settings/.env.local.tauri.example`
+- `settings/.env.tauri`
+- `settings/configurations.json`
 
 Runtime variables commonly used in local execution:
 
@@ -148,16 +148,16 @@ Runtime variables commonly used in local execution:
 | `LLM_TIMEOUT_S` | Timeout used by LLM HTTP clients. |
 
 Provider-specific credentials and runtime endpoints are managed in-app under **Configurations** (session settings), not via `.env`.
-Database mode and connection/tuning values are defined in `ParaGraph/settings/configurations.json`.
+Database mode and connection/tuning values are defined in `settings/configurations.json`.
 
 ## 6. Resources and Storage
 
-Runtime artifacts are stored under `ParaGraph/resources`.
+Runtime artifacts are stored under `app/resources`.
 This includes generated artifacts, logs, model assets, node assets, workflow persistence, and local database files used by runtime execution.
 
 ## 7. Maintenance Scripts
 
-- `ParaGraph/setup_and_maintenance.bat`: setup and maintenance utility for local environment operations.
+- `setup_and_maintenance.bat`: setup and maintenance utility for local environment operations.
 - `tests/run_tests.bat`: end-to-end local test orchestration across backend/frontend suites.
 - `release/tauri/build_with_tauri.bat`: Windows Tauri release build and artifact export.
 - `release/tauri/scripts/clean-tauri-build.ps1`: cleanup helper for Tauri release outputs.
@@ -166,3 +166,5 @@ This includes generated artifacts, logs, model assets, node assets, workflow per
 ## 8. License
 
 This project is licensed under the **MIT License**. See `LICENSE` for details.
+
+

@@ -4,15 +4,15 @@ setlocal enabledelayedexpansion
 set "script_dir=%~dp0"
 for %%I in ("%script_dir%..") do set "release_dir=%%~fI"
 for %%I in ("%release_dir%\..") do set "repo_root=%%~fI"
-set "project_folder=%repo_root%\ParaGraph\"
-set "client_dir=%project_folder%client"
+set "app_root=%repo_root%\app\"
+set "client_dir=%app_root%client"
 set "tauri_dir=%client_dir%\src-tauri"
 set "bundle_source_dir=%tauri_dir%\r"
 set "bundle_dir=%tauri_dir%\target\release\bundle"
 set "release_export_dir=%repo_root%\release\windows"
 set "runtime_python_exe=%repo_root%\runtimes\python\python.exe"
 set "runtime_uv_exe=%repo_root%\runtimes\uv\uv.exe"
-set "runtime_uv_lock=%repo_root%\runtimes\uv.lock"
+set "runtime_uv_lock=%repo_root%\app\server\uv.lock"
 set "runtime_node_dir=%repo_root%\runtimes\nodejs"
 set "node_cmd=%runtime_node_dir%\node.exe"
 set "npm_cmd=%runtime_node_dir%\npm.cmd"
@@ -122,30 +122,30 @@ if exist "%~1" (
   exit /b 0
 )
 echo [FATAL] Missing %~2 at "%~1"
-echo         Run ParaGraph\start_on_windows.bat first to install the portable runtimes.
+echo         Run start_on_windows.bat first to install the portable runtimes.
 exit /b 1
 
 :prepare_bundle_sources
 call :cleanup_bundle_sources
 
 if not exist "%client_dir%\dist" md "%client_dir%\dist" >nul 2>&1
-if not exist "%project_folder%resources" md "%project_folder%resources" >nul 2>&1
-if not exist "%project_folder%resources\artifacts" md "%project_folder%resources\artifacts" >nul 2>&1
-if not exist "%project_folder%resources\logs" md "%project_folder%resources\logs" >nul 2>&1
-if not exist "%project_folder%resources\models" md "%project_folder%resources\models" >nul 2>&1
-if not exist "%project_folder%resources\nodes" md "%project_folder%resources\nodes" >nul 2>&1
-if not exist "%project_folder%resources\workflows" md "%project_folder%resources\workflows" >nul 2>&1
+if not exist "%repo_root%\app\resources" md "%repo_root%\app\resources" >nul 2>&1
+if not exist "%repo_root%\app\resources\artifacts" md "%repo_root%\app\resources\artifacts" >nul 2>&1
+if not exist "%repo_root%\app\resources\logs" md "%repo_root%\app\resources\logs" >nul 2>&1
+if not exist "%repo_root%\app\resources\models" md "%repo_root%\app\resources\models" >nul 2>&1
+if not exist "%repo_root%\app\resources\nodes" md "%repo_root%\app\resources\nodes" >nul 2>&1
+if not exist "%repo_root%\app\resources\workflows" md "%repo_root%\app\resources\workflows" >nul 2>&1
 
 md "%bundle_source_dir%" >nul 2>&1
 if errorlevel 1 (
   echo [FATAL] Failed to create bundle source directory "%bundle_source_dir%".
   exit /b 1
 )
-md "%bundle_source_dir%\ParaGraph" >nul 2>&1
-md "%bundle_source_dir%\ParaGraph\client" >nul 2>&1
+md "%bundle_source_dir%\app" >nul 2>&1
+md "%bundle_source_dir%\app\client" >nul 2>&1
 md "%bundle_source_dir%\runtimes" >nul 2>&1
 
-copy /y "%repo_root%\pyproject.toml" "%bundle_source_dir%\pyproject.toml" >nul
+copy /y "%repo_root%\app\server\pyproject.toml" "%bundle_source_dir%\pyproject.toml" >nul
 if errorlevel 1 (
   echo [FATAL] Failed to stage pyproject.toml for Tauri bundling.
   exit /b 1
@@ -155,18 +155,18 @@ if errorlevel 1 (
   echo [FATAL] Failed to stage runtime lockfile "%runtime_uv_lock%" as bundle uv.lock.
   exit /b 1
 )
-copy /y "%runtime_uv_lock%" "%bundle_source_dir%\runtimes\uv.lock" >nul
+copy /y "%runtime_uv_lock%" "%bundle_source_dir%\app\server\uv.lock" >nul
 if errorlevel 1 (
-  echo [FATAL] Failed to stage runtime lockfile "%runtime_uv_lock%" at bundle runtimes\uv.lock.
+  echo [FATAL] Failed to stage runtime lockfile "%runtime_uv_lock%" at bundle app\server\uv.lock.
   exit /b 1
 )
-echo [OK] Staged runtime lockfile for bundle root and runtimes\uv.lock.
+echo [OK] Staged runtime lockfile for bundle root and app\server\uv.lock.
 
-call :make_junction "%bundle_source_dir%\ParaGraph\server" "%project_folder%server" || exit /b 1
-call :make_junction "%bundle_source_dir%\ParaGraph\scripts" "%project_folder%scripts" || exit /b 1
-call :make_junction "%bundle_source_dir%\ParaGraph\settings" "%project_folder%settings" || exit /b 1
-call :make_junction "%bundle_source_dir%\ParaGraph\client\dist" "%client_dir%\dist" || exit /b 1
-call :make_junction "%bundle_source_dir%\ParaGraph\resources" "%project_folder%resources" || exit /b 1
+call :make_junction "%bundle_source_dir%\app\server" "%root_folder%app\server" || exit /b 1
+call :make_junction "%bundle_source_dir%\app\scripts" "%repo_root%\app\scripts" || exit /b 1
+call :make_junction "%bundle_source_dir%\settings" "%repo_root%\settings" || exit /b 1
+call :make_junction "%bundle_source_dir%\app\client\dist" "%client_dir%\dist" || exit /b 1
+call :make_junction "%bundle_source_dir%\app\resources" "%repo_root%\app\resources" || exit /b 1
 call :make_junction "%bundle_source_dir%\runtimes\python" "%repo_root%\runtimes\python" || exit /b 1
 call :make_junction "%bundle_source_dir%\runtimes\uv" "%repo_root%\runtimes\uv" || exit /b 1
 call :make_junction "%bundle_source_dir%\runtimes\nodejs" "%repo_root%\runtimes\nodejs" || exit /b 1
@@ -234,3 +234,6 @@ echo.
 echo Press any key to close this build script...
 pause >nul
 endlocal & exit /b 1
+
+
+
