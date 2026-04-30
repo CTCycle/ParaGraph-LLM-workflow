@@ -8,7 +8,7 @@ from server.services.workflow.provider.huggingface_catalog import (
     HuggingFaceCatalogService,
 )
 from server.services.workflow.provider.huggingface_downloads import (
-    HuggingFaceDownloadService,
+    HuggingFaceDownloadMixin,
 )
 from server.services.workflow.provider.ollama import OllamaLibraryService
 from server.services.workflow.provider.service import (
@@ -18,7 +18,7 @@ from server.services.workflow.provider.service import (
 
 __all__ = [
     "HuggingFaceCatalogService",
-    "HuggingFaceDownloadService",
+    "HuggingFaceDownloadMixin",
     "HUGGINGFACE_MODEL_LIST_EXPAND_FIELDS",
     "OllamaLibraryService",
     "ProviderApiError",

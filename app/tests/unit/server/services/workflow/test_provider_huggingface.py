@@ -5,7 +5,10 @@ from pathlib import Path
 import httpx
 
 from server.services.workflow.provider import (
-    service as provider_service_module,
+    huggingface_downloads as huggingface_downloads_module,
+)
+from server.services.workflow.provider import (
+    huggingface_catalog as huggingface_catalog_module,
 )
 from server.services.workflow.provider import (
     HUGGINGFACE_MODEL_LIST_EXPAND_FIELDS,
@@ -89,11 +92,11 @@ def test_huggingface_download_uses_explicit_stream_timeout(
         return _FakeStreamContext()
 
     monkeypatch.setattr(
-        provider_service_module,
+        huggingface_downloads_module,
         "hf_hub_url",
         lambda **kwargs: "https://example.invalid/model.bin",
     )
-    monkeypatch.setattr(provider_service_module.httpx, "stream", _fake_stream)
+    monkeypatch.setattr(huggingface_downloads_module.httpx, "stream", _fake_stream)
     job_state_factory("job-timeout", "huggingface_download")
 
     result = service._run_huggingface_download_job(  # noqa: SLF001
@@ -126,7 +129,7 @@ def test_huggingface_filter_tags_logs_and_falls_back(monkeypatch) -> None:
     def _capture_warning(message: str, *args, **kwargs) -> None:
         captured.append({"message": message, "args": args, "kwargs": kwargs})
 
-    monkeypatch.setattr(provider_service_module.logger, "warning", _capture_warning)
+    monkeypatch.setattr(huggingface_catalog_module.logger, "warning", _capture_warning)
     tasks, libraries = service._load_huggingface_filter_tags(  # noqa: SLF001
         api=_FailingApi(),
         token="hf_secret",
