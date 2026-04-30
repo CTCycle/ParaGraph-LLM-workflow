@@ -8,7 +8,7 @@ This document describes the node system used by ParaGraph workflows, how nodes a
 
 ## Node Catalog Sources
 
-- Built-in node manifests are loaded from `ParaGraph/resources/nodes`.
+- Built-in node manifests are loaded from `app/resources/nodes`.
 - Custom node manifests can be imported at runtime from the Nodes page (`/nodes`) using JSON payloads.
 - The backend catalog API is `GET /nodes/catalog`.
 
@@ -31,7 +31,7 @@ The frontend and backend organize nodes by category (for example):
 - `vector_storage`
 - `control`
 
-Category labels and ordering are defined in `ParaGraph/client/src/workflow/schema/nodeCategory.ts`.
+Category labels and ordering are defined in `app/client/src/workflow/schema/nodeCategory.ts`.
 
 ## Node Manifest Model
 
@@ -91,3 +91,4 @@ These are used by database/vector-store nodes to validate runtime connection set
 - Node manifests are contract-critical: changes to IDs, versions, or ports affect existing workflows.
 - Prefer introducing new versions instead of breaking existing version semantics.
 - Keep manifest descriptions explicit so the Nodes page remains understandable to end users.
+

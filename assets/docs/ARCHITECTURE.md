@@ -6,9 +6,9 @@ Last updated: 2026-04-24
 
 ParaGraph is a local-first workflow platform composed of:
 
-- FastAPI backend (`ParaGraph/server`) for compile/execute APIs, node catalog, provider integrations, configuration management, and execution event streaming.
-- React + TypeScript frontend (`ParaGraph/client/src`) for workflow editing, node/template browsing, model catalog operations, and runtime monitoring.
-- Optional Tauri desktop wrapper (`ParaGraph/client/src-tauri`) that launches the backend process and loads the web UI in a desktop window.
+- FastAPI backend (`app/server`) for compile/execute APIs, node catalog, provider integrations, configuration management, and execution event streaming.
+- React + TypeScript frontend (`app/client/src`) for workflow editing, node/template browsing, model catalog operations, and runtime monitoring.
+- Optional Tauri desktop wrapper (`app/client/src-tauri`) that launches the backend process and loads the web UI in a desktop window.
 
 ## Repository Structure
 
@@ -66,12 +66,12 @@ The project includes source code plus generated/runtime-heavy folders. Expanded 
 
 ## Application Entry Points
 
-- Backend app factory: `ParaGraph/server/app.py` (`create_app`, exported as `app`).
+- Backend app factory: `app/server/app.py` (`create_app`, exported as `app`).
 - Backend process startup:
-  - Launcher-managed: `ParaGraph/start_on_windows.bat` runs `python -m uvicorn ParaGraph.server.app:app`.
-  - Manual: run `uvicorn` against `ParaGraph.server.app:app`.
-- Frontend entry: `ParaGraph/client/src/main.tsx` -> `App.tsx` (React Router shell).
-- Desktop entry: `ParaGraph/client/src-tauri/src/main.rs` (spawns backend, waits for readiness, opens UI URL).
+  - Launcher-managed: `start_on_windows.bat` runs `python -m uvicorn server.app:app`.
+  - Manual: run `uvicorn` against `server.app:app`.
+- Frontend entry: `app/client/src/main.tsx` -> `App.tsx` (React Router shell).
+- Desktop entry: `app/client/src-tauri/src/main.rs` (spawns backend, waits for readiness, opens UI URL).
 
 ## API Endpoints
 
@@ -156,11 +156,11 @@ Typical backend flow follows endpoint -> service -> repository:
 ## Data Persistence
 
 - File-based:
-  - Workflows persisted under `ParaGraph/resources/workflows`.
-  - Workflow templates loaded from `ParaGraph/resources/workflow_templates`.
-  - Node manifests/plugins and artifacts stored under `ParaGraph/resources/nodes` and `ParaGraph/resources/artifacts`.
+  - Workflows persisted under `app/resources/workflows`.
+  - Workflow templates loaded from `app/resources/workflow_templates`.
+  - Node manifests/plugins and artifacts stored under `app/resources/nodes` and `app/resources/artifacts`.
 - Database:
-  - Default embedded SQLite at `ParaGraph/resources/database.db`.
+  - Default embedded SQLite at `app/resources/database.db`.
   - Optional external PostgreSQL via `settings/configurations.json`.
   - SQLAlchemy tables include `user_sessions`, `access_keys`, `configuration_profiles`, `nodes`, and `chat_history_messages`.
 - In-memory runtime stores:
@@ -175,3 +175,4 @@ Typical backend flow follows endpoint -> service -> repository:
   - `WS /executions/ws/runs/{run_id}` for streaming run events.
 - Long-running execution is offloaded to background threads through `JobManager`.
 - Async handlers avoid CPU-heavy loops directly; blocking node execution happens in job threads, not in request handlers.
+

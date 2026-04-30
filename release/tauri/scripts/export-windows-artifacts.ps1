@@ -6,9 +6,9 @@ param(
 $ErrorActionPreference = "Stop"
 
 $repoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot "..\..\.."))
-$clientDir = Join-Path $repoRoot "ParaGraph\client"
+$clientDir = Join-Path $repoRoot "app\client"
 $tauriDir = Join-Path $clientDir "src-tauri"
-$projectDir = Join-Path $repoRoot "ParaGraph"
+$projectDir = Join-Path $repoRoot "app"
 $runtimesDir = Join-Path $repoRoot "runtimes"
 $releaseDir = Join-Path $clientDir "src-tauri\target\release"
 $bundleDir = Join-Path $releaseDir "bundle"
@@ -66,7 +66,7 @@ foreach ($file in $portableExeCandidates) {
 }
 
 $portableResourceMap = @(
-  @{ Name = "ParaGraph"; SourceCandidates = @((Join-Path $releaseDir "ParaGraph"), (Join-Path $bundleSourceDir "ParaGraph"), $projectDir) },
+  @{ Name = "app"; SourceCandidates = @((Join-Path $releaseDir "app"), (Join-Path $bundleSourceDir "app"), $projectDir) },
   @{ Name = "runtimes"; SourceCandidates = @((Join-Path $releaseDir "runtimes"), (Join-Path $bundleSourceDir "runtimes"), $runtimesDir) },
   @{ Name = "pyproject.toml"; SourceCandidates = @((Join-Path $releaseDir "pyproject.toml"), (Join-Path $bundleSourceDir "pyproject.toml"), (Join-Path $repoRoot "pyproject.toml")) },
   @{ Name = "uv.lock"; SourceCandidates = @((Join-Path $releaseDir "uv.lock"), (Join-Path $bundleSourceDir "uv.lock"), (Join-Path $repoRoot "uv.lock"), (Join-Path $runtimesDir "uv.lock")) },
@@ -89,7 +89,7 @@ foreach ($entry in $portableResourceMap) {
 }
 
 $requiredPortablePaths = @(
-  (Join-Path $portableDir "ParaGraph"),
+  (Join-Path $portableDir "app"),
   (Join-Path $portableDir "runtimes\uv\uv.exe"),
   (Join-Path $portableDir "runtimes\python\python.exe"),
   (Join-Path $portableDir "runtimes\nodejs\node.exe"),
@@ -106,7 +106,7 @@ foreach ($requiredPath in $requiredPortablePaths) {
 }
 
 $instructions = @"
-ParaGraph desktop build output
+app desktop build output
 
 1) Preferred for users:
    Open installers\ and run the setup executable (.exe) or .msi.
@@ -134,3 +134,4 @@ if ($portableFiles.Count -eq 0) {
 } else {
   $portableFiles | ForEach-Object { Write-Host " - $($_.FullName)" }
 }
+

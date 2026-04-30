@@ -4,7 +4,7 @@ param()
 $ErrorActionPreference = "Stop"
 
 $repoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot "..\..\.."))
-$clientDir = Join-Path $repoRoot "ParaGraph\client"
+$clientDir = Join-Path $repoRoot "app\client"
 $pathsToRemove = @(
   (Join-Path $clientDir "src-tauri\target\release"),
   (Join-Path $clientDir "src-tauri\r"),
@@ -21,3 +21,4 @@ foreach ($path in $pathsToRemove) {
 }
 
 Write-Host "[DONE] Build cleanup complete."
+

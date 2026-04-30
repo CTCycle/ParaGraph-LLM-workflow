@@ -32,5 +32,6 @@ Last updated: 2026-04-24
 
 - Assume Windows as the default operating environment for commands, scripts, and troubleshooting.
 - Provide equivalent command guidance for both CMD (`.bat`, `copy`, `set`) and PowerShell (`Get-ChildItem`, `$env:...`) when relevant.
-- Keep runtime instructions aligned with project launch scripts (`ParaGraph\\start_on_windows.bat`, `release\\tauri\\build_with_tauri.bat`).
+- Keep runtime instructions aligned with project launch scripts (`start_on_windows.bat`, `release\\tauri\\build_with_tauri.bat`).
 - Update this section whenever new Windows-specific constraints, workarounds, or tooling patterns are identified.
+
