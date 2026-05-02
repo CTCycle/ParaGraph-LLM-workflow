@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import qdrant_client.models as qdrant_models
+from qdrant_client import QdrantClient
+
 from server.services.workflow.vector_stores.base import (
     Any,
     RetrievalHit,
@@ -9,7 +12,6 @@ from server.services.workflow.vector_stores.base import (
     VectorStoreHandle,
     _coerce_metric,
     _extract_provider_config,
-    _import_qdrant_clients,
     _matches_filter,
     _normalize_index_name,
     _point_attr,
@@ -24,11 +26,7 @@ class QdrantVectorStoreAdapter(VectorStoreAdapter):
     backend = "qdrant"
     supports_faiss_augmentation = False
 
-    def _load_client(self):
-        return _import_qdrant_clients()
-
     def _build_client(self, *, storage_directory: str, endpoint_url: str, api_key: str):
-        QdrantClient, _ = self._load_client()
         if endpoint_url:
             return QdrantClient(url=endpoint_url, api_key=api_key or None)
         root_path = _resolve_vectorstore_root(storage_directory)
@@ -103,7 +101,7 @@ class QdrantVectorStoreAdapter(VectorStoreAdapter):
         client = self._build_client(
             storage_directory=storage_directory, endpoint_url=endpoint, api_key=token
         )
-        _, qm = self._load_client()
+        qm = qdrant_models
 
         distance_map = {
             "cosine": qm.Distance.COSINE,
@@ -231,7 +229,7 @@ class QdrantVectorStoreAdapter(VectorStoreAdapter):
         client = self._build_client(
             storage_directory=storage_directory, endpoint_url=endpoint, api_key=token
         )
-        _, qm = self._load_client()
+        qm = qdrant_models
         qdrant_filter = self._map_filter(filter_spec, qm)
 
         query_params = None

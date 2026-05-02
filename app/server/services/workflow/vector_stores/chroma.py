@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import chromadb
+
 from server.services.workflow.vector_stores.base import (
     Any,
     RetrievalHit,
@@ -8,7 +10,6 @@ from server.services.workflow.vector_stores.base import (
     VectorStoreError,
     VectorStoreHandle,
     _coerce_metric,
-    _import_chromadb_module,
     _matches_filter,
     _normalize_index_name,
     _point_attr,
@@ -22,11 +23,7 @@ class ChromaVectorStoreAdapter(VectorStoreAdapter):
     backend = "chroma"
     supports_faiss_augmentation = False
 
-    def _load_client(self):
-        return _import_chromadb_module()
-
     def _build_client(self, *, storage_directory: str, endpoint_url: str):
-        chromadb = self._load_client()
         if endpoint_url:
             return chromadb.HttpClient(host=endpoint_url)
         root = _resolve_vectorstore_root(storage_directory)

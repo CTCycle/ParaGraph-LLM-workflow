@@ -1,15 +1,15 @@
 from __future__ import annotations
 
 import json
-import importlib
 import logging
 import re
 import shutil
 from pathlib import Path
 from typing import Any
 
-import numpy as np
 import faiss
+import numpy as np
+
 from server.common.constants import ARTIFACT_ROOT
 from server.common.security import (
     ensure_path_within_root,
@@ -25,59 +25,6 @@ from server.domain.workflow_payloads import (
 VECTORSTORE_ROOT = ARTIFACT_ROOT / "vectorstores"
 INDEX_NAME_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
 logger = logging.getLogger(__name__)
-
-
-def _import_module_or_error(module_name: str, package_hint: str) -> Any:
-    try:
-        return importlib.import_module(module_name)
-    except ModuleNotFoundError as exc:
-        raise VectorStoreError(
-            f"{package_hint} support requires installing the '{module_name}' package"
-        ) from exc
-
-
-def _import_pinecone_client() -> tuple[Any, Any]:
-    pinecone_module = _import_module_or_error("pinecone", "Pinecone")
-    pinecone_client = getattr(pinecone_module, "Pinecone", None)
-    serverless_spec = getattr(pinecone_module, "ServerlessSpec", None)
-    if pinecone_client is None or serverless_spec is None:
-        raise VectorStoreError(
-            "Installed pinecone package does not expose Pinecone client APIs"
-        )
-    return pinecone_client, serverless_spec
-
-
-def _import_milvus_client() -> Any:
-    milvus_module = _import_module_or_error("pymilvus", "Milvus")
-    milvus_client = getattr(milvus_module, "MilvusClient", None)
-    if milvus_client is None:
-        raise VectorStoreError(
-            "Installed pymilvus package does not expose MilvusClient"
-        )
-    return milvus_client
-
-
-def _import_qdrant_clients() -> tuple[Any, Any]:
-    qdrant_module = _import_module_or_error("qdrant_client", "Qdrant")
-    qdrant_client = getattr(qdrant_module, "QdrantClient", None)
-    qdrant_models = getattr(qdrant_module, "models", None)
-    if qdrant_client is None or qdrant_models is None:
-        raise VectorStoreError(
-            "Installed qdrant-client package does not expose required client APIs"
-        )
-    return qdrant_client, qdrant_models
-
-
-def _import_weaviate_module() -> Any:
-    return _import_module_or_error("weaviate", "Weaviate")
-
-
-def _import_chromadb_module() -> Any:
-    return _import_module_or_error("chromadb", "Chroma")
-
-
-def _import_lancedb_module() -> Any:
-    return _import_module_or_error("lancedb", "LanceDB")
 
 
 def _resolve_vectorstore_root(storage_directory: str | None) -> Path:

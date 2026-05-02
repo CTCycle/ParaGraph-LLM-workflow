@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pinecone import Pinecone, ServerlessSpec
+
 from server.services.workflow.vector_stores.base import (
     Any,
     RetrievalHit,
@@ -9,7 +11,6 @@ from server.services.workflow.vector_stores.base import (
     VectorStoreHandle,
     _coerce_metric,
     _extract_provider_config,
-    _import_pinecone_client,
     _normalize_index_name,
     _pinecone_clause,
     _point_attr,
@@ -21,9 +22,6 @@ from server.services.workflow.vector_stores.base import (
 class PineconeVectorStoreAdapter(VectorStoreAdapter):
     backend = "pinecone"
     supports_faiss_augmentation = False
-
-    def _load_client(self):
-        return _import_pinecone_client()
 
     def _map_filter(self, filter_spec: dict[str, Any] | None) -> dict[str, Any] | None:
         if not filter_spec:
@@ -86,7 +84,6 @@ class PineconeVectorStoreAdapter(VectorStoreAdapter):
         )
         if not token:
             raise VectorStoreError("Pinecone requires api_key")
-        Pinecone, _ = self._load_client()
         client = Pinecone(api_key=token)
         target = _normalize_index_name(collection_name or index_name)
         names = {item.name for item in client.list_indexes()}
@@ -132,7 +129,6 @@ class PineconeVectorStoreAdapter(VectorStoreAdapter):
         if not token:
             raise VectorStoreError("Pinecone requires api_key")
 
-        Pinecone, ServerlessSpec = self._load_client()
         client = Pinecone(api_key=token)
 
         target_index = _normalize_index_name(collection_name or index_name)
@@ -226,7 +222,6 @@ class PineconeVectorStoreAdapter(VectorStoreAdapter):
                 "Pinecone search requires api_key in provider_config"
             )
 
-        Pinecone, _ = self._load_client()
         client = Pinecone(api_key=token)
         index_name = str(
             metadata.get("collection_name") or _store_attr(store, "index_name") or ""

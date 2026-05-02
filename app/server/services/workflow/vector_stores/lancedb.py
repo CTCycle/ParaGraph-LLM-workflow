@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import lancedb
+
 from server.services.workflow.vector_stores.base import (
     Any,
     RetrievalHit,
@@ -7,7 +9,6 @@ from server.services.workflow.vector_stores.base import (
     VectorStoreAdapter,
     VectorStoreError,
     VectorStoreHandle,
-    _import_lancedb_module,
     _matches_filter,
     _materialize_lancedb_rows,
     _normalize_index_name,
@@ -21,9 +22,6 @@ from server.services.workflow.vector_stores.base import (
 class LanceDbVectorStoreAdapter(VectorStoreAdapter):
     backend = "lancedb"
     supports_faiss_augmentation = False
-
-    def _load_lancedb(self):
-        return _import_lancedb_module()
 
     def write_points(
         self,
@@ -58,7 +56,6 @@ class LanceDbVectorStoreAdapter(VectorStoreAdapter):
                 "Vector store write requires at least one vector point"
             )
 
-        lancedb = self._load_lancedb()
         normalized_index_name = _normalize_index_name(index_name)
         root_path = _resolve_vectorstore_root(storage_directory)
         root_path.mkdir(parents=True, exist_ok=True)
@@ -180,7 +177,6 @@ class LanceDbVectorStoreAdapter(VectorStoreAdapter):
             raise VectorStoreError(
                 f"Search mode '{search_mode}' is not supported by backend '{self.backend}'"
             )
-        lancedb = self._load_lancedb()
         store_metadata = (
             _store_attr(store, "metadata")
             if isinstance(_store_attr(store, "metadata"), dict)

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pymilvus import MilvusClient
+
 from server.services.workflow.vector_stores.base import (
     Any,
     RetrievalHit,
@@ -9,7 +11,6 @@ from server.services.workflow.vector_stores.base import (
     VectorStoreHandle,
     _coerce_metric,
     _extract_provider_config,
-    _import_milvus_client,
     _matches_filter,
     _milvus_clause_expression,
     _normalize_index_name,
@@ -23,11 +24,7 @@ class MilvusVectorStoreAdapter(VectorStoreAdapter):
     backend = "milvus"
     supports_faiss_augmentation = False
 
-    def _load_client(self):
-        return _import_milvus_client()
-
     def _build_client(self, *, endpoint_url: str, api_key: str, database_name: str):
-        MilvusClient = self._load_client()
         uri = endpoint_url or "http://localhost:19530"
         kwargs: dict[str, Any] = {"uri": uri}
         if api_key:
