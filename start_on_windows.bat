@@ -206,11 +206,11 @@ pushd "%SERVER_DIR%" >nul
 if not exist "%runtime_uv_lock%" (
   echo [INFO] Runtime lockfile not found at "%runtime_uv_lock%". uv sync will use the current root lockfile state.
 )
-"%uv_exe%" sync --python "%python_exe%" --all-extras --extra test
+"%uv_exe%" sync --python "%python_exe%" --extra test
 set "sync_ec=%ERRORLEVEL%"
 if not "%sync_ec%"=="0" (
   echo [WARN] uv sync with embeddable Python failed, code %sync_ec%. Falling back to uv-managed Python
-  "%uv_exe%" sync --all-extras --extra test
+  "%uv_exe%" sync --extra test
   set "sync_ec=%ERRORLEVEL%"
 )
 popd >nul
