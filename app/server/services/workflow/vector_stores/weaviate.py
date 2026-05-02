@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import weaviate
+
 from server.services.workflow.vector_stores.base import (
     Any,
     RetrievalHit,
@@ -9,7 +11,6 @@ from server.services.workflow.vector_stores.base import (
     VectorStoreHandle,
     _coerce_metric,
     _extract_provider_config,
-    _import_weaviate_module,
     _matches_filter,
     _normalize_index_name,
     _point_attr,
@@ -22,11 +23,7 @@ class WeaviateVectorStoreAdapter(VectorStoreAdapter):
     backend = "weaviate"
     supports_faiss_augmentation = False
 
-    def _load_client(self):
-        return _import_weaviate_module()
-
     def _connect(self, *, endpoint_url: str, api_key: str):
-        weaviate = self._load_client()
         if not endpoint_url:
             raise VectorStoreError("Weaviate requires endpoint_url")
         if api_key:

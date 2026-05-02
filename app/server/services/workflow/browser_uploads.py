@@ -1,14 +1,23 @@
 from __future__ import annotations
 
 from pathlib import Path, PurePosixPath
+from typing import Protocol
 from uuid import uuid4
-
-from fastapi import UploadFile
 
 from server.common.constants import RESOURCES_PATH
 
 
 UPLOAD_ROOT = Path(RESOURCES_PATH) / "artifacts" / "browser_uploads"
+
+
+class UploadedFile(Protocol):
+    filename: str | None
+
+    async def read(self, size: int = -1) -> bytes:
+        raise NotImplementedError
+
+    async def close(self) -> None:
+        raise NotImplementedError
 
 
 class BrowserUploadService:
@@ -33,7 +42,7 @@ class BrowserUploadService:
         return Path(*parts)
 
     async def save_uploaded_directory(
-        self, files: list[UploadFile]
+        self, files: list[UploadedFile]
     ) -> tuple[str, int, list[str]]:
         if not files:
             raise ValueError("No files were provided for upload")
