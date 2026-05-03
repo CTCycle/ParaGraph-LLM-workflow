@@ -1,6 +1,6 @@
 # ARCHITECTURE
 
-Last updated: 2026-04-30
+Last updated: 2026-05-03
 
 ## System Summary
 
@@ -147,6 +147,9 @@ Typical backend flow follows endpoint -> service -> repository:
 - `server/services/workflow/provider/ollama.py`: Ollama library service adapter plus cache/fetch mixin.
 - `server/services/workflow/provider/huggingface_catalog.py`: Hugging Face catalog adapter plus catalog/cache/local metadata mixin.
 - `server/services/workflow/provider/huggingface_downloads.py`: Hugging Face download lifecycle mixin for manifests, job status, progress, cleanup, and integrity validation.
+- `server/services/workflow/node_handlers/core/prompts.py`: prompt, prompt-template, and image-input node executors used by the core handler registry.
+- `server/services/workflow/node_handlers/processing/sources.py`: shared fragmentation source hydration and measurement helpers.
+- `server/services/workflow/node_handlers/processing/merge.py`: merge-small-chunks executor used by the processing handler registry.
 - `server/services/jobs.py`: thread-based background job manager.
 - `server/services/runtime/events.py`: in-memory event bus + per-run history.
 - `server/repositories/workflow/workflow.py`: filesystem workflow storage + index.
