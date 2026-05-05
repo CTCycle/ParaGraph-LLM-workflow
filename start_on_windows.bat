@@ -1,11 +1,10 @@
 @echo off
-setlocal enabledelayedexpansion
+setlocal enableextensions enabledelayedexpansion
 
 REM ============================================================================
 REM == Configuration
 REM ============================================================================
-set "project_folder=%~dp0"
-set "root_folder=%project_folder%"
+set "root_folder=%~dp0"
 set "runtimes_dir=%root_folder%runtimes"
 set "settings_dir=%root_folder%settings"
 set "python_dir=%runtimes_dir%\python"
@@ -18,11 +17,7 @@ set "uv_exe=%uv_dir%\uv.exe"
 set "uv_zip_path=%uv_dir%\uv.zip"
 set "UV_CACHE_DIR=%runtimes_dir%\.uv-cache"
 set "venv_dir=%root_folder%app\server\.venv"
-set "venv_python_exe=%venv_dir%\Scripts\python.exe"
 set "UV_PROJECT_ENVIRONMENT=%venv_dir%"
-set "runtime_uv_lock=%root_folder%app\server\uv.lock"
-set "uv_lock_file=%root_folder%app\server\uv.lock"
-set "SERVER_DIR=%root_folder%app\server"
 
 set "py_version=3.14.2"
 set "python_zip_filename=python-%py_version%-embed-amd64.zip"
@@ -44,10 +39,10 @@ set "env_marker_node=%nodejs_dir%\.is_installed"
 
 set "pyproject=%root_folder%app\server\pyproject.toml"
 set "UVICORN_MODULE=server.app:app"
-set "BACKEND_HEALTH_PATH=/docs"
 set "FRONTEND_DIR=%root_folder%app\client"
 set "FRONTEND_DIST=%FRONTEND_DIR%\dist"
 set "FRONTEND_LOCKFILE=%FRONTEND_DIR%\package-lock.json"
+set "FRONTEND_STRICT_PORT=--strictPort"
 
 set "DOTENV=%settings_dir%\.env"
 set "TMPDL=%TEMP%\app_dl.ps1"
@@ -55,6 +50,8 @@ set "TMPEXP=%TEMP%\app_expand.ps1"
 set "TMPTXT=%TEMP%\app_txt.ps1"
 set "TMPFIND=%TEMP%\app_find_uv.ps1"
 set "TMPVER=%TEMP%\app_pyver.ps1"
+set "TMPPIDPATH=%TEMP%\app_pid_path.ps1"
+set "TMPHEALTH=%TEMP%\app_health.ps1"
 
 set "UV_LINK_MODE=copy"
 
@@ -79,6 +76,8 @@ echo $ErrorActionPreference='Stop'; Expand-Archive -LiteralPath $args[0] -Destin
 echo $ErrorActionPreference='Stop'; (Get-Content -LiteralPath $args[0]) -replace '#import site','import site' ^| Set-Content -LiteralPath $args[0] > "%TMPTXT%"
 echo $ErrorActionPreference='Stop'; (Get-ChildItem -LiteralPath $args[0] -Recurse -Filter 'uv.exe' ^| Select-Object -First 1).FullName > "%TMPFIND%"
 echo $ErrorActionPreference='Stop'; ^& $args[0] -c "import platform;print(platform.python_version())" > "%TMPVER%"
+echo $ErrorActionPreference='Stop'; try { (Get-Process -Id $args[0]).Path } catch { '' } > "%TMPPIDPATH%"
+echo $ErrorActionPreference='Stop'; try { $u=$args[0]; $r=Invoke-WebRequest -UseBasicParsing -Uri $u -TimeoutSec 2; if($r.StatusCode -ge 200 -and $r.StatusCode -lt 300){ 'ok' } } catch { '' } > "%TMPHEALTH%"
 
 REM ============================================================================
 REM == Step 1: Ensure Python (embeddable)
@@ -154,6 +153,11 @@ if exist "%node_exe%" (
   goto error
 )
 
+if not exist "%NPM_CMD%" (
+  echo [FATAL] Embedded npm not found at "%NPM_CMD%".
+  goto error
+)
+
 REM ============================================================================
 REM == Load env overrides (needed before dependency install)
 REM ============================================================================
@@ -162,7 +166,8 @@ set "FASTAPI_HOST=127.0.0.1"
 set "FASTAPI_PORT=8000"
 set "UI_HOST=127.0.0.1"
 set "UI_PORT=8001"
-set "RELOAD=true"
+set "RELOAD=false"
+set "OPTIONAL_DEPENDENCIES=false"
 
 if exist "%DOTENV%" (
   for /f "usebackq tokens=* delims=" %%L in ("%DOTENV%") do (
@@ -184,14 +189,18 @@ if exist "%DOTENV%" (
   echo [INFO] No .env overrides found at "%DOTENV%". Using defaults.
 )
 
+set "INSTALL_EXTRAS=false"
+if /i "!OPTIONAL_DEPENDENCIES!"=="true" set "INSTALL_EXTRAS=true"
+
 echo [INFO] FASTAPI_HOST=!FASTAPI_HOST! FASTAPI_PORT=!FASTAPI_PORT! UI_HOST=!UI_HOST! UI_PORT=!UI_PORT! RELOAD=!RELOAD!
 set "UI_URL=http://!UI_HOST!:!UI_PORT!"
-set "BACKEND_HEALTH_URL=http://!FASTAPI_HOST!:!FASTAPI_PORT!!BACKEND_HEALTH_PATH!"
+set "RELOAD_FLAG="
+if /i "!RELOAD!"=="true" set "RELOAD_FLAG=--reload"
 
 REM Ensure the embeddable runtime is used (avoid picking up Conda/other Python DLLs)
-set "PYTHONHOME=%python_dir%"
+set "PYTHONHOME="
 set "PYTHONPATH="
-set "PYTHONNOUSERSITE=1"
+set "PYTHONNOUSERSITE="
 
 REM ============================================================================
 REM == Step 4: Install deps via uv
@@ -202,17 +211,11 @@ if not exist "%pyproject%" (
   goto error
 )
 
-pushd "%SERVER_DIR%" >nul
-if not exist "%runtime_uv_lock%" (
-  echo [INFO] Runtime lockfile not found at "%runtime_uv_lock%". uv sync will use the current root lockfile state.
-)
-"%uv_exe%" sync --python "%python_exe%" --extra test
+pushd "%root_folder%app\server" >nul
+set "uv_extras_flag="
+if /i "%INSTALL_EXTRAS%"=="true" set "uv_extras_flag=--all-extras"
+"%uv_exe%" sync %uv_extras_flag%
 set "sync_ec=%ERRORLEVEL%"
-if not "%sync_ec%"=="0" (
-  echo [WARN] uv sync with embeddable Python failed, code %sync_ec%. Falling back to uv-managed Python
-  "%uv_exe%" sync --extra test
-  set "sync_ec=%ERRORLEVEL%"
-)
 popd >nul
 if not "%sync_ec%"=="0" (
   echo [FATAL] uv sync failed with code %sync_ec%.
@@ -261,24 +264,47 @@ if not exist "%FRONTEND_DIST%" (
 REM ============================================================================
 REM Start backend and frontend
 REM ============================================================================
+set "PYTHONHOME="
+set "PYTHONPATH="
+set "PYTHONNOUSERSITE="
 if not exist "%python_exe%" (
   echo [FATAL] python.exe not found at "%python_exe%"
   goto error
 )
 
 echo [RUN] Launching backend via uvicorn (!UVICORN_MODULE!)
-call :kill_port !FASTAPI_PORT!
-if not exist "%venv_python_exe%" (
-  echo [FATAL] virtual environment python not found at "%venv_python_exe%"
+for /f "tokens=5" %%P in ('netstat -ano ^| findstr /R /C:":!FASTAPI_PORT! .*LISTENING"') do (
+  echo [INFO] Releasing backend port !FASTAPI_PORT! from PID %%P.
+  taskkill /PID %%P /F >nul 2>&1
+)
+set "backend_port_free="
+for /L %%i in (1,1,20) do (
+  netstat -ano | findstr /R /C:":!FASTAPI_PORT! .*LISTENING" >nul
+  if !errorlevel! neq 0 (
+    set "backend_port_free=1"
+    goto :backend_port_released
+  )
+  timeout /t 1 /nobreak >nul 2>&1
+)
+:backend_port_released
+if not defined backend_port_free (
+  echo [FATAL] backend port !FASTAPI_PORT! is still occupied after 20 seconds.
+  for /f "tokens=5" %%P in ('netstat -ano ^| findstr /R /C:":!FASTAPI_PORT! .*LISTENING"') do (
+    set "pid_path="
+    for /f "delims=" %%K in ('powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%TMPPIDPATH%" %%P') do set "pid_path=%%K"
+    if defined pid_path (
+      echo [INFO] Port !FASTAPI_PORT! listener PID %%P path: !pid_path!
+    ) else (
+      echo [INFO] Port !FASTAPI_PORT! listener PID %%P path: [unknown]
+    )
+  )
   goto error
 )
-pushd "%root_folder%app" >nul
-if /i "!RELOAD!"=="true" (
-  start "" /b "%venv_python_exe%" -m uvicorn %UVICORN_MODULE% --host !FASTAPI_HOST! --port !FASTAPI_PORT! --reload --reload-dir "%root_folder%app\server" --log-level info
-) else (
-  start "" /b "%venv_python_exe%" -m uvicorn %UVICORN_MODULE% --host !FASTAPI_HOST! --port !FASTAPI_PORT! --log-level info
+if not exist "%venv_dir%\Scripts\python.exe" (
+  echo [FATAL] virtual environment python not found at "%venv_dir%\Scripts\python.exe"
+  goto error
 )
-popd >nul
+start "" /b "%venv_dir%\Scripts\python.exe" -m uvicorn %UVICORN_MODULE% --app-dir "%root_folder%app" --host !FASTAPI_HOST! --port !FASTAPI_PORT! !RELOAD_FLAG! --log-level info
 
 REM ============================================================================
 REM Wait for backend
@@ -296,16 +322,29 @@ goto error
 
 echo [RUN] Launching frontend
 pushd "%FRONTEND_DIR%" >nul
-call :kill_port !UI_PORT!
-start "" /b "%NPM_CMD%" run preview -- --host !UI_HOST! --port !UI_PORT! --strictPort
+for /f "tokens=5" %%P in ('netstat -ano ^| findstr /R /C:":!UI_PORT! .*LISTENING"') do (
+  echo [INFO] Releasing frontend port !UI_PORT! from PID %%P.
+  taskkill /PID %%P /F >nul 2>&1
+)
+set "frontend_port_free="
+for /L %%i in (1,1,20) do (
+  netstat -ano | findstr /R /C:":!UI_PORT! .*LISTENING" >nul
+  if !errorlevel! neq 0 (
+    set "frontend_port_free=1"
+    goto :frontend_port_released
+  )
+  timeout /t 1 /nobreak >nul 2>&1
+)
+:frontend_port_released
+if not defined frontend_port_free (
+  echo [FATAL] frontend port !UI_PORT! is still occupied after 20 seconds.
+  goto error
+)
+start "" /b "%NPM_CMD%" run preview -- --host !UI_HOST! --port !UI_PORT! !FRONTEND_STRICT_PORT!
 popd >nul
 
 start "" "%UI_URL%"
-if "!backend_ready!"=="1" (
-  echo [SUCCESS] Backend and frontend correctly launched
-) else (
-  echo [WARN] Frontend launched, but backend did not pass readiness check.
-)
+echo [SUCCESS] Backend and frontend correctly launched
 goto cleanup
 
 :promote_node_runtime
@@ -328,7 +367,7 @@ REM ============================================================================
 REM Cleanup temp helpers
 REM ============================================================================
 :cleanup
-del /q "%TMPDL%" "%TMPEXP%" "%TMPTXT%" "%TMPFIND%" "%TMPVER%" >nul 2>&1
+del /q "%TMPDL%" "%TMPEXP%" "%TMPTXT%" "%TMPFIND%" "%TMPVER%" "%TMPPIDPATH%" "%TMPHEALTH%" >nul 2>&1
 endlocal & exit /b 0
 
 REM ============================================================================
@@ -337,8 +376,7 @@ REM ============================================================================
 :error
 echo.
 echo !!! An error occurred during execution. !!!
-pause
-del /q "%TMPDL%" "%TMPEXP%" "%TMPTXT%" "%TMPFIND%" "%TMPVER%" >nul 2>&1
+del /q "%TMPDL%" "%TMPEXP%" "%TMPTXT%" "%TMPFIND%" "%TMPVER%" "%TMPPIDPATH%" "%TMPHEALTH%" >nul 2>&1
 endlocal & exit /b 1
 
 :kill_port
@@ -348,6 +386,8 @@ for /f "tokens=5" %%P in ('netstat -ano ^| findstr /R ":!target_port!"') do (
   taskkill /PID %%P /F >nul 2>&1
 )
 goto :eof
+
+
 
 
 
