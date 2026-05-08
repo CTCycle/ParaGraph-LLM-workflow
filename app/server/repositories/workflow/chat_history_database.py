@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import timezone
+from datetime import datetime, timezone
 
 from sqlalchemy import delete, select
 from sqlalchemy.exc import OperationalError
@@ -10,6 +10,13 @@ from server.configurations.startup import get_server_settings
 from server.domain.chat_history import ChatHistoryMessage
 from server.repositories.database.factory import DatabaseRepositoryFactory
 from server.repositories.schemas import Base, ChatHistoryMessageRecord
+
+###############################################################################
+def _as_utc(timestamp: datetime) -> datetime:
+    if timestamp.tzinfo is None:
+        return timestamp.replace(tzinfo=timezone.utc)
+    return timestamp.astimezone(timezone.utc)
+
 
 ###############################################################################
 class DatabaseChatHistoryRepository:
@@ -48,11 +55,7 @@ class DatabaseChatHistoryRepository:
                 ChatHistoryMessage(
                     role=str(row.role),
                     content=str(row.content),
-                    timestamp=(
-                        row.created_at
-                        if row.created_at.tzinfo is not None
-                        else row.created_at.replace(tzinfo=timezone.utc)
-                    ),
+                    timestamp=_as_utc(row.created_at),
                 )
                 for row in rows
             ]
@@ -67,9 +70,6 @@ class DatabaseChatHistoryRepository:
         self._ensure_table()
         with Session(self._database_engine()) as db_session:
             for item in messages:
-                timestamp = item.timestamp
-                if timestamp.tzinfo is None:
-                    timestamp = timestamp.replace(tzinfo=timezone.utc)
                 db_session.add(
                     ChatHistoryMessageRecord(
                         workflow_id=workflow_id,
@@ -77,7 +77,7 @@ class DatabaseChatHistoryRepository:
                         node_id=node_id,
                         role=item.role,
                         content=item.content,
-                        created_at=timestamp.astimezone(timezone.utc),
+                        created_at=_as_utc(item.timestamp),
                     )
                 )
             db_session.commit()
@@ -113,9 +113,6 @@ class DatabaseChatHistoryRepository:
                 )
             )
             for item in messages:
-                timestamp = item.timestamp
-                if timestamp.tzinfo is None:
-                    timestamp = timestamp.replace(tzinfo=timezone.utc)
                 db_session.add(
                     ChatHistoryMessageRecord(
                         workflow_id=workflow_id,
@@ -123,7 +120,7 @@ class DatabaseChatHistoryRepository:
                         node_id=node_id,
                         role=item.role,
                         content=item.content,
-                        created_at=timestamp.astimezone(timezone.utc),
+                        created_at=_as_utc(item.timestamp),
                     )
                 )
             db_session.commit()

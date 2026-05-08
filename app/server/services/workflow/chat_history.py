@@ -7,6 +7,7 @@ from typing import Protocol
 from server.domain.chat_history import (
     ChatHistoryHandle,
     ChatHistoryMessage,
+    DEFAULT_CHAT_HISTORY_STORAGE_BACKEND,
 )
 from server.repositories.workflow import (
     database_chat_history_repository,
@@ -43,7 +44,7 @@ class ChatHistoryService:
     def _repository_for_handle(self, handle: ChatHistoryHandle) -> ChatHistoryRepository:
         if handle.node_type == "CHAT_HISTORY_MEMORY":
             return in_memory_chat_history_repository
-        backend = handle.storage_backend or "file"
+        backend = handle.storage_backend or DEFAULT_CHAT_HISTORY_STORAGE_BACKEND
         if backend == "database":
             return database_chat_history_repository
         return file_chat_history_repository
