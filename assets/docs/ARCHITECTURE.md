@@ -1,6 +1,6 @@
 # ARCHITECTURE
 
-Last updated: 2026-05-03
+Last updated: 2026-05-08
 
 ## System Summary
 
@@ -23,7 +23,7 @@ The project includes source code plus generated/runtime-heavy folders. Expanded 
 |  |  |- PROJECT_OVERVIEW.md
 |  |  |- RUNTIME_MODES.md
 |  |  `- UI_STANDARDS.md
-|- ParaGraph/
+|- app/
 |  |- client/
 |  |  |- src/
 |  |  |  |- App.tsx
@@ -47,20 +47,12 @@ The project includes source code plus generated/runtime-heavy folders. Expanded 
 |  |  |- services/ (business logic)
 |  |  |- repositories/ (file/db persistence)
 |  |  `- common/ (constants, security, logging)
-|  |- resources/ (runtime data: db, logs, models, nodes, workflows, artifacts)
-|  |- settings/ (.env variants + configurations.json)
-|  |- scripts/ (maintenance/init scripts)
-|  |- start_on_windows.bat
-|  `- setup_and_maintenance.bat
+|  `- resources/ (runtime data: db, logs, models, nodes, workflows, artifacts)
+|- settings/ (.env variants + configurations.json)
 |- release/
 |  |- tauri/ (desktop build scripts)
 |  `- windows/ (packaged artifacts)
 |- runtimes/ (portable Python/uv/Node + .venv + uv.lock)
-|- tests/
-|  |- unit/server/...
-|  `- e2e/server/...
-|- pyproject.toml
-|- uv.lock
 `- README.md
 ```
 
@@ -101,6 +93,7 @@ The project includes source code plus generated/runtime-heavy folders. Expanded 
 - `POST /nodes/import`
 - `POST /nodes/uploads/directory` (multipart upload)
 - `POST /nodes/check-database-connection`
+- `POST /nodes/database-schema`
 - `POST /nodes/check-vector-store-connection`
 
 ### Providers
