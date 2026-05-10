@@ -56,7 +56,7 @@ class LanceDbVectorStoreAdapter(VectorStoreAdapter):
                 "Vector store write requires at least one vector point"
             )
 
-        normalized_index_name = _normalize_index_name(index_name)
+        normalized_index_name = _normalize_index_name(collection_name or index_name)
         root_path = _resolve_vectorstore_root(storage_directory)
         root_path.mkdir(parents=True, exist_ok=True)
 
@@ -151,9 +151,13 @@ class LanceDbVectorStoreAdapter(VectorStoreAdapter):
                 "storage_directory": str(root_path),
                 "table_name": normalized_index_name,
                 "create_vector_index": bool(create_vector_index),
+                "vector_index_status": "created" if create_vector_index else "skipped",
+                "keyword_index_status": "unsupported",
                 "num_partitions": max(1, nlist),
                 "hnsw_m": hnsw_m,
             },
+            collection_name=normalized_index_name,
+            vector_index_status="created" if create_vector_index else "skipped",
         )
 
     def search(

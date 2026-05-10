@@ -410,6 +410,12 @@ def _vector_store_executor(
         collection_name=parsed.collection_name,
         database_name=parsed.database_name,
         provider_config=parsed.provider_config,
+        index_type=parsed.index_type,
+        create_vector_index=parsed.create_vector_index,
+        create_keyword_index=parsed.create_keyword_index,
+        metadata_index_fields=parsed.metadata_index_fields,
+        metadata_schema=parsed.metadata_schema,
+        id_conflict_policy=parsed.id_conflict_policy,
         points=points,
     )
     store_payload = store.model_dump(mode="json")

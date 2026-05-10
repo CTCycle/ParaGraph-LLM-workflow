@@ -1,6 +1,6 @@
 # NODES_LIBRARY
 
-Last updated: 2026-04-24
+Last updated: 2026-05-09
 
 ## Purpose
 
@@ -48,11 +48,43 @@ Runtime validation occurs through backend node registry logic before use in exec
 ## Similarity Search Contract
 
 - `search_mode`
-  - options: `vector`, `hybrid`
+  - options: `vector`, `keyword`, `hybrid`
 - `search_engine`
   - options: `native`, `faiss_augmented`
 - `similarity_strategy`
   - options: `cosine`, `euclidean`, `dot`
+
+## Processing and Retrieval Nodes
+
+### Tokenizer
+
+`TOKENIZER` version 2 tokenizes text, documents, document lists, chunks, and chunk lists through Hugging Face `AutoTokenizer.from_pretrained`. It preserves input order and can emit legacy `TOKEN_IDS`, structured `TOKENIZER_OUTPUT`, or serialized text.
+
+### Metadata
+
+`METADATA` attaches structured metadata to `DOCUMENT`, `DOCUMENT_LIST`, `CHUNK`, and `CHUNK_LIST` payloads. It supports merge or replace behavior, global metadata, and per-record metadata keyed by an ID field.
+
+### Vector Store and Vector Collection
+
+`VECTOR_STORE` keeps backend-specific collection, metadata, indexing, and search behavior behind the vector store adapter interface. Handles include backend, collection/index, metric, dimension, embedding provider/model, and index metadata. Backends expose capabilities such as metadata filtering, hybrid search, and FAISS augmentation through `describe_capabilities`.
+
+### Similarity Search
+
+`SIMILARITY_SEARCH` validates the connected vector store metric and embedding source before search. Metadata filters are passed to backends only when supported, and hybrid mode requires a backend that advertises hybrid search support.
+
+## Database Nodes
+
+The database category includes SQL database connection nodes, CRUD create/read/update/delete nodes, and a custom SQL query node. Existing SQL nodes use typed database connection controllers and parameterized SQLAlchemy execution paths.
+
+## Tool Nodes
+
+### Tool Collection
+
+`TOOL_COLLECTION` creates a typed `TOOL_COLLECTION_HANDLE` from inline Python functions, JSON schema tool definitions, signature text, or local `.py` files. Callable signatures are converted into JSON schema parameter definitions.
+
+### Tool Call
+
+`TOOL_CALL` is provider-neutral. It accepts a `MODEL_HANDLE` from `MODEL_PROVIDER` and a `TOOL_COLLECTION_HANDLE`, uses native tool calling when a provider advertises support, and falls back to structured JSON selection otherwise. It is designed for Ollama, Hugging Face, OpenAI, Gemini, and future providers that implement the provider service interface.
 
 ## Importing Custom Nodes
 

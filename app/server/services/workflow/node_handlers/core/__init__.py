@@ -17,6 +17,7 @@ from server.domain.node_handler_core import (
     StorageParameters,
     StructuredParameters,
     TextSplitParameters,
+    TokenizerParameters,
     VectorStoreParameters,
 )
 from server.services.configuration import configuration_service
@@ -106,7 +107,9 @@ CORE_HANDLERS = {
     "rerank_results": NodeHandler(
         executor=_rerank_results_executor, parameter_model=RerankParameters
     ),
-    "tokenize": NodeHandler(executor=_tokenize_executor),
+    "tokenize": NodeHandler(
+        executor=_tokenize_executor, parameter_model=TokenizerParameters
+    ),
     "text_split": NodeHandler(
         executor=_text_split_executor, parameter_model=TextSplitParameters
     ),

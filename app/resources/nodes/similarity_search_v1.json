@@ -49,6 +49,7 @@
         "required": true,
         "options": [
           "vector",
+          "keyword",
           "hybrid"
         ]
       },
