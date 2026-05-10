@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 from threading import Lock
 from typing import Any
 
@@ -414,6 +415,83 @@ class ProviderService(
             )
         except (LLMError, OllamaError) as exc:
             raise ValueError(str(exc)) from exc
+
+    def supports_native_tools(self, provider: str, model: str = "") -> bool:
+        _ = model
+        normalized_provider = _normalize_provider(provider)
+        metadata = PROVIDER_CAPABILITIES.get(normalized_provider)
+        return bool(metadata and metadata.supports_tool_calling)
+
+    def supports_structured_output(self, provider: str, model: str = "") -> bool:
+        _ = model
+        normalized_provider = _normalize_provider(provider)
+        metadata = PROVIDER_CAPABILITIES.get(normalized_provider)
+        return bool(metadata and metadata.supports_structured_output)
+
+    def chat_structured(
+        self,
+        *,
+        provider: str,
+        model: str,
+        messages: list[dict[str, Any]],
+        schema: dict[str, Any],
+        options: dict[str, Any] | None = None,
+        timeout_s: float | None = None,
+        session_name: str = DEFAULT_SESSION_NAME,
+    ) -> str:
+        _ = schema
+        return self.chat(
+            provider=provider,
+            model=model,
+            messages=messages,
+            response_format="json",
+            options=options,
+            timeout_s=timeout_s,
+            session_name=session_name,
+        )
+
+    def chat_with_tools(
+        self,
+        *,
+        provider: str,
+        model: str,
+        messages: list[dict[str, Any]],
+        tools: list[dict[str, Any]],
+        tool_choice: str = "auto",
+        options: dict[str, Any] | None = None,
+        timeout_s: float | None = None,
+        session_name: str = DEFAULT_SESSION_NAME,
+    ) -> dict[str, Any]:
+        if not self.supports_native_tools(provider, model):
+            raise ValueError(f"Provider '{provider}' does not support native tool calling")
+        prompt_messages = [
+            *messages,
+            {
+                "role": "system",
+                "content": (
+                    "Select exactly one tool. Return only JSON with keys "
+                    "tool_name and arguments. Available tools: "
+                    f"{tools}. tool_choice={tool_choice}"
+                ),
+            },
+        ]
+        text = self.chat(
+            provider=provider,
+            model=model,
+            messages=prompt_messages,
+            response_format="json",
+            options=options,
+            timeout_s=timeout_s,
+            session_name=session_name,
+        )
+        data = json.loads(text)
+        if not isinstance(data, dict):
+            raise ValueError("tool calling response must be a JSON object")
+        return {
+            "tool_name": data.get("tool_name"),
+            "arguments": data.get("arguments") if isinstance(data.get("arguments"), dict) else {},
+            "raw_model_response": data,
+        }
 
     def _fallback_embedding(
         self, *, provider: str, model: str, text: str, dimensions: int | None

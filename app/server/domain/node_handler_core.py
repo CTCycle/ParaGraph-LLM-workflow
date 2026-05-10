@@ -190,6 +190,7 @@ class SimilaritySearchParameters(BaseModel):
     keyword_query: str = ""
     vector_weight: float = Field(default=0.5, ge=0.0, le=1.0)
     keyword_weight: float = Field(default=0.5, ge=0.0, le=1.0)
+    rerank_strategy: Literal["none", "weighted", "rrf"] = "weighted"
 
     @field_validator("similarity_strategy")
     @classmethod
@@ -205,8 +206,8 @@ class SimilaritySearchParameters(BaseModel):
     @classmethod
     def validate_search_mode(cls, value: str) -> str:
         normalized = str(value or "").strip().lower()
-        if normalized not in {"vector", "hybrid"}:
-            raise ValueError("search_mode must be one of: vector, hybrid")
+        if normalized not in {"vector", "keyword", "hybrid"}:
+            raise ValueError("search_mode must be one of: vector, keyword, hybrid")
         return normalized
 
     @field_validator("search_engine")
@@ -246,6 +247,35 @@ class TextSplitParameters(BaseModel):
     delimiter: str = "\n"
 
 ###############################################################################
+class TokenizerParameters(BaseModel):
+    tokenizer_name: str
+    revision: str = ""
+    use_fast: bool = True
+    add_special_tokens: bool = True
+    truncation: bool = False
+    max_length: int = 0
+    padding: Literal["do_not_pad", "longest", "max_length"] = "do_not_pad"
+    return_attention_mask: bool = False
+    return_token_type_ids: bool = False
+    output_format: Literal["token_ids", "json", "string"] = "token_ids"
+
+    @field_validator("tokenizer_name")
+    @classmethod
+    def validate_tokenizer_name(cls, value: str) -> str:
+        normalized = str(value or "").strip()
+        if not normalized:
+            raise ValueError("tokenizer_name is required")
+        return normalized
+
+    @model_validator(mode="after")
+    def validate_length_options(self) -> "TokenizerParameters":
+        if (self.truncation or self.padding == "max_length") and self.max_length <= 0:
+            raise ValueError(
+                "max_length must be positive when truncation is true or padding is max_length"
+            )
+        return self
+
+###############################################################################
 class VectorStoreParameters(BaseModel):
     provider: str = "lancedb"
     index_name: str = "documents"
@@ -258,6 +288,12 @@ class VectorStoreParameters(BaseModel):
     provider_config: dict[str, Any] = Field(default_factory=dict)
     write_mode: str = "overwrite"
     distance_metric: str = "cosine"
+    index_type: str = "auto"
+    create_vector_index: bool = True
+    create_keyword_index: bool = False
+    metadata_index_fields: list[str] = Field(default_factory=list)
+    metadata_schema: dict[str, str] = Field(default_factory=dict)
+    id_conflict_policy: Literal["error", "overwrite", "skip"] = "overwrite"
 
     @field_validator("write_mode")
     @classmethod
@@ -400,3 +436,44 @@ class StorageParameters(BaseModel):
 ###############################################################################
 class RouterParameters(BaseModel):
     expected_value: str = ""
+
+###############################################################################
+class MetadataParameters(BaseModel):
+    metadata: dict[str, Any] = Field(default_factory=dict)
+    merge_strategy: Literal["merge", "replace"] = "merge"
+    scope: Literal["all", "documents", "chunks"] = "all"
+    id_field: str = ""
+    metadata_by_id: dict[str, dict[str, Any]] = Field(default_factory=dict)
+
+###############################################################################
+class VectorCollectionParameters(BaseModel):
+    provider: str = "lancedb"
+    operation: Literal["create", "list", "delete", "describe"] = "list"
+    collection_name: str = ""
+    storage_path: str = ""
+    endpoint_url: str = ""
+    api_key: str = ""
+    database_name: str = ""
+    provider_config: dict[str, Any] = Field(default_factory=dict)
+
+###############################################################################
+class ToolCollectionParameters(BaseModel):
+    source_type: Literal["inline_python", "json_schema", "signature", "python_file"]
+    inline_code: str = ""
+    schema_json: dict[str, Any] = Field(default_factory=dict)
+    signature_text: str = ""
+    file_path: str = ""
+    entrypoint: str = ""
+    tool_name: str = ""
+    description: str = ""
+
+###############################################################################
+class ToolCallParameters(BaseModel):
+    instruction: str = ""
+    tool_choice: str = "auto"
+    execute_tool: bool = True
+    max_tokens: int = Field(default=512, ge=1)
+    context_window: int = Field(default=0, ge=0)
+    use_reasoning: bool = False
+    provider_tool_mode: Literal["auto", "native", "structured_json"] = "auto"
+    allow_parallel_tool_calls: bool = False

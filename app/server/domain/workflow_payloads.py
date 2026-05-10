@@ -88,6 +88,10 @@ class VectorStoreHandle(BaseModel):
     dimension: int
     embedding_provider: str
     embedding_model: str
+    collection_name: str = ""
+    indexed_metadata_fields: list[str] = Field(default_factory=list)
+    keyword_index_status: str = "unsupported"
+    vector_index_status: str = "unknown"
     metadata: dict[str, Any] = Field(default_factory=dict)
 
     @field_validator("dimension")
@@ -116,6 +120,80 @@ class RetrievalResults(BaseModel):
     query: str
     hits: list[RetrievalHit] = Field(default_factory=list)
 
+###############################################################################
+class TokenizerOutput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    tokenizer_name: str
+    revision: str = ""
+    records: list[dict[str, Any]] = Field(default_factory=list)
+
+###############################################################################
+class MetadataRecord(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+###############################################################################
+class ToolDefinition(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    name: str
+    description: str = ""
+    parameters_schema: dict[str, Any]
+    source_type: str
+    source_ref: str = ""
+    entrypoint: str = ""
+    callable_name: str = ""
+
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, value: str) -> str:
+        normalized = str(value or "").strip()
+        if not normalized:
+            raise ValueError("tool name is required")
+        return normalized
+
+###############################################################################
+class ToolCollectionHandle(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    tools: list[ToolDefinition]
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+###############################################################################
+class ToolCallRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    instruction: str
+    context: dict[str, Any] = Field(default_factory=dict)
+
+###############################################################################
+class ToolCallSelection(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    tool_name: str
+    arguments: dict[str, Any] = Field(default_factory=dict)
+    raw_model_response: Any = None
+
+###############################################################################
+class ToolCallResult(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    tool_name: str
+    arguments: dict[str, Any] = Field(default_factory=dict)
+    result: Any = None
+    raw_model_response: Any = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+###############################################################################
+class SqlOperationResult(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    affected_rows: int = 0
+    rows: list[dict[str, Any]] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
 
 DATA_TYPE_ADAPTERS: dict[NodeDataType, TypeAdapter[Any]] = {
     "TEXT": TypeAdapter(str),
@@ -132,6 +210,13 @@ DATA_TYPE_ADAPTERS: dict[NodeDataType, TypeAdapter[Any]] = {
     "VECTOR_STORE_HANDLE": TypeAdapter(VectorStoreHandle),
     "RETRIEVAL_RESULTS": TypeAdapter(RetrievalResults),
     "TOKEN_IDS": TypeAdapter(list[int]),
+    "TOKENIZER_OUTPUT": TypeAdapter(TokenizerOutput),
+    "METADATA": TypeAdapter(MetadataRecord),
+    "METADATA_LIST": TypeAdapter(list[MetadataRecord]),
+    "TOOL_DEFINITION": TypeAdapter(ToolDefinition),
+    "TOOL_COLLECTION_HANDLE": TypeAdapter(ToolCollectionHandle),
+    "TOOL_CALL_RESULT": TypeAdapter(ToolCallResult),
+    "SQL_OPERATION_RESULT": TypeAdapter(SqlOperationResult),
     "JSON": TypeAdapter(dict[str, Any] | list[Any] | str | int | float | bool | None),
     "MODEL_HANDLE": TypeAdapter(ProviderModelDefinition),
     "CHAT_HISTORY_HANDLE": TypeAdapter(ChatHistoryHandle),

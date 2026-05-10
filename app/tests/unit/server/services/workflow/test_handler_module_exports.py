@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 from server.services.workflow import compiler_service, node_registry, provider_service
-from server.services.workflow.node_handlers import NODE_HANDLERS
+from server.services.workflow.node_handlers import (
+    ADDITIONAL_CORE_NODE_HANDLERS,
+    NODE_HANDLERS,
+)
 from server.services.workflow.node_handlers.core import CORE_HANDLERS
 from server.services.workflow.node_handlers.database import DATABASE_HANDLERS
 from server.services.workflow.node_handlers.ingestion import (
@@ -68,6 +71,7 @@ def test_handler_registries_keep_expected_keys() -> None:
     }
     assert set(NODE_HANDLERS) == (
         set(CORE_HANDLERS)
+        | set(ADDITIONAL_CORE_NODE_HANDLERS)
         | set(PROCESSING_HANDLERS)
         | set(INGESTION_HANDLERS)
         | set(DATABASE_HANDLERS)
