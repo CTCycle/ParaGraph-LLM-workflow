@@ -1,6 +1,6 @@
 # ARCHITECTURE
 
-Last updated: 2026-05-08
+Last updated: 2026-05-11
 
 ## System Summary
 
@@ -46,6 +46,9 @@ The project includes source code plus generated/runtime-heavy folders. Expanded 
 |  |  |- domain/ (Pydantic/domain models)
 |  |  |- services/ (business logic)
 |  |  |- repositories/ (file/db persistence)
+|  |  |  |- database/ (shared tabular persistence + engine adapters)
+|  |  |  |- schemas/ (SQLAlchemy ORM models)
+|  |  |  `- workflow/ (workflow JSON and runtime repositories)
 |  |  `- common/ (constants, security, logging)
 |  `- resources/ (runtime data: db, logs, models, nodes, workflows, artifacts)
 |- settings/ (.env variants + configurations.json)
@@ -147,19 +150,25 @@ Typical backend flow follows endpoint -> service -> repository:
 - `server/services/runtime/events.py`: in-memory event bus + per-run history.
 - `server/repositories/workflow/workflow.py`: filesystem workflow storage + index.
 - `server/repositories/configuration.py`: session/profile/access-key persistence in SQL database.
+- `server/repositories/database/base.py`: shared dataframe and SQLAlchemy tabular persistence behavior.
+- `server/repositories/database/sqlite.py`: embedded SQLite engine adapter.
+- `server/repositories/database/postgres.py`: external PostgreSQL engine adapter.
 - `client/src/pages/WorkflowPage.tsx`: visual workflow editor and execution control surface.
 - `client/src/app/services/*.ts`: typed frontend API clients.
 
 ## Data Persistence
 
 - File-based:
-  - Workflows persisted under `app/resources/workflows`.
+  - Workflow graph definitions are intentionally JSON persisted under `app/resources/workflows`.
   - Workflow templates loaded from `app/resources/workflow_templates`.
-  - Node manifests/plugins and artifacts stored under `app/resources/nodes` and `app/resources/artifacts`.
+  - Node definitions remain JSON assets under `app/resources/nodes`.
+  - Node plugins and artifacts are stored under `app/resources/nodes` and `app/resources/artifacts`.
 - Database:
   - Default embedded SQLite at `app/resources/database.db`.
   - Optional external PostgreSQL via `settings/configurations.json`.
+  - The application database stores internal application records, not workflow graph definitions.
   - SQLAlchemy tables include `user_sessions`, `access_keys`, `configuration_profiles`, `nodes`, and `chat_history_messages`.
+  - SQLite and PostgreSQL repositories share tabular persistence through `repositories/database/base.py`; engine-specific classes only construct and validate their backends.
 - In-memory runtime stores:
   - Execution runs (`repositories/workflow/execution_run.py`).
   - Execution event history/subscribers (`services/runtime/events.py`).

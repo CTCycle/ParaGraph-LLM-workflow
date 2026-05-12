@@ -11,6 +11,7 @@ from server.domain.chat_history import ChatHistoryMessage
 from server.repositories.database.factory import DatabaseRepositoryFactory
 from server.repositories.schemas import Base, ChatHistoryMessageRecord
 
+
 ###############################################################################
 def _as_utc(timestamp: datetime) -> datetime:
     if timestamp.tzinfo is None:
@@ -24,21 +25,20 @@ class DatabaseChatHistoryRepository:
         self, database_factory: DatabaseRepositoryFactory | None = None
     ) -> None:
         self._database_factory = database_factory or DatabaseRepositoryFactory()
-
-    def _database_engine(self):
-        settings = get_server_settings().database
-        return self._database_factory.build(settings).engine
+        self._database_repository = self._database_factory.build(
+            get_server_settings().database
+        )
 
     def _ensure_table(self) -> None:
         Base.metadata.create_all(
-            self._database_engine(), tables=[ChatHistoryMessageRecord.__table__]
+            self._database_repository.engine, tables=[ChatHistoryMessageRecord.__table__]
         )
 
     def get_messages(
         self, workflow_id: str, execution_session_id: str, node_id: str
     ) -> list[ChatHistoryMessage]:
         self._ensure_table()
-        with Session(self._database_engine()) as db_session:
+        with Session(self._database_repository.engine) as db_session:
             rows = list(
                 db_session.execute(
                     select(ChatHistoryMessageRecord)
@@ -68,7 +68,7 @@ class DatabaseChatHistoryRepository:
         messages: list[ChatHistoryMessage],
     ) -> list[ChatHistoryMessage]:
         self._ensure_table()
-        with Session(self._database_engine()) as db_session:
+        with Session(self._database_repository.engine) as db_session:
             for item in messages:
                 db_session.add(
                     ChatHistoryMessageRecord(
@@ -85,7 +85,7 @@ class DatabaseChatHistoryRepository:
 
     def clear_session(self, workflow_id: str, execution_session_id: str) -> None:
         self._ensure_table()
-        with Session(self._database_engine()) as db_session:
+        with Session(self._database_repository.engine) as db_session:
             db_session.execute(
                 delete(ChatHistoryMessageRecord).where(
                     ChatHistoryMessageRecord.workflow_id == workflow_id,
@@ -103,7 +103,7 @@ class DatabaseChatHistoryRepository:
         messages: list[ChatHistoryMessage],
     ) -> None:
         self._ensure_table()
-        with Session(self._database_engine()) as db_session:
+        with Session(self._database_repository.engine) as db_session:
             db_session.execute(
                 delete(ChatHistoryMessageRecord).where(
                     ChatHistoryMessageRecord.workflow_id == workflow_id,
@@ -128,7 +128,7 @@ class DatabaseChatHistoryRepository:
     def reset_for_tests(self) -> None:
         try:
             self._ensure_table()
-            with Session(self._database_engine()) as db_session:
+            with Session(self._database_repository.engine) as db_session:
                 db_session.execute(delete(ChatHistoryMessageRecord))
                 db_session.commit()
         except OperationalError:
