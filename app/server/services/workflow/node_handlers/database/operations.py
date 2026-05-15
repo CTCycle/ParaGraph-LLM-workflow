@@ -9,7 +9,7 @@ from server.domain.node_handler_database import (
     CrudUpdateParameters,
     CustomSqlQueryParameters,
 )
-from server.services.workflow.database import (
+from server.repositories.workflow.database import (
     execute_create,
     execute_custom_sql,
     execute_delete,

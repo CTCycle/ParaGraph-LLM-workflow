@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 ###############################################################################
@@ -458,9 +458,13 @@ class VectorCollectionParameters(BaseModel):
 
 ###############################################################################
 class ToolCollectionParameters(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
     source_type: Literal["inline_python", "json_schema", "signature", "python_file"]
     inline_code: str = ""
-    schema_json: dict[str, Any] = Field(default_factory=dict)
+    schema_definition: dict[str, Any] = Field(
+        default_factory=dict, alias="schema_json"
+    )
     signature_text: str = ""
     file_path: str = ""
     entrypoint: str = ""

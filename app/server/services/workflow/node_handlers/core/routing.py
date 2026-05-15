@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 from typing import Any
 
+from transformers import AutoTokenizer
+
 from server.domain.node_handler_core import TokenizerParameters
 from server.services.workflow.node_handlers.common import coerce_text
 
@@ -12,8 +14,6 @@ _TOKENIZER_CACHE: dict[tuple[str, str, bool], Any] = {}
 def _load_tokenizer(tokenizer_name: str, revision: str, use_fast: bool) -> Any:
     cache_key = (tokenizer_name, revision, use_fast)
     if cache_key not in _TOKENIZER_CACHE:
-        from transformers import AutoTokenizer
-
         kwargs: dict[str, Any] = {"use_fast": use_fast}
         if revision:
             kwargs["revision"] = revision

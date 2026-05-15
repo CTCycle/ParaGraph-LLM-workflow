@@ -6,6 +6,7 @@ from uuid import NAMESPACE_URL, uuid5
 
 from server.domain.node_handler_ingestion import (
     LOAD_DOCUMENTS_SUPPORTED_EXTENSIONS,
+    LoadDocumentsParameters,
     SUPPORTED_DOCUMENT_EXTENSIONS,
 )
 from server.services.workflow.node_handlers.common import coerce_bool, coerce_text
@@ -75,8 +76,6 @@ def _load_documents_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
 ) -> dict[str, Any]:
     _ = inputs
-    from server.domain.node_handler_ingestion import LoadDocumentsParameters
-
     parsed = LoadDocumentsParameters.model_validate(parameters)
     directory = resolve_local_path(parsed.folder_path)
     if not directory.exists() or not directory.is_dir():
