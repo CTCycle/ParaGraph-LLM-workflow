@@ -185,7 +185,11 @@ def _tool_collection_executor(
     elif parsed.source_type == "signature":
         tools = _parse_signature_tools(parsed.signature_text)
     else:
-        schema = inputs.get("schema") if isinstance(inputs.get("schema"), dict) else parsed.schema_json
+        schema = (
+            inputs.get("schema")
+            if isinstance(inputs.get("schema"), dict)
+            else parsed.schema_definition
+        )
         tools = _parse_json_schema_tools(schema, parsed.tool_name, parsed.description)
     if not tools:
         raise ValueError("TOOL_COLLECTION did not find any tools")

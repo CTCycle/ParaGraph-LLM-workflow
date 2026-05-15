@@ -1,6 +1,6 @@
 # ARCHITECTURE
 
-Last updated: 2026-05-11
+Last updated: 2026-05-15
 
 ## System Summary
 
@@ -131,6 +131,8 @@ Typical backend flow follows endpoint -> service -> repository:
   `api/configurations.py` -> `services/configuration.py` -> `repositories/configuration.py` -> SQLAlchemy models in `repositories/schemas/models.py`
 - Provider catalogs/downloads:
   `api/providers.py` -> `services/workflow/provider/service.py`, with provider helper, catalog, download, and mixin modules under `services/workflow/provider/` (+ jobs/event systems)
+- Database node operations:
+  `services/workflow/node_handlers/database/operations.py` -> `repositories/workflow/database.py`
 
 ## Responsibilities of Key Modules
 
@@ -149,6 +151,7 @@ Typical backend flow follows endpoint -> service -> repository:
 - `server/services/jobs.py`: thread-based background job manager.
 - `server/services/runtime/events.py`: in-memory event bus + per-run history.
 - `server/repositories/workflow/workflow.py`: filesystem workflow storage + index.
+- `server/repositories/workflow/database.py`: SQLAlchemy connection URL construction, schema inspection, and database-node CRUD/custom SQL persistence.
 - `server/repositories/configuration.py`: session/profile/access-key persistence in SQL database.
 - `server/repositories/database/base.py`: shared dataframe and SQLAlchemy tabular persistence behavior.
 - `server/repositories/database/sqlite.py`: embedded SQLite engine adapter.
@@ -169,6 +172,7 @@ Typical backend flow follows endpoint -> service -> repository:
   - The application database stores internal application records, not workflow graph definitions.
   - SQLAlchemy tables include `user_sessions`, `access_keys`, `configuration_profiles`, `nodes`, and `chat_history_messages`.
   - SQLite and PostgreSQL repositories share tabular persistence through `repositories/database/base.py`; engine-specific classes only construct and validate their backends.
+  - Database workflow nodes use `repositories/workflow/database.py` for inspected external/SQLite connection operations.
 - In-memory runtime stores:
   - Execution runs (`repositories/workflow/execution_run.py`).
   - Execution event history/subscribers (`services/runtime/events.py`).

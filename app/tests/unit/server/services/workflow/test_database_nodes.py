@@ -6,7 +6,7 @@ from sqlalchemy import ForeignKey, Integer, String, create_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
 
 from server.services.workflow import node_registry
-from server.services.workflow.database import inspect_database_schema
+from server.repositories.workflow.database import inspect_database_schema
 
 
 class DatabaseBase(DeclarativeBase):

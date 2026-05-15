@@ -12,11 +12,11 @@ from server.domain.nodes import (
     VectorStoreConnectionCheckRequest,
     VectorStoreConnectionCheckResponse,
 )
-from server.services.workflow.database import inspect_database_schema
+from server.repositories.workflow.database import inspect_database_schema
 from server.services.workflow.nodes.registry import node_registry
 from server.services.workflow.vector_stores import get_vector_store_adapter
 
-
+###############################################################################
 class NodeConnectivityService:
     def check_database_connection(
         self, request: DatabaseConnectionCheckRequest

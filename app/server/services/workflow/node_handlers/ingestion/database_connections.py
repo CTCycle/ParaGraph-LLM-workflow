@@ -12,7 +12,7 @@ from server.domain.node_handler_ingestion import (
     SQLDatabaseParameters,
     SQLFileDatabaseParameters,
 )
-from server.services.workflow.database import build_database_url
+from server.repositories.workflow.database import build_database_url
 from server.services.workflow.node_handlers.ingestion.files import resolve_local_path
 
 
