@@ -1,0 +1,26 @@
+{
+  "id": "TOOL_COLLECTION",
+  "version": 1,
+  "name": "Tool Collection",
+  "category": "model",
+  "description": "Build a reusable collection of tools from Python, signatures, or JSON schema.",
+  "inputs": [
+    {"name": "schema", "data_type": "JSON", "required": false},
+    {"name": "code", "data_type": "TEXT", "required": false}
+  ],
+  "outputs": [
+    {"name": "tools", "data_type": "TOOL_COLLECTION_HANDLE", "required": true}
+  ],
+  "parameters": [
+    {"name": "source_type", "data_type": "TEXT", "default": "json_schema", "constraints": {"options": ["inline_python", "json_schema", "signature", "python_file"]}, "ui_control": "select"},
+    {"name": "inline_code", "data_type": "TEXT", "default": "", "ui_control": "textarea"},
+    {"name": "schema_json", "data_type": "JSON", "default": {}, "ui_control": "json"},
+    {"name": "signature_text", "data_type": "TEXT", "default": "", "ui_control": "textarea"},
+    {"name": "file_path", "data_type": "TEXT", "default": "", "ui_control": "file"},
+    {"name": "entrypoint", "data_type": "TEXT", "default": "", "ui_control": "text"},
+    {"name": "tool_name", "data_type": "TEXT", "default": "", "ui_control": "text"},
+    {"name": "description", "data_type": "TEXT", "default": "", "ui_control": "textarea"}
+  ],
+  "ui": {"default_width": 380, "accent_color": "#b27cff", "collapsed_by_default": false},
+  "runtime": {"executor_key": "tool_collection", "cacheable": true, "deterministic": true, "side_effecting": false}
+}

@@ -1,0 +1,56 @@
+{
+  "id": "CHAT_HISTORY_MEMORY",
+  "version": 1,
+  "name": "In-Memory Chat History",
+  "category": "memory",
+  "description": "Build an in-memory chat history controller that supplies accumulated conversation context to connected LLM nodes.",
+  "inputs": [],
+  "outputs": [],
+  "controllers": [
+    {
+      "name": "history",
+      "data_type": "CHAT_HISTORY_HANDLE",
+      "required": false,
+      "accepts_multiple": true,
+      "description": "Controller handle consumed by LLM nodes to load and append chat history.",
+      "scope": "source"
+    }
+  ],
+  "parameters": [
+    {
+      "name": "max_messages",
+      "data_type": "JSON",
+      "default": 20,
+      "constraints": {
+        "min": 1
+      },
+      "ui_control": "number",
+      "description": "Maximum number of history messages to keep per session."
+    },
+    {
+      "name": "separator",
+      "data_type": "TEXT",
+      "default": "\n",
+      "ui_control": "text",
+      "description": "Separator used when formatting history into prompt text."
+    },
+    {
+      "name": "keep_prompt_type",
+      "data_type": "BOOLEAN",
+      "default": true,
+      "ui_control": "toggle",
+      "description": "When enabled, prefixes each history line with system/user/assistant role."
+    }
+  ],
+  "ui": {
+    "default_width": 340,
+    "accent_color": "#55a06f",
+    "collapsed_by_default": false
+  },
+  "runtime": {
+    "executor_key": "chat_history_memory",
+    "cacheable": false,
+    "deterministic": false,
+    "side_effecting": true
+  }
+}

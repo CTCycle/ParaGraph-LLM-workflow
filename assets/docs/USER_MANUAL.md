@@ -84,13 +84,13 @@ Common statuses include queued, running, completed, failed, and cancelled.
 ## Troubleshooting
 
 - If startup fails, rerun `ParaGraph\start_on_windows.bat` and check console output.
-- If APIs are unreachable, verify configured host/port values in `ParaGraph/settings/.env`.
+- If APIs are unreachable, verify configured host/port values in `settings/.env`.
 - If model operations fail, verify provider credentials and network reachability.
 - If compile fails, inspect diagnostics and fix missing inputs/controllers or type mismatches.
 
 ## Data Location
 
-Runtime data is stored under `ParaGraph/resources`, including:
+Runtime data is stored under `app/resources`, including:
 
 - Local database
 - Logs
@@ -98,3 +98,4 @@ Runtime data is stored under `ParaGraph/resources`, including:
 - Node assets/plugins
 - Downloaded model artifacts
 - Browser upload artifacts
+

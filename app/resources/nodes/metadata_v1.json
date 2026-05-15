@@ -1,0 +1,30 @@
+{
+  "id": "METADATA",
+  "version": 1,
+  "name": "Metadata",
+  "category": "processing",
+  "description": "Attach or replace structured metadata on documents and chunks.",
+  "inputs": [
+    {"name": "document", "data_type": "DOCUMENT", "required": false},
+    {"name": "documents", "data_type": "DOCUMENT_LIST", "required": false},
+    {"name": "chunk", "data_type": "CHUNK", "required": false},
+    {"name": "chunks", "data_type": "CHUNK_LIST", "required": false},
+    {"name": "metadata", "data_type": "JSON", "required": false}
+  ],
+  "outputs": [
+    {"name": "document", "data_type": "DOCUMENT", "required": false},
+    {"name": "documents", "data_type": "DOCUMENT_LIST", "required": false},
+    {"name": "chunk", "data_type": "CHUNK", "required": false},
+    {"name": "chunks", "data_type": "CHUNK_LIST", "required": false},
+    {"name": "metadata", "data_type": "METADATA", "required": false}
+  ],
+  "parameters": [
+    {"name": "metadata", "data_type": "JSON", "default": {}, "ui_control": "json"},
+    {"name": "merge_strategy", "data_type": "TEXT", "default": "merge", "constraints": {"options": ["merge", "replace"]}, "ui_control": "select"},
+    {"name": "scope", "data_type": "TEXT", "default": "all", "constraints": {"options": ["all", "documents", "chunks"]}, "ui_control": "select"},
+    {"name": "id_field", "data_type": "TEXT", "default": "", "ui_control": "text"},
+    {"name": "metadata_by_id", "data_type": "JSON", "default": {}, "ui_control": "json"}
+  ],
+  "ui": {"default_width": 360, "accent_color": "#2f9b7a", "collapsed_by_default": false},
+  "runtime": {"executor_key": "metadata", "cacheable": true, "deterministic": true, "side_effecting": false}
+}

@@ -10,6 +10,8 @@ on:
 jobs:
   backend-validation:
     runs-on: ubuntu-latest
+    env:
+      PYTHONPATH: app
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -23,13 +25,13 @@ jobs:
         uses: astral-sh/setup-uv@v4
 
       - name: Sync Test Dependencies
-        run: uv sync --extra test
+        run: uv --project app/server sync --extra test
 
       - name: Lint Backend
-        run: uv run ruff check ParaGraph/server tests
+        run: uv --project app/server run ruff check app/server app/tests
 
       - name: Compile Backend
-        run: uv run python -m compileall ParaGraph/server
+        run: uv --project app/server run python -m compileall app/server/app.py app/server/api app/server/common app/server/configurations app/server/domain app/server/repositories app/server/services
 
       - name: Run Backend Tests
-        run: uv run pytest tests/unit/server tests/e2e/server/test_execution_lifecycle.py
+        run: uv --project app/server run pytest app/tests/unit/server app/tests/e2e/server/test_execution_lifecycle.py

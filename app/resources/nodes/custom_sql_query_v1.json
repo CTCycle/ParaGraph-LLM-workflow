@@ -1,0 +1,48 @@
+{
+  "id": "CUSTOM_SQL_QUERY",
+  "version": 1,
+  "name": "Custom SQL Query",
+  "category": "database",
+  "description": "Execute one advanced SQL statement through a connected database node and return a typed dataset.",
+  "inputs": [],
+  "outputs": [
+    {
+      "name": "dataset",
+      "data_type": "DATASET",
+      "required": true
+    }
+  ],
+  "controllers": [
+    {
+      "name": "connection",
+      "data_type": "DATABASE_CONNECTION",
+      "required": true,
+      "accepts_multiple": false,
+      "scope": "target",
+      "description": "Database connection controller from a database node."
+    }
+  ],
+  "parameters": [
+    {
+      "name": "sql",
+      "data_type": "TEXT",
+      "default": "select 1 as value",
+      "constraints": {
+        "required": true
+      },
+      "ui_control": "textarea",
+      "description": "A single SQL statement. Use this for advanced queries outside the CRUD nodes."
+    }
+  ],
+  "ui": {
+    "default_width": 420,
+    "accent_color": "#475569",
+    "collapsed_by_default": false
+  },
+  "runtime": {
+    "executor_key": "custom_sql_query",
+    "cacheable": false,
+    "deterministic": false,
+    "side_effecting": true
+  }
+}

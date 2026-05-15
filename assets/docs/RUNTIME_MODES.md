@@ -18,7 +18,7 @@ Last updated: 2026-04-24
 
 ### 3. Desktop Packaged Mode (Tauri)
 
-- Implemented via `ParaGraph/client/src-tauri`.
+- Implemented via `app/client/src-tauri`.
 - Desktop app boots backend runtime internally, then loads web UI in Tauri window.
 - Release packaging provided by `release/tauri/build_with_tauri.bat` and npm tauri scripts.
 
@@ -47,13 +47,13 @@ PowerShell:
 CMD:
 
 ```bat
-runtimes\.venv\Scripts\python.exe -m uvicorn ParaGraph.server.app:app --host 127.0.0.1 --port 5002 --reload
+runtimes\.venv\Scripts\python.exe -m uvicorn server.app:app --host 127.0.0.1 --port 5002 --reload
 ```
 
 PowerShell:
 
 ```powershell
-.\runtimes\.venv\Scripts\python.exe -m uvicorn ParaGraph.server.app:app --host 127.0.0.1 --port 5002 --reload
+.\runtimes\.venv\Scripts\python.exe -m uvicorn server.app:app --host 127.0.0.1 --port 5002 --reload
 ```
 
 ### Manual frontend
@@ -92,11 +92,11 @@ Copy-Item ParaGraph\settings\.env.local.tauri.example ParaGraph\settings\.env -F
 
 ## Configuration Differences
 
-- Shared environment keys come from `ParaGraph/settings/.env*`.
+- Shared environment keys come from `settings/.env*`.
 - Local defaults (`.env.local.example`): `FASTAPI_PORT=5002`, `UI_PORT=8002`, `VITE_API_BASE_URL=/api`, `RELOAD=true`.
 - Tauri-oriented local example (`.env.local.tauri.example`) sets `RELOAD=false`.
 - In packaged desktop mode, backend sets `PARAGRAPH_TAURI_MODE=true`; server serves static `client/dist` from FastAPI root.
-- Database/runtime behavior comes from `ParaGraph/settings/configurations.json`:
+- Database/runtime behavior comes from `settings/configurations.json`:
   - Default embedded SQLite (`embedded_database=true`).
   - Optional PostgreSQL when embedded mode is disabled.
 
@@ -107,7 +107,7 @@ Copy-Item ParaGraph\settings\.env.local.tauri.example ParaGraph\settings\.env -F
 - Tauri runtime hosts both layers locally:
   - Rust launcher starts backend uvicorn.
   - UI window redirects to backend URL after readiness check.
-- Shared persistence layer is under `ParaGraph/resources` (workflows, db, logs, artifacts, models).
+- Shared persistence layer is under `app/resources` (workflows, db, logs, artifacts, models).
 
 ## Limitations and Constraints
 
@@ -121,3 +121,4 @@ Copy-Item ParaGraph\settings\.env.local.tauri.example ParaGraph\settings\.env -F
 - Desktop packaging target is Tauri bundle output (`msi`, `setup.exe`, portable executable).
 - Build orchestration is script-driven (`release/tauri/build_with_tauri.bat`).
 - Exported artifacts are copied into `release/windows/installers` and `release/windows/portable`.
+
