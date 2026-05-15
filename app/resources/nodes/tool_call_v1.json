@@ -1,0 +1,31 @@
+{
+  "id": "TOOL_CALL",
+  "version": 1,
+  "name": "Tool Call",
+  "category": "model",
+  "description": "Select and optionally execute a tool through a provider-neutral model controller.",
+  "inputs": [
+    {"name": "instruction", "data_type": "TEXT", "required": false},
+    {"name": "context", "data_type": "JSON", "required": false}
+  ],
+  "outputs": [
+    {"name": "result", "data_type": "TOOL_CALL_RESULT", "required": true},
+    {"name": "json", "data_type": "JSON", "required": false}
+  ],
+  "controllers": [
+    {"name": "model", "data_type": "MODEL_HANDLE", "required": true, "scope": "target"},
+    {"name": "tools", "data_type": "TOOL_COLLECTION_HANDLE", "required": true, "scope": "target"}
+  ],
+  "parameters": [
+    {"name": "instruction", "data_type": "TEXT", "default": "", "ui_control": "textarea"},
+    {"name": "tool_choice", "data_type": "TEXT", "default": "auto", "ui_control": "text"},
+    {"name": "execute_tool", "data_type": "BOOLEAN", "default": true, "ui_control": "toggle"},
+    {"name": "max_tokens", "data_type": "JSON", "default": 512, "ui_control": "number"},
+    {"name": "context_window", "data_type": "JSON", "default": 0, "ui_control": "number"},
+    {"name": "use_reasoning", "data_type": "BOOLEAN", "default": false, "ui_control": "toggle"},
+    {"name": "provider_tool_mode", "data_type": "TEXT", "default": "auto", "constraints": {"options": ["auto", "native", "structured_json"]}, "ui_control": "select"},
+    {"name": "allow_parallel_tool_calls", "data_type": "BOOLEAN", "default": false, "ui_control": "toggle"}
+  ],
+  "ui": {"default_width": 400, "accent_color": "#b27cff", "collapsed_by_default": false},
+  "runtime": {"executor_key": "tool_call", "cacheable": false, "deterministic": false, "side_effecting": true}
+}

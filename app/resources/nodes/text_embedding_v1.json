@@ -1,0 +1,103 @@
+{
+  "id": "TEXT_EMBEDDING",
+  "version": 1,
+  "name": "Text Embedding",
+  "category": "embeddings",
+  "description": "Generate embedding vectors from text, documents, or chunks using an embedded provider selection.",
+  "inputs": [
+    {
+      "name": "text",
+      "data_type": "TEXT",
+      "required": false,
+      "accepts_multiple": false,
+      "description": "Single text payload to embed."
+    },
+    {
+      "name": "documents",
+      "data_type": "DOCUMENT_LIST",
+      "required": false,
+      "accepts_multiple": false,
+      "description": "Document collection to embed."
+    },
+    {
+      "name": "chunks",
+      "data_type": "CHUNK_LIST",
+      "required": false,
+      "accepts_multiple": false,
+      "description": "Chunk collection to embed."
+    }
+  ],
+  "outputs": [
+    {
+      "name": "vectors",
+      "data_type": "VECTOR_POINT_LIST",
+      "required": true,
+      "accepts_multiple": false,
+      "description": "Dense embedding vectors with source metadata for semantic similarity."
+    }
+  ],
+  "controllers": [
+    {
+      "name": "embedding",
+      "data_type": "JSON",
+      "required": false,
+      "accepts_multiple": false,
+      "description": "Embedding handle containing provider/model metadata and generated vectors for controller-driven vector storage or retrieval.",
+      "scope": "source"
+    }
+  ],
+  "parameters": [
+    {
+      "name": "provider",
+      "data_type": "TEXT",
+      "default": "ollama",
+      "constraints": {
+        "required": true,
+        "options": [
+          "openai",
+          "gemini",
+          "huggingface",
+          "ollama"
+        ]
+      },
+      "ui_control": "select",
+      "description": "Embedding provider. Ollama with nomic-embed-text is the local default; OpenAI and Gemini embedding models are available when configured."
+    },
+    {
+      "name": "model_name",
+      "data_type": "TEXT",
+      "default": "nomic-embed-text",
+      "constraints": {
+        "required": true,
+        "provider_source": "provider"
+      },
+      "ui_control": "select",
+      "description": "Embedding model available for the selected provider."
+    },
+    {
+      "name": "tokenizer_name",
+      "data_type": "TEXT",
+      "default": "",
+      "constraints": {
+        "required": false,
+        "provider_source": "provider",
+        "visible_when": {
+          "provider": "huggingface"
+        }
+      },
+      "ui_control": "select",
+      "description": "Optional Hugging Face tokenizer repository. Leave blank to use the embedding model repository tokenizer."
+    }
+  ],
+  "ui": {
+    "default_width": 360,
+    "accent_color": "#41c6a8",
+    "collapsed_by_default": false
+  },
+  "runtime": {
+    "executor_key": "text_embedding",
+    "cacheable": false,
+    "deterministic": true,
+    "side_effecting": false
+  }
+}

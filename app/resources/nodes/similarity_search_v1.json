@@ -1,0 +1,181 @@
+{
+  "id": "SIMILARITY_SEARCH",
+  "version": 1,
+  "name": "Similarity Search",
+  "category": "retrieval",
+  "description": "Search similar vectors for a query text using a connected embedding source and vector store controller.",
+  "inputs": [
+    {
+      "name": "query",
+      "data_type": "TEXT",
+      "required": true,
+      "accepts_multiple": false,
+      "description": "Query text to embed and search against the vector store."
+    }
+  ],
+  "outputs": [
+    {
+      "name": "results",
+      "data_type": "RETRIEVAL_RESULTS",
+      "required": true,
+      "accepts_multiple": false,
+      "description": "Top-k retrieval hits with score and optional metadata."
+    }
+  ],
+  "controllers": [
+    {
+      "name": "embedding",
+      "data_type": "JSON",
+      "required": true,
+      "accepts_multiple": false,
+      "description": "Embedding controller from TEXT_EMBEDDING to ensure query embedding uses the same provider/model.",
+      "scope": "target"
+    },
+    {
+      "name": "store",
+      "data_type": "VECTOR_STORE_HANDLE",
+      "required": true,
+      "accepts_multiple": false,
+      "description": "Connected vector store handle used as the retrieval source.",
+      "scope": "target"
+    }
+  ],
+  "parameters": [
+    {
+      "name": "search_mode",
+      "data_type": "TEXT",
+      "default": "vector",
+      "constraints": {
+        "required": true,
+        "options": [
+          "vector",
+          "keyword",
+          "hybrid"
+        ]
+      },
+      "ui_control": "select",
+      "description": "Retrieval mode. Hybrid may not be supported by every backend."
+    },
+    {
+      "name": "search_engine",
+      "data_type": "TEXT",
+      "default": "native",
+      "constraints": {
+        "required": true,
+        "options": [
+          "native",
+          "faiss_augmented"
+        ]
+      },
+      "ui_control": "select",
+      "description": "Search execution engine. Native uses the connected vector store backend; FAISS augmentation is optional and backend-dependent."
+    },
+    {
+      "name": "similarity_strategy",
+      "data_type": "TEXT",
+      "default": "cosine",
+      "constraints": {
+        "required": true,
+        "options": [
+          "cosine",
+          "euclidean",
+          "dot"
+        ]
+      },
+      "ui_control": "select",
+      "description": "Similarity metric used by search. Must match the vector store metric."
+    },
+    {
+      "name": "metadata_filter",
+      "data_type": "JSON",
+      "default": {},
+      "ui_control": "json",
+      "description": "Optional structured metadata filter object."
+    },
+    {
+      "name": "ann_search_depth",
+      "data_type": "JSON",
+      "default": 100,
+      "constraints": {
+        "min": 10,
+        "max": 500,
+        "step": 1
+      },
+      "ui_control": "number",
+      "description": "ANN search depth (for example ef_search-style controls). Higher improves recall but increases latency."
+    },
+    {
+      "name": "top_k",
+      "data_type": "JSON",
+      "default": 5,
+      "constraints": {
+        "min": 1,
+        "max": 100,
+        "step": 1
+      },
+      "ui_control": "number",
+      "description": "Number of top matches to return."
+    },
+    {
+      "name": "score_threshold",
+      "data_type": "JSON",
+      "default": 0,
+      "constraints": {
+        "min": 0,
+        "max": 1,
+        "step": 0.01
+      },
+      "ui_control": "number",
+      "description": "Minimum normalized similarity score to keep a result."
+    },
+    {
+      "name": "include_metadata",
+      "data_type": "BOOLEAN",
+      "default": true,
+      "ui_control": "toggle",
+      "description": "Include hit metadata in retrieval output."
+    },
+    {
+      "name": "keyword_query",
+      "data_type": "TEXT",
+      "default": "",
+      "ui_control": "text",
+      "description": "Optional keyword query used when search_mode is hybrid."
+    },
+    {
+      "name": "vector_weight",
+      "data_type": "JSON",
+      "default": 0.5,
+      "constraints": {
+        "min": 0,
+        "max": 1,
+        "step": 0.05
+      },
+      "ui_control": "number",
+      "description": "Vector score weight for hybrid mode."
+    },
+    {
+      "name": "keyword_weight",
+      "data_type": "JSON",
+      "default": 0.5,
+      "constraints": {
+        "min": 0,
+        "max": 1,
+        "step": 0.05
+      },
+      "ui_control": "number",
+      "description": "Keyword score weight for hybrid mode."
+    }
+  ],
+  "ui": {
+    "default_width": 400,
+    "accent_color": "#5fc5ff",
+    "collapsed_by_default": false
+  },
+  "runtime": {
+    "executor_key": "similarity_search",
+    "cacheable": false,
+    "deterministic": true,
+    "side_effecting": false
+  }
+}
