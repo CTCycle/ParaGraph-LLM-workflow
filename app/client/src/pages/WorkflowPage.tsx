@@ -43,6 +43,10 @@ import { fetchProviderModels } from '../app/services/providersApi'
 import { pollExecution, startExecution, subscribeExecutionEvents } from '../app/services/executionsApi'
 import { usePageMetadata } from '../app/hooks/usePageMetadata'
 import { useNodeCatalog } from '../workflow/hooks/useNodeCatalog'
+import {
+    type WorkflowTextEditorBinding,
+    useWorkflowTextEditorDraft,
+} from '../workflow/hooks/useWorkflowTextEditorDraft'
 import { NODE_CATEGORY_LABELS, NODE_CATEGORY_ORDER } from '../workflow/schema/nodeCategory'
 import {
     CompiledExecutionPlan,
@@ -61,35 +65,12 @@ import {
     WorkflowShareBundle,
     WorkflowTemplate,
 } from '../workflow/schema/types'
+import { WorkflowParameterPathActions } from '../workflow/components/WorkflowParameterPathActions'
+import {
+    type SaveNodeBrowserSelection,
+    type WorkflowNodeData,
+} from '../workflow/schema/editorTypes'
 import './WorkflowPage.css'
-
-type WorkflowNodeData = {
-    manifest: NodeManifest
-    parameters: Record<string, unknown>
-    collapsed: boolean
-    itemsExpanded: boolean
-    selectedItemKey: string | null
-    pinged: boolean
-    skipped: boolean
-    isGlobal: boolean
-    isActive: boolean
-    glowLevel: number
-    runtimeOutput: Record<string, unknown> | null
-    runtimeStepOutput: Record<string, unknown> | null
-    providerModels: ProviderModelDefinition[]
-    onParameterChange: (parameterName: string, value: unknown) => void
-    onSaveNodeBrowseSelection: (selection: SaveNodeBrowserSelection | null) => void
-    onStatusChange: (message: string) => void
-    onTogglePing: () => void
-    onToggleCollapse: () => void
-    onToggleItemsExpanded: () => void
-    onToggleGlobal: () => void
-    onSelectItem: (itemKey: string | null) => void
-}
-
-type SaveNodeBrowserSelection =
-    | { kind: 'file'; fileHandle: FileSystemFileHandle }
-    | { kind: 'folder'; directoryHandle: FileSystemDirectoryHandle }
 
 type NodeContextMenuState = {
     nodeId: string
@@ -182,13 +163,6 @@ export type NodeItemRecord = {
     key: string
     label: string
     preview: string
-}
-
-type WorkflowTextEditorBinding = {
-    nodeId: string | null
-    text: string
-    editable: boolean
-    parameterName: string | null
 }
 
 export function createExecutionSessionId(): string {
@@ -1205,10 +1179,6 @@ function isAbortError(error: unknown): boolean {
 }
 function manifestKey(manifest: NodeManifest): string {
     return `${manifest.id}:${manifest.version}`
-}
-
-function resolveManifestId(manifestId: string): string {
-    return manifestId
 }
 
 function createDefaultExpandedCategoriesState(): CategoryExpansionState {
@@ -2270,25 +2240,12 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
                                         <div className="workflow-node-parameter-header">
                                             {showParameterLabel && <span className="workflow-node-parameter-label">{formatParameterLabel(parameter.name)}</span>}
                                             {parameter.ui_control === 'file-list' && (
-                                                <div className="workflow-node-parameter-actions">
-                                                    <button
-                                                        type="button"
-                                                        className="workflow-node-picker-button"
-                                                        disabled={isBrowsing}
-                                                        onClick={() => void handlePathBrowse(parameter)}
-                                                    >
-                                                        {isBrowsing ? '...' : 'Browse'}
-                                                    </button>
-                                                    {selectedPaths.length > 0 && (
-                                                        <button
-                                                            type="button"
-                                                            className="workflow-node-picker-clear"
-                                                            onClick={() => data.onParameterChange(parameter.name, [])}
-                                                        >
-                                                            Clear
-                                                        </button>
-                                                    )}
-                                                </div>
+                                                <WorkflowParameterPathActions
+                                                    isBrowsing={isBrowsing}
+                                                    hasValue={selectedPaths.length > 0}
+                                                    onBrowse={() => void handlePathBrowse(parameter)}
+                                                    onClear={() => data.onParameterChange(parameter.name, [])}
+                                                />
                                             )}
                                         </div>
                                     )}
@@ -2417,33 +2374,20 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
                                                     onKeyDown={stopKeyboardEventPropagation}
                                                     onChange={(event) => data.onParameterChange(parameter.name, event.target.value)}
                                                 />
-                                                <div className="workflow-node-parameter-actions">
-                                                    <button
-                                                        type="button"
-                                                        className="workflow-node-picker-button"
-                                                        disabled={isBrowsing}
-                                                        onClick={() => void handlePathBrowse(parameter)}
-                                                    >
-                                                        {isBrowsing ? '...' : 'Browse'}
-                                                    </button>
-                                                    {coerceTextPayload(value).trim() && (
-                                                        <button
-                                                            type="button"
-                                                            className="workflow-node-picker-clear"
-                                                            onClick={() => {
-                                                                if (
-                                                                    isSaveAsFileOutputPathParameter(data.manifest, parameter)
-                                                                    || isSaveAsFolderOutputPathParameter(data.manifest, parameter)
-                                                                ) {
-                                                                    data.onSaveNodeBrowseSelection(null)
-                                                                }
-                                                                data.onParameterChange(parameter.name, '')
-                                                            }}
-                                                        >
-                                                            Clear
-                                                        </button>
-                                                    )}
-                                                </div>
+                                                <WorkflowParameterPathActions
+                                                    isBrowsing={isBrowsing}
+                                                    hasValue={Boolean(coerceTextPayload(value).trim())}
+                                                    onBrowse={() => void handlePathBrowse(parameter)}
+                                                    onClear={() => {
+                                                        if (
+                                                            isSaveAsFileOutputPathParameter(data.manifest, parameter)
+                                                            || isSaveAsFolderOutputPathParameter(data.manifest, parameter)
+                                                        ) {
+                                                            data.onSaveNodeBrowseSelection(null)
+                                                        }
+                                                        data.onParameterChange(parameter.name, '')
+                                                    }}
+                                                />
                                             </div>
                                         ) : (
                                             <input
@@ -2559,7 +2503,6 @@ function WorkflowEditor() {
     const [isGridVisible, setIsGridVisible] = useState(true)
     const [isConnecting, setIsConnecting] = useState(false)
     const [editorPanelHeight, setEditorPanelHeight] = useState(0)
-    const [editorTextDraft, setEditorTextDraft] = useState('')
     const [isEditorResizing, setIsEditorResizing] = useState(false)
     const stopEventsRef = useRef<(() => void) | null>(null)
     const pollingAbortRef = useRef<AbortController | null>(null)
@@ -2597,6 +2540,7 @@ function WorkflowEditor() {
         () => resolveWorkflowTextEditorBinding(selectedCanvasNode),
         [selectedCanvasNode],
     )
+    const { editorTextDraft, setEditorTextDraft } = useWorkflowTextEditorDraft(editorBinding)
 
     function getEditorPanelMaxHeight(): number {
         const canvasColumnHeight = canvasColumnRef.current?.clientHeight ?? 0
@@ -2666,10 +2610,6 @@ function WorkflowEditor() {
             pollingAbortRef.current = null
         }
     }, [])
-
-    useEffect(() => {
-        setEditorTextDraft(editorBinding.text)
-    }, [editorBinding.nodeId, editorBinding.parameterName, editorBinding.text])
 
     useEffect(() => {
         if (!isEditorResizing) {
@@ -2948,7 +2888,7 @@ function WorkflowEditor() {
 
         const catalogByKey = new Map(catalog.map((manifest) => [manifestKey(manifest), manifest]))
         const restoredNodes = persisted.nodes.flatMap((snapshot) => {
-            const manifest = catalogByKey.get(`${resolveManifestId(snapshot.manifest_id)}:${snapshot.manifest_version}`)
+            const manifest = catalogByKey.get(`${snapshot.manifest_id}:${snapshot.manifest_version}`)
             if (!manifest) {
                 return []
             }
@@ -3141,7 +3081,7 @@ function WorkflowEditor() {
         }
 
         const requiredManifestKeys = new Set(
-            templateDefinition.nodes.map((node) => `${resolveManifestId(node.node_type)}:${node.node_version}`),
+            templateDefinition.nodes.map((node) => `${node.node_type}:${node.node_version}`),
         )
         const manifestsForHydration = catalog.filter((manifest) => requiredManifestKeys.has(manifestKey(manifest)))
         const foundManifestKeys = new Set(manifestsForHydration.map((manifest) => manifestKey(manifest)))
@@ -3674,10 +3614,9 @@ function WorkflowEditor() {
             }
 
             const nodeVersion = isFiniteNumber(rawNode.node_version) ? rawNode.node_version : 1
-            const manifestId = resolveManifestId(rawNode.node_type)
-            const manifest = manifestByKey.get(`${manifestId}:${nodeVersion}`)
+            const manifest = manifestByKey.get(`${rawNode.node_type}:${nodeVersion}`)
             if (!manifest) {
-                throw new Error(`Missing node manifest: ${manifestId} v${nodeVersion}`)
+                throw new Error(`Missing node manifest: ${rawNode.node_type} v${nodeVersion}`)
             }
 
             const visualNode = visualByNodeId.get(rawNode.node_id)

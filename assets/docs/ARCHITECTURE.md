@@ -1,6 +1,6 @@
 # ARCHITECTURE
 
-Last updated: 2026-05-15
+Last updated: 2026-05-16
 
 ## System Summary
 
@@ -32,7 +32,7 @@ The project includes source code plus generated/runtime-heavy folders. Expanded 
 |  |  |  |- app/services/ (API clients)
 |  |  |  |- components/ (layout + reusable UI)
 |  |  |  |- pages/ (Workflow, Nodes, Models, Configurations)
-|  |  |  `- workflow/ (schema + hooks)
+|  |  |  `- workflow/ (schema + hooks + workflow-local components)
 |  |  |- src-tauri/
 |  |  |  |- src/main.rs
 |  |  |  |- tauri.conf.json
@@ -157,6 +157,8 @@ Typical backend flow follows endpoint -> service -> repository:
 - `server/repositories/database/sqlite.py`: embedded SQLite engine adapter.
 - `server/repositories/database/postgres.py`: external PostgreSQL engine adapter.
 - `client/src/pages/WorkflowPage.tsx`: visual workflow editor and execution control surface.
+- `client/src/workflow/components/*`: workflow-local presentation components reused by the editor surface.
+- `client/src/workflow/schema/*`: workflow API/domain types plus editor-facing workflow contracts.
 - `client/src/app/services/*.ts`: typed frontend API clients.
 
 ## Data Persistence
