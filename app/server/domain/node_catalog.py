@@ -35,7 +35,6 @@ NodeDataType = Literal[
     "VECTOR_POINT_LIST",
     "VECTOR_STORE_HANDLE",
     "RETRIEVAL_RESULTS",
-    "TOKEN_IDS",
     "TOKENIZER_OUTPUT",
     "METADATA",
     "METADATA_LIST",

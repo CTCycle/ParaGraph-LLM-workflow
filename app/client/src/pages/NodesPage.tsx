@@ -26,6 +26,7 @@ import { importNodeManifest } from '../app/services/nodesApi'
 import { useNodeCatalog } from '../workflow/hooks/useNodeCatalog'
 import { NODE_CATEGORY_LABELS, NODE_CATEGORY_ORDER } from '../workflow/schema/nodeCategory'
 import { NodeCategory, NodeManifest, WorkflowNavigationState, WorkflowOpenIntent, WorkflowTemplate } from '../workflow/schema/types'
+import NodeCategoryFilterOption from './nodes/NodeCategoryFilterOption'
 import NodePreviewCard from './nodes/NodePreviewCard'
 import { type NodePreviewDetailItem } from './nodes/types'
 import { useWorkflowTemplates } from './nodes/useWorkflowTemplates'
@@ -334,24 +335,17 @@ export default function NodesPage() {
                                     Clear
                                 </button>
                             </div>
-                            <div className="nodes-category-list">
-                                {NODE_CATEGORY_ORDER.map((category) => {
-                                    const Icon = NODE_CATEGORY_ICONS[category]
-                                    return (
-                                        <label key={category} className="nodes-category-option">
-                                            <input
-                                                type="checkbox"
-                                                checked={selectedCategories.includes(category)}
-                                                onChange={() => toggleCategory(category)}
-                                            />
-                                            <span className="nodes-category-option-icon">
-                                                <Icon size={15} strokeWidth={1.8} />
-                                            </span>
-                                            <span className="nodes-category-option-text">{NODE_CATEGORY_LABELS[category]}</span>
-                                            <span className="nodes-category-option-count">{categoryCounts[category]}</span>
-                                        </label>
-                                    )
-                                })}
+                             <div className="nodes-category-list">
+                                {NODE_CATEGORY_ORDER.map((category) => (
+                                    <NodeCategoryFilterOption
+                                        key={category}
+                                        category={category}
+                                        count={categoryCounts[category]}
+                                        checked={selectedCategories.includes(category)}
+                                        icon={NODE_CATEGORY_ICONS[category]}
+                                        onToggle={toggleCategory}
+                                    />
+                                ))}
                             </div>
                         </aside>
 

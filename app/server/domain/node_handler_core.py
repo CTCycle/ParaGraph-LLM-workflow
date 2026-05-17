@@ -257,7 +257,7 @@ class TokenizerParameters(BaseModel):
     padding: Literal["do_not_pad", "longest", "max_length"] = "do_not_pad"
     return_attention_mask: bool = False
     return_token_type_ids: bool = False
-    output_format: Literal["token_ids", "json", "string"] = "token_ids"
+    output_format: Literal["json", "string"] = "json"
 
     @field_validator("tokenizer_name")
     @classmethod

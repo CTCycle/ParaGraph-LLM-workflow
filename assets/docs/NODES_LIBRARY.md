@@ -1,6 +1,6 @@
 # NODES_LIBRARY
 
-Last updated: 2026-05-09
+Last updated: 2026-05-16
 
 ## Purpose
 
@@ -58,7 +58,7 @@ Runtime validation occurs through backend node registry logic before use in exec
 
 ### Tokenizer
 
-`TOKENIZER` version 2 tokenizes text, documents, document lists, chunks, and chunk lists through Hugging Face `AutoTokenizer.from_pretrained`. It preserves input order and can emit legacy `TOKEN_IDS`, structured `TOKENIZER_OUTPUT`, or serialized text.
+`TOKENIZER` version 2 tokenizes text, documents, document lists, chunks, and chunk lists through Hugging Face `AutoTokenizer.from_pretrained`. It preserves input order and emits structured `TOKENIZER_OUTPUT` or serialized text.
 
 ### Metadata
 
