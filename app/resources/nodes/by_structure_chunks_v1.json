@@ -46,7 +46,8 @@
         "options": [
           "paragraph",
           "section",
-          "heading_and_content"
+          "heading_and_content",
+          "markdown_heading"
         ]
       },
       "ui_control": "select",
@@ -82,7 +83,8 @@
         "required": true,
         "options": [
           "words",
-          "characters"
+          "characters",
+          "tokens"
         ]
       },
       "ui_control": "select",

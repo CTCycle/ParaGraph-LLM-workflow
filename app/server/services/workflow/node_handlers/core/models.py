@@ -18,6 +18,13 @@ from server.services.workflow.node_handlers.common import (
     parse_json_value,
     validate_json_against_schema,
 )
+from server.services.workflow.structured_models import (
+    infer_model_from_json,
+    model_to_json_schema,
+    parse_user_pydantic_model,
+    validate_json_with_model,
+    validation_error_payload,
+)
 from server.services.workflow.node_handlers.core.huggingface_runtime import (
     load_huggingface_modules,
 )
@@ -237,9 +244,24 @@ def _execute_model_node(
 
     if structured_output:
         parsed = parse_json_value(text, "structured response")
-        if not isinstance(schema, dict):
-            raise ValueError("Structured response schema is required")
-        validate_json_against_schema(parsed, schema)
+        model_mode = str(parameters.get("model_mode") or "schema")
+        validation_errors: list[dict[str, Any]] = []
+        if model_mode == "pydantic_source":
+            model = parse_user_pydantic_model(str(parameters.get("model_source") or ""))
+            try:
+                parsed = validate_json_with_model(parsed, model)
+            except ValidationError as exc:
+                payload = validation_error_payload(exc)
+                validation_errors = payload["errors"]
+            schema = model_to_json_schema(model)
+        elif model_mode == "auto" and isinstance(parsed, dict):
+            model = infer_model_from_json("StructuredResponse", parsed)
+            parsed = validate_json_with_model(parsed, model)
+            schema = model_to_json_schema(model)
+        else:
+            if not isinstance(schema, dict):
+                raise ValueError("Structured response schema is required")
+            validate_json_against_schema(parsed, schema)
         if history_handle is not None:
             chat_history_service.append_exchange(
                 history_handle,
@@ -247,7 +269,12 @@ def _execute_model_node(
                 user_prompt=user_prompt,
                 assistant_output=chat_history_service.serialize_structured_output(parsed),
             )
-        return {"result": parsed}
+        return {
+            "result": parsed,
+            "schema": schema,
+            "valid": not validation_errors,
+            "errors": validation_errors,
+        }
     if history_handle is not None:
         chat_history_service.append_exchange(
             history_handle,

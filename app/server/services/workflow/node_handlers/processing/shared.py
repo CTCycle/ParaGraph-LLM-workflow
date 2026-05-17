@@ -192,10 +192,12 @@ def _is_heading_line(line: str) -> bool:
     return bool(_HEADING_PATTERN.match(line))
 
 
-def _split_heading_blocks(text: str) -> list[tuple[str, str]]:
+def _split_heading_blocks(text: str) -> list[tuple[str, str, list[str]]]:
     lines = text.splitlines()
-    blocks: list[tuple[str, str]] = []
+    blocks: list[tuple[str, str, list[str]]] = []
     active_heading: str | None = None
+    heading_stack: list[str] = []
+    active_path: list[str] = []
     active_lines: list[str] = []
     found_heading = False
 
@@ -204,19 +206,27 @@ def _split_heading_blocks(text: str) -> list[tuple[str, str]]:
         if _is_heading_line(stripped):
             found_heading = True
             if active_heading is not None or active_lines:
-                blocks.append((active_heading or "", "\n".join(active_lines).strip()))
+                blocks.append((active_heading or "", "\n".join(active_lines).strip(), active_path))
+            if stripped.startswith("#"):
+                level = len(stripped) - len(stripped.lstrip("#"))
+                heading_text = stripped[level:].strip()
+                heading_stack[:] = heading_stack[: max(level - 1, 0)]
+                heading_stack.append(heading_text)
+                active_path = list(heading_stack)
+            else:
+                active_path = [stripped]
             active_heading = stripped
             active_lines = []
             continue
         active_lines.append(line)
 
     if active_heading is not None or active_lines:
-        blocks.append((active_heading or "", "\n".join(active_lines).strip()))
+        blocks.append((active_heading or "", "\n".join(active_lines).strip(), active_path))
 
     return blocks if found_heading else []
 
 
-def _iter_structure_segments(text: str, strategy: str) -> Iterator[str]:
+def _iter_structure_segments(text: str, strategy: str) -> Iterator[str | tuple[str, dict[str, Any]]]:
     if strategy == "paragraph":
         for paragraph in _PARAGRAPH_BOUNDARY_PATTERN.split(text):
             cleaned = paragraph.strip()
@@ -226,11 +236,16 @@ def _iter_structure_segments(text: str, strategy: str) -> Iterator[str]:
 
     heading_blocks = _split_heading_blocks(text)
     if heading_blocks:
-        for heading, content in heading_blocks:
+        for heading, content, section_path in heading_blocks:
             if strategy == "heading_and_content":
                 candidate = "\n".join(
                     part for part in [heading.strip(), content.strip()] if part
                 ).strip()
+            elif strategy == "markdown_heading":
+                candidate = content.strip() or heading.strip()
+                if candidate:
+                    yield candidate, {"section_path": section_path}
+                continue
             else:
                 candidate = content.strip() or heading.strip()
             if candidate:

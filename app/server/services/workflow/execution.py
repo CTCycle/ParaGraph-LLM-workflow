@@ -17,10 +17,12 @@ from server.repositories.workflow import execution_run_repository
 from server.services.jobs import job_manager
 from server.services.runtime.events import execution_event_service
 from server.services.workflow.nodes import node_registry
+from server.services.workflow.node_handlers.common import extract_top_level_json_fields
 
 
 class ExecutionService:
     OUTPUT_NAME_PARAMETER = "__output_name"
+    SKIP_SENTINEL = "__paragraph_skip__"
 
     def start_execution(
         self,
@@ -87,6 +89,9 @@ class ExecutionService:
 
             step = step_lookup[step_id]
             try:
+                if self._should_skip_step(step, outputs_by_step):
+                    self._skip_step(job_id, step_id)
+                    continue
                 self._start_step(job_id, step)
                 output_state_public = self._execute_step(
                     job_id=job_id,
@@ -101,6 +106,9 @@ class ExecutionService:
                 computed_progress = (index / total_steps) * 100.0
                 progress = computed_progress if index < total_steps else 99.0
                 self._complete_step(job_id, step_id, output_state_public, progress)
+                if self._is_pause_output(outputs_by_step.get(step.step_id, {})):
+                    self._pause_run(job_id, outputs_by_step[step.step_id])
+                    return {"outputs": output_payload}
             except Exception as exc:  # noqa: BLE001
                 self._fail_step(job_id, step_id, str(exc))
                 raise
@@ -343,14 +351,62 @@ class ExecutionService:
         step_lookup: dict[str, Any],
     ) -> Any:
         source_ports = outputs_by_step.get(binding.source_node_id, {})
-        value = source_ports.get(binding.source_output)
+        value = source_ports.get(binding.source_output, self.SKIP_SENTINEL)
         source_step = step_lookup.get(binding.source_node_id)
         output_name = self._resolve_output_name(
             source_step.parameters if source_step is not None else {}
         )
-        if not binding_is_controller and output_name:
-            return {output_name: value}
+        if not binding_is_controller:
+            return self._publish_named_output(value, output_name)
         return value
+
+    def _should_skip_step(self, step: Any, outputs_by_step: dict[str, dict[str, Any]]) -> bool:
+        input_bindings = [binding for binding in step.bindings if binding.binding_type != "controller"]
+        if not input_bindings:
+            return False
+        values = [
+            outputs_by_step.get(binding.source_node_id, {}).get(
+                binding.source_output, self.SKIP_SENTINEL
+            )
+            for binding in input_bindings
+        ]
+        return all(self._is_skip_value(value) for value in values)
+
+    def _is_skip_value(self, value: Any) -> bool:
+        return value == self.SKIP_SENTINEL or value is None
+
+    def _skip_step(self, job_id: str, step_id: str) -> None:
+        self._set_step_state(
+            job_id,
+            step_id,
+            status="skipped",
+            completed_at=datetime.now(timezone.utc),
+        )
+
+    def _is_pause_output(self, outputs: dict[str, Any]) -> bool:
+        return bool(outputs.get("paused"))
+
+    def _pause_run(self, job_id: str, outputs: dict[str, Any]) -> None:
+        execution_run_repository.update_run(
+            job_id,
+            status="paused",
+            pause_payload=outputs.get("pause_payload"),
+            resume_token=outputs.get("resume_token"),
+        )
+
+    def _publish_named_output(self, value: Any, output_name: str | None) -> Any:
+        json_fields = extract_top_level_json_fields(value)
+        if not json_fields:
+            return {output_name: value} if output_name else value
+        if not output_name:
+            return json_fields
+        if output_name in json_fields:
+            return {
+                **json_fields,
+                "__json_fields__": dict(json_fields),
+                output_name: value,
+            }
+        return {**json_fields, output_name: value}
 
     def _resolve_binding_target(
         self,
@@ -433,9 +489,14 @@ class ExecutionService:
                 if not trimmed:
                     return {"json": ""}
                 try:
-                    return {"json": json.loads(trimmed)}
+                    parsed = json.loads(trimmed)
+                    if isinstance(parsed, dict):
+                        return {"json": parsed, **parsed}
+                    return {"json": parsed}
                 except json.JSONDecodeError:
                     return {"json": raw_value}
+            if isinstance(raw_value, dict):
+                return {"json": raw_value, **raw_value}
             return {"json": raw_value}
         return None
 

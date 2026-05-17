@@ -18,7 +18,9 @@ class DocumentRecord(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     id: str
+    document_id: str | None = None
     text: str
+    source: str | None = None
     source_uri: str
     mime_type: str
     metadata: dict[str, Any] = Field(default_factory=dict)
@@ -111,6 +113,8 @@ class RetrievalHit(BaseModel):
     text: str
     source_uri: str
     score: float
+    retrieval_score: float | None = None
+    rerank_score: float | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 ###############################################################################

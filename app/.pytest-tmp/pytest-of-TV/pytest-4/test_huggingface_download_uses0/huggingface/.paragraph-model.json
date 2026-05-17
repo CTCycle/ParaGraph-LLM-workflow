@@ -1,0 +1,14 @@
+{
+  "repo_id": "owner/model",
+  "downloaded_at": "2026-05-17T11:35:32.797842+00:00",
+  "complete": true,
+  "revision": "main",
+  "files": [
+    {
+      "path": "model.bin",
+      "size": 4
+    }
+  ],
+  "total_bytes": 4,
+  "downloaded_bytes": 4
+}

@@ -1,9 +1,9 @@
 {
   "id": "VECTOR_STORE",
   "version": 1,
-  "name": "Vector Store",
+  "name": "Vector Store Upsert",
   "category": "vector_storage",
-  "description": "Persist embedding vectors using the selected vector store provider.",
+  "description": "Upsert embedding vectors using the selected vector store provider and return the stored handle plus an upsert summary.",
   "inputs": [
     {
       "name": "vectors",
@@ -20,6 +20,13 @@
       "required": true,
       "accepts_multiple": false,
       "description": "Stored vector index handle."
+    },
+    {
+      "name": "summary",
+      "data_type": "JSON",
+      "required": true,
+      "accepts_multiple": false,
+      "description": "Upsert count and stored point IDs."
     }
   ],
   "controllers": [

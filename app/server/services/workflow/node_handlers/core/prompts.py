@@ -4,8 +4,15 @@ import json
 import re
 from typing import Any
 
+from jinja2 import StrictUndefined, Undefined
+from jinja2.sandbox import SandboxedEnvironment
+
 from server.domain.node_handler_core import PromptTemplateParameters
-from server.services.workflow.node_handlers.common import coerce_text
+from server.services.workflow.node_handlers.common import (
+    coerce_text,
+    merge_named_variables,
+    render_variable_value,
+)
 
 
 def _prompt_executor(
@@ -23,34 +30,7 @@ def _extract_template_record_text(record: dict[str, Any]) -> str:
 
 
 def _coerce_template_value(value: Any) -> str:
-    if value is None:
-        return ""
-    if isinstance(value, str):
-        return value
-    if isinstance(value, (int, float, bool)):
-        return str(value)
-    if isinstance(value, list):
-        if all(isinstance(item, dict) for item in value):
-            parts = [_extract_template_record_text(item).strip() for item in value]
-            text_parts = [item for item in parts if item]
-            if text_parts:
-                return "\n\n".join(text_parts)
-        try:
-            return json.dumps(value, indent=2, ensure_ascii=True, default=str)
-        except Exception:  # noqa: BLE001
-            return str(value)
-    if isinstance(value, dict):
-        extracted = _extract_template_record_text(value).strip()
-        if extracted:
-            return extracted
-        try:
-            return json.dumps(value, indent=2, ensure_ascii=True, default=str)
-        except Exception:  # noqa: BLE001
-            return str(value)
-    try:
-        return json.dumps(value, indent=2, ensure_ascii=True, default=str)
-    except Exception:  # noqa: BLE001
-        return str(value)
+    return render_variable_value(value)
 
 
 _PROMPT_TEMPLATE_PATTERN = re.compile(r"\{([A-Za-z_]\w*)\}")
@@ -76,10 +56,68 @@ def _collect_prompt_template_variable_maps(raw_variables: Any) -> list[dict[str,
     return variable_maps
 
 
+def _build_prompt_template_context(
+    inputs: dict[str, Any],
+    controllers: dict[str, Any],
+    parameters: PromptTemplateParameters,
+) -> dict[str, Any]:
+    context = merge_named_variables(inputs.get("variables"))
+    for payload in (inputs, controllers):
+        for key, value in payload.items():
+            if key == "variables":
+                continue
+            context[str(key)] = value
+            if isinstance(value, dict):
+                context.update(value)
+    context["blocks"] = dict(parameters.reusable_blocks)
+    return context
+
+
+def _render_jinja_template(
+    template: str,
+    context: dict[str, Any],
+    strict_variables: bool,
+) -> str:
+    environment = SandboxedEnvironment(
+        autoescape=False,
+        undefined=StrictUndefined if strict_variables else Undefined,
+        trim_blocks=True,
+        lstrip_blocks=True,
+    )
+    try:
+        return environment.from_string(template).render(context)
+    except Exception as exc:  # noqa: BLE001
+        raise ValueError(f"PROMPT_TEMPLATE failed to render Jinja template: {exc}") from exc
+
+
 def _prompt_template_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
 ) -> dict[str, Any]:
     parsed = PromptTemplateParameters.model_validate(parameters)
+    use_legacy_format = (
+        parsed.template_engine == "format"
+        or (
+            parsed.template
+            and "{{" not in parsed.template
+            and not parsed.system_template.strip()
+            and not parsed.user_template.strip()
+        )
+    )
+    if not use_legacy_format:
+        context = _build_prompt_template_context(inputs, {}, parsed)
+        system = _render_jinja_template(
+            parsed.system_template, context, parsed.strict_variables
+        ).strip()
+        user_source = parsed.user_template or parsed.template
+        user = _render_jinja_template(user_source, context, parsed.strict_variables).strip()
+        rendered = "\n\n".join(part for part in (system, user) if part)
+        return {
+            "text": rendered,
+            "system": system,
+            "user": user,
+            "variables": context,
+        }
+
     variable_maps = _collect_prompt_template_variable_maps(inputs.get("variables"))
     merged_variables: dict[str, str] = {}
 
@@ -107,7 +145,7 @@ def _prompt_template_executor(
         lambda match: merged_variables[match.group(1)],
         parsed.template,
     )
-    return {"text": rendered}
+    return {"text": rendered, "system": "", "user": rendered, "variables": merged_variables}
 
 
 def _image_input_executor(

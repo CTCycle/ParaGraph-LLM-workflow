@@ -1,0 +1,49 @@
+{
+  "id": "CUSTOM_SCRIPT_NODE",
+  "version": 1,
+  "name": "Custom Script Node",
+  "category": "processing",
+  "description": "Execute custom logic from a local plugin script.",
+  "inputs": [
+    {
+      "name": "text",
+      "data_type": "TEXT",
+      "required": true,
+      "accepts_multiple": false
+    }
+  ],
+  "outputs": [
+    {
+      "name": "result",
+      "data_type": "TEXT",
+      "required": true,
+      "accepts_multiple": false
+    }
+  ],
+  "parameters": [
+    {
+      "name": "prefix",
+      "data_type": "TEXT",
+      "default": "",
+      "constraints": {},
+      "ui_control": "text",
+      "description": "String prefix."
+    }
+  ],
+  "ui": {
+    "default_width": 280,
+    "accent_color": "#4aa3ff",
+    "icon": "sparkles",
+    "collapsed_by_default": false
+  },
+  "runtime": {
+    "executor_key": "custom.plugin",
+    "cacheable": false,
+    "deterministic": true,
+    "side_effecting": false,
+    "plugin": {
+      "script_path": "plugins/custom_script_node.py",
+      "entrypoint": "execute"
+    }
+  }
+}

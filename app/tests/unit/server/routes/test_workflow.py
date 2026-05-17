@@ -802,7 +802,9 @@ def test_execute_structured_node_emits_json_output_payload(
 
     assert final_status["status"] == "completed"
     assert final_status["result"] == {
-        "outputs": {"output_1": {"json": {"name": "Ada"}}}
+        "outputs": {"output_1": {"json": {"name": "Ada"}, "name": "Ada"}}
     }
-    assert run_payload["outputs"] == {"output_1": {"json": {"name": "Ada"}}}
+    assert run_payload["outputs"] == {
+        "output_1": {"json": {"name": "Ada"}, "name": "Ada"}
+    }
 

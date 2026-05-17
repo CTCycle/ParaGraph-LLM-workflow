@@ -1,0 +1,44 @@
+{
+  "id": "missing-node",
+  "name": "Missing Node",
+  "description": "Invalid template with missing required node manifest.",
+  "tags": [
+    "test"
+  ],
+  "definition": {
+    "schema_version": 2,
+    "nodes": [],
+    "connections": [],
+    "metadata": {}
+  },
+  "visual_graph": {
+    "schema_version": 2,
+    "nodes": [],
+    "groups": [],
+    "comments": []
+  },
+  "required_nodes": [
+    {
+      "id": "MISSING_NODE",
+      "version": 1,
+      "name": "Missing",
+      "category": "processing",
+      "description": "Missing",
+      "inputs": [],
+      "outputs": [],
+      "parameters": [],
+      "ui": {
+        "default_width": 320,
+        "accent_color": "#4aa3ff",
+        "collapsed_by_default": false
+      },
+      "runtime": {
+        "executor_key": "missing",
+        "cacheable": false,
+        "deterministic": true,
+        "side_effecting": false
+      }
+    }
+  ],
+  "metadata": {}
+}

@@ -1,9 +1,9 @@
 {
   "id": "LLM_STRUCTURED",
   "version": 1,
-  "name": "LLM Structured",
+  "name": "LLM Structured Output",
   "category": "model",
-  "description": "Run a structured generation with a typed model handle selected by a provider node and return validated JSON.",
+  "description": "Run structured generation or structured extraction with JSON Schema, inferred model, or pasted Pydantic source validation.",
   "inputs": [
     {
       "name": "user_prompt",
@@ -26,6 +26,27 @@
       "name": "result",
       "data_type": "JSON",
       "required": true
+    },
+    {
+      "name": "schema",
+      "accepts_multiple": false,
+      "required": false,
+      "description": "Validation schema.",
+      "data_type": "JSON"
+    },
+    {
+      "name": "valid",
+      "accepts_multiple": false,
+      "required": false,
+      "description": "Validation success.",
+      "data_type": "BOOLEAN"
+    },
+    {
+      "name": "errors",
+      "accepts_multiple": false,
+      "required": false,
+      "description": "Validation errors.",
+      "data_type": "JSON"
     }
   ],
   "controllers": [
@@ -87,6 +108,28 @@
       },
       "ui_control": "json",
       "description": "JSON Schema used to validate the structured response."
+    },
+    {
+      "data_type": "TEXT",
+      "ui_control": "select",
+      "constraints": {
+        "options": [
+          "schema",
+          "auto",
+          "pydantic_source"
+        ]
+      },
+      "default": "schema",
+      "name": "model_mode",
+      "description": "Structured validation mode."
+    },
+    {
+      "data_type": "TEXT",
+      "ui_control": "textarea",
+      "constraints": {},
+      "default": "",
+      "name": "model_source",
+      "description": "Pasted Pydantic model source for pydantic_source mode."
     }
   ],
   "ui": {

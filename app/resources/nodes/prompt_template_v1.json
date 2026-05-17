@@ -1,9 +1,9 @@
 {
   "id": "PROMPT_TEMPLATE",
   "version": 1,
-  "name": "Prompt Template",
+  "name": "Template / Prompt Format",
   "category": "prompt",
-  "description": "Compose prompt text using a template and a single variables input map.",
+  "description": "Compose prompt text with Jinja-style variables such as {{ summary }} and {{ keywords | join(\", \") }}, or legacy {name} format placeholders.",
   "inputs": [
     {
       "name": "variables",
@@ -20,18 +20,81 @@
       "required": true,
       "accepts_multiple": false,
       "description": "Rendered template text."
+    },
+    {
+      "name": "system",
+      "data_type": "TEXT",
+      "required": false,
+      "accepts_multiple": false,
+      "description": "Rendered system section."
+    },
+    {
+      "name": "user",
+      "data_type": "TEXT",
+      "required": false,
+      "accepts_multiple": false,
+      "description": "Rendered user section."
+    },
+    {
+      "name": "variables",
+      "data_type": "JSON",
+      "required": false,
+      "accepts_multiple": false,
+      "description": "Merged template variables."
     }
   ],
   "parameters": [
+    {
+      "name": "template_engine",
+      "data_type": "TEXT",
+      "default": "jinja2",
+      "constraints": {
+        "options": ["jinja2", "format"]
+      },
+      "ui_control": "select",
+      "description": "Template engine. Use jinja2 for {{ variable }} syntax or format for legacy {variable} syntax."
+    },
     {
       "name": "template",
       "data_type": "TEXT",
       "default": "",
       "constraints": {
-        "required": true
+        "required": false
       },
       "ui_control": "textarea",
-      "description": "Template text with {name} placeholders."
+      "description": "Prompt template text. In Jinja mode this is used as the user section when user_template is empty."
+    },
+    {
+      "name": "system_template",
+      "data_type": "TEXT",
+      "default": "",
+      "constraints": {},
+      "ui_control": "textarea",
+      "description": "Optional system prompt section rendered with Jinja syntax."
+    },
+    {
+      "name": "user_template",
+      "data_type": "TEXT",
+      "default": "",
+      "constraints": {},
+      "ui_control": "textarea",
+      "description": "Optional user prompt section rendered with Jinja syntax."
+    },
+    {
+      "name": "reusable_blocks",
+      "data_type": "JSON",
+      "default": {},
+      "constraints": {},
+      "ui_control": "json",
+      "description": "Reusable snippets available under the blocks variable."
+    },
+    {
+      "name": "strict_variables",
+      "data_type": "BOOLEAN",
+      "default": true,
+      "constraints": {},
+      "ui_control": "checkbox",
+      "description": "Raise an error when a Jinja variable is missing."
     }
   ],
   "ui": {
