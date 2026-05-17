@@ -80,7 +80,7 @@ describe('WorkflowPage manifest-driven provider and retrieval behavior', () => {
         const searchEngineOptions = getOptions(similaritySearchManifest, 'search_engine')
         const metricOptions = getOptions(similaritySearchManifest, 'similarity_strategy')
 
-        expect(searchModeOptions).toEqual(['vector', 'hybrid'])
+        expect(searchModeOptions).toEqual(['vector', 'keyword', 'hybrid'])
         expect(searchEngineOptions).toEqual(['native', 'faiss_augmented'])
         expect(metricOptions).toEqual(['cosine', 'euclidean', 'dot'])
     })

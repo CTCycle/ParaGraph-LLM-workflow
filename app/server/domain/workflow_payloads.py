@@ -209,7 +209,6 @@ DATA_TYPE_ADAPTERS: dict[NodeDataType, TypeAdapter[Any]] = {
     "VECTOR_POINT_LIST": TypeAdapter(list[VectorPoint]),
     "VECTOR_STORE_HANDLE": TypeAdapter(VectorStoreHandle),
     "RETRIEVAL_RESULTS": TypeAdapter(RetrievalResults),
-    "TOKEN_IDS": TypeAdapter(list[int]),
     "TOKENIZER_OUTPUT": TypeAdapter(TokenizerOutput),
     "METADATA": TypeAdapter(MetadataRecord),
     "METADATA_LIST": TypeAdapter(list[MetadataRecord]),

@@ -56,8 +56,8 @@ def test_load_text_supports_workspace_relative_paths(
 
 
 def test_load_text_rejects_non_canonical_storage_path_keys(tmp_path: Path) -> None:
-    source_file = tmp_path / "legacy-source.txt"
-    source_file.write_text("legacy payload", encoding="utf-8")
+    source_file = tmp_path / "source.txt"
+    source_file.write_text("source payload", encoding="utf-8")
 
     invalid_payloads = [
         {"storagePath": str(source_file)},
@@ -213,7 +213,7 @@ def test_save_as_folder_writes_single_text_as_single_file(tmp_path: Path) -> Non
 def test_save_as_folder_replaces_file_collision_with_folder(tmp_path: Path) -> None:
     destination_folder = tmp_path / "exports" / "batch"
     destination_folder.parent.mkdir(parents=True, exist_ok=True)
-    destination_folder.write_text("legacy single file", encoding="utf-8")
+    destination_folder.write_text("existing single file", encoding="utf-8")
 
     save_result = node_registry.execute(
         "SAVE_AS_FOLDER",

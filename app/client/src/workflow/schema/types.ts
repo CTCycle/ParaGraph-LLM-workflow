@@ -27,7 +27,6 @@ export type NodeDataType =
     | 'VECTOR_POINT_LIST'
     | 'VECTOR_STORE_HANDLE'
     | 'RETRIEVAL_RESULTS'
-    | 'TOKEN_IDS'
     | 'JSON'
     | 'MODEL_HANDLE'
     | 'CHAT_HISTORY_HANDLE'

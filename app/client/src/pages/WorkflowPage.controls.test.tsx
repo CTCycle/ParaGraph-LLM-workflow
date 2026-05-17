@@ -12,7 +12,7 @@ describe('WorkflowPage canvas controls source', () => {
         expect(source).not.toContain('aria-label="Fit view"')
     })
 
-    it('uses symbolic grid toggle glyphs instead of legacy text markers', () => {
+    it('uses symbolic grid toggle glyphs instead of text markers', () => {
         const source = readWorkflowPageSource()
         expect(source).toContain("{isGridVisible ? '⊞' : '⊟'}")
         expect(source).not.toContain("{isGridVisible ? '##' : '..'}")

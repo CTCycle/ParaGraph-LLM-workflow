@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 
 function readModelsPageCss(): string {
-    return readFileSync('src/pages/ModelsPage.css', 'utf-8')
+    return readFileSync('src/pages/ModelsPage.css', 'utf-8').replace(/\r\n/g, '\n')
 }
 
 describe('ModelsPage toolbar density styles', () => {
