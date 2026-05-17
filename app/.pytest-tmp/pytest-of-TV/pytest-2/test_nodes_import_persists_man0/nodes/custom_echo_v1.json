@@ -1,0 +1,40 @@
+{
+  "id": "CUSTOM_ECHO",
+  "version": 1,
+  "name": "Custom Echo",
+  "category": "processing",
+  "description": "Echo text through a custom manifest.",
+  "inputs": [
+    {
+      "name": "text",
+      "data_type": "TEXT",
+      "required": true,
+      "accepts_multiple": false,
+      "description": null
+    }
+  ],
+  "outputs": [
+    {
+      "name": "text",
+      "data_type": "TEXT",
+      "required": true,
+      "accepts_multiple": false,
+      "description": null
+    }
+  ],
+  "controllers": [],
+  "parameters": [],
+  "ui": {
+    "default_width": 280,
+    "accent_color": "#ffffff",
+    "icon": null,
+    "collapsed_by_default": false
+  },
+  "runtime": {
+    "executor_key": "prompt",
+    "cacheable": true,
+    "deterministic": true,
+    "side_effecting": false,
+    "plugin": null
+  }
+}

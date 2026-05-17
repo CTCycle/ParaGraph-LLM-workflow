@@ -1,6 +1,6 @@
 # ARCHITECTURE
 
-Last updated: 2026-05-16
+Last updated: 2026-05-17
 
 ## System Summary
 
@@ -140,6 +140,7 @@ Typical backend flow follows endpoint -> service -> repository:
 - `server/domain/*`: request/response models, workflow schema, execution/event models.
 - `server/services/workflow/compiler/service.py`: graph validation, diagnostics, topological planning.
 - `server/services/workflow/execution.py`: step orchestration, cache, output shaping, event publishing.
+- `server/services/workflow/structured_models.py`: safe structured JSON model inference, schema generation, Pydantic-source parsing, and validation payload formatting for structured nodes.
 - `server/services/workflow/provider/service.py`: provider facade, model metadata, and download orchestration.
 - `server/services/workflow/provider/helpers.py`: shared provider metadata/constants and coercion helpers.
 - `server/services/workflow/provider/ollama.py`: Ollama library service adapter plus cache/fetch mixin.
@@ -148,6 +149,11 @@ Typical backend flow follows endpoint -> service -> repository:
 - `server/services/workflow/node_handlers/core/prompts.py`: prompt, prompt-template, and image-input node executors used by the core handler registry.
 - `server/services/workflow/node_handlers/processing/sources.py`: shared fragmentation source hydration and measurement helpers.
 - `server/services/workflow/node_handlers/processing/merge.py`: merge-small-chunks executor used by the processing handler registry.
+- `server/services/workflow/node_handlers/structured.py`: structured input/output, JSON validation, and output parsing node executors.
+- `server/services/workflow/node_handlers/http.py`: SSRF-guarded HTTP method node executors.
+- `server/services/workflow/node_handlers/rag.py`: RAG helper executors for HTML cleanup, OCR availability reporting, context building, citations, and grounding checks.
+- `server/services/workflow/node_handlers/advanced_text.py`: deterministic advanced text extraction, classification, redaction, parsing, and normalization executors.
+- `server/services/workflow/node_handlers/control.py`: deterministic workflow control helpers including branching, batching, caching, human review gates, and trace/debug output.
 - `server/services/jobs.py`: thread-based background job manager.
 - `server/services/runtime/events.py`: in-memory event bus + per-run history.
 - `server/repositories/workflow/workflow.py`: filesystem workflow storage + index.

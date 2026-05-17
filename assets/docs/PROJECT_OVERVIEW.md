@@ -1,6 +1,6 @@
 # PROJECT_OVERVIEW
 
-Last updated: 2026-05-09
+Last updated: 2026-05-17
 
 ## FILES INDEX
 
@@ -15,7 +15,7 @@ Last updated: 2026-05-09
 - UI_STANDARDS.md  
   Enforceable UI system definition based on the implemented React/CSS frontend.
 - NODES_LIBRARY.md  
-  Node catalog and manifest reference, including custom node import, runtime integration, vector collections, metadata, tokenizer, and provider-neutral tool calling.
+  Node catalog and manifest reference, including named JSON variables, structured JSON, prompt formatting, RAG/text processing, Web API, control nodes, custom node import, runtime integration, vector collections, metadata, tokenizer, and provider-neutral tool calling.
 - USER_MANUAL.md  
   End-user operational guide for launching, configuring, building workflows, and troubleshooting.
 

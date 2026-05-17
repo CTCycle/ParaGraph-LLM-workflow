@@ -1,6 +1,6 @@
 # NODES_LIBRARY
 
-Last updated: 2026-05-16
+Last updated: 2026-05-17
 
 ## Purpose
 
@@ -55,6 +55,91 @@ Runtime validation occurs through backend node registry logic before use in exec
   - options: `cosine`, `euclidean`, `dot`
 
 ## Processing and Retrieval Nodes
+
+## Named Variables from JSON
+
+When a connected node output is a JSON object, or a JSON string that parses to a
+JSON object, ParaGraph publishes each top-level key as a downstream named
+variable. Nested keys and array indexes are not published automatically.
+
+If a source node also sets `__output_name`, the alias remains available for
+backward compatibility. When the alias collides with a JSON top-level key, the
+alias wins and the original JSON fields remain available under
+`__json_fields__`.
+
+Example structured output:
+
+```json
+{
+  "summary": "The trial met its primary endpoint.",
+  "keywords": ["phase 2", "safety", "efficacy"]
+}
+```
+
+Template / Prompt Format can reference those fields directly:
+
+```jinja
+Summary: {{ summary }}
+Keywords: {{ keywords | join(", ") }}
+```
+
+HTTP nodes can use named variables in query parameters or request body templates,
+and can also receive a full upstream JSON object as the body.
+
+### Template / Prompt Format
+
+`PROMPT_TEMPLATE` is displayed as Template / Prompt Format. It supports Jinja
+syntax by default, including `system_template`, `user_template`,
+`reusable_blocks`, and strict missing-variable validation. Legacy `{name}` format
+templates remain supported for existing workflows.
+
+### Structured JSON
+
+`LLM_STRUCTURED` is the structured generation and extraction node. It returns the
+main JSON object as `result` plus `schema`, `valid`, and `errors`. Validation can
+use the existing JSON Schema mode, an inferred model, or a pasted Pydantic model
+source parsed without executing arbitrary Python.
+
+Additional structured nodes include Structured Input, Structured Output, JSON
+Validate / Repair, and Output Parser.
+
+### RAG and Document Processing
+
+Existing document and retrieval nodes remain the primary extension points:
+Load Documents covers document loading, Document Text Extractor covers text
+extraction, Text Embedding covers embeddings, Vector Store covers upsert, Similarity
+Search covers retrieval, and Rerank Results covers reranking.
+
+Additional RAG nodes include HTML to Text, OCR Text Extract, Chunk Enricher,
+Context Builder, Citation Formatter, and Grounding Checker. OCR returns a clear
+`ocr_engine_unavailable` error when the host does not provide the `tesseract`
+executable.
+
+### Text Processing and Advanced Text
+
+Processing nodes now include normalization, regex extract/replace, token and
+semantic splitting, join/merge, deduplication, metadata attach, language detect,
+token counter, truncation, summarize, rewrite, claim extraction, contradiction
+detection, entity extraction/resolution, PII detection/redaction, prompt injection
+detection, instruction stripping, diff, patch apply, table extraction, Markdown
+parsing, code block extraction, citation extraction, date normalization,
+unit/number normalization, classifier scaffolds, quality scoring, and compression.
+
+### Web API Nodes
+
+HTTP GET, POST, PUT, PATCH, and DELETE nodes use the backend `httpx` client. They
+allow only `http` and `https`, resolve hostnames before requests, and block
+loopback, private, link-local, multicast, and unspecified addresses by default.
+Set `PARAGRAPH_ALLOW_PRIVATE_HTTP_NODES=true` only in trusted local environments
+when private targets are required. Sensitive headers such as `authorization`,
+`cookie`, `set-cookie`, and `x-api-key` are redacted in traces.
+
+### Workflow Control
+
+Control nodes include If Text Contains, Switch by Label, Map over Chunks, Reduce
+Chunks, Batch Processor, Cache Node, Human Review Gate, Error Fallback, and Trace
+/ Debug Viewer. Execution state supports `skipped` steps and `paused` runs for
+human review workflows.
 
 ### Tokenizer
 
@@ -123,4 +208,13 @@ These are used by database/vector-store nodes to validate runtime connection set
 - Node manifests are contract-critical: changes to IDs, versions, or ports affect existing workflows.
 - Prefer introducing new versions instead of breaking existing version semantics.
 - Keep manifest descriptions explicit so the Nodes page remains understandable to end users.
+
+## Newly Added Manifests
+
+- Structured JSON: `STRUCTURED_INPUT`, `STRUCTURED_OUTPUT`, `JSON_VALIDATE_REPAIR`, `OUTPUT_PARSER`
+- RAG: `HTML_TO_TEXT`, `OCR_TEXT_EXTRACT`, `CHUNK_ENRICHER`, `CONTEXT_BUILDER`, `CITATION_FORMATTER`, `GROUNDING_CHECKER`
+- Processing: `NORMALIZE_TEXT`, `REGEX_EXTRACT`, `REGEX_REPLACE`, `TOKEN_SPLIT_CHUNKS`, `SEMANTIC_SPLIT_CHUNKS`, `JOIN_MERGE_TEXT`, `DEDUPLICATE_TEXT`, `METADATA_ATTACH`, `LANGUAGE_DETECT`, `TOKEN_COUNTER`, `TRUNCATE_TO_BUDGET`, `LLM_SUMMARIZE`, `LLM_REWRITE`
+- Advanced text: `CLAIM_EXTRACTOR`, `CONTRADICTION_DETECTOR`, `ENTITY_EXTRACTOR`, `ENTITY_RESOLVER`, `PII_DETECTOR`, `PII_REDACTOR`, `TOXICITY_POLICY_CLASSIFIER`, `PROMPT_INJECTION_DETECTOR`, `INSTRUCTION_STRIPPER`, `DIFF_TEXT`, `PATCH_APPLY`, `TABLE_EXTRACTOR`, `MARKDOWN_PARSER`, `CODE_BLOCK_EXTRACTOR`, `CITATION_EXTRACTOR`, `DATE_NORMALIZER`, `UNIT_NUMBER_NORMALIZER`, `SENTIMENT_INTENT_CLASSIFIER`, `TOPIC_CLASSIFIER`, `QUALITY_SCORER`, `COMPRESSION`
+- Web API: `HTTP_GET`, `HTTP_POST`, `HTTP_PUT`, `HTTP_PATCH`, `HTTP_DELETE`
+- Control: `IF_TEXT_CONTAINS`, `SWITCH_BY_LABEL`, `MAP_OVER_CHUNKS`, `REDUCE_CHUNKS`, `BATCH_PROCESSOR`, `CACHE_NODE`, `HUMAN_REVIEW_GATE`, `ERROR_FALLBACK`, `TRACE_DEBUG_VIEWER`
 

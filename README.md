@@ -54,6 +54,12 @@ At a high level:
 - Install backend dependencies and run the FastAPI service.
 - Install frontend dependencies from `app/client` and start/build the UI.
 
+Backend node dependencies are managed from `app/server/pyproject.toml`. The
+expanded workflow node library includes Jinja prompt rendering, Markdown/date
+parsing, fuzzy matching, and OCR helpers. OCR nodes require the system
+`tesseract` executable; when it is unavailable, the OCR node returns a structured
+`ocr_engine_unavailable` error.
+
 ### 2.3 Desktop Packaging (Windows, Tauri)
 
 1. Activate desktop runtime profile:

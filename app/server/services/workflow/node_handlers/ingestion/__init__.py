@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from server.domain.node_handler_ingestion import (
+    DocumentTextExtractorParameters,
     DirectoryLoaderParameters,
     LoadDocumentsParameters,
     SQLDatabaseParameters,
@@ -13,6 +14,7 @@ from server.services.workflow.node_handlers.ingestion.database_connections impor
 )
 from server.services.workflow.node_handlers.ingestion.documents import (
     _directory_loader_executor,
+    _document_text_extractor_executor,
     _load_documents_executor,
 )
 from server.services.workflow.node_handlers.ingestion.files import (
@@ -27,6 +29,10 @@ INGESTION_HANDLERS = {
     ),
     "load_documents": NodeHandler(
         executor=_load_documents_executor, parameter_model=LoadDocumentsParameters
+    ),
+    "document_text_extractor": NodeHandler(
+        executor=_document_text_extractor_executor,
+        parameter_model=DocumentTextExtractorParameters,
     ),
     "sql_database": NodeHandler(
         executor=_sql_database_executor, parameter_model=SQLDatabaseParameters

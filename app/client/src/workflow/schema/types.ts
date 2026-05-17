@@ -252,7 +252,7 @@ export interface StartExecutionResponse {
     poll_interval: number
 }
 
-export type ExecutionStatus = 'queued' | 'running' | 'completed' | 'failed' | 'cancelled'
+export type ExecutionStatus = 'queued' | 'running' | 'completed' | 'failed' | 'cancelled' | 'paused'
 
 export interface ExecutionStepState {
     step_id: string
@@ -278,6 +278,8 @@ export interface ExecutionRunState {
     steps: ExecutionStepState[]
     outputs: Record<string, Record<string, unknown>>
     error?: string | null
+    pause_payload?: Record<string, unknown> | null
+    resume_token?: string | null
 }
 
 export type ExecutionEventType =

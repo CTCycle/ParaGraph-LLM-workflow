@@ -1,0 +1,5 @@
+Apples are crisp
+
+Bananas are softer
+
+Carrots are crunchy

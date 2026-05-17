@@ -1,5 +1,8 @@
 from server.services.workflow.node_handlers.core import CORE_HANDLERS
+from server.services.workflow.node_handlers.advanced_text import ADVANCED_TEXT_HANDLERS
 from server.services.workflow.node_handlers.database import DATABASE_HANDLERS
+from server.services.workflow.node_handlers.control import CONTROL_HANDLERS
+from server.services.workflow.node_handlers.http import HTTP_HANDLERS
 from server.services.workflow.node_handlers.ingestion import (
     INGESTION_HANDLERS,
 )
@@ -7,6 +10,8 @@ from server.services.workflow.node_handlers.output import OUTPUT_HANDLERS
 from server.services.workflow.node_handlers.processing import (
     PROCESSING_HANDLERS,
 )
+from server.services.workflow.node_handlers.rag import RAG_HANDLERS
+from server.services.workflow.node_handlers.structured import STRUCTURED_HANDLERS
 from server.domain.node_handler_core import (
     MetadataParameters,
     ToolCallParameters,
@@ -33,10 +38,15 @@ ADDITIONAL_CORE_NODE_HANDLERS = {
 
 NODE_HANDLERS = {
     **CORE_HANDLERS,
+    **ADVANCED_TEXT_HANDLERS,
     **ADDITIONAL_CORE_NODE_HANDLERS,
     **DATABASE_HANDLERS,
     **INGESTION_HANDLERS,
     **PROCESSING_HANDLERS,
+    **RAG_HANDLERS,
+    **HTTP_HANDLERS,
+    **CONTROL_HANDLERS,
+    **STRUCTURED_HANDLERS,
     **OUTPUT_HANDLERS,
 }
 

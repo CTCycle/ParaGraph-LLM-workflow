@@ -6,7 +6,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 
-ExecutionStatus = Literal["queued", "running", "completed", "failed", "cancelled"]
+ExecutionStatus = Literal["queued", "running", "completed", "failed", "cancelled", "paused"]
 ExecutionStepStatus = Literal["queued", "running", "completed", "failed", "skipped"]
 RUN_ID_PATTERN = r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"
 ExecutionEventType = Literal[
@@ -59,6 +59,8 @@ class ExecutionStepState(BaseModel):
     completed_at: datetime | None = None
     output: dict[str, Any] = Field(default_factory=dict)
     error: str | None = None
+    pause_payload: dict[str, Any] | None = None
+    resume_token: str | None = None
 
 ###############################################################################
 class ExecutionRunState(BaseModel):
@@ -74,6 +76,8 @@ class ExecutionRunState(BaseModel):
     steps: list[ExecutionStepState] = Field(default_factory=list)
     outputs: dict[str, dict[str, Any]] = Field(default_factory=dict)
     error: str | None = None
+    pause_payload: dict[str, Any] | None = None
+    resume_token: str | None = None
 
 ###############################################################################
 class ExecutionEventEnvelope(BaseModel):

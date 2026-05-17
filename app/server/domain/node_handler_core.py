@@ -108,13 +108,22 @@ class PromptParameters(BaseModel):
 ###############################################################################
 class PromptTemplateParameters(BaseModel):
     template: str = ""
+    template_engine: Literal["format", "jinja2"] = "jinja2"
+    system_template: str = ""
+    user_template: str = ""
+    reusable_blocks: dict[str, str] = Field(default_factory=dict)
+    strict_variables: bool = True
 
-    @field_validator("template")
+    @field_validator("template", "system_template", "user_template")
     @classmethod
     def validate_template(cls, value: str) -> str:
-        if not value.strip():
-            raise ValueError("template is required")
         return value
+
+    @model_validator(mode="after")
+    def validate_template_content(self) -> "PromptTemplateParameters":
+        if not (self.template.strip() or self.system_template.strip() or self.user_template.strip()):
+            raise ValueError("template, system_template, or user_template is required")
+        return self
 
 ###############################################################################
 class ImageInputParameters(BaseModel):
@@ -147,6 +156,8 @@ class PersistedChatHistoryParameters(InMemoryChatHistoryParameters):
 ###############################################################################
 class StructuredParameters(ChatParameters):
     response_schema: dict[str, Any]
+    model_mode: Literal["schema", "auto", "pydantic_source"] = "schema"
+    model_source: str = ""
 
     @field_validator("response_schema", mode="before")
     @classmethod

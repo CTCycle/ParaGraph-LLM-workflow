@@ -8,7 +8,7 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
 from server.services.workflow import node_registry
 
 
-def test_load_documents_emits_deferred_records_without_eager_text(
+def test_load_documents_emits_loaded_records_with_text(
     tmp_path: Path,
 ) -> None:
     source_dir = tmp_path / "docs"
@@ -28,9 +28,9 @@ def test_load_documents_emits_deferred_records_without_eager_text(
         "one.txt",
         "two.md",
     ]
-    assert all(document["text"] == "" for document in payload["documents"])
+    assert [document["text"] for document in payload["documents"]] == ["alpha", "beta"]
     assert all(
-        document["metadata"]["deferred_load"] is True
+        document["metadata"]["deferred_load"] is False
         for document in payload["documents"]
     )
 

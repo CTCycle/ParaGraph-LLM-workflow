@@ -25,11 +25,18 @@ def _by_structure_chunks_executor(
 
     chunks: list[dict[str, object]] = []
     for source in _iter_sources(inputs):
-        segments: list[str] = []
+        segments: list[tuple[str, dict[str, object]]] = []
         for segment in _iter_structure_segments(source["text"], parsed.strategy):
+            segment_text, segment_metadata = (
+                segment if isinstance(segment, tuple) else (segment, {})
+            )
             segments.extend(
-                _apply_overflow(
-                    segment,
+                (
+                    part,
+                    dict(segment_metadata),
+                )
+                for part in _apply_overflow(
+                    segment_text,
                     max_chunk_size=max_chunk_size,
                     overflow_strategy=parsed.overflow_strategy,
                     unit=parsed.unit,
@@ -37,20 +44,22 @@ def _by_structure_chunks_executor(
                     measure_text_size=_measure_text_size,
                 )
             )
-        chunks.extend(
-            _build_chunk_records(
-                source,
-                segments,
-                strategy_name="by_structure_chunks",
-                metadata_updates={
-                    "fragmentation_structure_strategy": parsed.strategy,
-                    "fragmentation_unit": parsed.unit,
-                    "fragmentation_max_chunk_size": parsed.max_chunk_size,
-                    "fragmentation_chunk_overlap": parsed.chunk_overlap,
-                    "fragmentation_overflow_strategy": parsed.overflow_strategy,
-                },
+        for segment_text, segment_metadata in segments:
+            chunks.extend(
+                _build_chunk_records(
+                    source,
+                    [segment_text],
+                    strategy_name="by_structure_chunks",
+                    metadata_updates={
+                        "fragmentation_structure_strategy": parsed.strategy,
+                        "fragmentation_unit": parsed.unit,
+                        "fragmentation_max_chunk_size": parsed.max_chunk_size,
+                        "fragmentation_chunk_overlap": parsed.chunk_overlap,
+                        "fragmentation_overflow_strategy": parsed.overflow_strategy,
+                        **segment_metadata,
+                    },
+                )
             )
-        )
 
     if not chunks:
         raise ValueError(
