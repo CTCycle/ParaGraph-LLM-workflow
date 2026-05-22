@@ -8,7 +8,7 @@ import WorkflowPage from './pages/WorkflowPage'
 
 export default function App() {
     return (
-        <BrowserRouter>
+        <BrowserRouter future={{ v7_relativeSplatPath: true, v7_startTransition: true }}>
             <Routes>
                 <Route path="/" element={<MainLayout />}>
                 <Route index element={<WorkflowPage />} />
