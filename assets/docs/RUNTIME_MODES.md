@@ -47,13 +47,13 @@ PowerShell:
 CMD:
 
 ```bat
-runtimes\.venv\Scripts\python.exe -m uvicorn server.app:app --host 127.0.0.1 --port 5002 --reload
+runtimes\.venv\Scripts\python.exe -m uvicorn server.app:app --host 127.0.0.1 --port 8055 --reload
 ```
 
 PowerShell:
 
 ```powershell
-.\runtimes\.venv\Scripts\python.exe -m uvicorn server.app:app --host 127.0.0.1 --port 5002 --reload
+.\runtimes\.venv\Scripts\python.exe -m uvicorn server.app:app --host 127.0.0.1 --port 8055 --reload
 ```
 
 ### Manual frontend
