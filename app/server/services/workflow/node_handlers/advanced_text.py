@@ -5,18 +5,9 @@ import re
 from datetime import datetime
 from typing import Any
 
-try:
-    from dateutil import parser as date_parser
-except ModuleNotFoundError:  # pragma: no cover
-    date_parser = None
-try:
-    from markdown_it import MarkdownIt
-except ModuleNotFoundError:  # pragma: no cover
-    MarkdownIt = None
-try:
-    from rapidfuzz import fuzz
-except ModuleNotFoundError:  # pragma: no cover
-    fuzz = None
+from dateutil import parser as date_parser
+from markdown_it import MarkdownIt
+from rapidfuzz import fuzz
 
 from server.domain.node_handler_advanced_text import AdvancedTextParameters
 from server.services.workflow.node_handlers.base import NodeHandler
@@ -30,21 +21,21 @@ PII_PATTERNS = {
     "address": r"\b\d{1,6}\s+[A-Za-z0-9 .'-]+\s+(?:Street|St|Road|Rd|Avenue|Ave|Boulevard|Blvd|Lane|Ln)\b",
 }
 
-
+###############################################################################
 def _text(inputs: dict[str, Any], key: str = "text") -> str:
     return coerce_text(inputs.get(key, inputs.get("value", "")))
 
-
+###############################################################################
 def _classifier(label: str, score: float, matches: list[Any], metadata: dict[str, Any] | None = None) -> dict[str, Any]:
     return {"label": label, "score": score, "matches": matches, "metadata": metadata or {}}
 
-
+###############################################################################
 def _claim_extractor_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
     _ = parameters
     claims = [part.strip() for part in re.split(r"(?<=[.!?])\s+", _text(inputs)) if part.strip()]
     return {"result": [{"claim": claim, "index": index} for index, claim in enumerate(claims)]}
 
-
+###############################################################################
 def _contradiction_detector_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
     _ = parameters
     left = _text(inputs, "left").lower()
@@ -55,14 +46,14 @@ def _contradiction_detector_executor(parameters: dict[str, Any], inputs: dict[st
     numeric_conflict = bool(left_numbers and right_numbers and left_numbers != right_numbers)
     return _classifier("contradiction" if negated or numeric_conflict else "neutral", 1.0 if negated or numeric_conflict else 0.0, [])
 
-
+###############################################################################
 def _entity_extractor_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
     _ = parameters
     text = _text(inputs)
     entities = [{"text": match.group(0), "type": "proper_noun"} for match in re.finditer(r"\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b", text)]
     return {"result": entities}
 
-
+###############################################################################
 def _entity_resolver_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
     parsed = AdvancedTextParameters.model_validate(parameters)
     entities = inputs.get("entities", [])
@@ -70,11 +61,7 @@ def _entity_resolver_executor(parameters: dict[str, Any], inputs: dict[str, Any]
     clusters: list[list[str]] = []
     for value in map(str, values):
         for cluster in clusters:
-            score = (
-                fuzz.ratio(value.lower(), cluster[0].lower())
-                if fuzz is not None
-                else (100 if value.lower() == cluster[0].lower() else 0)
-            )
+            score = fuzz.ratio(value.lower(), cluster[0].lower())
             if score >= parsed.threshold * 100:
                 cluster.append(value)
                 break
@@ -82,7 +69,7 @@ def _entity_resolver_executor(parameters: dict[str, Any], inputs: dict[str, Any]
             clusters.append([value])
     return {"result": [{"canonical": cluster[0], "aliases": cluster} for cluster in clusters]}
 
-
+###############################################################################
 def _pii_detector_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
     _ = parameters
     text = _text(inputs)
@@ -92,7 +79,7 @@ def _pii_detector_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -
             matches.append({"type": kind, "text": match.group(0), "span": list(match.span())})
     return {"result": matches}
 
-
+###############################################################################
 def _pii_redactor_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
     parsed = AdvancedTextParameters.model_validate(parameters)
     text = _text(inputs)
@@ -100,7 +87,7 @@ def _pii_redactor_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -
         text = re.sub(pattern, parsed.replacement, text, flags=re.IGNORECASE)
     return {"result": text}
 
-
+###############################################################################
 def _prompt_injection_detector_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
     parsed = AdvancedTextParameters.model_validate(parameters)
     patterns = parsed.patterns or ["ignore previous", "system prompt", "developer message", "exfiltrate", "jailbreak"]
@@ -108,39 +95,36 @@ def _prompt_injection_detector_executor(parameters: dict[str, Any], inputs: dict
     matches = [pattern for pattern in patterns if pattern.lower() in text]
     return _classifier("prompt_injection" if matches else "clean", 1.0 if matches else 0.0, matches)
 
-
+###############################################################################
 def _instruction_stripper_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
     _ = parameters
     lines = [line for line in _text(inputs).splitlines() if not re.search(r"ignore previous|system prompt|developer message|jailbreak", line, re.I)]
     return {"result": "\n".join(lines)}
 
-
+###############################################################################
 def _diff_text_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
     _ = parameters
     diff = difflib.unified_diff(_text(inputs, "before").splitlines(), _text(inputs, "after").splitlines(), lineterm="")
     return {"result": "\n".join(diff)}
 
-
+###############################################################################
 def _patch_apply_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
     _ = parameters
     raise ValueError("PATCH_APPLY rejects patches unless context matching is implemented for the target text")
 
-
+###############################################################################
 def _markdown_parser_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
     _ = parameters
-    if MarkdownIt is None:
-        headings = [{"type": "heading", "tag": f"h{len(match.group(1))}", "content": match.group(2), "map": None} for match in re.finditer(r"^(#{1,6})\s+(.+)$", _text(inputs), re.M)]
-        return {"result": headings}
     tokens = MarkdownIt().parse(_text(inputs))
     return {"result": [{"type": token.type, "tag": token.tag, "content": token.content, "map": token.map} for token in tokens]}
 
-
+###############################################################################
 def _code_block_extractor_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
     _ = parameters
     blocks = [{"language": match.group(1), "code": match.group(2)} for match in re.finditer(r"```(\w*)\n(.*?)```", _text(inputs), re.S)]
     return {"result": blocks}
 
-
+###############################################################################
 def _citation_extractor_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
     _ = parameters
     text = _text(inputs)
@@ -148,36 +132,36 @@ def _citation_extractor_executor(parameters: dict[str, Any], inputs: dict[str, A
     footnotes = re.findall(r"\[\^?(\d+|[A-Za-z][\w-]*)\]", text)
     return {"result": {"urls": urls, "footnotes": footnotes, "references": re.findall(r"\[[A-Za-z0-9 ,.-]+\]", text)}}
 
-
+###############################################################################
 def _date_normalizer_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
     _ = parameters
     text = _text(inputs)
-    if date_parser is None:
-        return {"result": None}
     try:
         parsed = date_parser.parse(text, fuzzy=True)
         return {"result": {"iso": parsed.date().isoformat(), "datetime": parsed.isoformat()}}
     except (ValueError, OverflowError):
         return {"result": None}
 
-
+###############################################################################
 def _unit_number_normalizer_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
     _ = parameters
     matches = [{"value": float(m.group(1)), "unit": m.group(2) or ""} for m in re.finditer(r"(-?\d+(?:\.\d+)?)\s*([A-Za-z%]+)?", _text(inputs))]
     return {"result": matches}
 
-
+###############################################################################
 def _table_extractor_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
     _ = parameters
     rows = [line for line in _text(inputs).splitlines() if "|" in line]
     return {"result": rows}
 
+###############################################################################
+class StaticClassifierExecutor:
+    def __init__(self, label: str) -> None:
+        self._label = label
 
-def _simple_classifier_executor(label: str):
-    def executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
-        _ = parameters
-        return _classifier(label, 0.5, [], {"evaluated_at": datetime.utcnow().isoformat()})
-    return executor
+    def __call__(self, parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
+        _ = parameters, inputs
+        return _classifier(self._label, 0.5, [], {"evaluated_at": datetime.utcnow().isoformat()})
 
 
 ADVANCED_TEXT_HANDLERS = {
@@ -187,7 +171,7 @@ ADVANCED_TEXT_HANDLERS = {
     "entity_resolver": NodeHandler(executor=_entity_resolver_executor, parameter_model=AdvancedTextParameters),
     "pii_detector": NodeHandler(executor=_pii_detector_executor),
     "pii_redactor": NodeHandler(executor=_pii_redactor_executor, parameter_model=AdvancedTextParameters),
-    "toxicity_policy_classifier": NodeHandler(executor=_simple_classifier_executor("allowed")),
+    "toxicity_policy_classifier": NodeHandler(executor=StaticClassifierExecutor("allowed")),
     "prompt_injection_detector": NodeHandler(executor=_prompt_injection_detector_executor, parameter_model=AdvancedTextParameters),
     "instruction_stripper": NodeHandler(executor=_instruction_stripper_executor),
     "diff_text": NodeHandler(executor=_diff_text_executor),
@@ -198,8 +182,8 @@ ADVANCED_TEXT_HANDLERS = {
     "citation_extractor": NodeHandler(executor=_citation_extractor_executor),
     "date_normalizer": NodeHandler(executor=_date_normalizer_executor),
     "unit_number_normalizer": NodeHandler(executor=_unit_number_normalizer_executor),
-    "sentiment_intent_classifier": NodeHandler(executor=_simple_classifier_executor("neutral")),
-    "topic_classifier": NodeHandler(executor=_simple_classifier_executor("general")),
-    "quality_scorer": NodeHandler(executor=_simple_classifier_executor("acceptable")),
-    "compression": NodeHandler(executor=_simple_classifier_executor("compressed")),
+    "sentiment_intent_classifier": NodeHandler(executor=StaticClassifierExecutor("neutral")),
+    "topic_classifier": NodeHandler(executor=StaticClassifierExecutor("general")),
+    "quality_scorer": NodeHandler(executor=StaticClassifierExecutor("acceptable")),
+    "compression": NodeHandler(executor=StaticClassifierExecutor("compressed")),
 }
