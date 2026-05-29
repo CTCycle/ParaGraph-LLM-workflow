@@ -43,8 +43,10 @@ export default defineConfig(({ mode }) => {
     const uiHost = env.UI_HOST || '127.0.0.1'
     const uiPort = Number.parseInt(env.UI_PORT || '5173', 10)
     const apiBase = normalizeApiBase(env.VITE_API_BASE_URL || '/api')
+    const cacheDir = path.resolve(__dirname, '.vite')
 
     return {
+        cacheDir,
         envDir,
         plugins: [react()],
         server: {
