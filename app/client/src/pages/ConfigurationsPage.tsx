@@ -69,6 +69,17 @@ function normalizeApiKeyField(value: string | null | undefined): string {
     return normalized
 }
 
+function toApiKeyPayload(value: string): string | null {
+    const normalized = normalizeText(value)
+    if (!normalized) {
+        return null
+    }
+    if (normalized === MASKED_API_KEY_DISPLAY) {
+        return MASKED_API_KEY_VALUE
+    }
+    return normalized
+}
+
 function formatOllamaStatusMessage(message: string, baseUrl: string): string {
     const baseMessage = normalizeText(message)
     const isConnectionIssue = /Unable to reach Ollama|ECONNREFUSED|WinError 10061|connection refused/i.test(baseMessage)
@@ -178,27 +189,16 @@ export default function ConfigurationsPage() {
     }, [])
 
     function buildPayload(): AppConfigurationPayload {
-        function toApiPayload(value: string): string | null {
-            const normalized = normalizeText(value)
-            if (!normalized) {
-                return null
-            }
-            if (normalized === MASKED_API_KEY_DISPLAY) {
-                return MASKED_API_KEY_VALUE
-            }
-            return normalized
-        }
-
         const accessKeys: AccessKeyConfiguration[] = CLOUD_PROVIDER_OPTIONS.map((option) => ({
             provider: option.value,
-            api_key: toApiPayload(cloudCredentials[option.value].apiKey),
+            api_key: toApiKeyPayload(cloudCredentials[option.value].apiKey),
             base_url: null,
             metadata: {},
         }))
 
         accessKeys.push({
             provider: 'huggingface',
-            api_key: toApiPayload(huggingFaceKey),
+            api_key: toApiKeyPayload(huggingFaceKey),
             base_url: null,
             metadata: {},
         })

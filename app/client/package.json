@@ -9,7 +9,7 @@
     "build:tauri": "tsc && vite build --mode tauri",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
-    "test:unit": "vitest run",
+    "test:unit": "vitest run --cache=false",
     "test:unit:watch": "vitest",
     "test:e2e": "playwright test",
     "tauri:icon": "tauri icon public/favicon.svg && powershell -NoProfile -Command \"Remove-Item -Recurse -Force src-tauri/icons/android,src-tauri/icons/ios -ErrorAction SilentlyContinue\"",
