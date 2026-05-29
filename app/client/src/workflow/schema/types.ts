@@ -27,7 +27,6 @@ export type NodeDataType =
     | 'VECTOR_POINT_LIST'
     | 'VECTOR_STORE_HANDLE'
     | 'RETRIEVAL_RESULTS'
-    | 'TOKEN_IDS'
     | 'JSON'
     | 'MODEL_HANDLE'
     | 'CHAT_HISTORY_HANDLE'
@@ -253,7 +252,7 @@ export interface StartExecutionResponse {
     poll_interval: number
 }
 
-export type ExecutionStatus = 'queued' | 'running' | 'completed' | 'failed' | 'cancelled'
+export type ExecutionStatus = 'queued' | 'running' | 'completed' | 'failed' | 'cancelled' | 'paused'
 
 export interface ExecutionStepState {
     step_id: string
@@ -279,6 +278,8 @@ export interface ExecutionRunState {
     steps: ExecutionStepState[]
     outputs: Record<string, Record<string, unknown>>
     error?: string | null
+    pause_payload?: Record<string, unknown> | null
+    resume_token?: string | null
 }
 
 export type ExecutionEventType =

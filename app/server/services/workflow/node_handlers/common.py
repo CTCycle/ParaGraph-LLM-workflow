@@ -31,7 +31,7 @@ class NodeValueService:
             return default
         try:
             return int(float(value))
-        except TypeError, ValueError:
+        except (TypeError, ValueError):
             return default
 
     @staticmethod
@@ -40,8 +40,92 @@ class NodeValueService:
             return default
         try:
             return float(value)
-        except TypeError, ValueError:
+        except (TypeError, ValueError):
             return default
+
+    @staticmethod
+    def coerce_text_list(value: Any) -> list[str]:
+        if value is None:
+            return []
+        if isinstance(value, list):
+            return [NodeValueService.coerce_text(item) for item in value]
+        return [NodeValueService.coerce_text(value)]
+
+    @staticmethod
+    def parse_json_if_possible(value: Any) -> Any:
+        if not isinstance(value, str):
+            return value
+        text = value.strip()
+        if not text:
+            return value
+        try:
+            return json.loads(text)
+        except json.JSONDecodeError:
+            return value
+
+    @classmethod
+    def coerce_json_object(cls, value: Any) -> dict[str, Any]:
+        parsed = cls.parse_json_if_possible(value)
+        if not isinstance(parsed, dict):
+            raise ValueError("value must be a JSON object")
+        return parsed
+
+    @classmethod
+    def coerce_json_array(cls, value: Any) -> list[Any]:
+        parsed = cls.parse_json_if_possible(value)
+        if not isinstance(parsed, list):
+            raise ValueError("value must be a JSON array")
+        return parsed
+
+    @classmethod
+    def extract_top_level_json_fields(cls, value: Any) -> dict[str, Any]:
+        parsed = cls.parse_json_if_possible(value)
+        if isinstance(parsed, dict):
+            return dict(parsed)
+        return {}
+
+    @classmethod
+    def merge_named_variables(cls, *payloads: Any) -> dict[str, Any]:
+        merged: dict[str, Any] = {}
+        for payload in payloads:
+            if payload is None:
+                continue
+            candidates = payload if isinstance(payload, list) else [payload]
+            for candidate in candidates:
+                fields = cls.extract_top_level_json_fields(candidate)
+                for key, value in fields.items():
+                    variable_name = str(key).strip()
+                    if variable_name:
+                        merged[variable_name] = value
+        return merged
+
+    @classmethod
+    def render_variable_value(cls, value: Any) -> str:
+        if value is None:
+            return ""
+        if isinstance(value, str):
+            return value
+        if isinstance(value, (int, float, bool)):
+            return str(value)
+        if isinstance(value, list):
+            if all(isinstance(item, dict) for item in value):
+                text_parts = [
+                    cls.coerce_text(item.get("text") or item.get("content") or item.get("chunk") or "").strip()
+                    for item in value
+                ]
+                text_parts = [item for item in text_parts if item]
+                if text_parts:
+                    return "\n\n".join(text_parts)
+        if isinstance(value, dict):
+            extracted = cls.coerce_text(
+                value.get("text") or value.get("content") or value.get("chunk") or ""
+            ).strip()
+            if extracted:
+                return extracted
+        try:
+            return json.dumps(value, indent=2, ensure_ascii=True, default=str)
+        except Exception:  # noqa: BLE001
+            return str(value)
 
     @staticmethod
     def parse_json_value(value: Any, label: str) -> Any:
@@ -63,7 +147,7 @@ class NodeValueService:
     @staticmethod
     def strip_html(text: str) -> str:
         soup = BeautifulSoup(text, "html.parser")
-        for tag in soup(["script", "style"]):
+        for tag in soup(["script", "style", "nav", "header", "footer", "aside"]):
             tag.decompose()
         return " ".join(soup.get_text(" ").split())
 
@@ -193,6 +277,10 @@ def coerce_text(value: Any) -> str:
     return node_value_service.coerce_text(value)
 
 
+def coerce_text_list(value: Any) -> list[str]:
+    return node_value_service.coerce_text_list(value)
+
+
 def coerce_bool(value: Any) -> bool:
     return node_value_service.coerce_bool(value)
 
@@ -207,6 +295,30 @@ def coerce_float(value: Any, default: float) -> float:
 
 def parse_json_value(value: Any, label: str) -> Any:
     return node_value_service.parse_json_value(value, label)
+
+
+def parse_json_if_possible(value: Any) -> Any:
+    return node_value_service.parse_json_if_possible(value)
+
+
+def coerce_json_object(value: Any) -> dict[str, Any]:
+    return node_value_service.coerce_json_object(value)
+
+
+def coerce_json_array(value: Any) -> list[Any]:
+    return node_value_service.coerce_json_array(value)
+
+
+def extract_top_level_json_fields(value: Any) -> dict[str, Any]:
+    return node_value_service.extract_top_level_json_fields(value)
+
+
+def merge_named_variables(*payloads: Any) -> dict[str, Any]:
+    return node_value_service.merge_named_variables(*payloads)
+
+
+def render_variable_value(value: Any) -> str:
+    return node_value_service.render_variable_value(value)
 
 
 def normalize_provider_name(provider: Any, default: str = "ollama") -> str:

@@ -1,4 +1,4 @@
-import { FormEvent, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import {
     ArrowDownToLine,
     ArrowUpToLine,
@@ -22,66 +22,17 @@ import { useEscapeToClose } from '../app/hooks/useEscapeToClose'
 import { usePageMetadata } from '../app/hooks/usePageMetadata'
 import SectionHeading from '../components/SectionHeading'
 import StatusBanner from '../components/StatusBanner'
-import { importNodeManifest } from '../app/services/nodesApi'
 import { useNodeCatalog } from '../workflow/hooks/useNodeCatalog'
 import { NODE_CATEGORY_LABELS, NODE_CATEGORY_ORDER } from '../workflow/schema/nodeCategory'
 import { NodeCategory, NodeManifest, WorkflowNavigationState, WorkflowOpenIntent, WorkflowTemplate } from '../workflow/schema/types'
+import NodeCategoryFilterOption from './nodes/NodeCategoryFilterOption'
 import NodePreviewCard from './nodes/NodePreviewCard'
 import { type NodePreviewDetailItem } from './nodes/types'
+import { NODE_MANIFEST_TEMPLATE } from './nodes/nodeManifest'
+import { useNodeManifestImport } from './nodes/useNodeManifestImport'
 import { useWorkflowTemplates } from './nodes/useWorkflowTemplates'
+import WorkflowTemplateCard from './nodes/WorkflowTemplateCard'
 import './NodesPage.css'
-
-const NODE_MANIFEST_TEMPLATE = `{
-  "id": "CUSTOM_NODE",
-  "version": 1,
-  "name": "Custom Node",
-  "category": "processing",
-  "description": "Describe what the node does.",
-  "inputs": [
-    {
-      "name": "input_text",
-      "data_type": "TEXT",
-      "required": true,
-      "accepts_multiple": false,
-      "description": "Incoming text payload."
-    }
-  ],
-  "outputs": [
-    {
-      "name": "result",
-      "data_type": "TEXT",
-      "required": true,
-      "accepts_multiple": false,
-      "description": "Processed text output."
-    }
-  ],
-  "parameters": [
-    {
-      "name": "mode",
-      "data_type": "TEXT",
-      "default": "default",
-      "constraints": { "options": ["default", "fast"] },
-      "ui_control": "select",
-      "description": "Execution mode."
-    }
-  ],
-  "ui": {
-    "default_width": 320,
-    "accent_color": "#4aa3ff",
-    "icon": "sparkles",
-    "collapsed_by_default": false
-  },
-  "runtime": {
-    "executor_key": "custom.plugin",
-    "cacheable": false,
-    "deterministic": true,
-    "side_effecting": false,
-    "plugin": {
-      "script_path": "plugins/custom_node.py",
-      "entrypoint": "execute"
-    }
-  }
-}`
 
 const NODE_CATEGORY_ICONS: Record<NodeCategory, LucideIcon> = {
     input: ArrowDownToLine,
@@ -115,32 +66,6 @@ const EMPTY_CATEGORY_COUNTS: Record<NodeCategory, number> = {
     database: 0,
     vector_storage: 0,
     control: 0,
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-    return typeof value === 'object' && value !== null
-}
-
-function isNodeManifest(value: unknown): value is NodeManifest {
-    if (!isRecord(value)) {
-        return false
-    }
-
-    const ui = value.ui
-    const runtime = value.runtime
-
-    return (
-        typeof value.id === 'string' &&
-        typeof value.version === 'number' &&
-        typeof value.name === 'string' &&
-        typeof value.category === 'string' &&
-        typeof value.description === 'string' &&
-        Array.isArray(value.inputs) &&
-        Array.isArray(value.outputs) &&
-        Array.isArray(value.parameters) &&
-        isRecord(ui) &&
-        isRecord(runtime)
-    )
 }
 
 function formatPortSummary(names: string[]): string {
@@ -196,12 +121,22 @@ export default function NodesPage() {
     const [search, setSearch] = useState('')
     const [templateSearch, setTemplateSearch] = useState('')
     const [selectedCategories, setSelectedCategories] = useState<NodeCategory[]>(() => [...NODE_CATEGORY_ORDER])
-    const [jsonText, setJsonText] = useState('')
-    const [importStatus, setImportStatus] = useState<string | null>(null)
-    const [isImporting, setIsImporting] = useState(false)
-    const [isImportModalOpen, setIsImportModalOpen] = useState(false)
     const getErrorMessage = useErrorMessage()
     const { templates, templatesLoading, templatesError } = useWorkflowTemplates({ getErrorMessage })
+    const {
+        importStatus,
+        isImporting,
+        isImportModalOpen,
+        jsonText,
+        closeImportModal,
+        handleImport,
+        handleJsonValidation,
+        openImportModal,
+        setJsonText,
+    } = useNodeManifestImport({
+        getErrorMessage,
+        onImported: reload,
+    })
     const importModalTitleId = 'nodes-import-modal-title'
     const importModalDescriptionId = 'nodes-import-modal-description'
     const pageBannerMessage = error || templatesError
@@ -239,7 +174,7 @@ export default function NodesPage() {
 
     useEscapeToClose({
         enabled: isImportModalOpen && !isImporting,
-        onClose: () => setIsImportModalOpen(false),
+        onClose: closeImportModal,
     })
 
     function toggleCategory(category: NodeCategory): void {
@@ -250,50 +185,6 @@ export default function NodesPage() {
 
     function navigateToWorkflow(intent: WorkflowOpenIntent): void {
         navigate('/', { state: { workflow_intent: intent } satisfies WorkflowNavigationState })
-    }
-
-    function validateJson(): NodeManifest {
-        const parsed: unknown = JSON.parse(jsonText)
-        if (!isNodeManifest(parsed)) {
-            throw new Error('JSON must contain a node manifest object')
-        }
-        return parsed
-    }
-
-    function handleJsonValidation(): void {
-        try {
-            const manifest = validateJson()
-            setImportStatus(`Valid manifest: ${manifest.id} v${manifest.version}`)
-        } catch (validationError) {
-            setImportStatus(getErrorMessage(validationError, 'Invalid JSON payload'))
-        }
-    }
-
-    async function handleImport(event: FormEvent<HTMLFormElement>): Promise<void> {
-        event.preventDefault()
-        setImportStatus(null)
-
-        let manifest: NodeManifest
-        try {
-            manifest = validateJson()
-            setImportStatus(`Valid manifest: ${manifest.id} v${manifest.version}`)
-        } catch (validationError) {
-            setImportStatus(getErrorMessage(validationError, 'Invalid JSON payload'))
-            return
-        }
-
-        setIsImporting(true)
-        try {
-            const created = await importNodeManifest(manifest)
-            setImportStatus(`Imported ${created.id} v${created.version}`)
-            await reload()
-            setJsonText('')
-            setIsImportModalOpen(false)
-        } catch (importError) {
-            setImportStatus(getErrorMessage(importError, 'Failed to import node manifest'))
-        } finally {
-            setIsImporting(false)
-        }
     }
 
     return (
@@ -334,24 +225,17 @@ export default function NodesPage() {
                                     Clear
                                 </button>
                             </div>
-                            <div className="nodes-category-list">
-                                {NODE_CATEGORY_ORDER.map((category) => {
-                                    const Icon = NODE_CATEGORY_ICONS[category]
-                                    return (
-                                        <label key={category} className="nodes-category-option">
-                                            <input
-                                                type="checkbox"
-                                                checked={selectedCategories.includes(category)}
-                                                onChange={() => toggleCategory(category)}
-                                            />
-                                            <span className="nodes-category-option-icon">
-                                                <Icon size={15} strokeWidth={1.8} />
-                                            </span>
-                                            <span className="nodes-category-option-text">{NODE_CATEGORY_LABELS[category]}</span>
-                                            <span className="nodes-category-option-count">{categoryCounts[category]}</span>
-                                        </label>
-                                    )
-                                })}
+                             <div className="nodes-category-list">
+                                {NODE_CATEGORY_ORDER.map((category) => (
+                                    <NodeCategoryFilterOption
+                                        key={category}
+                                        category={category}
+                                        count={categoryCounts[category]}
+                                        checked={selectedCategories.includes(category)}
+                                        icon={NODE_CATEGORY_ICONS[category]}
+                                        onToggle={toggleCategory}
+                                    />
+                                ))}
                             </div>
                         </aside>
 
@@ -375,7 +259,7 @@ export default function NodesPage() {
                                         className="nodes-preview-add-button"
                                         aria-label="Open custom node JSON import"
                                         title="Import custom node JSON"
-                                        onClick={() => setIsImportModalOpen(true)}
+                                        onClick={openImportModal}
                                     >
                                         <Plus size={16} strokeWidth={2.1} />
                                     </button>
@@ -443,29 +327,12 @@ export default function NodesPage() {
                                 )}
                                 {!templatesLoading &&
                                     filteredTemplates.map((template) => (
-                                        <article key={template.id} className="nodes-template-card" role="listitem">
-                                            <div className="nodes-template-card-header">
-                                                <h3>{template.name}</h3>
-                                                <button
-                                                    type="button"
-                                                    onClick={() =>
-                                                        navigateToWorkflow({
-                                                            type: 'load-template',
-                                                            template_id: template.id,
-                                                            template_name: template.name,
-                                                            definition: template.definition,
-                                                            visual_graph: template.visual_graph,
-                                                        })
-                                                    }
-                                                >
-                                                    Use template
-                                                </button>
-                                            </div>
-                                            <p>{template.description}</p>
-                                            <p className="nodes-template-flow" aria-label={`${template.name} flow preview`}>
-                                                {buildTemplateFlowPreview(template).join(' -> ')}
-                                            </p>
-                                        </article>
+                                        <WorkflowTemplateCard
+                                            key={template.id}
+                                            template={template}
+                                            flowPreview={buildTemplateFlowPreview(template)}
+                                            onUseTemplate={navigateToWorkflow}
+                                        />
                                     ))}
                             </div>
                         </div>
@@ -479,7 +346,7 @@ export default function NodesPage() {
                     role="presentation"
                     onMouseDown={(event) => {
                         if (event.target === event.currentTarget && !isImporting) {
-                            setIsImportModalOpen(false)
+                            closeImportModal()
                         }
                     }}
                 >
@@ -503,7 +370,7 @@ export default function NodesPage() {
                                 type="button"
                                 className="nodes-modal-close"
                                 aria-label="Close import dialog"
-                                onClick={() => setIsImportModalOpen(false)}
+                                onClick={closeImportModal}
                                 disabled={isImporting}
                             >
                                 <X size={16} strokeWidth={2.2} />
@@ -532,7 +399,7 @@ export default function NodesPage() {
                                 rows={20}
                             />
                             <div className="nodes-import-actions">
-                                <button type="button" onClick={() => setIsImportModalOpen(false)} disabled={isImporting}>
+                                <button type="button" onClick={closeImportModal} disabled={isImporting}>
                                     Cancel
                                 </button>
                                 <button type="button" onClick={handleJsonValidation} disabled={!jsonText.trim() || isImporting}>

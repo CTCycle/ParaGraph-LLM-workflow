@@ -42,7 +42,7 @@
       "data_type": "JSON",
       "default": [
         "\n\n",
-        "\n",
+        ". ",
         " "
       ],
       "constraints": {
@@ -83,7 +83,8 @@
         "required": true,
         "options": [
           "words",
-          "characters"
+          "characters",
+          "tokens"
         ]
       },
       "ui_control": "select",

@@ -1,9 +1,9 @@
 {
   "id": "RERANK_RESULTS",
   "version": 1,
-  "name": "Rerank Results",
+  "name": "Reranker",
   "category": "retrieval",
-  "description": "Deterministically rerank retrieval hits using lexical and metadata scoring strategies.",
+  "description": "Deterministically rerank retrieval hits while preserving retrieval_score and adding rerank_score metadata.",
   "inputs": [
     {
       "name": "results",

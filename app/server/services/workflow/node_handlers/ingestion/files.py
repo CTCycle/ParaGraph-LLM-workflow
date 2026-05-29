@@ -15,7 +15,7 @@ def resolve_local_path(path_value: str) -> Path:
 
 def _html_to_text(raw_html: str) -> str:
     soup = BeautifulSoup(raw_html, "html.parser")
-    for tag in soup(["script", "style"]):
+    for tag in soup(["script", "style", "nav", "header", "footer", "aside"]):
         tag.decompose()
     return "\n".join(
         part.strip() for part in soup.get_text("\n").splitlines() if part.strip()
@@ -31,6 +31,15 @@ def _load_docx_text(path: Path) -> str:
     )
 
 
+def load_docx_paragraphs(path: Path) -> list[dict[str, object]]:
+    document = Document(str(path))
+    return [
+        {"paragraph_index": index + 1, "text": paragraph.text.strip()}
+        for index, paragraph in enumerate(document.paragraphs)
+        if paragraph.text.strip()
+    ]
+
+
 def _load_pdf_text(path: Path) -> str:
     reader = PdfReader(str(path))
     parts: list[str] = []
@@ -39,6 +48,16 @@ def _load_pdf_text(path: Path) -> str:
         if extracted:
             parts.append(extracted)
     return "\n\n".join(parts)
+
+
+def load_pdf_pages(path: Path, *, include_empty_pages: bool = False) -> list[dict[str, object]]:
+    reader = PdfReader(str(path))
+    pages: list[dict[str, object]] = []
+    for index, page in enumerate(reader.pages, start=1):
+        extracted = (page.extract_text() or "").strip()
+        if extracted or include_empty_pages:
+            pages.append({"page_number": index, "text": extracted})
+    return pages
 
 
 def _read_text_file(path: Path) -> str:
@@ -76,4 +95,4 @@ def load_file_text(path: Path) -> tuple[str, str]:
     raise ValueError(f"Unsupported document type: {path.suffix or path.name}")
 
 
-__all__ = ["load_file_text", "resolve_local_path"]
+__all__ = ["load_docx_paragraphs", "load_file_text", "load_pdf_pages", "resolve_local_path"]

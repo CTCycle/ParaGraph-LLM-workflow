@@ -8,7 +8,7 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
 from server.services.workflow import node_registry
 
 
-def test_load_documents_emits_deferred_records_without_eager_text(
+def test_load_documents_emits_loaded_records_with_text(
     tmp_path: Path,
 ) -> None:
     source_dir = tmp_path / "docs"
@@ -28,9 +28,9 @@ def test_load_documents_emits_deferred_records_without_eager_text(
         "one.txt",
         "two.md",
     ]
-    assert all(document["text"] == "" for document in payload["documents"])
+    assert [document["text"] for document in payload["documents"]] == ["alpha", "beta"]
     assert all(
-        document["metadata"]["deferred_load"] is True
+        document["metadata"]["deferred_load"] is False
         for document in payload["documents"]
     )
 
@@ -64,9 +64,9 @@ def test_load_documents_respects_recursive_toggle(tmp_path: Path) -> None:
 
 
 def test_load_documents_rejects_non_canonical_folder_path_keys(tmp_path: Path) -> None:
-    source_dir = tmp_path / "legacy-folder"
+    source_dir = tmp_path / "source-folder"
     source_dir.mkdir(parents=True, exist_ok=True)
-    (source_dir / "legacy.txt").write_text("legacy", encoding="utf-8")
+    (source_dir / "source.txt").write_text("source", encoding="utf-8")
 
     invalid_payloads = [
         {"folderPath": str(source_dir), "recursive": False},
@@ -86,10 +86,10 @@ def test_load_documents_rejects_non_canonical_folder_path_keys(tmp_path: Path) -
             )
 
 
-def test_load_documents_skips_legacy_doc_extension(tmp_path: Path) -> None:
+def test_load_documents_skips_unsupported_doc_extension(tmp_path: Path) -> None:
     source_dir = tmp_path / "docs"
     source_dir.mkdir(parents=True, exist_ok=True)
-    (source_dir / "legacy.doc").write_text("legacy", encoding="utf-8")
+    (source_dir / "unsupported.doc").write_text("unsupported", encoding="utf-8")
 
     payload = node_registry.execute(
         "LOAD_DOCUMENTS",
