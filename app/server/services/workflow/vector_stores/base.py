@@ -34,17 +34,15 @@ def _resolve_vectorstore_root(storage_directory: str | None) -> Path:
         return default_root
 
     candidate = Path(selected).expanduser()
-    if candidate.is_absolute():
-        resolved = candidate.resolve()
-        if is_cloud_deployment():
-            return ensure_path_within_root(
-                resolved, default_root, label="storage_directory"
-            )
-        return resolved
+    if not candidate.is_absolute():
+        raise VectorStoreError("storage_directory must be an absolute path")
 
-    # Keep legacy relative roots anchored under artifacts/vectorstores.
-    resolved = (VECTORSTORE_ROOT / candidate).resolve()
-    return ensure_path_within_root(resolved, default_root, label="storage_directory")
+    resolved = candidate.resolve()
+    if is_cloud_deployment():
+        return ensure_path_within_root(
+            resolved, default_root, label="storage_directory"
+        )
+    return resolved
 
 
 def _normalize_index_name(index_name: str) -> str:

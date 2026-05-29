@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from server.domain.node_handler_core import VectorStoreParameters
@@ -113,6 +115,25 @@ def test_vector_store_parameters_require_storage_path_for_local_providers(
                 "endpoint_url": "",
             }
         )
+
+
+def test_faiss_validate_connection_rejects_relative_storage_path() -> None:
+    adapter = get_vector_store_adapter("faiss")
+
+    with pytest.raises(
+        VectorStoreError, match="storage_directory must be an absolute path"
+    ):
+        adapter.validate_connection(
+            index_name="docs", storage_directory="vectorstores/docs"
+        )
+
+
+def test_faiss_validate_connection_accepts_absolute_storage_path(
+    tmp_path: Path,
+) -> None:
+    adapter = get_vector_store_adapter("faiss")
+
+    adapter.validate_connection(index_name="docs", storage_directory=str(tmp_path))
 
 
 @pytest.mark.parametrize("provider", ["qdrant", "pinecone", "weaviate", "milvus"])

@@ -110,6 +110,10 @@ class LoadDocumentsParameters(BaseModel):
         return normalized
 
 
+class DocumentTextExtractorParameters(BaseModel):
+    include_empty_pages: bool = False
+
+
 class DatabaseConnectionParameters(BaseModel):
     engine: str = "sqlite"
     database_name: str = ""

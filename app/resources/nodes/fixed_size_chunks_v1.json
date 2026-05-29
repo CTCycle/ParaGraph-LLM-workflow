@@ -69,7 +69,8 @@
         "required": true,
         "options": [
           "words",
-          "characters"
+          "characters",
+          "tokens"
         ]
       },
       "ui_control": "select",

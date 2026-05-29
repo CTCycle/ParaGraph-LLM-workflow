@@ -113,9 +113,7 @@ def _tokenize_executor(
     }
     if parsed.output_format == "string":
         return {"serialized": json.dumps(structured, ensure_ascii=False)}
-    if parsed.output_format == "json" or len(tokenized_records) != 1:
-        return {"tokenized": structured}
-    return {"tokens": tokenized_records[0]["token_ids"], "tokenized": structured}
+    return {"tokenized": structured}
 
 ###############################################################################
 def _text_split_executor(

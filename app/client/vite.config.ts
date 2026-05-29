@@ -32,7 +32,7 @@ const buildProxy = (apiBase: string, apiTarget: string) => {
 }
 
 export default defineConfig(({ mode }) => {
-    const envDir = path.resolve(__dirname, '../settings')
+    const envDir = path.resolve(__dirname, '../../settings')
     const clientEnv = loadEnv(mode, __dirname, '')
     const settingsEnv = loadEnv(mode, envDir, '')
     const env = { ...process.env, ...clientEnv, ...settingsEnv }
@@ -43,8 +43,10 @@ export default defineConfig(({ mode }) => {
     const uiHost = env.UI_HOST || '127.0.0.1'
     const uiPort = Number.parseInt(env.UI_PORT || '5173', 10)
     const apiBase = normalizeApiBase(env.VITE_API_BASE_URL || '/api')
+    const cacheDir = path.resolve(__dirname, '.vite')
 
     return {
+        cacheDir,
         envDir,
         plugins: [react()],
         server: {

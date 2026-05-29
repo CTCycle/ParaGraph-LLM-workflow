@@ -27,8 +27,8 @@ class FixedSizeChunksParameters(BaseModel):
     @classmethod
     def validate_unit(cls, value: str) -> str:
         normalized = str(value or "").strip().lower()
-        if normalized not in {"words", "characters"}:
-            raise ValueError("unit must be one of: words, characters")
+        if normalized not in {"words", "characters", "tokens"}:
+            raise ValueError("unit must be one of: words, characters, tokens")
         return normalized
 
     @model_validator(mode="after")
@@ -75,9 +75,9 @@ class ByStructureChunksParameters(BaseModel):
     @classmethod
     def validate_strategy(cls, value: str) -> str:
         normalized = str(value or "").strip().lower()
-        if normalized not in {"paragraph", "section", "heading_and_content"}:
+        if normalized not in {"paragraph", "section", "heading_and_content", "markdown_heading"}:
             raise ValueError(
-                "strategy must be one of: paragraph, section, heading_and_content"
+                "strategy must be one of: paragraph, section, heading_and_content, markdown_heading"
             )
         return normalized
 
@@ -85,8 +85,8 @@ class ByStructureChunksParameters(BaseModel):
     @classmethod
     def validate_unit(cls, value: str) -> str:
         normalized = str(value or "").strip().lower()
-        if normalized not in {"words", "characters"}:
-            raise ValueError("unit must be one of: words, characters")
+        if normalized not in {"words", "characters", "tokens"}:
+            raise ValueError("unit must be one of: words, characters, tokens")
         return normalized
 
     @field_validator("overflow_strategy")
@@ -113,7 +113,7 @@ class RegexSplitChunksParameters(BaseModel):
 
 
 class RecursiveSplitChunksParameters(BaseModel):
-    separators: list[str] = Field(default_factory=lambda: ["\n\n", "\n", " "])
+    separators: list[str] = Field(default_factory=lambda: ["\n\n", ". ", " "])
     chunk_size: int = Field(default=800, ge=1, le=100_000)
     chunk_overlap: int = Field(default=80, ge=0, le=99_999)
     unit: str = "words"
@@ -138,8 +138,8 @@ class RecursiveSplitChunksParameters(BaseModel):
     @classmethod
     def validate_unit(cls, value: str) -> str:
         normalized = str(value or "").strip().lower()
-        if normalized not in {"words", "characters"}:
-            raise ValueError("unit must be one of: words, characters")
+        if normalized not in {"words", "characters", "tokens"}:
+            raise ValueError("unit must be one of: words, characters, tokens")
         return normalized
 
     @field_validator("fallback_strategy")
@@ -193,8 +193,8 @@ class MergeSmallChunksParameters(BaseModel):
     @classmethod
     def validate_unit(cls, value: str) -> str:
         normalized = str(value or "").strip().lower()
-        if normalized not in {"words", "characters"}:
-            raise ValueError("unit must be one of: words, characters")
+        if normalized not in {"words", "characters", "tokens"}:
+            raise ValueError("unit must be one of: words, characters, tokens")
         return normalized
 
     @field_validator("merge_strategy")

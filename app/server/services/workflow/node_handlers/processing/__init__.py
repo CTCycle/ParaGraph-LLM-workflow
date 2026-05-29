@@ -29,6 +29,9 @@ from server.services.workflow.node_handlers.processing.structure import (
     _by_structure_chunks_executor,
     _regex_split_chunks_executor,
 )
+from server.services.workflow.node_handlers.processing.text_processing import (
+    TEXT_PROCESSING_HANDLERS,
+)
 
 
 PROCESSING_HANDLERS = {
@@ -59,6 +62,7 @@ PROCESSING_HANDLERS = {
         executor=_merge_small_chunks_executor,
         parameter_model=MergeSmallChunksParameters,
     ),
+    **TEXT_PROCESSING_HANDLERS,
 }
 
 __all__ = ["PROCESSING_HANDLERS"]

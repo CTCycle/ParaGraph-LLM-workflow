@@ -1,7 +1,7 @@
 {
   "id": "SIMILARITY_SEARCH",
   "version": 1,
-  "name": "Similarity Search",
+  "name": "Retriever",
   "category": "retrieval",
   "description": "Search similar vectors for a query text using a connected embedding source and vector store controller.",
   "inputs": [

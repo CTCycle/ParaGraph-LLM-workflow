@@ -12,7 +12,6 @@
     {"name": "chunks", "data_type": "CHUNK_LIST", "required": false}
   ],
   "outputs": [
-    {"name": "tokens", "data_type": "TOKEN_IDS", "required": false},
     {"name": "tokenized", "data_type": "TOKENIZER_OUTPUT", "required": false},
     {"name": "serialized", "data_type": "TEXT", "required": false}
   ],
@@ -26,7 +25,7 @@
     {"name": "padding", "data_type": "TEXT", "default": "do_not_pad", "constraints": {"options": ["do_not_pad", "longest", "max_length"]}, "ui_control": "select"},
     {"name": "return_attention_mask", "data_type": "BOOLEAN", "default": false, "ui_control": "toggle"},
     {"name": "return_token_type_ids", "data_type": "BOOLEAN", "default": false, "ui_control": "toggle"},
-    {"name": "output_format", "data_type": "TEXT", "default": "token_ids", "constraints": {"options": ["token_ids", "json", "string"]}, "ui_control": "select"}
+    {"name": "output_format", "data_type": "TEXT", "default": "json", "constraints": {"options": ["json", "string"]}, "ui_control": "select"}
   ],
   "ui": {"default_width": 360, "accent_color": "#7c8cff", "collapsed_by_default": false},
   "runtime": {"executor_key": "tokenize", "cacheable": true, "deterministic": true, "side_effecting": false}

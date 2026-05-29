@@ -5,13 +5,16 @@ from typing import Any
 from uuid import NAMESPACE_URL, uuid5
 
 from server.domain.node_handler_ingestion import (
+    DocumentTextExtractorParameters,
     LOAD_DOCUMENTS_SUPPORTED_EXTENSIONS,
     LoadDocumentsParameters,
     SUPPORTED_DOCUMENT_EXTENSIONS,
 )
 from server.services.workflow.node_handlers.common import coerce_bool, coerce_text
 from server.services.workflow.node_handlers.ingestion.files import (
+    load_docx_paragraphs,
     load_file_text,
+    load_pdf_pages,
     resolve_local_path,
 )
 
@@ -25,7 +28,9 @@ def _build_document(
 ) -> dict[str, Any]:
     return {
         "id": _make_document_id(source_uri),
+        "document_id": _make_document_id(source_uri),
         "text": text_content.strip(),
+        "source": source_uri,
         "source_uri": source_uri,
         "mime_type": mime_type,
         "metadata": metadata,
@@ -90,17 +95,18 @@ def _load_documents_executor(
         if extension not in LOAD_DOCUMENTS_SUPPORTED_EXTENSIONS:
             continue
         resolved = str(path.resolve())
+        text_content, mime_type = load_file_text(path)
         documents.append(
             _build_document(
                 resolved,
-                "",
-                mimetypes.guess_type(resolved)[0] or "text/plain",
+                text_content,
+                mime_type,
                 {
                     "extension": extension,
                     "file_name": path.name,
                     "relative_path": str(path.relative_to(directory)),
                     "size_bytes": path.stat().st_size,
-                    "deferred_load": True,
+                    "deferred_load": False,
                     "file_path": resolved,
                 },
             )
@@ -108,4 +114,68 @@ def _load_documents_executor(
     return {"documents": documents}
 
 
-__all__ = ["_directory_loader_executor", "_load_documents_executor"]
+def _document_text_extractor_executor(
+    parameters: dict[str, Any], inputs: dict[str, Any]
+) -> dict[str, Any]:
+    parsed = DocumentTextExtractorParameters.model_validate(parameters)
+    raw_documents = inputs.get("documents")
+    documents = raw_documents if isinstance(raw_documents, list) else [raw_documents]
+    extracted: list[dict[str, Any]] = []
+    for document in documents:
+        if not isinstance(document, dict):
+            continue
+        source_uri = str(document.get("source_uri") or document.get("source") or "").strip()
+        metadata = dict(document.get("metadata", {})) if isinstance(document.get("metadata"), dict) else {}
+        document_id = str(document.get("document_id") or document.get("id") or _make_document_id(source_uri))
+        path_candidate = str(metadata.get("file_path") or source_uri).strip()
+        suffix = str(metadata.get("extension") or "").lower()
+        if path_candidate:
+            path = resolve_local_path(path_candidate)
+            suffix = suffix or path.suffix.lower()
+            if path.exists() and path.is_file() and suffix == ".pdf":
+                for page in load_pdf_pages(path, include_empty_pages=parsed.include_empty_pages):
+                    extracted.append(
+                        {
+                            **document,
+                            "document_id": document_id,
+                            "text": page["text"],
+                            "metadata": {
+                                **metadata,
+                                "page_number": page["page_number"],
+                                "source": source_uri,
+                                "document_id": document_id,
+                            },
+                        }
+                    )
+                continue
+            if path.exists() and path.is_file() and suffix == ".docx":
+                for paragraph in load_docx_paragraphs(path):
+                    extracted.append(
+                        {
+                            **document,
+                            "document_id": document_id,
+                            "text": paragraph["text"],
+                            "metadata": {
+                                **metadata,
+                                "paragraph_index": paragraph["paragraph_index"],
+                                "source": source_uri,
+                                "document_id": document_id,
+                            },
+                        }
+                    )
+                continue
+        extracted.append(
+            {
+                **document,
+                "document_id": document_id,
+                "metadata": {**metadata, "source": source_uri, "document_id": document_id},
+            }
+        )
+    return {"documents": extracted}
+
+
+__all__ = [
+    "_directory_loader_executor",
+    "_document_text_extractor_executor",
+    "_load_documents_executor",
+]

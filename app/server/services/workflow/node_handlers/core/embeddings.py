@@ -412,7 +412,13 @@ def _vector_store_executor(
         points=points,
     )
     store_payload = store.model_dump(mode="json")
-    return {"store": store_payload}
+    return {
+        "store": store_payload,
+        "summary": {
+            "upserted_count": len(points),
+            "stored_ids": [str(point.get("id", "")) for point in points],
+        },
+    }
 
 ###############################################################################
 def _similarity_search_executor(
@@ -585,6 +591,8 @@ def _rerank_results_executor(
             final_score = rerank_score
 
         hit_payload["score"] = float(final_score)
+        hit_payload["retrieval_score"] = original_score
+        hit_payload["rerank_score"] = float(rerank_score)
         scored_hits.append((float(final_score), hit_payload))
 
     reranked_hits = [

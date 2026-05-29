@@ -3,7 +3,7 @@
   "version": 1,
   "name": "Load Documents",
   "category": "serialization",
-  "description": "Scan a folder and emit a deferred document collection as file-path references for downstream processing.",
+  "description": "Load TXT, Markdown, PDF, HTML, DOCX, CSV, and JSON documents into normalized records with text, metadata, source, mime type, and document ID.",
   "inputs": [],
   "outputs": [
     {
