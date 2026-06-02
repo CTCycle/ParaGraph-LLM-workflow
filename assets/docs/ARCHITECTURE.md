@@ -1,6 +1,6 @@
 # ARCHITECTURE
 
-Last updated: 2026-05-17
+Last updated: 2026-06-02
 
 ## System Summary
 
@@ -51,7 +51,7 @@ The project includes source code plus generated/runtime-heavy folders. Expanded 
 |  |  |  `- workflow/ (workflow JSON and runtime repositories)
 |  |  `- common/ (constants, security, logging)
 |  `- resources/ (runtime data: db, logs, models, nodes, workflows, artifacts)
-|- settings/ (.env variants + configurations.json)
+|- settings/ (.env + configurations.json)
 |- release/
 |  |- tauri/ (desktop build scripts)
 |  `- windows/ (packaged artifacts)
@@ -176,7 +176,7 @@ Typical backend flow follows endpoint -> service -> repository:
   - Node plugins and artifacts are stored under `app/resources/nodes` and `app/resources/artifacts`.
 - Database:
   - Default embedded SQLite at `app/resources/database.db`.
-  - Optional external PostgreSQL via `settings/configurations.json`.
+  - Optional external PostgreSQL via `settings/.env`.
   - The application database stores internal application records, not workflow graph definitions.
   - SQLAlchemy tables include `user_sessions`, `access_keys`, `configuration_profiles`, `nodes`, and `chat_history_messages`.
   - SQLite and PostgreSQL repositories share tabular persistence through `repositories/database/base.py`; engine-specific classes only construct and validate their backends.

@@ -1,6 +1,6 @@
 # RUNTIME_MODES
 
-Last updated: 2026-04-24
+Last updated: 2026-06-02
 
 ## Supported Modes
 
@@ -92,12 +92,13 @@ Copy-Item ParaGraph\settings\.env.local.tauri.example ParaGraph\settings\.env -F
 
 ## Configuration Differences
 
-- Shared environment keys come from `settings/.env*`.
-- Local defaults (`.env.local.example`): `FASTAPI_PORT=5002`, `UI_PORT=8002`, `VITE_API_BASE_URL=/api`, `RELOAD=true`.
-- Tauri-oriented local example (`.env.local.tauri.example`) sets `RELOAD=false`.
+- Shared environment keys come from `settings/.env`.
+- Local defaults (`.env.example`): `FASTAPI_PORT=5002`, `UI_PORT=8002`, `VITE_API_BASE_URL=/api`, `RELOAD=false`.
 - In packaged desktop mode, backend sets `PARAGRAPH_TAURI_MODE=true`; server serves static `client/dist` from FastAPI root.
-- Database/runtime behavior comes from `settings/configurations.json`:
-  - Default embedded SQLite (`embedded_database=true`).
+- Database/runtime behavior is split across:
+  - `settings/.env` for database mode and connection values.
+  - `settings/configurations.json` for non-database runtime settings such as `global.seed` and `jobs.polling_interval`.
+  - Default embedded SQLite (`DATABASE_EMBEDDED=true`).
   - Optional PostgreSQL when embedded mode is disabled.
 
 ## Interoperability Between Runtimes
