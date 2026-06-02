@@ -1,0 +1,86 @@
+# Execution And Data Flow
+Last updated: 2026-06-02
+
+## Layered Backend Flow
+Typical backend flow follows endpoint to service to repository:
+
+- Workflows:
+  - `api/workflows.py` -> `services/workflow/workflow.py` -> `repositories/workflow/workflow.py`
+- Execution lifecycle:
+  - `api/executions.py` -> `services/workflow/compiler/service.py` and `services/workflow/execution.py` -> in-memory run and event repositories
+- Configurations:
+  - `api/configurations.py` -> `services/configuration.py` -> `repositories/configuration.py` -> SQLAlchemy models in `repositories/schemas/models.py`
+- Provider catalogs and downloads:
+  - `api/providers.py` -> `services/workflow/provider/service.py` plus helper, catalog, download, cache, and job modules under `services/workflow/provider/`
+- Database node operations:
+  - `services/workflow/node_handlers/database/operations.py` -> `repositories/workflow/database.py`
+
+## Responsibilities Of Key Modules
+- `server/api/*`
+  - HTTP and WebSocket boundary, request validation, and HTTP status mapping.
+- `server/domain/*`
+  - Request and response models, workflow schema, and execution and event models.
+- `server/services/workflow/compiler/service.py`
+  - Graph validation, diagnostics, and topological planning.
+- `server/services/workflow/execution.py`
+  - Step orchestration, cache behavior, output shaping, and event publishing.
+- `server/services/workflow/structured_models.py`
+  - Structured JSON model inference, schema generation, Pydantic-source parsing, and validation payload formatting.
+- `server/services/workflow/provider/service.py`
+  - Provider facade, model metadata, and download orchestration.
+- `server/services/workflow/provider/helpers.py`
+  - Shared provider constants, metadata, and coercion helpers.
+- `server/services/workflow/provider/ollama.py`
+  - Ollama library adapter and cache and fetch mixin behavior.
+- `server/services/workflow/provider/huggingface_catalog.py`
+  - Hugging Face catalog adapter, caching, and local metadata behavior.
+- `server/services/workflow/provider/huggingface_downloads.py`
+  - Download lifecycle, manifests, progress, cleanup, and integrity validation.
+- `server/services/workflow/node_handlers/core/prompts.py`
+  - Prompt, prompt-template, and image-input executors used by the core handler registry.
+- `server/services/workflow/node_handlers/processing/sources.py`
+  - Fragment source hydration and measurement helpers.
+- `server/services/workflow/node_handlers/processing/merge.py`
+  - Merge-small-chunks executor.
+- `server/services/workflow/node_handlers/structured.py`
+  - Structured input and output, JSON validation, and output parsing executors.
+- `server/services/workflow/node_handlers/http.py`
+  - SSRF-guarded HTTP method node executors.
+- `server/services/workflow/node_handlers/rag.py`
+  - HTML cleanup, OCR availability reporting, context building, citations, and grounding checks.
+- `server/services/workflow/node_handlers/advanced_text.py`
+  - Deterministic text extraction, classification, redaction, parsing, and normalization.
+- `server/services/workflow/node_handlers/control.py`
+  - Branching, batching, caching, human review gates, and trace or debug helpers.
+- `server/services/jobs.py`
+  - Thread-based background job management.
+- `server/services/runtime/events.py`
+  - In-memory event bus and per-run history.
+- `server/repositories/workflow/workflow.py`
+  - Filesystem workflow storage and indexing.
+- `server/repositories/workflow/database.py`
+  - SQLAlchemy connection URL construction, schema inspection, and database-node CRUD or custom SQL persistence.
+- `server/repositories/configuration.py`
+  - Session, profile, and access-key persistence in the application database.
+- `server/repositories/database/base.py`
+  - Shared dataframe and SQLAlchemy tabular persistence behavior.
+- `server/repositories/database/sqlite.py`
+  - Embedded SQLite engine adapter.
+- `server/repositories/database/postgres.py`
+  - External PostgreSQL engine adapter.
+- `client/src/pages/WorkflowPage.tsx`
+  - Visual workflow editor and execution control surface.
+- `client/src/workflow/components/*`
+  - Workflow-local presentation components reused by the editor.
+- `client/src/workflow/schema/*`
+  - Workflow API and domain types plus editor-facing contracts.
+- `client/src/app/services/*.ts`
+  - Typed frontend API clients.
+
+## Async And Background Behavior
+- Most REST handlers are synchronous `def` handlers for CRUD, listing, and compile operations.
+- Explicit async handlers are limited to:
+  - `POST /nodes/uploads/directory` for multipart uploads.
+  - `WS /executions/ws/runs/{run_id}` for streaming run events.
+- Long-running workflow execution is offloaded to background threads through `JobManager`.
+- Async handlers avoid CPU-heavy loops; blocking workflow execution happens in job threads instead of request handlers.
