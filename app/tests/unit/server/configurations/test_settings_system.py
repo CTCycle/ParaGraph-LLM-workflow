@@ -41,7 +41,7 @@ def test_environment_loader_overrides_existing_process_values(
     env_path = tmp_path / ".env"
     _write_env(env_path, ["FASTAPI_HOST=from_dotenv"])
 
-    loader = EnvironmentLoader(str(env_path))
+    loader = EnvironmentLoader(env_path)
     monkeypatch.setenv("FASTAPI_HOST", "from_process")
 
     loader.ensure_loaded()
@@ -56,7 +56,7 @@ def test_environment_loader_is_idempotent_without_force(
     env_path = tmp_path / ".env"
     _write_env(env_path, ["FASTAPI_HOST=first"])
 
-    loader = EnvironmentLoader(str(env_path))
+    loader = EnvironmentLoader(env_path)
     monkeypatch.setenv("FASTAPI_HOST", "from_process")
 
     loader.ensure_loaded()
@@ -64,6 +64,18 @@ def test_environment_loader_is_idempotent_without_force(
     loader.ensure_loaded()
 
     assert os.getenv("FASTAPI_HOST") == "first"
+
+
+# -----------------------------------------------------------------------------
+def test_environment_loader_returns_path_instance_for_existing_env(tmp_path: Path) -> None:
+    env_path = tmp_path / ".env"
+    _write_env(env_path, ["FASTAPI_HOST=from_dotenv"])
+
+    loader = EnvironmentLoader(env_path)
+
+    loaded_path = loader.ensure_loaded()
+
+    assert loaded_path == env_path
 
 
 # -----------------------------------------------------------------------------
@@ -111,8 +123,8 @@ def test_environment_owned_db_embedded_ignores_stale_json_overlap(
         ],
     )
 
-    runtime = ConfigurationRuntime(environment_loader=EnvironmentLoader(str(env_path)))
-    settings = runtime.get_server_settings(config_path=str(config_path))
+    runtime = ConfigurationRuntime(environment_loader=EnvironmentLoader(env_path))
+    settings = runtime.get_server_settings(config_path=config_path)
 
     assert settings.database.embedded_database is True
     assert settings.database.host is None
@@ -145,12 +157,12 @@ def test_external_database_requires_host_name_and_user(
         ],
     )
 
-    runtime = ConfigurationRuntime(environment_loader=EnvironmentLoader(str(env_path)))
+    runtime = ConfigurationRuntime(environment_loader=EnvironmentLoader(env_path))
 
     with pytest.raises(
         RuntimeError, match="database.host, database.name, database.user"
     ):
-        _ = runtime.get_server_settings(config_path=str(config_path))
+        _ = runtime.get_server_settings(config_path=config_path)
 
 
 # -----------------------------------------------------------------------------
@@ -182,8 +194,8 @@ def test_database_url_populates_external_database_settings(
         ],
     )
 
-    runtime = ConfigurationRuntime(environment_loader=EnvironmentLoader(str(env_path)))
-    settings = runtime.get_server_settings(config_path=str(config_path))
+    runtime = ConfigurationRuntime(environment_loader=EnvironmentLoader(env_path))
+    settings = runtime.get_server_settings(config_path=config_path)
 
     assert settings.database.embedded_database is False
     assert settings.database.engine == "postgresql"
@@ -201,7 +213,7 @@ def test_missing_configuration_file_fails_fast(tmp_path: Path, monkeypatch) -> N
     monkeypatch.setenv("FASTAPI_HOST", "127.0.0.1")
 
     with pytest.raises(RuntimeError, match="Configuration file not found"):
-        _ = get_server_settings(config_path=str(tmp_path / "missing.json"))
+        _ = get_server_settings(config_path=tmp_path / "missing.json")
 
 
 # -----------------------------------------------------------------------------
@@ -212,7 +224,7 @@ def test_invalid_configuration_file_fails_fast(tmp_path: Path, monkeypatch) -> N
     monkeypatch.setenv("FASTAPI_HOST", "127.0.0.1")
 
     with pytest.raises(RuntimeError, match="Unable to load configuration"):
-        _ = get_server_settings(config_path=str(config_path))
+        _ = get_server_settings(config_path=config_path)
 
 
 # -----------------------------------------------------------------------------

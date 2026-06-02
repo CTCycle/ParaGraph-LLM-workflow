@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pathlib import Path
 from threading import Lock
 from typing import Any
 
@@ -28,7 +29,7 @@ class ConfigurationRuntime:
 
     # -------------------------------------------------------------------------
     def initialize(
-        self, *, force: bool = False, configuration_file: str | None = None
+        self, *, force: bool = False, configuration_file: str | Path | None = None
     ) -> ServerSettings:
         with self._lock:
             self._environment_loader.ensure_loaded(force=force)
@@ -45,7 +46,7 @@ class ConfigurationRuntime:
             self._configuration_manager = RuntimeConfigurationManager()
 
     # -------------------------------------------------------------------------
-    def get_server_settings(self, config_path: str | None = None) -> ServerSettings:
+    def get_server_settings(self, config_path: str | Path | None = None) -> ServerSettings:
         if config_path:
             return self.initialize(force=True, configuration_file=config_path)
         if not self._initialized:
@@ -95,7 +96,7 @@ def get_configuration_runtime() -> ConfigurationRuntime:
 
 
 # -----------------------------------------------------------------------------
-def get_server_settings(config_path: str | None = None) -> ServerSettings:
+def get_server_settings(config_path: str | Path | None = None) -> ServerSettings:
     return _runtime.get_server_settings(config_path=config_path)
 
 
