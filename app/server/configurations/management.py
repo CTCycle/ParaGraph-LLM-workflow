@@ -16,7 +16,7 @@ from server.domain.settings import (
 
 ###############################################################################
 class RuntimeConfigurationManager:
-    def __init__(self, configuration_file: str = CONFIGURATION_FILE) -> None:
+    def __init__(self, configuration_file: str | Path = CONFIGURATION_FILE) -> None:
         self._configuration_file = Path(configuration_file)
         self._settings: RuntimeConfigurationSettings | None = None
         self._server_settings: ServerSettings | None = None
@@ -28,7 +28,7 @@ class RuntimeConfigurationManager:
 
     # -------------------------------------------------------------------------
     def load(
-        self, configuration_file: str | None = None
+        self, configuration_file: str | Path | None = None
     ) -> RuntimeConfigurationSettings:
         if configuration_file:
             self._configuration_file = Path(configuration_file)
