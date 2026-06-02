@@ -10,6 +10,7 @@ from server.common.constants import CONFIGURATION_FILE
 from server.domain.settings import (
     RuntimeConfigurationSettings,
     ServerSettings,
+    load_database_settings_from_env,
 )
 
 
@@ -46,6 +47,8 @@ class RuntimeConfigurationManager:
 
         if not isinstance(payload, dict):
             raise RuntimeError("Configuration must be a JSON object.")
+
+        payload["database"] = load_database_settings_from_env()
 
         try:
             settings = RuntimeConfigurationSettings.model_validate(payload)
