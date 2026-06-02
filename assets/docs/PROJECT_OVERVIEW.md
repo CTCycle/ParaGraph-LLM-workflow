@@ -1,37 +1,99 @@
-# PROJECT_OVERVIEW
+# Project Overview
+Last updated: 2026-06-02
 
-Last updated: 2026-05-17
+## Purpose
+This file is the root index for `assets/docs`. Read it first, then open only the smallest leaf file that matches the task.
 
-## FILES INDEX
+## How To Navigate
+1. Start with this file only.
+2. Pick the topic branch that matches the question or change.
+3. Open the narrowest leaf file in that branch.
+4. Open adjacent files only when the task clearly crosses topic boundaries.
+5. Return here whenever you need to jump to another topic.
 
-- PROJECT_OVERVIEW.md  
-  Master index and operating rules for documentation maintenance and Windows environment expectations.
-- ARCHITECTURE.md  
-  System architecture reference: directory layout, entry points, API surface, layers, persistence, and concurrency model.
-- CODING_RULES.md  
-  Consolidated coding standards for Python and TypeScript used in this repository.
-- RUNTIME_MODES.md  
-  Supported runtime targets, startup procedures, configuration differences, interoperability, and deployment constraints.
-- UI_STANDARDS.md  
-  Enforceable UI system definition based on the implemented React/CSS frontend.
-- NODES_LIBRARY.md  
-  Node catalog and manifest reference, including named JSON variables, structured JSON, prompt formatting, RAG/text processing, Web API, control nodes, custom node import, runtime integration, vector collections, metadata, tokenizer, and provider-neutral tool calling.
-- USER_MANUAL.md  
-  End-user operational guide for launching, configuring, building workflows, and troubleshooting.
+## Naming Rules
+- All files and folders under `assets/docs` use lower-case names.
+- Root-level files are reserved for entry points and top-level guidance.
+- Topic folders group related leaf files by subject so large mixed-purpose markdown files are avoided.
 
-## CONTEXT RULES
+## Documentation Ontology
+### Root
+- `project_overview.md`
+  - Entry point, navigation rules, and complete index for the documentation tree.
 
-- Read documentation files only when needed to complete the current task.
-- Defer deep documentation reads until code context proves they are required.
-- Keep all docs in `assets/docs` updated when architecture, runtime, or UI behavior changes.
-- Always add or refresh a `Last updated: YYYY-MM-DD` line when modifying a document.
-- Do not read all `SKILL.md` files indiscriminately.
-- Pre-select relevant docs from folder structure and user intent before opening files.
+### Architecture
+- `architecture/system_overview.md`
+  - Product structure, repository layout, entry points, and top-level runtime topology.
+- `architecture/backend_api.md`
+  - HTTP and WebSocket surface grouped by functional area.
+- `architecture/execution_and_data_flow.md`
+  - Layered backend flow, key module responsibilities, and async/background execution behavior.
+- `architecture/persistence.md`
+  - File-based persistence, database responsibilities, and in-memory runtime stores.
 
-## ENVIRONMENT RULES
+### Coding
+- `coding/python.md`
+  - Python runtime, typing, validation, async, and structural expectations.
+- `coding/typescript.md`
+  - TypeScript, React, state, styling, and frontend structure expectations.
+- `coding/testing_and_quality.md`
+  - Tooling, testing, quality gates, and cross-language change expectations.
 
-- Assume Windows as the default operating environment for commands, scripts, and troubleshooting.
-- Provide equivalent command guidance for both CMD (`.bat`, `copy`, `set`) and PowerShell (`Get-ChildItem`, `$env:...`) when relevant.
-- Keep runtime instructions aligned with project launch scripts (`start_on_windows.bat`, `release\\tauri\\build_with_tauri.bat`).
-- Update this section whenever new Windows-specific constraints, workarounds, or tooling patterns are identified.
+### Runtime
+- `runtime/modes.md`
+  - Supported runtime modes and operational differences.
+- `runtime/startup.md`
+  - Windows startup procedures for launcher, backend, frontend, and desktop packaging flows.
+- `runtime/configuration.md`
+  - Shared environment keys, runtime settings, and cross-runtime communication rules.
+- `runtime/deployment.md`
+  - Packaging targets, artifact locations, limitations, and runtime-heavy generated outputs.
 
+### UI
+- `ui/design_tokens.md`
+  - Typography, spacing, radius, color, and theme tokens.
+- `ui/components_and_patterns.md`
+  - Navigation, surfaces, route structure, and reusable interaction patterns.
+- `ui/experience.md`
+  - UX rules, responsiveness, accessibility, and design principles.
+
+### Nodes
+- `nodes/catalog_and_manifests.md`
+  - Node catalog sources, category model, manifest structure, and compatibility constraints.
+- `nodes/processing_and_retrieval.md`
+  - Structured JSON, processing, retrieval, RAG, web API, control, tokenizer, metadata, and vector search behavior.
+- `nodes/database_and_tools.md`
+  - Database nodes, tool collection and tool call nodes, and runtime contracts around them.
+- `nodes/import_and_integration.md`
+  - Custom node import flow, workflow integration, connectivity checks, and operational notes.
+
+### User
+- `user/getting_started.md`
+  - Product overview, main UI areas, startup entry point, and standard user journey.
+- `user/workflow_editor.md`
+  - Workflow editor basics, compile flow, and graph-building expectations.
+- `user/models_and_configurations.md`
+  - Configurations and models page behavior, saved profiles, and provider operations.
+- `user/nodes_and_execution.md`
+  - Nodes page usage, execution monitoring surfaces, and common runtime statuses.
+- `user/troubleshooting_and_data.md`
+  - Troubleshooting guidance and runtime data locations.
+
+## Reading Order
+1. Read this root index.
+2. Open one leaf file in the relevant topic branch.
+3. Expand only when the task crosses branch boundaries.
+4. Update this index whenever files are added, removed, moved, or renamed.
+
+## Context Rules
+- Read documentation only when required by the current task.
+- Prefer leaf files over broad branch reads.
+- Keep all affected docs updated when implementation changes alter behavior.
+- Always include a `Last updated: YYYY-MM-DD` line when modifying a document.
+- Pre-select files by user intent, folder structure, and target subsystem before reading deeply.
+
+## Environment Rules
+- Windows is the default operating environment for this project.
+- Document both PowerShell and CMD variants when commands differ.
+- Keep runtime guidance aligned with `start_on_windows.bat` and `release/tauri/build_with_tauri.bat`.
+- Update environment guidance when Windows-specific constraints or workarounds change.
