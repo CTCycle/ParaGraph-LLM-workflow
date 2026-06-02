@@ -1,23 +1,31 @@
 from __future__ import annotations
 
 from pathlib import Path
-from os.path import abspath, join
 
 # [PATHS]
 ###############################################################################
-ROOT_DIR = abspath(join(__file__, "../../../.."))
-PROJECT_DIR = join(ROOT_DIR, "app")
-SETTING_PATH = join(ROOT_DIR, "settings")
-RESOURCES_PATH = join(PROJECT_DIR, "resources")
-ARTIFACT_ROOT = Path(RESOURCES_PATH) / "artifacts"
-LOGS_PATH = join(RESOURCES_PATH, "logs")
-ENV_FILE_PATH = join(SETTING_PATH, ".env")
-MODELS_PATH = join(RESOURCES_PATH, "models")
-CHECKPOINT_PATH = join(RESOURCES_PATH, "checkpoints")
+REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
+APP_ROOT = REPOSITORY_ROOT / "app"
+SERVER_ROOT = APP_ROOT / "server"
+CLIENT_ROOT = APP_ROOT / "client"
+SETTINGS_ROOT = REPOSITORY_ROOT / "settings"
+RESOURCES_ROOT = APP_ROOT / "resources"
+FRONTEND_DIST_ROOT = CLIENT_ROOT / "dist"
+FRONTEND_ASSETS_ROOT = FRONTEND_DIST_ROOT / "assets"
+ARTIFACT_ROOT = RESOURCES_ROOT / "artifacts"
+
+ROOT_DIR = str(REPOSITORY_ROOT)
+PROJECT_DIR = str(APP_ROOT)
+SETTING_PATH = str(SETTINGS_ROOT)
+RESOURCES_PATH = str(RESOURCES_ROOT)
+LOGS_PATH = str(RESOURCES_ROOT / "logs")
+ENV_FILE_PATH = str(SETTINGS_ROOT / ".env")
+MODELS_PATH = str(RESOURCES_ROOT / "models")
+CHECKPOINT_PATH = str(RESOURCES_ROOT / "checkpoints")
 DATABASE_FILENAME = "database.db"
 
 ###############################################################################
-CONFIGURATION_FILE = join(SETTING_PATH, "configurations.json")
+CONFIGURATION_FILE = str(SETTINGS_ROOT / "configurations.json")
 
 # [FASTAPI METADATA]
 ###############################################################################
