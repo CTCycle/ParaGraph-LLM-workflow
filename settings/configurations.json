@@ -1,17 +1,4 @@
 {
-  "database": {
-    "embedded_database": true,
-    "engine": "postgres",
-    "host": "127.0.0.1",
-    "port": 5432,
-    "name": "app_template",
-    "user": "postgres",
-    "password": "admin",
-    "ssl": false,
-    "ssl_ca": "",
-    "connect_timeout": 30,
-    "insert_batch_size": 1000
-  },
   "global": {
     "seed": 42
   },

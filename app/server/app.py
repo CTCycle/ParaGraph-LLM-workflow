@@ -2,49 +2,91 @@ from __future__ import annotations
 
 import os
 import warnings
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from server.common.constants import (
     FASTAPI_DESCRIPTION,
+    FRONTEND_ASSETS_ROOT,
+    FRONTEND_DIST_ROOT,
     FASTAPI_TITLE,
     FASTAPI_VERSION,
 )
-from server.common.security import is_cloud_deployment
 from server.api.configurations import router as configurations_router
 from server.api.executions import router as executions_router
 from server.api.nodes import router as nodes_router
 from server.api.providers import router as providers_router
 from server.api.request_id import request_id_middleware
-from server.api.root import router as root_router
 from server.api.workflows import router as workflows_router
 from server.api.ws import router as ws_router
+from server.configurations.startup import get_server_settings
+from server.repositories.database.initializer import initialize_database
+from server.services.startup_validation import run_startup_validations
 
 warnings.filterwarnings("ignore", category=FutureWarning)
 
+###############################################################################
+def _client_build_available() -> bool:
+    return (FRONTEND_DIST_ROOT / "index.html").is_file()
 
+###############################################################################
+def _resolve_client_file(full_path: str) -> Path | None:
+    client_root = FRONTEND_DIST_ROOT.resolve()
+    requested_path = (client_root / full_path).resolve()
+
+    if not requested_path.is_relative_to(client_root):
+        return None
+
+    if requested_path.is_file():
+        return requested_path
+
+    return None
+
+###############################################################################
+def serve_client_root() -> FileResponse:
+    return FileResponse(FRONTEND_DIST_ROOT / "index.html")
+
+###############################################################################
+def serve_client_path(full_path: str) -> FileResponse:
+    client_file = _resolve_client_file(full_path)
+    if client_file is not None:
+        return FileResponse(client_file)
+    return FileResponse(FRONTEND_DIST_ROOT / "index.html")
+
+###############################################################################
+def redirect_root_to_docs() -> RedirectResponse:
+    return RedirectResponse("/docs")
+
+###############################################################################
+@asynccontextmanager
+async def app_lifespan(application: FastAPI) -> AsyncIterator[None]:
+    settings = get_server_settings()
+    initialize_database()
+    run_startup_validations()
+    application.state.server_settings = settings
+    yield
+
+###############################################################################
 def create_app() -> FastAPI:
-    cloud_mode = is_cloud_deployment()
     tauri_mode = os.getenv("PARAGRAPH_TAURI_MODE", "").strip().lower() in {
         "1",
         "true",
         "yes",
         "on",
     }
-    frontend_dist = Path(__file__).resolve().parents[1] / "client" / "dist"
 
     app = FastAPI(
         title=FASTAPI_TITLE,
         version=FASTAPI_VERSION,
         description=FASTAPI_DESCRIPTION,
-        docs_url=None if cloud_mode else "/docs",
-        redoc_url=None if cloud_mode else "/redoc",
-        openapi_url=None if cloud_mode else "/openapi.json",
+        lifespan=app_lifespan,
     )
 
-    app.state.cloud_mode = cloud_mode
     app.state.tauri_mode = tauri_mode
     app.middleware("http")(request_id_middleware)
 
@@ -55,15 +97,27 @@ def create_app() -> FastAPI:
     app.include_router(configurations_router)
     app.include_router(ws_router)
 
-    if tauri_mode and frontend_dist.exists():
-        app.mount(
-            "/",
-            StaticFiles(directory=str(frontend_dist), html=True),
-            name="paragraph-ui",
+    if _client_build_available():
+        if FRONTEND_ASSETS_ROOT.is_dir():
+            app.mount(
+                "/assets",
+                StaticFiles(directory=str(FRONTEND_ASSETS_ROOT)),
+                name="paragraph-assets",
+            )
+        app.add_api_route(
+            "/", serve_client_root, methods=["GET"], include_in_schema=False
+        )
+        app.add_api_route(
+            "/{full_path:path}",
+            serve_client_path,
+            methods=["GET"],
+            include_in_schema=False,
         )
         return app
 
-    app.include_router(root_router)
+    app.add_api_route(
+        "/", redirect_root_to_docs, methods=["GET"], include_in_schema=False
+    )
     return app
 
 

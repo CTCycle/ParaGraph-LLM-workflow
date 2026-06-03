@@ -135,9 +135,6 @@ This runner executes available backend and frontend suites in sequence.
 
 Primary runtime configuration files:
 - `settings/.env`
-- `settings/.env.local.example`
-- `settings/.env.local.tauri.example`
-- `settings/.env.tauri`
 - `settings/configurations.json`
 
 Runtime variables commonly used in local execution:
@@ -154,7 +151,8 @@ Runtime variables commonly used in local execution:
 | `LLM_TIMEOUT_S` | Timeout used by LLM HTTP clients. |
 
 Provider-specific credentials and runtime endpoints are managed in-app under **Configurations** (session settings), not via `.env`.
-Database mode and connection/tuning values are defined in `settings/configurations.json`.
+Database mode and connection values are defined in `settings/.env`.
+Non-database runtime settings such as `global.seed` and `jobs.polling_interval` remain in `settings/configurations.json`.
 
 ## 6. Resources and Storage
 

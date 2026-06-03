@@ -66,10 +66,7 @@ foreach ($file in $portableExeCandidates) {
 }
 
 $portableResourceMap = @(
-  @{ Name = "app"; SourceCandidates = @((Join-Path $releaseDir "app"), (Join-Path $bundleSourceDir "app"), $projectDir) },
-  @{ Name = "runtimes"; SourceCandidates = @((Join-Path $releaseDir "runtimes"), (Join-Path $bundleSourceDir "runtimes"), $runtimesDir) },
-  @{ Name = "pyproject.toml"; SourceCandidates = @((Join-Path $releaseDir "pyproject.toml"), (Join-Path $bundleSourceDir "pyproject.toml"), (Join-Path $repoRoot "pyproject.toml")) },
-  @{ Name = "uv.lock"; SourceCandidates = @((Join-Path $releaseDir "uv.lock"), (Join-Path $bundleSourceDir "uv.lock"), (Join-Path $repoRoot "uv.lock"), (Join-Path $runtimesDir "uv.lock")) },
+  @{ Name = "runtime"; SourceCandidates = @((Join-Path $releaseDir "runtime"), (Join-Path $bundleSourceDir "runtime")) },
   @{ Name = "_up_"; SourceCandidates = @((Join-Path $releaseDir "_up_"), (Join-Path $bundleSourceDir "_up_")) }
 )
 
@@ -89,14 +86,12 @@ foreach ($entry in $portableResourceMap) {
 }
 
 $requiredPortablePaths = @(
-  (Join-Path $portableDir "app"),
-  (Join-Path $portableDir "runtimes\uv\uv.exe"),
-  (Join-Path $portableDir "runtimes\python\python.exe"),
-  (Join-Path $portableDir "runtimes\nodejs\node.exe"),
-  (Join-Path $portableDir "runtimes\nodejs\npm.cmd"),
-  (Join-Path $portableDir "runtimes\uv.lock"),
-  (Join-Path $portableDir "pyproject.toml"),
-  (Join-Path $portableDir "uv.lock")
+  (Join-Path $portableDir "runtime\app"),
+  (Join-Path $portableDir "runtime\runtimes\uv\uv.exe"),
+  (Join-Path $portableDir "runtime\runtimes\python\python.exe"),
+  (Join-Path $portableDir "runtime\runtimes\uv.lock"),
+  (Join-Path $portableDir "runtime\pyproject.toml"),
+  (Join-Path $portableDir "runtime\uv.lock")
 )
 
 foreach ($requiredPath in $requiredPortablePaths) {
@@ -112,7 +107,7 @@ app desktop build output
    Open installers\ and run the setup executable (.exe) or .msi.
 
 2) Portable executable:
-   portable\ contains the app .exe and the required runtime resource payload.
+   portable\ contains the app .exe and a sibling runtime\ folder.
    Keep the exported contents together in the same directory.
 
 Generated from:
