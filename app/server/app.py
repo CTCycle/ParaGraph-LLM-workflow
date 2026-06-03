@@ -97,7 +97,7 @@ def create_app() -> FastAPI:
     app.include_router(configurations_router)
     app.include_router(ws_router)
 
-    if _client_build_available():
+    if tauri_mode and _client_build_available():
         if FRONTEND_ASSETS_ROOT.is_dir():
             app.mount(
                 "/assets",

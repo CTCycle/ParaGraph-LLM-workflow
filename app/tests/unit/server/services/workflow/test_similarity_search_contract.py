@@ -14,16 +14,16 @@ import server.services.workflow.node_handlers.core as core_handlers
 
 
 def _read_parameter_options_from_doc(parameter_name: str) -> list[str]:
-    doc_path = Path(ROOT_DIR) / "assets" / "docs" / "NODES_LIBRARY.md"
+    doc_path = Path(ROOT_DIR) / "assets" / "docs" / "nodes" / "processing_and_retrieval.md"
     content = doc_path.read_text(encoding="utf-8")
     pattern = re.compile(
-        rf"- `{re.escape(parameter_name)}`\s*\n\s*- options:\s*([^\n]+)",
+        rf"- `{re.escape(parameter_name)}`\s*\n\s*-\s*(?:options:\s*)?([^\n]+)",
         flags=re.MULTILINE,
     )
     match = pattern.search(content)
     if match is None:
         raise AssertionError(
-            f"Missing options declaration in NODES_LIBRARY.md for parameter '{parameter_name}'"
+            f"Missing options declaration in processing_and_retrieval.md for parameter '{parameter_name}'"
         )
     return re.findall(r"`([^`]+)`", match.group(1))
 

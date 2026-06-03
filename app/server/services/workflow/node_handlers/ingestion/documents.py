@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import mimetypes
 from typing import Any
 from uuid import NAMESPACE_URL, uuid5
 
