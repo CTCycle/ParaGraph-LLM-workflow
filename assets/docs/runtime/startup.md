@@ -63,4 +63,5 @@ Copy-Item settings\.env.local.tauri.example settings\.env -Force
 - The local launcher is the recommended Windows entry point.
 - Desktop packaging expects the environment file to be prepared before the build starts.
 - First-run startup can be slow because of dependency synchronization, runtime hydration, and frontend build work.
+- If backend readiness fails, the launcher prints the tail of the temporary backend stdout and stderr logs to make startup failures diagnosable.
 - Portable exports must keep the packaged `.exe` beside the generated `runtime/` folder.

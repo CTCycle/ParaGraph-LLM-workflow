@@ -39,6 +39,7 @@ set "env_marker_node=%nodejs_dir%\.is_installed"
 
 set "pyproject=%root_folder%app\server\pyproject.toml"
 set "UVICORN_MODULE=server.app:app"
+set "BACKEND_APP_DIR=%root_folder%app"
 set "FRONTEND_DIR=%root_folder%app\client"
 set "FRONTEND_DIST=%FRONTEND_DIR%\dist"
 set "FRONTEND_LOCKFILE=%FRONTEND_DIR%\package-lock.json"
@@ -52,6 +53,8 @@ set "TMPFIND=%TEMP%\app_find_uv.ps1"
 set "TMPVER=%TEMP%\app_pyver.ps1"
 set "TMPPIDPATH=%TEMP%\app_pid_path.ps1"
 set "TMPHEALTH=%TEMP%\app_health.ps1"
+set "TMPLOGTAIL=%TEMP%\app_log_tail.ps1"
+set "TMPBACKENDCMD=%TEMP%\app_launch_backend.cmd"
 
 set "UV_LINK_MODE=copy"
 
@@ -78,6 +81,7 @@ echo $ErrorActionPreference='Stop'; (Get-ChildItem -LiteralPath $args[0] -Recurs
 echo $ErrorActionPreference='Stop'; ^& $args[0] -c "import platform;print(platform.python_version())" > "%TMPVER%"
 echo $ErrorActionPreference='Stop'; try { (Get-Process -Id $args[0]).Path } catch { '' } > "%TMPPIDPATH%"
 echo $ErrorActionPreference='Stop'; try { $u=$args[0]; $r=Invoke-WebRequest -UseBasicParsing -Uri $u -TimeoutSec 2; if($r.StatusCode -ge 200 -and $r.StatusCode -lt 300){ 'ok' } } catch { '' } > "%TMPHEALTH%"
+echo $ErrorActionPreference='SilentlyContinue'; if(Test-Path -LiteralPath $args[0]){ Get-Content -LiteralPath $args[0] -Tail 80 } > "%TMPLOGTAIL%"
 
 REM ============================================================================
 REM == Step 1: Ensure Python (embeddable)
@@ -304,7 +308,20 @@ if not exist "%venv_dir%\Scripts\python.exe" (
   echo [FATAL] virtual environment python not found at "%venv_dir%\Scripts\python.exe"
   goto error
 )
-start "" /b "%venv_dir%\Scripts\python.exe" -m uvicorn %UVICORN_MODULE% --app-dir "%root_folder%app" --host !FASTAPI_HOST! --port !FASTAPI_PORT! !RELOAD_FLAG! --log-level info
+set "backend_stdout_log=%TEMP%\paragraph-backend.stdout.log"
+set "backend_stderr_log=%TEMP%\paragraph-backend.stderr.log"
+del /q "!backend_stdout_log!" "!backend_stderr_log!" >nul 2>&1
+(
+  echo @echo off
+  echo setlocal
+  echo cd /d "!BACKEND_APP_DIR!"
+  echo set "PYTHONHOME="
+  echo set "PYTHONPATH="
+  echo set "PYTHONNOUSERSITE="
+  echo set "PATH=%nodejs_dir%;%%PATH%%"
+  echo "%venv_dir%\Scripts\python.exe" -m uvicorn %UVICORN_MODULE% --host !FASTAPI_HOST! --port !FASTAPI_PORT! !RELOAD_FLAG! --log-level info 1^> "!backend_stdout_log!" 2^> "!backend_stderr_log!"
+) > "%TMPBACKENDCMD%"
+start "" /b cmd /c ""%TMPBACKENDCMD%""
 
 REM ============================================================================
 REM Wait for backend
@@ -313,10 +330,19 @@ set "BACKEND_BASE_URL=http://!FASTAPI_HOST!:!FASTAPI_PORT!"
 echo [WAIT] Waiting for backend readiness at !BACKEND_BASE_URL!...
 for /L %%i in (1,1,60) do (
   powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "$base='!BACKEND_BASE_URL!'; $paths=@('/api/health','/health','/docs','/'); foreach ($p in $paths) { try { $r = Invoke-WebRequest -UseBasicParsing -Uri ($base + $p) -TimeoutSec 2; if ($r.StatusCode -ge 200 -and $r.StatusCode -lt 300) { exit 0 } } catch {} }; exit 1" >nul 2>&1
-  if !errorlevel! equ 0 goto :backend_ready_check
+if !errorlevel! equ 0 goto :backend_ready_check
   timeout /t 1 /nobreak >nul 2>&1
 )
 echo [FATAL] Backend did not become ready at !BACKEND_BASE_URL! (checked /api/health, /health, /docs, /).
+if exist "!backend_stdout_log!" (
+  echo [INFO] Backend stdout log tail:
+  powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%TMPLOGTAIL%" "!backend_stdout_log!"
+)
+if exist "!backend_stderr_log!" (
+  echo [INFO] Backend stderr log tail:
+  powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%TMPLOGTAIL%" "!backend_stderr_log!"
+)
+for /f "tokens=5" %%P in ('netstat -ano ^| findstr /R /C:":!FASTAPI_PORT! .*LISTENING"') do taskkill /PID %%P /F >nul 2>&1
 goto error
 :backend_ready_check
 
@@ -367,7 +393,7 @@ REM ============================================================================
 REM Cleanup temp helpers
 REM ============================================================================
 :cleanup
-del /q "%TMPDL%" "%TMPEXP%" "%TMPTXT%" "%TMPFIND%" "%TMPVER%" "%TMPPIDPATH%" "%TMPHEALTH%" >nul 2>&1
+del /q "%TMPDL%" "%TMPEXP%" "%TMPTXT%" "%TMPFIND%" "%TMPVER%" "%TMPPIDPATH%" "%TMPHEALTH%" "%TMPLOGTAIL%" "%TMPBACKENDCMD%" >nul 2>&1
 endlocal & exit /b 0
 
 REM ============================================================================
@@ -376,7 +402,7 @@ REM ============================================================================
 :error
 echo.
 echo !!! An error occurred during execution. !!!
-del /q "%TMPDL%" "%TMPEXP%" "%TMPTXT%" "%TMPFIND%" "%TMPVER%" "%TMPPIDPATH%" "%TMPHEALTH%" >nul 2>&1
+del /q "%TMPDL%" "%TMPEXP%" "%TMPTXT%" "%TMPFIND%" "%TMPVER%" "%TMPPIDPATH%" "%TMPHEALTH%" "%TMPLOGTAIL%" "%TMPBACKENDCMD%" >nul 2>&1
 endlocal & exit /b 1
 
 :kill_port
