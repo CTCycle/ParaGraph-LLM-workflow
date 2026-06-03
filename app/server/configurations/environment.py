@@ -15,15 +15,15 @@ _TRUE_VALUES = {"1", "true", "yes", "on"}
 
 ###############################################################################
 class EnvironmentLoader:
-    def __init__(self, env_file_path: str | None = None) -> None:
-        self._env_file_path = env_file_path or DEFAULT_ENV_FILE_PATH
+    def __init__(self, env_file_path: str | Path | None = None) -> None:
+        self._env_file_path = Path(env_file_path or DEFAULT_ENV_FILE_PATH)
         self._lock = Lock()
         self._bootstrapped = False
 
     # -------------------------------------------------------------------------
     def ensure_loaded(self, *, force: bool = False) -> Path | None:
         with self._lock:
-            env_path = Path(self._env_file_path)
+            env_path = self._env_file_path
             if self._bootstrapped and not force:
                 return env_path if env_path.exists() else None
 
