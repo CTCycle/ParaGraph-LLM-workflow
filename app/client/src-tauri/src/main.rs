@@ -16,7 +16,6 @@ use tauri::{Manager, RunEvent};
 #[cfg(target_os = "windows")]
 const CREATE_NO_WINDOW: u32 = 0x08000000;
 
-const APP_FOLDER: &str = "ParaGraph";
 const TAURI_MODE_ENV: &str = "PARAGRAPH_TAURI_MODE";
 
 #[derive(Clone)]
@@ -165,11 +164,7 @@ fn render_startup_error(app_handle: &tauri::AppHandle, message: &str) {
 
 fn is_workspace_root(candidate: &Path) -> bool {
     candidate.join("pyproject.toml").is_file()
-        && candidate
-            .join(APP_FOLDER)
-            .join("server")
-            .join("app.py")
-            .is_file()
+        && candidate.join("app").join("server").join("app.py").is_file()
 }
 
 fn has_workspace_venv(candidate: &Path) -> bool {
@@ -210,20 +205,24 @@ fn find_workspace_root(app_handle: &tauri::AppHandle) -> Result<PathBuf, String>
 
     if let Ok(exe_path) = std::env::current_exe() {
         if let Some(exe_dir) = exe_path.parent() {
+            candidates.push(exe_dir.join("runtime"));
             push_with_ancestors(exe_dir, &mut candidates);
         }
     }
 
     if let Ok(current_dir) = std::env::current_dir() {
+        candidates.push(current_dir.join("runtime"));
         push_with_ancestors(&current_dir, &mut candidates);
     }
 
     if let Ok(resource_dir) = app_handle.path().resource_dir() {
+        candidates.push(resource_dir.join("runtime"));
         push_with_ancestors(&resource_dir, &mut candidates);
     }
 
     if let Ok(exe_path) = std::env::current_exe() {
         if let Some(exe_dir) = exe_path.parent() {
+            candidates.push(exe_dir.join("resources").join("runtime"));
             push_with_ancestors(&exe_dir.join("resources"), &mut candidates);
         }
     }
@@ -355,7 +354,7 @@ fn should_sync_workspace(workspace_root: &Path, runtime_root: &Path) -> bool {
         workspace_root.join("pyproject.toml"),
         workspace_root.join("runtimes").join("uv.lock"),
         workspace_root.join("uv.lock"),
-        workspace_root.join(APP_FOLDER).join("settings").join(".env"),
+        workspace_root.join("settings").join(".env"),
     ] {
         if let Some(source_time) = source_modified_time(&candidate) {
             if source_time > marker_time {
@@ -477,7 +476,6 @@ fn sync_workspace_payload(workspace_root: &Path, runtime_root: &Path) -> Result<
         "app/resources",
         "runtimes/python",
         "runtimes/uv",
-        "runtimes/nodejs",
     ];
 
     for relative_path in directory_payloads {
@@ -489,7 +487,7 @@ fn sync_workspace_payload(workspace_root: &Path, runtime_root: &Path) -> Result<
 
     fs::create_dir_all(
         runtime_root
-            .join("ParaGraph")
+            .join("app")
             .join("resources")
             .join("logs"),
     )
@@ -566,8 +564,7 @@ fn spawn_backend(app_handle: &tauri::AppHandle, state: &BackendChildState) -> Re
         }
 
         let active_root = runtime_root.clone();
-        let project_dir = active_root.join(APP_FOLDER);
-        let env_path = project_dir.join("settings").join(".env");
+        let env_path = active_root.join("settings").join(".env");
         let backend_config = resolve_backend_launch_config(&env_path);
         let runtimes_root = active_root.join("runtimes");
         let uv_exe = runtimes_root.join("uv").join("uv.exe");

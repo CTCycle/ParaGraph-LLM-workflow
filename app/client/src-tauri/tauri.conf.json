@@ -33,10 +33,7 @@
       "icons/icon.ico"
     ],
     "resources": {
-      "./r/pyproject.toml": "pyproject.toml",
-      "./r/uv.lock": "uv.lock",
-      "./r/ParaGraph": "ParaGraph",
-      "./r/runtimes": "runtimes"
+      "./r/runtime": "runtime"
     }
   }
 }
