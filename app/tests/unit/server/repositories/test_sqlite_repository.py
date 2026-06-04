@@ -74,4 +74,3 @@ def test_sqlite_repository_count_rows_raises_for_missing_table(
 
     with pytest.raises(ValueError, match="does not exist"):
         repository.count_rows("missing_table")
-

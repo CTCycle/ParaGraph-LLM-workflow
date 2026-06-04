@@ -75,7 +75,12 @@ class ByStructureChunksParameters(BaseModel):
     @classmethod
     def validate_strategy(cls, value: str) -> str:
         normalized = str(value or "").strip().lower()
-        if normalized not in {"paragraph", "section", "heading_and_content", "markdown_heading"}:
+        if normalized not in {
+            "paragraph",
+            "section",
+            "heading_and_content",
+            "markdown_heading",
+        }:
             raise ValueError(
                 "strategy must be one of: paragraph, section, heading_and_content, markdown_heading"
             )

@@ -46,7 +46,9 @@ class ConfigurationRuntime:
             self._configuration_manager = RuntimeConfigurationManager()
 
     # -------------------------------------------------------------------------
-    def get_server_settings(self, config_path: str | Path | None = None) -> ServerSettings:
+    def get_server_settings(
+        self, config_path: str | Path | None = None
+    ) -> ServerSettings:
         if config_path:
             return self.initialize(force=True, configuration_file=config_path)
         if not self._initialized:
@@ -108,5 +110,3 @@ def get_runtime_settings() -> RuntimeConfigurationSettings:
 # -----------------------------------------------------------------------------
 def reset_configuration_runtime_for_tests() -> None:
     _runtime.reset_for_tests()
-
-

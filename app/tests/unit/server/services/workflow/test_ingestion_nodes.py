@@ -159,4 +159,3 @@ def test_sql_database_requires_required_fields_before_connect_attempt() -> None:
         raise AssertionError(
             "Expected SQL_DATABASE validation failure for missing required fields"
         )
-

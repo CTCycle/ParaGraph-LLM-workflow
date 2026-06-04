@@ -61,7 +61,9 @@ def test_in_memory_history_reuses_same_session_and_isolates_different_sessions(
 ) -> None:
     calls: list[list[dict[str, Any]]] = []
 
-    monkeypatch.setattr(provider_service, "validate_model_request", lambda **kwargs: None)
+    monkeypatch.setattr(
+        provider_service, "validate_model_request", lambda **kwargs: None
+    )
 
     def _chat(**kwargs: Any) -> str:
         calls.append(kwargs["messages"])
@@ -127,7 +129,9 @@ def test_in_memory_history_reuses_same_session_and_isolates_different_sessions(
 def test_in_memory_history_trims_max_messages_and_keeps_labels(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(provider_service, "validate_model_request", lambda **kwargs: None)
+    monkeypatch.setattr(
+        provider_service, "validate_model_request", lambda **kwargs: None
+    )
     monkeypatch.setattr(provider_service, "chat", lambda **kwargs: "fixed-reply")
 
     handle = _build_history_handle(
@@ -169,7 +173,9 @@ def test_in_memory_history_trims_max_messages_and_keeps_labels(
 def test_file_persisted_history_saves_reloads_and_trims(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(provider_service, "validate_model_request", lambda **kwargs: None)
+    monkeypatch.setattr(
+        provider_service, "validate_model_request", lambda **kwargs: None
+    )
     monkeypatch.setattr(provider_service, "chat", lambda **kwargs: "file-reply")
 
     handle = _build_history_handle(
@@ -218,7 +224,9 @@ def test_file_persisted_history_saves_reloads_and_trims(
 def test_database_persisted_history_saves_reloads_and_trims(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(provider_service, "validate_model_request", lambda **kwargs: None)
+    monkeypatch.setattr(
+        provider_service, "validate_model_request", lambda **kwargs: None
+    )
     monkeypatch.setattr(provider_service, "chat", lambda **kwargs: "db-reply")
 
     handle = _build_history_handle(
@@ -263,7 +271,9 @@ def test_database_persisted_history_saves_reloads_and_trims(
 def test_llm_structured_uses_history_and_serializes_assistant_payload(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(provider_service, "validate_model_request", lambda **kwargs: None)
+    monkeypatch.setattr(
+        provider_service, "validate_model_request", lambda **kwargs: None
+    )
     monkeypatch.setattr(provider_service, "chat", lambda **kwargs: '{"value":7}')
 
     handle = _build_history_handle(
@@ -306,7 +316,9 @@ def test_llm_structured_uses_history_and_serializes_assistant_payload(
 def test_failed_llm_execution_does_not_append_history(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(provider_service, "validate_model_request", lambda **kwargs: None)
+    monkeypatch.setattr(
+        provider_service, "validate_model_request", lambda **kwargs: None
+    )
     monkeypatch.setattr(provider_service, "chat", lambda **kwargs: "ok")
 
     handle = _build_history_handle(
@@ -331,7 +343,11 @@ def test_failed_llm_execution_does_not_append_history(
         "wf-fail", "fail-session", "history_fail_node"
     )
 
-    monkeypatch.setattr(provider_service, "chat", lambda **kwargs: (_ for _ in ()).throw(ValueError("boom")))
+    monkeypatch.setattr(
+        provider_service,
+        "chat",
+        lambda **kwargs: (_ for _ in ()).throw(ValueError("boom")),
+    )
 
     with pytest.raises(ValueError, match="boom"):
         node_registry.execute(
@@ -348,4 +364,3 @@ def test_failed_llm_execution_does_not_append_history(
     assert [item.model_dump(mode="json") for item in after_failure] == [
         item.model_dump(mode="json") for item in baseline
     ]
-

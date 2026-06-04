@@ -107,8 +107,12 @@ def _collect_save_items(inputs: dict[str, Any]) -> list[dict[str, str]]:
         if not isinstance(document, dict):
             continue
         raw_metadata = document.get("metadata")
-        metadata: dict[str, Any] = raw_metadata if isinstance(raw_metadata, dict) else {}
-        text_content = _extract_text_from_payload(document, ("text", "content", "chunk"))
+        metadata: dict[str, Any] = (
+            raw_metadata if isinstance(raw_metadata, dict) else {}
+        )
+        text_content = _extract_text_from_payload(
+            document, ("text", "content", "chunk")
+        )
         if not text_content.strip():
             path_candidate = coerce_text(
                 metadata.get("file_path") or document.get("source_uri") or ""
@@ -320,4 +324,3 @@ __all__ = [
     "_save_as_folder_executor",
     "_to_artifact_path",
 ]
-

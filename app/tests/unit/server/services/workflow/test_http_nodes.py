@@ -10,7 +10,9 @@ from server.services.workflow.node_handlers.http import (
 
 
 def test_query_parameters_can_receive_named_variables() -> None:
-    assert _build_query_params({"query": {"q": "$summary"}}, {"summary": "abc"}) == {"q": "abc"}
+    assert _build_query_params({"query": {"q": "$summary"}}, {"summary": "abc"}) == {
+        "q": "abc"
+    }
 
 
 def test_request_body_can_receive_full_json_object() -> None:

@@ -110,7 +110,12 @@ class NodeValueService:
         if isinstance(value, list):
             if all(isinstance(item, dict) for item in value):
                 text_parts = [
-                    cls.coerce_text(item.get("text") or item.get("content") or item.get("chunk") or "").strip()
+                    cls.coerce_text(
+                        item.get("text")
+                        or item.get("content")
+                        or item.get("chunk")
+                        or ""
+                    ).strip()
                     for item in value
                 ]
                 text_parts = [item for item in text_parts if item]

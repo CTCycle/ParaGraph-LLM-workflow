@@ -55,7 +55,10 @@ def test_database_schema_inspection_reports_tables_columns_and_foreign_keys(
 
     tables = {table["name"]: table for table in schema["tables"]}
     assert {"users", "posts"} <= set(tables)
-    assert any(column["name"] == "id" and column["primary_key"] for column in tables["users"]["columns"])
+    assert any(
+        column["name"] == "id" and column["primary_key"]
+        for column in tables["users"]["columns"]
+    )
     assert tables["posts"]["foreign_keys"][0]["referred_table"] == "users"
 
 
@@ -114,11 +117,16 @@ def test_crud_update_and_delete_require_filters(tmp_path: Path) -> None:
     connection = _database_connection(tmp_path)
 
     for node_type, parameters in [
-        ("CRUD_UPDATE", {"table": "users", "values": {"status": "inactive"}, "filters": {}}),
+        (
+            "CRUD_UPDATE",
+            {"table": "users", "values": {"status": "inactive"}, "filters": {}},
+        ),
         ("CRUD_DELETE", {"table": "users", "filters": {}}),
     ]:
         try:
-            node_registry.execute(node_type, 1, parameters, {}, {"connection": connection})
+            node_registry.execute(
+                node_type, 1, parameters, {}, {"connection": connection}
+            )
         except ValueError as exc:
             assert "filters are required" in str(exc)
         else:
@@ -147,4 +155,3 @@ def test_custom_sql_query_returns_rows_and_rejects_invalid_sql(tmp_path: Path) -
             assert "sql" in str(exc)
         else:
             raise AssertionError("Expected invalid SQL to fail validation")
-

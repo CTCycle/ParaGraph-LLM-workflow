@@ -46,7 +46,12 @@ def _database_workflow_definition(database_path: Path) -> dict[str, object]:
                 "node_version": 1,
                 "parameters": {
                     "table": "qa_crud_nodes",
-                    "values": {"id": 1, "label": "alpha", "status": "new", "amount": 10},
+                    "values": {
+                        "id": 1,
+                        "label": "alpha",
+                        "status": "new",
+                        "amount": 10,
+                    },
                 },
             },
             {
@@ -142,7 +147,9 @@ def test_database_crud_nodes_execute_together_through_compiled_workflow(
     definition = _database_workflow_definition(database_path)
 
     try:
-        compile_response = client.post("/executions/compile", json={"definition": definition})
+        compile_response = client.post(
+            "/executions/compile", json={"definition": definition}
+        )
         assert compile_response.status_code == 200
         compiled = compile_response.json()
         assert compiled["valid"] is True
@@ -150,7 +157,11 @@ def test_database_crud_nodes_execute_together_through_compiled_workflow(
         start_response = client.post(
             "/executions",
             headers={"X-Request-ID": "qa-crud-workflow"},
-            json={"workflow_id": "wf-crud", "execution_session_id": "session-crud", "plan": compiled["plan"]},
+            json={
+                "workflow_id": "wf-crud",
+                "execution_session_id": "session-crud",
+                "plan": compiled["plan"],
+            },
         )
         assert start_response.status_code == 202
 

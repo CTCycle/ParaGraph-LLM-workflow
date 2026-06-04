@@ -19,6 +19,7 @@ from server.services.workflow.vector_stores.base import (
     _store_attr,
 )
 
+
 class WeaviateVectorStoreAdapter(VectorStoreAdapter):
     backend = "weaviate"
     supports_faiss_augmentation = False
@@ -236,4 +237,3 @@ class WeaviateVectorStoreAdapter(VectorStoreAdapter):
                 )
             )
         return hits
-

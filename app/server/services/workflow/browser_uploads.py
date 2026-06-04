@@ -86,4 +86,3 @@ class BrowserUploadService:
 
 
 browser_upload_service = BrowserUploadService(UPLOAD_ROOT)
-

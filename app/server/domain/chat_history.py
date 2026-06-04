@@ -23,6 +23,7 @@ class ChatHistoryMessage(BaseModel):
     content: str
     timestamp: datetime = Field(default_factory=utc_now)
 
+
 ###############################################################################
 class ChatHistoryHandle(BaseModel):
     model_config = ConfigDict(extra="forbid")

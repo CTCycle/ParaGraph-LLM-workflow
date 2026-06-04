@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import pytest
 
-from server.services.workflow.node_handlers.core.prompts import _prompt_template_executor
+from server.services.workflow.node_handlers.core.prompts import (
+    _prompt_template_executor,
+)
 
 
 def test_render_summary_from_upstream_json_object() -> None:

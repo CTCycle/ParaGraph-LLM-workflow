@@ -50,7 +50,9 @@ def _load_pdf_text(path: Path) -> str:
     return "\n\n".join(parts)
 
 
-def load_pdf_pages(path: Path, *, include_empty_pages: bool = False) -> list[dict[str, object]]:
+def load_pdf_pages(
+    path: Path, *, include_empty_pages: bool = False
+) -> list[dict[str, object]]:
     reader = PdfReader(str(path))
     pages: list[dict[str, object]] = []
     for index, page in enumerate(reader.pages, start=1):
@@ -95,4 +97,9 @@ def load_file_text(path: Path) -> tuple[str, str]:
     raise ValueError(f"Unsupported document type: {path.suffix or path.name}")
 
 
-__all__ = ["load_docx_paragraphs", "load_file_text", "load_pdf_pages", "resolve_local_path"]
+__all__ = [
+    "load_docx_paragraphs",
+    "load_file_text",
+    "load_pdf_pages",
+    "resolve_local_path",
+]

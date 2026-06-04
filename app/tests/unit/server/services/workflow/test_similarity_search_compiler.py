@@ -107,4 +107,3 @@ def test_compiler_reports_similarity_backend_incompatibilities() -> None:
     assert "similarity_metric_mismatch" in codes
     assert "unsupported_similarity_mode" in codes
     assert "unsupported_similarity_engine" in codes
-

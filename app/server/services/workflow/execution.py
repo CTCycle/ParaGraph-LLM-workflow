@@ -360,8 +360,12 @@ class ExecutionService:
             return self._publish_named_output(value, output_name)
         return value
 
-    def _should_skip_step(self, step: Any, outputs_by_step: dict[str, dict[str, Any]]) -> bool:
-        input_bindings = [binding for binding in step.bindings if binding.binding_type != "controller"]
+    def _should_skip_step(
+        self, step: Any, outputs_by_step: dict[str, dict[str, Any]]
+    ) -> bool:
+        input_bindings = [
+            binding for binding in step.bindings if binding.binding_type != "controller"
+        ]
         if not input_bindings:
             return False
         values = [
@@ -522,4 +526,3 @@ class ExecutionService:
 
 
 execution_service = ExecutionService()
-

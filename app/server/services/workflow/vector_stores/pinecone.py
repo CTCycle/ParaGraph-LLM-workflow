@@ -19,6 +19,7 @@ from server.services.workflow.vector_stores.base import (
     logger,
 )
 
+
 class PineconeVectorStoreAdapter(VectorStoreAdapter):
     backend = "pinecone"
     supports_faiss_augmentation = False
@@ -274,4 +275,3 @@ class PineconeVectorStoreAdapter(VectorStoreAdapter):
                 )
             )
         return results
-

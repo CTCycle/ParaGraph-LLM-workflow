@@ -132,4 +132,3 @@ def job_state_factory() -> Callable[[str, str], JobState]:
 @pytest.fixture
 def wait_for_job() -> Callable[[str, float], dict[str, object]]:
     return wait_for_job_completion
-

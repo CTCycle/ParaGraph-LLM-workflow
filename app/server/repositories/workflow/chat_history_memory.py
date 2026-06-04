@@ -57,4 +57,3 @@ class InMemoryChatHistoryRepository:
 
 
 in_memory_chat_history_repository = InMemoryChatHistoryRepository()
-

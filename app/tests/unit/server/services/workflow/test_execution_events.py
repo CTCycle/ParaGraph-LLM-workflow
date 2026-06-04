@@ -294,4 +294,3 @@ def test_execution_service_uses_named_output_as_prompt_template_variable(
     )
 
     assert result == {"outputs": {"output_1": {"text": "hello"}}}
-

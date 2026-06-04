@@ -481,8 +481,7 @@ def test_compile_rejects_removed_node_type_aliases(
     payload = response.json()
     assert payload["valid"] is False
     assert any(
-        item["code"] == "unknown_node_type"
-        and unsupported_node_type in item["message"]
+        item["code"] == "unknown_node_type" and unsupported_node_type in item["message"]
         for item in payload["diagnostics"]
     )
 
@@ -718,9 +717,7 @@ def test_execute_structured_node_rejects_invalid_output(
     monkeypatch,
     wait_for_job: Callable[[str, float], dict[str, object]],
 ) -> None:
-    monkeypatch.setattr(
-        provider_service, "chat", lambda **kwargs: '{"name": 12}'
-    )
+    monkeypatch.setattr(provider_service, "chat", lambda **kwargs: '{"name": 12}')
     monkeypatch.setattr(
         provider_service, "validate_model_request", lambda **kwargs: None
     )
@@ -764,9 +761,7 @@ def test_execute_structured_node_emits_json_output_payload(
     monkeypatch,
     wait_for_job: Callable[[str, float], dict[str, object]],
 ) -> None:
-    monkeypatch.setattr(
-        provider_service, "chat", lambda **kwargs: '{"name":"Ada"}'
-    )
+    monkeypatch.setattr(provider_service, "chat", lambda **kwargs: '{"name":"Ada"}')
     monkeypatch.setattr(
         provider_service, "validate_model_request", lambda **kwargs: None
     )
@@ -807,4 +802,3 @@ def test_execute_structured_node_emits_json_output_payload(
     assert run_payload["outputs"] == {
         "output_1": {"json": {"name": "Ada"}, "name": "Ada"}
     }
-

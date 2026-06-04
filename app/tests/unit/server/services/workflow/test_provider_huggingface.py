@@ -140,4 +140,3 @@ def test_huggingface_filter_tags_logs_and_falls_back(monkeypatch) -> None:
     assert libraries == HUGGINGFACE_FALLBACK_LIBRARIES
     assert captured
     assert captured[0]["kwargs"].get("exc_info") is True
-

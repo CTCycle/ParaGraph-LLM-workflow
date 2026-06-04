@@ -46,4 +46,3 @@ class PostgresRepository(TabularDatabaseRepository):
             db_path=None,
             insert_batch_size=settings.insert_batch_size,
         )
-

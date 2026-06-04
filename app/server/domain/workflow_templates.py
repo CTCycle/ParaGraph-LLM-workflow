@@ -21,4 +21,3 @@ class WorkflowTemplateManifest(BaseModel):
 
 class WorkflowTemplateListResponse(BaseModel):
     templates: list[WorkflowTemplateManifest] = Field(default_factory=list)
-

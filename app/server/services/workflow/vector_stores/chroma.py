@@ -19,6 +19,7 @@ from server.services.workflow.vector_stores.base import (
     _store_attr,
 )
 
+
 class ChromaVectorStoreAdapter(VectorStoreAdapter):
     backend = "chroma"
     supports_faiss_augmentation = False
@@ -211,4 +212,3 @@ class ChromaVectorStoreAdapter(VectorStoreAdapter):
                 )
             )
         return payloads
-

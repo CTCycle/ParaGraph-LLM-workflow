@@ -149,4 +149,3 @@ def test_configuration_profile_errors_map_to_http(
     )
     assert save_response.status_code == 400
     assert save_response.json()["detail"] == "Invalid profile name"
-

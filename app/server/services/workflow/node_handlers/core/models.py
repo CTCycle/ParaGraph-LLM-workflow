@@ -182,7 +182,9 @@ def _execute_model_node(
         try:
             history_handle = ChatHistoryHandle.model_validate(history_handle_input)
         except ValidationError as exc:
-            raise ValueError("history controller must be a valid chat history handle") from exc
+            raise ValueError(
+                "history controller must be a valid chat history handle"
+            ) from exc
 
     history_text = (
         chat_history_service.format_history_for_prompt(history_handle)
@@ -267,7 +269,9 @@ def _execute_model_node(
                 history_handle,
                 system_prompt=system_prompt,
                 user_prompt=user_prompt,
-                assistant_output=chat_history_service.serialize_structured_output(parsed),
+                assistant_output=chat_history_service.serialize_structured_output(
+                    parsed
+                ),
             )
         return {
             "result": parsed,

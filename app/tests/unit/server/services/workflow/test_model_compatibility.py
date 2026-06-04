@@ -153,4 +153,3 @@ def test_ollama_client_chat_uses_chat_endpoint_only(monkeypatch) -> None:
 
     assert result == "ok"
     assert calls == [("POST", "/api/chat")]
-

@@ -39,9 +39,7 @@ class ConfigurationService:
             session_name=payload.session_name
         )
         existing = AppConfigurationPayload.model_validate(existing_payload)
-        existing_by_provider = {
-            item.provider: item for item in existing.access_keys
-        }
+        existing_by_provider = {item.provider: item for item in existing.access_keys}
 
         resolved_access_keys = []
         for item in payload.access_keys:
@@ -174,4 +172,3 @@ class ConfigurationService:
 
 
 configuration_service = ConfigurationService()
-

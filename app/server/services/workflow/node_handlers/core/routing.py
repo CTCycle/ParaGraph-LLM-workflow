@@ -10,6 +10,7 @@ from server.services.workflow.node_handlers.common import coerce_text
 
 _TOKENIZER_CACHE: dict[tuple[str, str, bool], Any] = {}
 
+
 ###############################################################################
 def _load_tokenizer(tokenizer_name: str, revision: str, use_fast: bool) -> Any:
     cache_key = (tokenizer_name, revision, use_fast)
@@ -22,6 +23,7 @@ def _load_tokenizer(tokenizer_name: str, revision: str, use_fast: bool) -> Any:
         )
     return _TOKENIZER_CACHE[cache_key]
 
+
 ###############################################################################
 def _payload_text(payload: Any) -> str:
     if isinstance(payload, dict):
@@ -30,6 +32,7 @@ def _payload_text(payload: Any) -> str:
             if value is not None:
                 return coerce_text(value)
     return coerce_text(payload)
+
 
 ###############################################################################
 def _payload_id(payload: Any, fallback: str) -> str:
@@ -40,12 +43,17 @@ def _payload_id(payload: Any, fallback: str) -> str:
                 return value
     return fallback
 
+
 ###############################################################################
 def _collect_tokenizer_inputs(inputs: dict[str, Any]) -> list[dict[str, Any]]:
     records: list[dict[str, Any]] = []
     if inputs.get("text") is not None:
         records.append(
-            {"source_type": "text", "source_id": "text", "text": _payload_text(inputs["text"])}
+            {
+                "source_type": "text",
+                "source_id": "text",
+                "text": _payload_text(inputs["text"]),
+            }
         )
     for name, source_type in (("document", "document"), ("chunk", "chunk")):
         payload = inputs.get(name)
@@ -69,6 +77,7 @@ def _collect_tokenizer_inputs(inputs: dict[str, Any]) -> list[dict[str, Any]]:
             )
     return [record for record in records if record["text"].strip()]
 
+
 ###############################################################################
 def _tokenize_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
@@ -76,7 +85,9 @@ def _tokenize_executor(
     parsed = TokenizerParameters.model_validate(parameters)
     source_records = _collect_tokenizer_inputs(inputs)
     if not source_records:
-        raise ValueError("TOKENIZER requires text, document, documents, chunk, or chunks input")
+        raise ValueError(
+            "TOKENIZER requires text, document, documents, chunk, or chunks input"
+        )
 
     tokenizer = _load_tokenizer(
         parsed.tokenizer_name, parsed.revision.strip(), bool(parsed.use_fast)
@@ -115,6 +126,7 @@ def _tokenize_executor(
         return {"serialized": json.dumps(structured, ensure_ascii=False)}
     return {"tokenized": structured}
 
+
 ###############################################################################
 def _text_split_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
@@ -127,6 +139,7 @@ def _text_split_executor(
         ]
     }
 
+
 ###############################################################################
 def _if_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
     _ = parameters
@@ -135,6 +148,7 @@ def _if_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str
         if bool(inputs.get("condition"))
         else inputs.get("false_value")
     }
+
 
 ###############################################################################
 def _router_executor(
@@ -153,4 +167,3 @@ __all__ = [
     "_text_split_executor",
     "_tokenize_executor",
 ]
-

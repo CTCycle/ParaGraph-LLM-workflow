@@ -91,9 +91,7 @@ def _build_chunk_records(
             record_metadata.setdefault(
                 "mime_type", source.get("mime_type", "text/plain")
             )
-            chunk_id_seed = (
-                f"{source.get('scope')}:{source.get('scope_id')}:{chunk_index}:{chunk_text}"
-            )
+            chunk_id_seed = f"{source.get('scope')}:{source.get('scope_id')}:{chunk_index}:{chunk_text}"
 
         chunks.append(
             {
@@ -206,7 +204,9 @@ def _split_heading_blocks(text: str) -> list[tuple[str, str, list[str]]]:
         if _is_heading_line(stripped):
             found_heading = True
             if active_heading is not None or active_lines:
-                blocks.append((active_heading or "", "\n".join(active_lines).strip(), active_path))
+                blocks.append(
+                    (active_heading or "", "\n".join(active_lines).strip(), active_path)
+                )
             if stripped.startswith("#"):
                 level = len(stripped) - len(stripped.lstrip("#"))
                 heading_text = stripped[level:].strip()
@@ -221,12 +221,16 @@ def _split_heading_blocks(text: str) -> list[tuple[str, str, list[str]]]:
         active_lines.append(line)
 
     if active_heading is not None or active_lines:
-        blocks.append((active_heading or "", "\n".join(active_lines).strip(), active_path))
+        blocks.append(
+            (active_heading or "", "\n".join(active_lines).strip(), active_path)
+        )
 
     return blocks if found_heading else []
 
 
-def _iter_structure_segments(text: str, strategy: str) -> Iterator[str | tuple[str, dict[str, Any]]]:
+def _iter_structure_segments(
+    text: str, strategy: str
+) -> Iterator[str | tuple[str, dict[str, Any]]]:
     if strategy == "paragraph":
         for paragraph in _PARAGRAPH_BOUNDARY_PATTERN.split(text):
             cleaned = paragraph.strip()

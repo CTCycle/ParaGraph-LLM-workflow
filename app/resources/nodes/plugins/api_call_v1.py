@@ -125,4 +125,3 @@ def execute(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any
             json_output = None
 
     return {"text": text_output, "json": json_output, "response": response_payload}
-

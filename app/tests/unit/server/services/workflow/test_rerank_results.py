@@ -170,4 +170,3 @@ def test_rerank_top_k_zero_and_bounded_truncation() -> None:
 
     assert len(all_hits_payload["results"]["hits"]) == 3
     assert len(top_two_payload["results"]["hits"]) == 2
-

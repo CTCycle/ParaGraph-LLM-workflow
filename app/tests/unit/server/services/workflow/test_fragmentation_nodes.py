@@ -146,4 +146,3 @@ def test_regex_split_chunks_requires_non_empty_input() -> None:
             {"regex": "\\s+"},
             {},
         )
-

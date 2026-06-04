@@ -50,4 +50,3 @@ def test_prompt_template_merges_multiple_input_maps() -> None:
     )
 
     assert payload["text"] == "A B C"
-

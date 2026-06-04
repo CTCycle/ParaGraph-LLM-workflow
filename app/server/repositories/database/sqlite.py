@@ -24,4 +24,3 @@ class SQLiteRepository(TabularDatabaseRepository):
             db_path=str(db_path),
             insert_batch_size=settings.insert_batch_size,
         )
-

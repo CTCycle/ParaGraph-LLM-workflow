@@ -129,4 +129,3 @@ def test_provider_model_definition_propagates_supports_embeddings_flag() -> None
     model_definition = provider_service._to_model_definition(metadata)  # noqa: SLF001
 
     assert model_definition.supports_embeddings is True
-

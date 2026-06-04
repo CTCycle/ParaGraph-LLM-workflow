@@ -14,7 +14,9 @@ class DatabaseRepositoryFactory:
         "postgresql+psycopg2",
     }
 
-    def build(self, settings: DatabaseSettings) -> SQLiteRepository | PostgresRepository:
+    def build(
+        self, settings: DatabaseSettings
+    ) -> SQLiteRepository | PostgresRepository:
         if settings.embedded_database:
             return SQLiteRepository(settings)
 
@@ -22,4 +24,3 @@ class DatabaseRepositoryFactory:
         if engine_name not in self._SUPPORTED_POSTGRES_ENGINES:
             raise ValueError(f"Unsupported database engine: {settings.engine}")
         return PostgresRepository(settings)
-

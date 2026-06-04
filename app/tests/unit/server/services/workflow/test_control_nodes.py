@@ -19,16 +19,27 @@ from server.services.workflow.execution import execution_service
 
 
 def test_if_text_contains_selects_true_and_false_branch() -> None:
-    assert _if_text_contains_executor({"keyword": "yes"}, {"text": "yes"})["selected"] == "true"
-    assert _if_text_contains_executor({"keyword": "yes"}, {"text": "no"})["selected"] == "false"
+    assert (
+        _if_text_contains_executor({"keyword": "yes"}, {"text": "yes"})["selected"]
+        == "true"
+    )
+    assert (
+        _if_text_contains_executor({"keyword": "yes"}, {"text": "no"})["selected"]
+        == "false"
+    )
 
 
 def test_switch_by_label_emits_selected_branch() -> None:
-    assert _switch_by_label_executor({"label": "route"}, {"value": 1})["selected"] == "route"
+    assert (
+        _switch_by_label_executor({"label": "route"}, {"value": 1})["selected"]
+        == "route"
+    )
 
 
 def test_map_and_reduce_chunks_apply_operations() -> None:
-    assert _map_over_chunks_executor({"operation": "uppercase"}, {"chunks": ["a"]})["result"] == ["A"]
+    assert _map_over_chunks_executor({"operation": "uppercase"}, {"chunks": ["a"]})[
+        "result"
+    ] == ["A"]
     assert _reduce_chunks_executor({}, {"chunks": ["a", "b"]})["result"] == "a\nb"
 
 
@@ -100,4 +111,7 @@ def test_execution_skips_unselected_branch_and_pauses_run(monkeypatch) -> None:
     run = execution_run_repository.get_run("run-1")
     assert run is not None
     assert run.status == "paused"
-    assert next(step for step in run.steps if step.step_id == "false_step").status == "skipped"
+    assert (
+        next(step for step in run.steps if step.step_id == "false_step").status
+        == "skipped"
+    )

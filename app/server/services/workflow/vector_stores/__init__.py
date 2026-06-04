@@ -58,4 +58,3 @@ __all__ = [
     "WeaviateVectorStoreAdapter",
     "get_vector_store_adapter",
 ]
-

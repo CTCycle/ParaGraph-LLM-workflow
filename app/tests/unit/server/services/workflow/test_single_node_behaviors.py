@@ -89,4 +89,3 @@ def test_save_uploaded_directory_supports_single_uploaded_file(
     assert staged_file.exists()
     assert staged_file.read_text(encoding="utf-8") == "hello"
     assert staged_file.is_relative_to(Path(staged_root))
-

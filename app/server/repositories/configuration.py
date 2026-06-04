@@ -324,4 +324,3 @@ class ConfigurationRepository:
 
 
 configuration_repository = ConfigurationRepository()
-

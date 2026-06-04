@@ -132,4 +132,3 @@ def test_huggingface_embedding_can_use_explicit_tokenizer_repo(monkeypatch) -> N
         "tokenizer": "bert-base-uncased",
     }
     assert vector == [1.0, 0.0]
-

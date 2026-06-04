@@ -67,7 +67,9 @@ def test_environment_loader_is_idempotent_without_force(
 
 
 # -----------------------------------------------------------------------------
-def test_environment_loader_returns_path_instance_for_existing_env(tmp_path: Path) -> None:
+def test_environment_loader_returns_path_instance_for_existing_env(
+    tmp_path: Path,
+) -> None:
     env_path = tmp_path / ".env"
     _write_env(env_path, ["FASTAPI_HOST=from_dotenv"])
 
@@ -236,4 +238,3 @@ def test_cloud_provider_client_does_not_fallback_to_provider_env(monkeypatch) ->
 
     assert client.api_key is None
     assert client.base_url == "https://api.openai.com/v1"
-

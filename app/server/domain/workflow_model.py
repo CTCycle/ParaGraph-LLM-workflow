@@ -117,4 +117,3 @@ class WorkflowListItem(BaseModel):
 
 class WorkflowListResponse(BaseModel):
     workflows: list[WorkflowListItem] = Field(default_factory=list)
-

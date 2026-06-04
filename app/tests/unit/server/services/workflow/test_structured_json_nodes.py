@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import pytest
 
-from server.services.workflow.node_handlers.structured import _structured_output_executor
+from server.services.workflow.node_handlers.structured import (
+    _structured_output_executor,
+)
 from server.services.workflow.structured_models import (
     infer_model_from_json,
     parse_user_pydantic_model,

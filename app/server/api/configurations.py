@@ -95,4 +95,3 @@ def ping_ollama(
     return configuration_service.ping_ollama(
         base_url=payload.base_url, session_name=session_name
     )
-
