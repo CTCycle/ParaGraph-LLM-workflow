@@ -7,12 +7,14 @@ from pathlib import Path
 from server.common.constants import RESOURCES_PATH
 from server.domain.chat_history import ChatHistoryMessage
 
+
 ###############################################################################
 def _safe_segment(value: str) -> str:
     normalized = "".join(
         char for char in value.strip() if char.isalnum() or char in {"-", "_", "."}
     )
     return normalized or "default"
+
 
 ###############################################################################
 class FileChatHistoryRepository:
@@ -26,7 +28,9 @@ class FileChatHistoryRepository:
         self._root.mkdir(parents=True, exist_ok=True)
 
     # -------------------------------------------------------------------------
-    def _file_path(self, workflow_id: str, execution_session_id: str, node_id: str) -> Path:
+    def _file_path(
+        self, workflow_id: str, execution_session_id: str, node_id: str
+    ) -> Path:
         safe_workflow_id = _safe_segment(workflow_id)
         safe_session_id = _safe_segment(execution_session_id)
         safe_node_id = _safe_segment(node_id)
@@ -93,7 +97,9 @@ class FileChatHistoryRepository:
     # -------------------------------------------------------------------------
     def clear_session(self, workflow_id: str, execution_session_id: str) -> None:
         session_path = (
-            self._root / _safe_segment(workflow_id) / _safe_segment(execution_session_id)
+            self._root
+            / _safe_segment(workflow_id)
+            / _safe_segment(execution_session_id)
         )
         if session_path.exists():
             shutil.rmtree(session_path)
@@ -116,4 +122,3 @@ class FileChatHistoryRepository:
 
 
 file_chat_history_repository = FileChatHistoryRepository()
-

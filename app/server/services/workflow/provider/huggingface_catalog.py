@@ -701,4 +701,3 @@ class HuggingFaceCatalogService:
             page_size=page_size,
             refresh=refresh,
         )
-

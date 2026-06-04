@@ -6,7 +6,9 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 
-ExecutionStatus = Literal["queued", "running", "completed", "failed", "cancelled", "paused"]
+ExecutionStatus = Literal[
+    "queued", "running", "completed", "failed", "cancelled", "paused"
+]
 ExecutionStepStatus = Literal["queued", "running", "completed", "failed", "skipped"]
 RUN_ID_PATTERN = r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"
 ExecutionEventType = Literal[
@@ -20,12 +22,14 @@ ExecutionEventType = Literal[
     "execution.failed",
 ]
 
+
 ###############################################################################
 class ExecutionBinding(BaseModel):
     binding_type: Literal["input", "controller"] = "input"
     input_name: str
     source_node_id: str
     source_output: str
+
 
 ###############################################################################
 class ExecutionStepPlan(BaseModel):
@@ -41,6 +45,7 @@ class ExecutionStepPlan(BaseModel):
     retries: int = 0
     cacheable: bool = False
 
+
 ###############################################################################
 class CompiledExecutionPlan(BaseModel):
     plan_id: str
@@ -48,6 +53,7 @@ class CompiledExecutionPlan(BaseModel):
     step_order: list[str] = Field(default_factory=list)
     steps: list[ExecutionStepPlan] = Field(default_factory=list)
     metadata: dict[str, Any] = Field(default_factory=dict)
+
 
 ###############################################################################
 class ExecutionStepState(BaseModel):
@@ -61,6 +67,7 @@ class ExecutionStepState(BaseModel):
     error: str | None = None
     pause_payload: dict[str, Any] | None = None
     resume_token: str | None = None
+
 
 ###############################################################################
 class ExecutionRunState(BaseModel):
@@ -79,6 +86,7 @@ class ExecutionRunState(BaseModel):
     pause_payload: dict[str, Any] | None = None
     resume_token: str | None = None
 
+
 ###############################################################################
 class ExecutionEventEnvelope(BaseModel):
     event_type: ExecutionEventType
@@ -89,11 +97,13 @@ class ExecutionEventEnvelope(BaseModel):
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     payload: dict[str, Any] = Field(default_factory=dict)
 
+
 ###############################################################################
 class StartExecutionRequest(BaseModel):
     workflow_id: str | None = None
     execution_session_id: str | None = None
     plan: CompiledExecutionPlan
+
 
 ###############################################################################
 class StartExecutionResponse(BaseModel):
@@ -102,6 +112,7 @@ class StartExecutionResponse(BaseModel):
     status: ExecutionStatus
     execution_session_id: str | None = None
     poll_interval: float = 1.0
+
 
 ###############################################################################
 class EventHistoryResponse(BaseModel):

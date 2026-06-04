@@ -89,4 +89,3 @@ class RuntimeConfigurationManager:
     def get_value(self, block_name: str, key: str, default: Any = None) -> Any:
         block = self.get_block(block_name)
         return block.get(key, default)
-

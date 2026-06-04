@@ -31,7 +31,8 @@ class DatabaseChatHistoryRepository:
 
     def _ensure_table(self) -> None:
         Base.metadata.create_all(
-            self._database_repository.engine, tables=[ChatHistoryMessageRecord.__table__]
+            self._database_repository.engine,
+            tables=[ChatHistoryMessageRecord.__table__],
         )
 
     def get_messages(
@@ -136,4 +137,3 @@ class DatabaseChatHistoryRepository:
 
 
 database_chat_history_repository = DatabaseChatHistoryRepository()
-

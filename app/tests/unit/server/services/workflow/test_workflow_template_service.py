@@ -124,4 +124,3 @@ def test_template_service_rejects_non_compiling_definition(
 
     with pytest.raises(ValueError, match="failed compilation"):
         service.list_templates()
-

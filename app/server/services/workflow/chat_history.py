@@ -41,7 +41,9 @@ class ChatHistoryRepository(Protocol):
 
 
 class ChatHistoryService:
-    def _repository_for_handle(self, handle: ChatHistoryHandle) -> ChatHistoryRepository:
+    def _repository_for_handle(
+        self, handle: ChatHistoryHandle
+    ) -> ChatHistoryRepository:
         if handle.node_type == "CHAT_HISTORY_MEMORY":
             return in_memory_chat_history_repository
         backend = handle.storage_backend or DEFAULT_CHAT_HISTORY_STORAGE_BACKEND
@@ -121,7 +123,10 @@ class ChatHistoryService:
         if not new_messages:
             return
         merged = repository.append_messages(
-            handle.workflow_id, handle.execution_session_id, handle.node_id, new_messages
+            handle.workflow_id,
+            handle.execution_session_id,
+            handle.node_id,
+            new_messages,
         )
         trimmed = self._trim_to_limit(merged, handle.max_messages)
         if len(trimmed) != len(merged):
@@ -133,4 +138,3 @@ class ChatHistoryService:
 
 
 chat_history_service = ChatHistoryService()
-

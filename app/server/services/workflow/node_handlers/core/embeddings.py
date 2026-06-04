@@ -40,10 +40,14 @@ from server.services.workflow.vector_stores import get_vector_store_adapter
 
 _HF_EMBEDDING_CACHE: dict[str, tuple[Any, Any, Any]] = {}
 
+
 ###############################################################################
 def _resolve_vector_store_adapter(backend: str):
-    override = resolve_core_override("get_vector_store_adapter", get_vector_store_adapter)
+    override = resolve_core_override(
+        "get_vector_store_adapter", get_vector_store_adapter
+    )
     return override(backend)
+
 
 ###############################################################################
 def _resolve_embedding_function():
@@ -51,6 +55,7 @@ def _resolve_embedding_function():
         "_embed_text_for_text_embedding_node",
         _embed_text_for_text_embedding_node,
     )
+
 
 ###############################################################################
 def _resolve_huggingface_embedding_modules():
@@ -60,12 +65,14 @@ def _resolve_huggingface_embedding_modules():
     )
     return override()
 
+
 ###############################################################################
 def _normalize_embedding_vector(vector: list[float]) -> list[float]:
     magnitude = sum(item * item for item in vector) ** 0.5
     if magnitude <= 0:
         return vector
     return [float(item / magnitude) for item in vector]
+
 
 ###############################################################################
 def _load_document_text_content(
@@ -87,6 +94,7 @@ def _load_document_text_content(
             if path.exists() and path.is_file():
                 text_content, _mime_type = load_file_text(path)
     return text_content.strip(), source_uri, metadata
+
 
 ###############################################################################
 def _embed_text_with_gemini(*, model_name: str, text: str) -> list[float]:
@@ -125,6 +133,7 @@ def _embed_text_with_gemini(*, model_name: str, text: str) -> list[float]:
         raise ValueError("Invalid Gemini embeddings response")
     return [float(item) for item in values]
 
+
 ###############################################################################
 def _embed_text_with_huggingface(
     *, model_name: str, text: str, tokenizer_name: str = ""
@@ -145,7 +154,9 @@ def _embed_text_with_huggingface(
     cache_key = f"{model_name}\u0000{tokenizer_model_name}"
 
     if cache_key not in _HF_EMBEDDING_CACHE:
-        tokenizer = auto_tokenizer.from_pretrained(tokenizer_model_name, token=access_token)
+        tokenizer = auto_tokenizer.from_pretrained(
+            tokenizer_model_name, token=access_token
+        )
         if getattr(tokenizer, "pad_token", None) is None:
             tokenizer.pad_token = tokenizer.eos_token
         model = auto_model.from_pretrained(model_name, token=access_token)
@@ -176,6 +187,7 @@ def _embed_text_with_huggingface(
         vector = pooled[0].detach().cpu().tolist()
     return _normalize_embedding_vector([float(item) for item in vector])
 
+
 ###############################################################################
 def _embed_text_for_text_embedding_node(
     *, provider: str, model_name: str, text: str, tokenizer_name: str = ""
@@ -191,6 +203,7 @@ def _embed_text_for_text_embedding_node(
             model_name=model_name, text=text, tokenizer_name=tokenizer_name
         )
     raise ValueError(f"Unsupported embedding provider: {provider}")
+
 
 ###############################################################################
 def _collect_embedding_points(
@@ -296,6 +309,7 @@ def _collect_embedding_points(
 
     return points
 
+
 ###############################################################################
 def _embedding_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
@@ -329,6 +343,7 @@ def _embedding_executor(
         },
     }
 
+
 ###############################################################################
 def _flatten_vector_point_inputs(raw_points: Any) -> list[dict[str, Any]]:
     if isinstance(raw_points, list):
@@ -342,6 +357,7 @@ def _flatten_vector_point_inputs(raw_points: Any) -> list[dict[str, Any]]:
     if isinstance(raw_points, dict):
         return [raw_points]
     return []
+
 
 ###############################################################################
 def _flatten_embedding_controller_inputs(
@@ -360,6 +376,7 @@ def _flatten_embedding_controller_inputs(
         points.extend(_flatten_vector_point_inputs(vectors))
     return points
 
+
 ###############################################################################
 def _extract_embedding_source(payload: Any) -> tuple[str, str, str]:
     if not isinstance(payload, dict):
@@ -371,6 +388,7 @@ def _extract_embedding_source(payload: Any) -> tuple[str, str, str]:
     tokenizer_name = coerce_text(payload.get("tokenizer_model") or "").strip()
     return provider, model_name, tokenizer_name
 
+
 ###############################################################################
 def _canonical_similarity_metric(value: str) -> str:
     normalized = value.strip().lower()
@@ -379,6 +397,7 @@ def _canonical_similarity_metric(value: str) -> str:
     if normalized == "dot":
         return "dot"
     return normalized
+
 
 ###############################################################################
 def _vector_store_executor(
@@ -420,6 +439,7 @@ def _vector_store_executor(
         },
     }
 
+
 ###############################################################################
 def _similarity_search_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
@@ -432,7 +452,10 @@ def _similarity_search_executor(
     embedding_payload = inputs.get("embedding")
     provider, model_name, tokenizer_name = _extract_embedding_source(embedding_payload)
     query_vector = _resolve_embedding_function()(
-        provider=provider, model_name=model_name, tokenizer_name=tokenizer_name, text=query
+        provider=provider,
+        model_name=model_name,
+        tokenizer_name=tokenizer_name,
+        text=query,
     )
 
     raw_store_payload = inputs.get("store")
@@ -506,9 +529,11 @@ def _similarity_search_executor(
         "results": RetrievalResults(query=query, hits=hits).model_dump(mode="json"),
     }
 
+
 ###############################################################################
 def _normalize_rerank_tokens(value: str) -> list[str]:
     return [token for token in re.split(r"[^a-z0-9]+", value.lower()) if token]
+
 
 ###############################################################################
 def _normalize_rerank_text(value: str) -> str:
@@ -519,6 +544,7 @@ def _term_overlap_score(query_tokens: set[str], text_tokens: set[str]) -> float:
     if not query_tokens:
         return 0.0
     return float(len(query_tokens.intersection(text_tokens)) / len(query_tokens))
+
 
 ###############################################################################
 def _metadata_match_score(
@@ -535,6 +561,7 @@ def _metadata_match_score(
     actual = str(metadata.get(field_name, "")).strip().lower()
     expected = metadata_value.strip().lower()
     return 1.0 if actual == expected else 0.0
+
 
 ###############################################################################
 def _rerank_results_executor(

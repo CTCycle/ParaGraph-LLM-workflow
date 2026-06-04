@@ -32,4 +32,3 @@ OUTPUT_HANDLERS = {
     "image_output": NodeHandler(executor=_image_output_executor),
     "json_output": NodeHandler(executor=_json_output_executor),
 }
-

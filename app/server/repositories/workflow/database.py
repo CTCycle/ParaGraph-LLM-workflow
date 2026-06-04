@@ -22,6 +22,7 @@ from sqlalchemy.orm import Session
 from server.domain.node_handler_ingestion import normalize_database_engine
 from server.domain.workflow_payloads import DatabaseConnectionHandle
 
+
 ###############################################################################
 def _coerce_int(value: Any, default: int) -> int:
     try:
@@ -29,9 +30,11 @@ def _coerce_int(value: Any, default: int) -> int:
     except (TypeError, ValueError):
         return default
 
+
 ###############################################################################
 def _resolve_local_path(path_value: str) -> Path:
     return Path(path_value).expanduser().resolve()
+
 
 ###############################################################################
 def build_database_url(payload: dict[str, Any]) -> tuple[str | URL, dict[str, Any]]:
@@ -79,6 +82,7 @@ def build_database_url(payload: dict[str, Any]) -> tuple[str | URL, dict[str, An
         },
     )
 
+
 ###############################################################################
 def build_engine_from_connection(connection: dict[str, Any]) -> Engine:
     handle = DatabaseConnectionHandle.model_validate(connection)
@@ -86,6 +90,7 @@ def build_engine_from_connection(connection: dict[str, Any]) -> Engine:
     return create_engine(
         database_url, future=True, pool_pre_ping=True, connect_args=connect_args
     )
+
 
 ###############################################################################
 def validate_connection(connection: dict[str, Any]) -> None:
@@ -97,6 +102,7 @@ def validate_connection(connection: dict[str, Any]) -> None:
         raise ValueError(f"Failed to connect to database: {exc}") from exc
     finally:
         engine.dispose()
+
 
 ###############################################################################
 def inspect_database_schema(connection: dict[str, Any]) -> dict[str, Any]:
@@ -152,6 +158,7 @@ def inspect_database_schema(connection: dict[str, Any]) -> dict[str, Any]:
     finally:
         engine.dispose()
 
+
 ###############################################################################
 def _load_table(engine: Engine, table_name: str) -> Table:
     metadata = MetaData()
@@ -160,11 +167,13 @@ def _load_table(engine: Engine, table_name: str) -> Table:
     except SQLAlchemyError as exc:
         raise ValueError(f"Failed to load table '{table_name}': {exc}") from exc
 
+
 ###############################################################################
 def _validate_columns(table: Table, names: list[str] | set[str], label: str) -> None:
     missing = sorted(name for name in names if name not in table.c)
     if missing:
         raise ValueError(f"Unknown {label} column(s): {', '.join(missing)}")
+
 
 ###############################################################################
 def _apply_filters(statement: Any, table: Table, filters: dict[str, Any]) -> Any:
@@ -172,6 +181,7 @@ def _apply_filters(statement: Any, table: Table, filters: dict[str, Any]) -> Any
     for column_name, value in filters.items():
         statement = statement.where(table.c[column_name] == value)
     return statement
+
 
 ###############################################################################
 def _rows_dataset(
@@ -190,6 +200,7 @@ def _rows_dataset(
     if affected_rows is not None:
         payload["affected_rows"] = affected_rows
     return payload
+
 
 ###############################################################################
 def execute_create(
@@ -213,6 +224,7 @@ def execute_create(
         raise ValueError(f"Create operation failed: {exc}") from exc
     finally:
         engine.dispose()
+
 
 ###############################################################################
 def execute_read(
@@ -242,6 +254,7 @@ def execute_read(
         raise ValueError(f"Read operation failed: {exc}") from exc
     finally:
         engine.dispose()
+
 
 ###############################################################################
 def execute_update(
@@ -273,6 +286,7 @@ def execute_update(
     finally:
         engine.dispose()
 
+
 ###############################################################################
 def execute_delete(
     connection: dict[str, Any], *, table_name: str, filters: dict[str, Any]
@@ -296,6 +310,7 @@ def execute_delete(
     finally:
         engine.dispose()
 
+
 ###############################################################################
 def execute_custom_sql(connection: dict[str, Any], *, sql: str) -> dict[str, Any]:
     engine = build_engine_from_connection(connection)
@@ -316,4 +331,3 @@ def execute_custom_sql(connection: dict[str, Any], *, sql: str) -> dict[str, Any
         raise ValueError(f"SQL query failed: {exc}") from exc
     finally:
         engine.dispose()
-

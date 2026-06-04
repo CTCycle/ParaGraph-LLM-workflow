@@ -201,4 +201,3 @@ def test_execution_lifecycle_end_to_end_with_websocket_replay(
     assert synthetic is not None
     assert streamed["sequence"] == synthetic.sequence
     assert streamed["payload"] == {"progress": 50.0}
-

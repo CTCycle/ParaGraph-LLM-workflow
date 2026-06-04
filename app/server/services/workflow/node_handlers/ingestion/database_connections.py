@@ -42,9 +42,7 @@ def _validate_and_build_database_connection(
         engine.dispose()
 
     resolved_file_path = (
-        str(resolve_local_path(parsed.file_path))
-        if parsed.engine == "sqlite"
-        else None
+        str(resolve_local_path(parsed.file_path)) if parsed.engine == "sqlite" else None
     )
     return {
         "connection": {

@@ -135,4 +135,3 @@ class OllamaLibraryService:
             model=model,
             session_name=session_name,
         )
-

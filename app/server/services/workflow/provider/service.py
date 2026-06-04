@@ -463,7 +463,9 @@ class ProviderService(
         session_name: str = DEFAULT_SESSION_NAME,
     ) -> dict[str, Any]:
         if not self.supports_native_tools(provider, model):
-            raise ValueError(f"Provider '{provider}' does not support native tool calling")
+            raise ValueError(
+                f"Provider '{provider}' does not support native tool calling"
+            )
         prompt_messages = [
             *messages,
             {
@@ -489,7 +491,9 @@ class ProviderService(
             raise ValueError("tool calling response must be a JSON object")
         return {
             "tool_name": data.get("tool_name"),
-            "arguments": data.get("arguments") if isinstance(data.get("arguments"), dict) else {},
+            "arguments": data.get("arguments")
+            if isinstance(data.get("arguments"), dict)
+            else {},
             "raw_model_response": data,
         }
 
@@ -623,7 +627,4 @@ class ProviderService(
         return vector
 
 
-
-
 provider_service = ProviderService()
-

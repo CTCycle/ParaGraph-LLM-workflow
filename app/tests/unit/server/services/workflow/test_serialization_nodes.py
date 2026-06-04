@@ -479,4 +479,3 @@ def test_save_as_folder_resolves_deferred_documents_before_writing(
     saved_paths = [Path(path) for path in result["artifact"]["files"]]
     assert len(saved_paths) == 1
     assert saved_paths[0].read_text(encoding="utf-8") == "resolved deferred text"
-

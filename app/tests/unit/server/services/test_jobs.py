@@ -49,4 +49,3 @@ def test_cancel_job_marks_running_job_cancelled(
 # -----------------------------------------------------------------------------
 def test_cancel_job_returns_false_for_unknown_job() -> None:
     assert job_manager.cancel_job("missing-job") is False
-

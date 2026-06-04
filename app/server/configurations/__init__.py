@@ -16,4 +16,3 @@ __all__ = [
     "ServerSettings",
     "load_database_settings_from_env",
 ]
-

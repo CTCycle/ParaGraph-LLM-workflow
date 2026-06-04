@@ -49,5 +49,5 @@ class WorkflowService:
         workflow_repository.save_workflow(updated_document)
         return updated_document
 
-workflow_service = WorkflowService()
 
+workflow_service = WorkflowService()

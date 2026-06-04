@@ -15,7 +15,10 @@ def test_regex_extract_returns_named_groups_and_matches() -> None:
 
 
 def test_join_merge_handles_list_and_scalar_inputs() -> None:
-    assert _join_merge_text_executor({"separator": ","}, {"items": ["a", "b"]})["result"] == "a,b"
+    assert (
+        _join_merge_text_executor({"separator": ","}, {"items": ["a", "b"]})["result"]
+        == "a,b"
+    )
 
 
 def test_deduplicate_removes_repeated_boilerplate() -> None:
@@ -29,5 +32,13 @@ def test_token_counter_estimates_tokens_and_cost() -> None:
 
 def test_truncate_supports_first_last_and_balanced_modes() -> None:
     text = "one two three four"
-    assert _truncate_to_budget_executor({"max_tokens": 2}, {"text": text})["result"] == "one two"
-    assert _truncate_to_budget_executor({"max_tokens": 2, "mode": "last"}, {"text": text})["result"] == "three four"
+    assert (
+        _truncate_to_budget_executor({"max_tokens": 2}, {"text": text})["result"]
+        == "one two"
+    )
+    assert (
+        _truncate_to_budget_executor({"max_tokens": 2, "mode": "last"}, {"text": text})[
+            "result"
+        ]
+        == "three four"
+    )

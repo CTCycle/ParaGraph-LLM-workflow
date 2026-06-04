@@ -107,4 +107,3 @@ def test_plugin_node_rejects_absolute_script_paths(monkeypatch, tmp_path: Path) 
     monkeypatch.setattr(node_module, "NODE_ROOT", node_root)
     with pytest.raises(ValueError, match="must be relative"):
         node_module.NodeRegistry()
-

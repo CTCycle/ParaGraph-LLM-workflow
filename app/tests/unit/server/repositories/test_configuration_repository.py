@@ -38,7 +38,9 @@ def _server_settings(database: DatabaseSettings) -> ServerSettings:
     )
 
 
-def test_configuration_repository_selects_sqlite_from_runtime_settings(monkeypatch) -> None:
+def test_configuration_repository_selects_sqlite_from_runtime_settings(
+    monkeypatch,
+) -> None:
     sqlite_settings = _database_settings(embedded=True, engine=None)
 
     class FakeFactory:
@@ -62,7 +64,9 @@ def test_configuration_repository_selects_sqlite_from_runtime_settings(monkeypat
     assert factory.seen[0].engine is None
 
 
-def test_configuration_repository_selects_postgres_from_runtime_settings(monkeypatch) -> None:
+def test_configuration_repository_selects_postgres_from_runtime_settings(
+    monkeypatch,
+) -> None:
     postgres_settings = _database_settings(embedded=False, engine="postgres")
 
     class FakeFactory:
@@ -123,4 +127,3 @@ def test_configuration_repository_reads_current_runtime_settings_each_call(
     assert factory.seen[0].embedded_database is True
     assert factory.seen[1].embedded_database is False
     assert factory.seen[1].engine == "postgresql"
-

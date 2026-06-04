@@ -74,4 +74,3 @@ class EnvironmentLoader:
         if not normalized:
             return default
         return normalized in _TRUE_VALUES
-

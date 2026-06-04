@@ -369,4 +369,3 @@ class NodeRegistry:
 
 
 node_registry = NodeRegistry()
-

@@ -14,7 +14,9 @@ import server.services.workflow.node_handlers.core as core_handlers
 
 
 def _read_parameter_options_from_doc(parameter_name: str) -> list[str]:
-    doc_path = Path(ROOT_DIR) / "assets" / "docs" / "nodes" / "processing_and_retrieval.md"
+    doc_path = (
+        Path(ROOT_DIR) / "assets" / "docs" / "nodes" / "processing_and_retrieval.md"
+    )
     content = doc_path.read_text(encoding="utf-8")
     pattern = re.compile(
         rf"- `{re.escape(parameter_name)}`\s*\n\s*-\s*(?:options:\s*)?([^\n]+)",
@@ -211,4 +213,3 @@ def test_similarity_search_executor_validates_store_payload_and_uses_native_sear
     assert payload["results"]["query"] == "hello"
     assert adapter.last_search_kwargs is not None
     assert adapter.last_search_kwargs["search_engine"] == "native"
-

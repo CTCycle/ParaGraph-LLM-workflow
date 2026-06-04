@@ -17,8 +17,10 @@ _SENSITIVE_KEY_TOKENS = (
 
 
 def is_cloud_deployment() -> bool:
-    return get_configuration_runtime().environment().get_bool(
-        "PARAGRAPH_CLOUD_MODE", False
+    return (
+        get_configuration_runtime()
+        .environment()
+        .get_bool("PARAGRAPH_CLOUD_MODE", False)
     )
 
 
@@ -47,4 +49,3 @@ def redact_sensitive_payload(value: Any) -> Any:
     if isinstance(value, tuple):
         return tuple(redact_sensitive_payload(item) for item in value)
     return value
-

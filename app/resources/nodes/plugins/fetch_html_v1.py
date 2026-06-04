@@ -82,4 +82,3 @@ def execute(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any
         response_payload["title"] = title
 
     return {"html": raw_html, "text": cleaned_text, "response": response_payload}
-

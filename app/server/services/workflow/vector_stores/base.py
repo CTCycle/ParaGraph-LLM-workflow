@@ -674,6 +674,3 @@ class VectorStoreAdapter:
             if len(results) >= top_k:
                 break
         return results
-
-
-

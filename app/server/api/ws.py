@@ -46,4 +46,3 @@ async def execution_run_events(
         return
     finally:
         execution_event_service.unsubscribe(run_id, subscription_queue)
-

@@ -13,4 +13,3 @@ def resolve_core_override(name: str, default: T) -> T:
 
 
 __all__ = ["resolve_core_override"]
-

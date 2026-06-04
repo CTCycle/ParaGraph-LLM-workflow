@@ -8,6 +8,7 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 from server.repositories.schemas.types import JSONSequence
 
+
 ###############################################################################
 class Base(DeclarativeBase):
     pass
@@ -182,4 +183,3 @@ class ChatHistoryMessageRecord(Base):
             "chat_history_message_id",
         ),
     )
-

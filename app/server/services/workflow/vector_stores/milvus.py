@@ -20,6 +20,7 @@ from server.services.workflow.vector_stores.base import (
     _store_attr,
 )
 
+
 class MilvusVectorStoreAdapter(VectorStoreAdapter):
     backend = "milvus"
     supports_faiss_augmentation = False
@@ -283,4 +284,3 @@ class MilvusVectorStoreAdapter(VectorStoreAdapter):
                 )
             )
         return hits
-

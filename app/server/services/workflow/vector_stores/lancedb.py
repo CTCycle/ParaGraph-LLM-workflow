@@ -19,6 +19,7 @@ from server.services.workflow.vector_stores.base import (
     _store_attr,
 )
 
+
 class LanceDbVectorStoreAdapter(VectorStoreAdapter):
     backend = "lancedb"
     supports_faiss_augmentation = False
@@ -233,4 +234,3 @@ class LanceDbVectorStoreAdapter(VectorStoreAdapter):
             if len(results) >= top_k:
                 break
         return results
-

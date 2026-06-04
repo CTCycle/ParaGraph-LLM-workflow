@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import pandas as pd
 
+
 # -----------------------------------------------------------------------------
 def normalize_postgres_engine(engine: str | None) -> str:
     if not engine:
@@ -22,5 +23,3 @@ def normalize_string_columns(df: pd.DataFrame) -> pd.DataFrame:
             object_series = normalized[column].astype(object)
             normalized[column] = object_series.where(object_series.notna(), None)
     return normalized
-
-

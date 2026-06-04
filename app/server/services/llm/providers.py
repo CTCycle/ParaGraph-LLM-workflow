@@ -554,4 +554,3 @@ def select_llm_provider(provider: str, **kwargs: Any) -> SupportsChat:
         )
 
     raise LLMError(f"Unsupported provider: {provider}")
-

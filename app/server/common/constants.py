@@ -65,4 +65,3 @@ TABLE_REQUIRED_COLUMNS: dict[str, list[str]] = {
     INFERENCE_RUNS_TABLE: ["checkpoint_id", "request_id", "executed_at"],
     INFERENCE_REPORTS_TABLE: ["inference_run_id", "input_name", "output_text"],
 }
-

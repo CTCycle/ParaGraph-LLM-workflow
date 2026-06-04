@@ -158,4 +158,3 @@ def cancel_huggingface_download(
         return provider_service.cancel_huggingface_download(job_id=job_id)
     except ProviderApiError as exc:
         raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
-

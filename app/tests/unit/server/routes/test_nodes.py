@@ -19,7 +19,9 @@ class SchemaRouteItem(SchemaRouteBase):
     name: Mapped[str] = mapped_column(String, nullable=False)
 
 
-def test_database_schema_endpoint_returns_sqlite_schema(client: TestClient, tmp_path) -> None:
+def test_database_schema_endpoint_returns_sqlite_schema(
+    client: TestClient, tmp_path
+) -> None:
     database_path = tmp_path / "schema.sqlite"
     engine = create_engine(f"sqlite:///{database_path}")
     SchemaRouteBase.metadata.create_all(engine)
@@ -170,4 +172,3 @@ def test_check_vector_store_connection_remote_providers_require_endpoint(
     assert response.status_code == 200
     assert response.json()["ok"] is True
     assert calls["endpoint_url"] == "https://vector.example"
-

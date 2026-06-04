@@ -66,4 +66,3 @@ class WorkflowTemplateService:
 
 
 workflow_template_service = WorkflowTemplateService()
-

@@ -59,11 +59,7 @@ def _annotation_to_type(node: ast.AST, *, field: str) -> Any:
     if isinstance(node, ast.Subscript):
         base = _annotation_to_type(node.value, field=field)
         args_node = node.slice
-        args = (
-            list(args_node.elts)
-            if isinstance(args_node, ast.Tuple)
-            else [args_node]
-        )
+        args = list(args_node.elts) if isinstance(args_node, ast.Tuple) else [args_node]
         parsed_args = tuple(_annotation_to_type(arg, field=field) for arg in args)
         if base is list and len(parsed_args) == 1:
             return list[parsed_args[0]]

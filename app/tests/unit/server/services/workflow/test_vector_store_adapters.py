@@ -171,4 +171,3 @@ def test_vector_store_capabilities_matrix(
     assert capabilities["supports_metadata_filtering"] is True
     assert capabilities["supports_hybrid_search"] is False
     assert capabilities["supports_faiss_augmentation"] is supports_faiss_augmentation
-

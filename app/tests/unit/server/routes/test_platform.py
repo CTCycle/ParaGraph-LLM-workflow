@@ -618,4 +618,3 @@ def test_workflow_crud(client: TestClient) -> None:
     )
 
     assert update_response.status_code == 200
-
