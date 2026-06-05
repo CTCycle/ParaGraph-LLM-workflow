@@ -217,47 +217,49 @@ class JsonJobsSettings(BaseModel):
 ###############################################################################
 class RuntimeConfigurationSettings(BaseModel):
     model_config = ConfigDict(extra="ignore", populate_by_name=True)
-    database: JsonDatabaseSettings = Field(default_factory=JsonDatabaseSettings)
     global_settings: JsonGlobalSettings = Field(
         default_factory=JsonGlobalSettings, alias="global"
     )
     jobs: JsonJobsSettings = Field(default_factory=JsonJobsSettings)
 
     # -------------------------------------------------------------------------
-    def to_server_settings(self) -> ServerSettings:
-        db = self.database
-        if self.database.embedded_database:
-            database_settings = DatabaseSettings(
-                embedded_database=True,
-                engine=None,
-                host=None,
-                port=None,
-                database_name=None,
-                username=None,
-                password=None,
-                ssl=False,
-                ssl_ca=None,
-                connect_timeout=db.connect_timeout,
-                insert_batch_size=db.insert_batch_size,
-            )
-        else:
-            normalized_engine = db.engine.strip().lower()
-            database_settings = DatabaseSettings(
-                embedded_database=False,
-                engine=normalized_engine,
-                host=db.host,
-                port=db.port,
-                database_name=db.name,
-                username=db.user,
-                password=db.password,
-                ssl=db.ssl,
-                ssl_ca=db.ssl_ca,
-                connect_timeout=db.connect_timeout,
-                insert_batch_size=db.insert_batch_size,
-            )
-
+    def to_server_settings(self, *, database: DatabaseSettings) -> ServerSettings:
         return ServerSettings(
-            database=database_settings,
+            database=database,
             global_settings=GlobalSettings(seed=self.global_settings.seed),
             jobs=JobsSettings(polling_interval=self.jobs.polling_interval),
         )
+
+
+###############################################################################
+def get_database_settings_from_env() -> DatabaseSettings:
+    db = JsonDatabaseSettings.model_validate(load_database_settings_from_env())
+    if db.embedded_database:
+        return DatabaseSettings(
+            embedded_database=True,
+            engine=None,
+            host=None,
+            port=None,
+            database_name=None,
+            username=None,
+            password=None,
+            ssl=False,
+            ssl_ca=None,
+            connect_timeout=db.connect_timeout,
+            insert_batch_size=db.insert_batch_size,
+        )
+
+    normalized_engine = db.engine.strip().lower()
+    return DatabaseSettings(
+        embedded_database=False,
+        engine=normalized_engine,
+        host=db.host,
+        port=db.port,
+        database_name=db.name,
+        username=db.user,
+        password=db.password,
+        ssl=db.ssl,
+        ssl_ca=db.ssl_ca,
+        connect_timeout=db.connect_timeout,
+        insert_batch_size=db.insert_batch_size,
+    )

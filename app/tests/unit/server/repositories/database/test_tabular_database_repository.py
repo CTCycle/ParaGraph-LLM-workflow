@@ -46,7 +46,7 @@ def test_save_load_and_count_dynamic_table() -> None:
     assert len(loaded) == 2
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def test_save_replaces_existing_dynamic_table_rows() -> None:
     repository = InMemoryTabularRepository()
     repository.save_into_database(
@@ -69,7 +69,7 @@ def test_save_replaces_existing_dynamic_table_rows() -> None:
     assert loaded.to_dict(orient="records") == [{"name": "new-a", "value": 3}]
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def test_load_missing_table_returns_empty_dataframe() -> None:
     repository = InMemoryTabularRepository()
 
@@ -78,7 +78,7 @@ def test_load_missing_table_returns_empty_dataframe() -> None:
     assert loaded.empty
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def test_count_missing_table_raises_value_error() -> None:
     repository = InMemoryTabularRepository()
 

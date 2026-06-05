@@ -151,7 +151,7 @@ Runtime variables commonly used in local execution:
 | `LLM_TIMEOUT_S` | Timeout used by LLM HTTP clients. |
 
 Provider-specific credentials and runtime endpoints are managed in-app under **Configurations** (session settings), not via `.env`.
-Database mode and connection values are defined in `settings/.env`.
+All internal application database mode and connection values are defined in `settings/.env`.
 Non-database runtime settings such as `global.seed` and `jobs.polling_interval` remain in `settings/configurations.json`.
 
 ## 6. Resources and Storage

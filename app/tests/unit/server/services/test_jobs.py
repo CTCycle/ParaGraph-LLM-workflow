@@ -27,7 +27,7 @@ def test_start_job_injects_job_id_and_merges_results(
     assert payload["result"] == {"stage": "running", "success": True}
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def test_cancel_job_marks_running_job_cancelled(
     wait_for_job: Callable[[str, float], dict[str, object]],
 ) -> None:
@@ -46,6 +46,6 @@ def test_cancel_job_marks_running_job_cancelled(
     assert payload["result"] is None
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def test_cancel_job_returns_false_for_unknown_job() -> None:
     assert job_manager.cancel_job("missing-job") is False

@@ -16,7 +16,7 @@ from server.repositories.database.utils import normalize_postgres_engine
 from server.repositories.schemas import Base
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def build_postgres_connect_args(settings: DatabaseSettings) -> dict[str, str | int]:
     connect_args: dict[str, str | int] = {
         "connect_timeout": settings.connect_timeout,
@@ -29,7 +29,7 @@ def build_postgres_connect_args(settings: DatabaseSettings) -> dict[str, str | i
     return connect_args
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def build_postgres_url(settings: DatabaseSettings, database_name: str) -> str:
     port = settings.port or 5432
     engine_name = normalize_postgres_engine(settings.engine)
@@ -38,14 +38,14 @@ def build_postgres_url(settings: DatabaseSettings, database_name: str) -> str:
     return f"{engine_name}://{safe_username}:{safe_password}@{settings.host}:{port}/{database_name}"
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def initialize_sqlite_database(settings: DatabaseSettings) -> None:
     repository = SQLiteRepository(settings)
     Base.metadata.create_all(repository.engine)
     logger.info("Initialized SQLite database at %s", repository.db_path)
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def ensure_postgres_database(settings: DatabaseSettings) -> str:
     if not settings.host:
         raise ValueError("Database host is required for PostgreSQL initialization.")
@@ -89,7 +89,7 @@ def ensure_postgres_database(settings: DatabaseSettings) -> str:
     return target_database
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def run_database_initialization() -> None:
     settings = get_server_settings().database
     repository = DatabaseRepositoryFactory().build(settings)
@@ -100,7 +100,7 @@ def run_database_initialization() -> None:
     ensure_postgres_database(settings)
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def initialize_database() -> None:
     try:
         run_database_initialization()
