@@ -1,5 +1,5 @@
 # Configuration
-Last updated: 2026-06-02
+Last updated: 2026-06-05
 
 ## Shared Configuration Sources
 - Shared environment keys are loaded from `settings/.env`.
@@ -16,8 +16,8 @@ Last updated: 2026-06-02
 - In packaged desktop mode, the backend sets `PARAGRAPH_TAURI_MODE=true`.
 - In Tauri mode, FastAPI serves the built `client/dist` frontend from the application root.
 - Database and runtime behavior split across:
-  - `settings/.env` for database mode and connection values.
-  - `settings/configurations.json` for runtime settings such as `global.seed` and `jobs.polling_interval`.
+  - `settings/.env` for all internal application database mode and connection values.
+  - `settings/configurations.json` for non-database runtime settings such as `global.seed` and `jobs.polling_interval`.
 - The default database mode is embedded SQLite through `DATABASE_EMBEDDED=true`.
 - PostgreSQL is optional when embedded mode is disabled.
 

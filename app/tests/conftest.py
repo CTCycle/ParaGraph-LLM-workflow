@@ -28,7 +28,7 @@ def clear_job_manager() -> None:
     job_manager.reset_for_tests()
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def clear_execution_state() -> None:
     execution_run_repository.reset_for_tests()
     execution_event_service.reset_for_tests()
@@ -36,12 +36,12 @@ def clear_execution_state() -> None:
     database_chat_history_repository.reset_for_tests()
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def clear_provider_caches() -> None:
     provider_service.reset_for_tests()
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def register_job_state(
     job_id: str = "job-test", job_type: str = "workflow"
 ) -> JobState:
@@ -50,7 +50,7 @@ def register_job_state(
     return state
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def wait_for_job_completion(job_id: str, timeout_s: float = 2.0) -> dict[str, object]:
     deadline = time.monotonic() + timeout_s
     last_snapshot: dict[str, object] | None = None
@@ -76,7 +76,7 @@ def isolated_job_manager() -> Iterator[None]:
     clear_job_manager()
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 @pytest.fixture(autouse=True)
 def isolated_runtime_state(tmp_path: Path) -> Iterator[None]:
     isolated_root = tmp_path / "workflows"
@@ -102,7 +102,7 @@ def isolated_runtime_state(tmp_path: Path) -> Iterator[None]:
         file_chat_history_repository.restore_default_storage_for_tests()
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 @pytest.fixture(autouse=True)
 def isolated_node_registry() -> Iterator[None]:
     default_node_root = Path(RESOURCES_PATH) / "nodes"
@@ -115,20 +115,20 @@ def isolated_node_registry() -> Iterator[None]:
         node_registry_module.node_registry.reload()
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 @pytest.fixture
 def client() -> Iterator[TestClient]:
     with TestClient(app) as test_client:
         yield test_client
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 @pytest.fixture
 def job_state_factory() -> Callable[[str, str], JobState]:
     return register_job_state
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 @pytest.fixture
 def wait_for_job() -> Callable[[str, float], dict[str, object]]:
     return wait_for_job_completion

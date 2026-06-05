@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def coerce_bool(value: Any, default: bool) -> bool:
     if isinstance(value, bool):
         return value
@@ -19,7 +19,7 @@ def coerce_bool(value: Any, default: bool) -> bool:
     return default
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def coerce_int(
     value: Any, default: int, minimum: int | None = None, maximum: int | None = None
 ) -> int:
@@ -34,7 +34,7 @@ def coerce_int(
     return candidate
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def coerce_float(
     value: Any,
     default: float,
@@ -52,7 +52,7 @@ def coerce_float(
     return candidate
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def coerce_str_or_none(value: Any) -> str | None:
     if isinstance(value, str):
         stripped = value.strip()

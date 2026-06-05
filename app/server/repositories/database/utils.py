@@ -3,7 +3,7 @@ from __future__ import annotations
 import pandas as pd
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def normalize_postgres_engine(engine: str | None) -> str:
     if not engine:
         return "postgresql+psycopg"
@@ -13,7 +13,7 @@ def normalize_postgres_engine(engine: str | None) -> str:
     return engine
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def normalize_string_columns(df: pd.DataFrame) -> pd.DataFrame:
     normalized = df.copy()
     for column in normalized.columns:
