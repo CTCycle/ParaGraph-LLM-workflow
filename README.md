@@ -5,170 +5,195 @@
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![CI](https://github.com/CTCycle/ParaGraph-LLM-workflow/actions/workflows/ci.yml/badge.svg)](https://github.com/CTCycle/ParaGraph-LLM-workflow/actions/workflows/ci.yml)
 
-## 1. Project Overview
+ParaGraph is a local application for planning, running, and observing LLM workflows in a visual way.
 
-ParaGraph is a local-first application for building and running deterministic LLM workflows.
+It is meant for people who want to assemble a workflow step by step instead of writing everything from scratch. You can connect building blocks, define how information should move through them, run the workflow, and watch what happens as it executes.
 
-The platform combines:
-- A **FastAPI backend** for workflow compilation, execution lifecycle, and provider integration.
-- A **React + TypeScript frontend** for visual workflow authoring and runtime monitoring.
-- A **manifest-driven execution model** with polling and websocket event streaming.
+The app is organized around a simple idea:
 
-Primary capabilities include:
-- **Designing workflows** using a node-based editor.
-- **Compiling and running workflows** through backend execution APIs.
-- **Tracking execution events and outputs** in near real time.
-- **Managing node catalogs, model providers, and runtime profiles** from the UI.
-- **Building RAG pipelines** with embedding, vector storage, retrieval, reranking, and answer synthesis stages.
+- build a workflow
+- prepare the models and provider settings it needs
+- run it
+- review the result
 
-> **Work in Progress**: ParaGraph is under active development. Behavior and available features may evolve.
+## What You Can Do
 
-## User Documentation
+ParaGraph is useful when you want to:
 
-- [User Manual](assets/docs/USER_MANUAL.md)
+- create workflows using a visual canvas instead of a text-only editor
+- connect nodes into a clear sequence of steps
+- check whether a workflow is valid before you run it
+- launch an execution and follow its progress
+- inspect outputs, events, and run history
+- manage available nodes, models, and saved configuration profiles
+- build retrieval-style workflows that work with documents, embeddings, search, ranking, and answer generation
 
-## 2. Installation
+The app is designed to stay close to the work you are doing. The main screens reflect the main stages of the process:
 
-### 2.1 Windows (Recommended Launcher)
+- build the workflow
+- choose the models and settings
+- run the workflow
+- monitor the result
 
-1. Navigate to the repository root.
-2. Run `start_on_windows.bat`.
+## Main Screens
 
-What the launcher does:
-- Bootstraps local runtimes on first run (Python/Node tooling under `runtimes/` when needed).
-- Prepares backend dependencies in `runtimes/.venv`.
-- Installs frontend dependencies and builds/serves the UI.
-- Starts backend and frontend processes with project settings.
+Use the app's main navigation to move between these sections.
 
-First run may take longer due to dependency and runtime setup. Subsequent runs are faster and primarily start services.
+### Workflow
+This is the main workspace.
 
-### 2.2 Manual Setup (Advanced)
+Use it to:
 
-Manual setup is supported for users who prefer explicit control over backend/frontend startup.
+- place nodes onto the canvas
+- connect them into a flow
+- adjust node settings
+- compile the workflow before starting it
+- run the workflow and watch its progress
 
-Minimum requirements:
-- Python environment (project uses `runtimes/.venv` when available).
-- Node.js/npm for the frontend.
+If you only remember one screen, remember this one. It is where most of the day-to-day work happens.
 
-At a high level:
-- Install backend dependencies and run the FastAPI service.
-- Install frontend dependencies from `app/client` and start/build the UI.
+### Nodes
+This area is for exploring what is available.
 
-Backend node dependencies are managed from `app/server/pyproject.toml`. The
-expanded workflow node library includes Jinja prompt rendering, Markdown/date
-parsing, fuzzy matching, and OCR helpers. OCR nodes require the system
-`tesseract` executable; when it is unavailable, the OCR node returns a structured
-`ocr_engine_unavailable` error.
+Use it to:
 
-### 2.3 Desktop Packaging (Windows, Tauri)
+- browse the node catalog
+- search and filter nodes by category
+- read short summaries of what each node does
+- load ready-made workflow templates
+- import custom node manifests when needed
 
-1. Activate desktop runtime profile:
-   - `copy /Y ParaGraph\settings\.env.local.tauri.example ParaGraph\settings\.env`
-2. Ensure local portable runtimes are provisioned:
-   - `ParaGraph\start_on_windows.bat`
-3. Build Tauri desktop release:
-   - `release\tauri\build_with_tauri.bat`
+If you are not sure what node to use, start here.
 
-Generated artifacts:
-- `release/windows/installers`
-- `release/windows/portable`
+### Models
+This area helps you find and prepare models.
 
-## 3. Usage
+Use it to:
 
-### 3.1 Launching
+- browse Ollama models available to your local setup
+- search the Hugging Face catalog
+- download models
+- track model download progress
+- open model cards in the browser
 
-- Run `start_on_windows.bat` for the standard local workflow.
-- The app serves backend and frontend using values from `settings/.env`.
-- For packaged desktop mode, Tauri launches the backend directly and serves the built frontend from backend static assets.
+### Configurations
+This area is where you prepare the application to run correctly.
 
-### 3.2 Typical User Workflow
+Use it to:
 
-1. Configure runtime and provider access (profiles, provider/model availability).
-2. Build or edit a node workflow in the visual editor.
-3. Compile and start an execution run.
-4. Monitor status via polling/websocket events.
-5. Inspect generated outputs and execution history.
+- set provider access details when a workflow needs them
+- verify local model connectivity
+- save and reuse named profiles
+- switch between setup profiles without rebuilding everything manually
 
-### 3.3 Typical RAG Path
+## How To Get Started
 
-1. `LOAD_DOCUMENTS`
-2. Chunking node(s)
-3. `TEXT_EMBEDDING`
-4. `VECTOR_STORE`
-5. `PROMPT_TEMPLATE` for retrieval query rendering
-6. `SIMILARITY_SEARCH`
-7. `RERANK_RESULTS`
-8. `PROMPT_TEMPLATE` for final answer prompt
-9. `LLM_CHAT` or `LLM_STRUCTURED`
+If you are new to the app, the easiest path is:
 
-## 4. Testing
+1. Open **Configurations** and enter the provider or runtime details you need.
+2. Open **Workflow** and add the nodes you want to use.
+3. Connect the nodes so the workflow has a clear path from start to finish.
+4. Compile the workflow to check for missing pieces or incompatible connections.
+5. Start the run.
+6. Watch the execution status and inspect the output as it arrives.
 
-### 4.1 Backend (pytest)
+The workflow does not need to be perfect on the first try. It is normal to build it in small steps, compile often, and adjust as you go.
 
-```cmd
-.\runtimes\.venv\Scripts\python.exe -m pytest tests/unit tests/e2e -v
+## A Typical Workflow Session
+
+Most sessions follow the same basic pattern:
+
+1. Start the app.
+2. Review or update your settings.
+3. Build or open a workflow.
+4. Add the nodes you need.
+5. Connect the nodes in the order you want them to run.
+6. Compile the workflow.
+7. Fix anything the compiler points out.
+8. Start execution.
+9. Monitor the run until it finishes.
+10. Review the output and decide what to adjust next.
+
+If your workflow is intended for document retrieval, the usual shape is:
+
+1. Load documents.
+2. Split or prepare the content.
+3. Create embeddings.
+4. Store vectors.
+5. Render the query.
+6. Search for relevant matches.
+7. Rank the results.
+8. Build the final answer prompt.
+9. Generate the response.
+
+## How To Start The App
+
+### Recommended On Windows
+
+Run:
+
+```bat
+start_on_windows.bat
 ```
 
-### 4.2 Frontend Unit (Vitest)
+This is the easiest way to start the app locally. The launcher prepares what it needs, starts the backend and frontend, and opens the interface.
 
-```cmd
-cd ParaGraph\client
-npm run test:unit
-```
+The first launch can take longer because the app may still be setting up its local runtime and dependencies. Later launches are usually much faster.
 
-### 4.3 Frontend E2E (Playwright)
+### Manual Startup
 
-```cmd
-cd ParaGraph\client
-npm run test:e2e
-```
+If you prefer to start things yourself, see the detailed startup notes in:
 
-### 4.4 Full Test Orchestration
+- [Startup guide](assets/docs/runtime/startup.md)
 
-```cmd
-tests\run_tests.bat
-```
+## Where To Learn More
 
-This runner executes available backend and frontend suites in sequence.
+For more detailed help, use the dedicated docs:
 
-## 5. Configuration
+- [Getting Started](assets/docs/user/getting_started.md)
+- [Workflow Editor](assets/docs/user/workflow_editor.md)
+- [Models And Configurations](assets/docs/user/models_and_configurations.md)
+- [Nodes And Execution](assets/docs/user/nodes_and_execution.md)
+- [Troubleshooting And Data](assets/docs/user/troubleshooting_and_data.md)
 
-Primary runtime configuration files:
-- `settings/.env`
-- `settings/configurations.json`
+If you want a broader map of the documentation, start here:
 
-Runtime variables commonly used in local execution:
+- [Project Overview](assets/docs/PROJECT_OVERVIEW.md)
 
-| Variable | Description |
-| --- | --- |
-| `FASTAPI_HOST` | Backend bind host for the FastAPI server. |
-| `FASTAPI_PORT` | Backend bind port for the FastAPI server. |
-| `UI_HOST` | Frontend host binding. |
-| `UI_PORT` | Frontend port binding. |
-| `VITE_API_BASE_URL` | Frontend API base URL (typically relative, e.g. `/api`). |
-| `PARAGRAPH_CLOUD_MODE` | Cloud mode flag (`true` enables cloud restrictions). |
-| `RELOAD` | Enables hot-reload for local launcher runs when `true`. |
-| `LLM_TIMEOUT_S` | Timeout used by LLM HTTP clients. |
+## Troubleshooting
 
-Provider-specific credentials and runtime endpoints are managed in-app under **Configurations** (session settings), not via `.env`.
-All internal application database mode and connection values are defined in `settings/.env`.
-Non-database runtime settings such as `global.seed` and `jobs.polling_interval` remain in `settings/configurations.json`.
+If something does not work as expected:
 
-## 6. Resources and Storage
+- try starting the app again
+- check that the configuration values are correct
+- make sure the model or provider you need is available
+- review the workflow compile messages before running
+- look at the troubleshooting guide for common causes and data locations
 
-Runtime artifacts are stored under `app/resources`.
-This includes generated artifacts, logs, model assets, node assets, workflow persistence, and local database files used by runtime execution.
+For more detail, see:
 
-## 7. Maintenance Scripts
+- [Troubleshooting And Data](assets/docs/user/troubleshooting_and_data.md)
 
-- `setup_and_maintenance.bat`: setup and maintenance utility for local environment operations.
-- `tests/run_tests.bat`: end-to-end local test orchestration across backend/frontend suites.
-- `release/tauri/build_with_tauri.bat`: Windows Tauri release build and artifact export.
-- `release/tauri/scripts/clean-tauri-build.ps1`: cleanup helper for Tauri release outputs.
-- `release/tauri/scripts/export-windows-artifacts.ps1`: export helper for installer and portable release artifacts.
+## Data And Files
 
-## 8. License
+The app stores its local runtime data under `app/resources`.
 
-This project is licensed under the **MIT License**. See `LICENSE` for details.
+That includes things like:
 
+- logs
+- workflow data
+- downloaded models and related assets
+- local database files
+- runtime artifacts created while the app is running
 
+## Packaging
+
+ParaGraph can also be packaged as a Windows desktop application through the Tauri build flow.
+
+If you need that path, use the deployment notes in the runtime documentation:
+
+- [Deployment guide](assets/docs/runtime/deployment.md)
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).
