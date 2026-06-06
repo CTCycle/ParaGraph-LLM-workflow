@@ -12,9 +12,9 @@
     "test:unit": "vitest run --cache=false",
     "test:unit:watch": "vitest",
     "test:e2e": "playwright test",
-    "tauri:icon": "tauri icon public/favicon.svg && powershell -NoProfile -Command \"Remove-Item -Recurse -Force src-tauri/icons/android,src-tauri/icons/ios -ErrorAction SilentlyContinue\"",
-    "tauri:dev": "tauri dev --config src-tauri/tauri.conf.json",
-    "tauri:build": "tauri build --config src-tauri/tauri.conf.json",
+    "tauri:icon": "set TAURI_APP_PATH=..\\src-tauri&& set TAURI_FRONTEND_PATH=.&& tauri icon public/favicon.svg -o ..\\src-tauri\\icons && powershell -NoProfile -Command \"Remove-Item -Recurse -Force ..\\src-tauri\\icons\\android,..\\src-tauri\\icons\\ios -ErrorAction SilentlyContinue\"",
+    "tauri:dev": "set TAURI_APP_PATH=..\\src-tauri&& set TAURI_FRONTEND_PATH=.&& tauri dev --config ..\\src-tauri\\tauri.conf.json",
+    "tauri:build": "set TAURI_APP_PATH=..\\src-tauri&& set TAURI_FRONTEND_PATH=.&& tauri build --config ..\\src-tauri\\tauri.conf.json",
     "tauri:export:windows": "powershell -NoProfile -ExecutionPolicy Bypass -File ../../release/tauri/scripts/export-windows-artifacts.ps1",
     "tauri:build:release": "npm run tauri:build && npm run tauri:export:windows",
     "tauri:clean": "powershell -NoProfile -ExecutionPolicy Bypass -File ../../release/tauri/scripts/clean-tauri-build.ps1"
