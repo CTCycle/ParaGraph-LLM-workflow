@@ -6,7 +6,7 @@ from threading import Lock
 
 from dotenv import load_dotenv
 
-from server.common.constants import ENV_FILE_PATH as DEFAULT_ENV_FILE_PATH
+from server.common import path as common_path
 from server.common.utils.logger import logger
 
 
@@ -16,7 +16,7 @@ _TRUE_VALUES = {"1", "true", "yes", "on"}
 ###############################################################################
 class EnvironmentLoader:
     def __init__(self, env_file_path: str | Path | None = None) -> None:
-        self._env_file_path = Path(env_file_path or DEFAULT_ENV_FILE_PATH)
+        self._env_file_path = Path(env_file_path or common_path.ENV_FILE)
         self._lock = Lock()
         self._bootstrapped = False
 

@@ -10,13 +10,8 @@ from fastapi import FastAPI
 from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
-from server.common.constants import (
-    FASTAPI_DESCRIPTION,
-    FRONTEND_ASSETS_ROOT,
-    FRONTEND_DIST_ROOT,
-    FASTAPI_TITLE,
-    FASTAPI_VERSION,
-)
+from server.common import path as common_path
+from server.common.constants import FASTAPI_DESCRIPTION, FASTAPI_TITLE, FASTAPI_VERSION
 from server.api.configurations import router as configurations_router
 from server.api.executions import router as executions_router
 from server.api.nodes import router as nodes_router
@@ -33,12 +28,12 @@ warnings.filterwarnings("ignore", category=FutureWarning)
 
 ###############################################################################
 def _client_build_available() -> bool:
-    return (FRONTEND_DIST_ROOT / "index.html").is_file()
+    return (common_path.FRONTEND_DIST_ROOT / "index.html").is_file()
 
 
 ###############################################################################
 def _resolve_client_file(full_path: str) -> Path | None:
-    client_root = FRONTEND_DIST_ROOT.resolve()
+    client_root = common_path.FRONTEND_DIST_ROOT.resolve()
     requested_path = (client_root / full_path).resolve()
 
     if not requested_path.is_relative_to(client_root):
@@ -52,7 +47,7 @@ def _resolve_client_file(full_path: str) -> Path | None:
 
 ###############################################################################
 def serve_client_root() -> FileResponse:
-    return FileResponse(FRONTEND_DIST_ROOT / "index.html")
+    return FileResponse(common_path.FRONTEND_DIST_ROOT / "index.html")
 
 
 ###############################################################################
@@ -60,7 +55,7 @@ def serve_client_path(full_path: str) -> FileResponse:
     client_file = _resolve_client_file(full_path)
     if client_file is not None:
         return FileResponse(client_file)
-    return FileResponse(FRONTEND_DIST_ROOT / "index.html")
+    return FileResponse(common_path.FRONTEND_DIST_ROOT / "index.html")
 
 
 ###############################################################################
@@ -105,10 +100,10 @@ def create_app() -> FastAPI:
     app.include_router(ws_router)
 
     if tauri_mode and _client_build_available():
-        if FRONTEND_ASSETS_ROOT.is_dir():
+        if common_path.FRONTEND_ASSETS_ROOT.is_dir():
             app.mount(
                 "/assets",
-                StaticFiles(directory=str(FRONTEND_ASSETS_ROOT)),
+                StaticFiles(directory=str(common_path.FRONTEND_ASSETS_ROOT)),
                 name="paragraph-assets",
             )
         app.add_api_route(

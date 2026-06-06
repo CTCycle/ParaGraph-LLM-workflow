@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from server.common.constants import RESOURCES_PATH
+from server.common import path as common_path
 from server.app import app
 from server.domain.jobs import JobState
 from server.repositories.workflow import (
@@ -105,7 +105,7 @@ def isolated_runtime_state(tmp_path: Path) -> Iterator[None]:
 ###############################################################################
 @pytest.fixture(autouse=True)
 def isolated_node_registry() -> Iterator[None]:
-    default_node_root = Path(RESOURCES_PATH) / "nodes"
+    default_node_root = common_path.RESOURCES_ROOT / "nodes"
     node_registry_module.NODE_ROOT = default_node_root
     node_registry_module.node_registry.reload()
     try:

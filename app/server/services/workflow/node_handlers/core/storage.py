@@ -5,7 +5,7 @@ import shutil
 from pathlib import Path
 from typing import Any
 
-from server.common.constants import ARTIFACT_ROOT
+from server.common import path as common_path
 from server.common.security import ensure_path_within_root, is_cloud_deployment
 from server.domain.node_handler_core import (
     SaveAsFileParameters,
@@ -32,7 +32,7 @@ def _resolve_storage_path(
     if not storage_path:
         raise ValueError(f"{label} is required. Select a local path.")
     candidate = Path(storage_path).expanduser()
-    artifact_root = ARTIFACT_ROOT.resolve()
+    artifact_root = common_path.ARTIFACT_ROOT.resolve()
     if candidate.is_absolute():
         resolved = candidate.resolve()
         if is_cloud_deployment():
@@ -40,7 +40,7 @@ def _resolve_storage_path(
         return resolved
 
     if relative_to_artifacts_root:
-        resolved = (ARTIFACT_ROOT / candidate).resolve()
+        resolved = (common_path.ARTIFACT_ROOT / candidate).resolve()
         return ensure_path_within_root(resolved, artifact_root, label=label)
 
     resolved = candidate.resolve()
@@ -50,7 +50,7 @@ def _resolve_storage_path(
 
 
 def _to_artifact_path(path: Path) -> str:
-    artifact_root = ARTIFACT_ROOT.resolve()
+    artifact_root = common_path.ARTIFACT_ROOT.resolve()
     try:
         return str(path.resolve().relative_to(artifact_root))
     except ValueError:

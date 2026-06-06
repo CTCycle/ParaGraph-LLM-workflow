@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
-from server.common.constants import RESOURCES_PATH
+from server.common import path as common_path
 from server.domain.workflow_model import (
     WorkflowDocument,
     WorkflowListItem,
@@ -16,7 +16,7 @@ from server.domain.workflow_model import (
 
 class WorkflowRepository:
     def __init__(self) -> None:
-        self._default_root = Path(RESOURCES_PATH) / "workflows"
+        self._default_root = common_path.RESOURCES_ROOT / "workflows"
         self._root = self._default_root
         self._index_path = self._root / "index.json"
         self._ensure_storage()
