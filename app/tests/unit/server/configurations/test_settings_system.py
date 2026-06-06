@@ -234,9 +234,7 @@ def test_runtime_settings_ignore_database_block_from_json(tmp_path: Path) -> Non
 
     runtime = ConfigurationRuntime(environment_loader=EnvironmentLoader(env_path))
 
-    runtime_settings = runtime.initialize(
-        force=True, configuration_file=config_path
-    )
+    runtime_settings = runtime.initialize(force=True, configuration_file=config_path)
 
     assert runtime_settings.model_dump(by_alias=True) == {
         "global": {"seed": 7},

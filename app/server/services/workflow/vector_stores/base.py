@@ -10,7 +10,7 @@ from typing import Any
 import faiss
 import numpy as np
 
-from server.common.constants import ARTIFACT_ROOT
+from server.common import path as common_path
 from server.common.security import (
     ensure_path_within_root,
     is_cloud_deployment,
@@ -22,7 +22,7 @@ from server.domain.workflow_payloads import (
 )
 
 
-VECTORSTORE_ROOT = ARTIFACT_ROOT / "vectorstores"
+VECTORSTORE_ROOT = common_path.ARTIFACT_ROOT / "vectorstores"
 INDEX_NAME_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
 logger = logging.getLogger(__name__)
 
@@ -142,7 +142,7 @@ def _build_index(
 
 def _resolve_store_path_from_handle(store: VectorStoreHandle | dict[str, Any]) -> Path:
     artifact_path = str(_store_attr(store, "artifact_path") or "").strip()
-    artifact_root = ARTIFACT_ROOT.resolve()
+    artifact_root = common_path.ARTIFACT_ROOT.resolve()
     if artifact_path:
         candidate = Path(artifact_path).expanduser()
         if candidate.is_absolute():
@@ -152,7 +152,7 @@ def _resolve_store_path_from_handle(store: VectorStoreHandle | dict[str, Any]) -
                     resolved, artifact_root, label="artifact_path"
                 )
             return resolved
-        resolved = (ARTIFACT_ROOT / candidate).resolve()
+        resolved = (common_path.ARTIFACT_ROOT / candidate).resolve()
         return ensure_path_within_root(resolved, artifact_root, label="artifact_path")
 
     index_name = _normalize_index_name(str(_store_attr(store, "index_name") or ""))

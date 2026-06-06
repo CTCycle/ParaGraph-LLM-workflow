@@ -6,7 +6,7 @@ from typing import Any
 
 from pydantic import ValidationError
 
-from server.common.constants import CONFIGURATION_FILE
+from server.common import path as common_path
 from server.domain.settings import (
     RuntimeConfigurationSettings,
     ServerSettings,
@@ -16,7 +16,9 @@ from server.domain.settings import (
 
 ###############################################################################
 class RuntimeConfigurationManager:
-    def __init__(self, configuration_file: str | Path = CONFIGURATION_FILE) -> None:
+    def __init__(
+        self, configuration_file: str | Path = common_path.CONFIGURATION_FILE
+    ) -> None:
         self._configuration_file = Path(configuration_file)
         self._settings: RuntimeConfigurationSettings | None = None
         self._server_settings: ServerSettings | None = None

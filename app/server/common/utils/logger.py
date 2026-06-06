@@ -3,13 +3,12 @@ from __future__ import annotations
 import logging
 import logging.config
 from datetime import datetime
-from pathlib import Path
 
-from server.common.constants import LOGS_PATH
+from server.common import path as common_path
 
 
 ###############################################################################
-logs_path = Path(LOGS_PATH)
+logs_path = common_path.LOGS_ROOT
 logs_path.mkdir(parents=True, exist_ok=True)
 current_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 log_filename = logs_path / f"ParaGraph_{current_timestamp}.log"

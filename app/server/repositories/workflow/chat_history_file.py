@@ -4,7 +4,7 @@ import json
 import shutil
 from pathlib import Path
 
-from server.common.constants import RESOURCES_PATH
+from server.common import path as common_path
 from server.domain.chat_history import ChatHistoryMessage
 
 
@@ -19,7 +19,7 @@ def _safe_segment(value: str) -> str:
 ###############################################################################
 class FileChatHistoryRepository:
     def __init__(self) -> None:
-        self._default_root = Path(RESOURCES_PATH) / "chat_history"
+        self._default_root = common_path.RESOURCES_ROOT / "chat_history"
         self._root = self._default_root
         self._ensure_root()
 

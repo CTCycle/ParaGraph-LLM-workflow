@@ -4,7 +4,7 @@ import re
 from pathlib import Path
 from typing import Final
 
-from server.common.constants import MODELS_PATH
+from server.common import path as common_path
 from server.domain.node_catalog import HuggingFaceSortBy
 
 
@@ -14,7 +14,7 @@ HUGGINGFACE_CACHE_TTL_SECONDS: Final[float] = 45.0
 HUGGINGFACE_FILTER_TAGS_CACHE_TTL_SECONDS: Final[float] = 3600.0
 HUGGINGFACE_MAX_FETCH_LIMIT: Final[int] = 500
 HUGGINGFACE_MAX_PAGE_SIZE: Final[int] = 50
-HUGGINGFACE_LOCAL_MODELS_ROOT: Final[Path] = Path(MODELS_PATH) / "huggingface"
+HUGGINGFACE_LOCAL_MODELS_ROOT: Final[Path] = common_path.MODELS_ROOT / "huggingface"
 HUGGINGFACE_LOCAL_MODEL_METADATA_FILE: Final[str] = ".paragraph-model.json"
 HUGGINGFACE_REPO_ID_PATTERN: Final[re.Pattern[str]] = re.compile(
     r"^[A-Za-z0-9][A-Za-z0-9._-]*/[A-Za-z0-9][A-Za-z0-9._-]*$"

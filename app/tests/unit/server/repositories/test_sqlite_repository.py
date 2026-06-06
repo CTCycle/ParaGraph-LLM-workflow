@@ -28,7 +28,7 @@ def _build_settings() -> DatabaseSettings:
 def test_sqlite_repository_uses_resources_root_for_default_path(
     tmp_path: Path, monkeypatch
 ) -> None:
-    monkeypatch.setattr(sqlite_module, "RESOURCES_PATH", str(tmp_path))
+    monkeypatch.setattr(sqlite_module.common_path, "RESOURCES_ROOT", tmp_path)
 
     repository = sqlite_module.SQLiteRepository(_build_settings())
 
@@ -38,7 +38,7 @@ def test_sqlite_repository_uses_resources_root_for_default_path(
 def test_sqlite_repository_save_load_and_count_rows(
     tmp_path: Path, monkeypatch
 ) -> None:
-    monkeypatch.setattr(sqlite_module, "RESOURCES_PATH", str(tmp_path))
+    monkeypatch.setattr(sqlite_module.common_path, "RESOURCES_ROOT", tmp_path)
     repository = sqlite_module.SQLiteRepository(_build_settings())
 
     frame = pd.DataFrame(
@@ -57,7 +57,7 @@ def test_sqlite_repository_save_load_and_count_rows(
 def test_sqlite_repository_load_missing_table_returns_empty_frame(
     tmp_path: Path, monkeypatch
 ) -> None:
-    monkeypatch.setattr(sqlite_module, "RESOURCES_PATH", str(tmp_path))
+    monkeypatch.setattr(sqlite_module.common_path, "RESOURCES_ROOT", tmp_path)
     repository = sqlite_module.SQLiteRepository(_build_settings())
 
     loaded = repository.load_from_database("missing_table")
@@ -69,7 +69,7 @@ def test_sqlite_repository_load_missing_table_returns_empty_frame(
 def test_sqlite_repository_count_rows_raises_for_missing_table(
     tmp_path: Path, monkeypatch
 ) -> None:
-    monkeypatch.setattr(sqlite_module, "RESOURCES_PATH", str(tmp_path))
+    monkeypatch.setattr(sqlite_module.common_path, "RESOURCES_ROOT", tmp_path)
     repository = sqlite_module.SQLiteRepository(_build_settings())
 
     with pytest.raises(ValueError, match="does not exist"):

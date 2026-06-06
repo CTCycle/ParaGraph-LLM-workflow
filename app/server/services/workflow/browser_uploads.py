@@ -4,10 +4,10 @@ from pathlib import Path, PurePosixPath
 from typing import Protocol
 from uuid import uuid4
 
-from server.common.constants import RESOURCES_PATH
+from server.common import path as common_path
 
 
-UPLOAD_ROOT = Path(RESOURCES_PATH) / "artifacts" / "browser_uploads"
+UPLOAD_ROOT = common_path.ARTIFACT_ROOT / "browser_uploads"
 
 
 class UploadedFile(Protocol):

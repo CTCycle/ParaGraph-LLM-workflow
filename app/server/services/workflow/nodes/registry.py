@@ -8,7 +8,7 @@ from typing import Any
 
 from pydantic import ValidationError
 
-from server.common.constants import ARTIFACT_ROOT, RESOURCES_PATH
+from server.common import path as common_path
 from server.domain.node_catalog import NodeCatalogResponse, NodeManifest
 from server.services.configuration import configuration_service
 from server.services.workflow.node_handlers import NODE_HANDLERS
@@ -20,7 +20,7 @@ from server.services.workflow.nodes.execution_context import (
 from server.domain.workflow_payloads import validate_data_type
 
 
-NODE_ROOT = Path(RESOURCES_PATH) / "nodes"
+NODE_ROOT = common_path.RESOURCES_ROOT / "nodes"
 MODEL_NODE_IDS = {"LLM_CHAT", "LLM_STRUCTURED"}
 STRUCTURED_NODE_IDS = {"LLM_STRUCTURED"}
 
@@ -65,7 +65,7 @@ class NodeRegistry:
         self._plugin_handlers: dict[tuple[str, int], NodeHandler] = {}
         self._plugin_cache: dict[Path, tuple[int, Any]] = {}
         NODE_ROOT.mkdir(parents=True, exist_ok=True)
-        ARTIFACT_ROOT.mkdir(parents=True, exist_ok=True)
+        common_path.ARTIFACT_ROOT.mkdir(parents=True, exist_ok=True)
         self.reload()
 
     def reload(self) -> None:

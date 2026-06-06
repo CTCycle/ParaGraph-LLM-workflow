@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-from pathlib import Path
-
-from server.common.constants import RESOURCES_PATH
+from server.common import path as common_path
 from server.domain.workflow_templates import (
     WorkflowTemplateListResponse,
     WorkflowTemplateManifest,
@@ -11,7 +9,7 @@ from server.services.workflow.compiler import compiler_service
 from server.services.workflow.nodes import node_registry
 
 
-TEMPLATE_ROOT = Path(RESOURCES_PATH) / "workflow_templates"
+TEMPLATE_ROOT = common_path.RESOURCES_ROOT / "workflow_templates"
 
 
 class WorkflowTemplateService:

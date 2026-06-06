@@ -2,12 +2,11 @@ from __future__ import annotations
 
 import json
 import re
-from pathlib import Path
 from typing import Any
 
 import pytest
 
-from server.common.constants import RESOURCES_PATH, ROOT_DIR
+from server.common import path as common_path
 from server.domain.node_handler_core import SimilaritySearchParameters
 from server.services.workflow import node_registry
 import server.services.workflow.node_handlers.core as core_handlers
@@ -15,7 +14,11 @@ import server.services.workflow.node_handlers.core as core_handlers
 
 def _read_parameter_options_from_doc(parameter_name: str) -> list[str]:
     doc_path = (
-        Path(ROOT_DIR) / "assets" / "docs" / "nodes" / "processing_and_retrieval.md"
+        common_path.REPOSITORY_ROOT
+        / "assets"
+        / "docs"
+        / "nodes"
+        / "processing_and_retrieval.md"
     )
     content = doc_path.read_text(encoding="utf-8")
     pattern = re.compile(
@@ -31,7 +34,7 @@ def _read_parameter_options_from_doc(parameter_name: str) -> list[str]:
 
 
 def _manifest_parameter_options(parameter_name: str) -> list[str]:
-    manifest_path = Path(RESOURCES_PATH) / "nodes" / "similarity_search_v1.json"
+    manifest_path = common_path.RESOURCES_ROOT / "nodes" / "similarity_search_v1.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     parameter = next(
         item for item in manifest["parameters"] if item["name"] == parameter_name

@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import Integer, String, create_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
+from server.common import path as common_path
 from server.domain.node_catalog import (
     HuggingFaceModelCatalogResponse,
     HuggingFaceModelDefinition,
@@ -21,7 +22,6 @@ from server.domain.node_catalog import (
 )
 from server.services.workflow.nodes import registry as node_registry_module
 from server.services.workflow import provider_service
-from server.common.constants import RESOURCES_PATH
 
 
 def build_prompt_to_output_definition() -> dict[str, object]:
@@ -210,7 +210,7 @@ def test_nodes_upload_directory_staging_root_is_stable_across_working_directory(
     assert response.status_code == 200
     payload = response.json()
     staged_root = Path(payload["path"])
-    expected_root = (Path(RESOURCES_PATH) / "artifacts" / "browser_uploads").resolve()
+    expected_root = (common_path.ARTIFACT_ROOT / "browser_uploads").resolve()
     try:
         assert staged_root.is_relative_to(expected_root)
         assert (staged_root / "dataset" / "readme.txt").read_text(
