@@ -6,7 +6,7 @@ ParaGraph is a local-first workflow platform composed of:
 
 - A FastAPI backend in `app/server` for compile and execute APIs, node catalog management, provider integrations, configuration management, and execution event streaming.
 - A React and TypeScript frontend in `app/client/src` for workflow editing, node and template browsing, model catalog operations, and runtime monitoring.
-- An optional Tauri desktop wrapper in `app/client/src-tauri` that launches the backend process and loads the web UI in a desktop window.
+- An optional Tauri desktop wrapper in `app/src-tauri` that launches the backend process and loads the web UI in a desktop window.
 
 ## Repository Structure
 The repository contains source code plus generated and runtime-heavy folders. The structure below focuses on implementation and operational artifacts that matter for development.
@@ -56,7 +56,7 @@ The repository contains source code plus generated and runtime-heavy folders. Th
 - Launcher-managed backend startup: `start_on_windows.bat` runs `python -m uvicorn server.app:app`.
 - Manual backend startup also targets `server.app:app` with `uvicorn`.
 - Frontend entry: `app/client/src/main.tsx` bootstraps `App.tsx`.
-- Desktop entry: `app/client/src-tauri/src/main.rs` starts the backend, waits for readiness, and opens the UI URL.
+- Desktop entry: `app/src-tauri/src/main.rs` starts the backend, waits for readiness, and opens the UI URL.
 
 ## Runtime Topology
 - In web mode, the frontend and backend run as separate processes with API traffic routed through the configured base path.
