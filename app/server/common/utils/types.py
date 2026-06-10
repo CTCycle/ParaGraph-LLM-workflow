@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from typing import Any
 
-
 ###############################################################################
 def coerce_bool(value: Any, default: bool) -> bool:
     if isinstance(value, bool):
@@ -18,7 +17,6 @@ def coerce_bool(value: Any, default: bool) -> bool:
         return bool(value)
     return default
 
-
 ###############################################################################
 def coerce_int(
     value: Any, default: int, minimum: int | None = None, maximum: int | None = None
@@ -32,7 +30,6 @@ def coerce_int(
     if maximum is not None and candidate > maximum:
         candidate = maximum
     return candidate
-
 
 ###############################################################################
 def coerce_float(
@@ -50,7 +47,6 @@ def coerce_float(
     if maximum is not None and candidate > maximum:
         candidate = maximum
     return candidate
-
 
 ###############################################################################
 def coerce_str_or_none(value: Any) -> str | None:

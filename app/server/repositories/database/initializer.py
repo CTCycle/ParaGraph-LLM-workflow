@@ -15,7 +15,6 @@ from server.repositories.database.sqlite import SQLiteRepository
 from server.repositories.database.utils import normalize_postgres_engine
 from server.repositories.schemas import Base
 
-
 ###############################################################################
 def build_postgres_connect_args(settings: DatabaseSettings) -> dict[str, str | int]:
     connect_args: dict[str, str | int] = {
@@ -28,7 +27,6 @@ def build_postgres_connect_args(settings: DatabaseSettings) -> dict[str, str | i
             connect_args["sslrootcert"] = settings.ssl_ca
     return connect_args
 
-
 ###############################################################################
 def build_postgres_url(settings: DatabaseSettings, database_name: str) -> str:
     port = settings.port or 5432
@@ -37,13 +35,11 @@ def build_postgres_url(settings: DatabaseSettings, database_name: str) -> str:
     safe_password = urllib.parse.quote_plus(settings.password or "")
     return f"{engine_name}://{safe_username}:{safe_password}@{settings.host}:{port}/{database_name}"
 
-
 ###############################################################################
 def initialize_sqlite_database(settings: DatabaseSettings) -> None:
     repository = SQLiteRepository(settings)
     Base.metadata.create_all(repository.engine)
     logger.info("Initialized SQLite database at %s", repository.db_path)
-
 
 ###############################################################################
 def ensure_postgres_database(settings: DatabaseSettings) -> str:
@@ -88,7 +84,6 @@ def ensure_postgres_database(settings: DatabaseSettings) -> str:
     logger.info("Ensured PostgreSQL tables exist in %s", target_database)
     return target_database
 
-
 ###############################################################################
 def run_database_initialization() -> None:
     settings = get_server_settings().database
@@ -98,7 +93,6 @@ def run_database_initialization() -> None:
         return
 
     ensure_postgres_database(settings)
-
 
 ###############################################################################
 def initialize_database() -> None:

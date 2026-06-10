@@ -15,7 +15,6 @@ from server.configurations.startup import (
 )
 from server.services.llm.providers import CloudLLMClient
 
-
 ###############################################################################
 @pytest.fixture(autouse=True)
 def reset_configuration_state() -> None:
@@ -23,16 +22,13 @@ def reset_configuration_state() -> None:
     yield
     reset_configuration_runtime_for_tests()
 
-
 ###############################################################################
 def _write_json(path: Path, payload: dict[str, object]) -> None:
     path.write_text(json.dumps(payload), encoding="utf-8")
 
-
 ###############################################################################
 def _write_env(path: Path, lines: list[str]) -> None:
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
-
 
 ###############################################################################
 def test_environment_loader_overrides_existing_process_values(
@@ -47,7 +43,6 @@ def test_environment_loader_overrides_existing_process_values(
     loader.ensure_loaded()
 
     assert os.getenv("FASTAPI_HOST") == "from_dotenv"
-
 
 ###############################################################################
 def test_environment_loader_is_idempotent_without_force(
@@ -65,7 +60,6 @@ def test_environment_loader_is_idempotent_without_force(
 
     assert os.getenv("FASTAPI_HOST") == "first"
 
-
 ###############################################################################
 def test_environment_loader_returns_path_instance_for_existing_env(
     tmp_path: Path,
@@ -79,7 +73,6 @@ def test_environment_loader_returns_path_instance_for_existing_env(
 
     assert loaded_path == env_path
 
-
 ###############################################################################
 def test_server_package_import_has_no_bootstrap_side_effect(monkeypatch) -> None:
     monkeypatch.setenv("PARAGRAPH_CLOUD_MODE", "false")
@@ -89,7 +82,6 @@ def test_server_package_import_has_no_bootstrap_side_effect(monkeypatch) -> None
     importlib.reload(server_package)
 
     assert os.getenv("PARAGRAPH_CLOUD_MODE") == "false"
-
 
 ###############################################################################
 def test_environment_owned_db_embedded_ignores_stale_json_overlap(
@@ -134,7 +126,6 @@ def test_environment_owned_db_embedded_ignores_stale_json_overlap(
     runtime_settings = runtime.get_runtime_settings()
     assert "database" not in runtime_settings.model_dump(by_alias=True)
 
-
 ###############################################################################
 def test_external_database_requires_host_name_and_user(
     tmp_path: Path, monkeypatch
@@ -167,7 +158,6 @@ def test_external_database_requires_host_name_and_user(
         RuntimeError, match="database.host, database.name, database.user"
     ):
         _ = runtime.get_server_settings(config_path=config_path)
-
 
 ###############################################################################
 def test_database_url_populates_external_database_settings(
@@ -211,7 +201,6 @@ def test_database_url_populates_external_database_settings(
     assert settings.database.ssl is True
     assert settings.database.connect_timeout == 17
 
-
 ###############################################################################
 def test_runtime_settings_ignore_database_block_from_json(tmp_path: Path) -> None:
     config_path = tmp_path / "configurations.json"
@@ -241,14 +230,12 @@ def test_runtime_settings_ignore_database_block_from_json(tmp_path: Path) -> Non
         "jobs": {"polling_interval": 2.5},
     }
 
-
 ###############################################################################
 def test_missing_configuration_file_fails_fast(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setenv("FASTAPI_HOST", "127.0.0.1")
 
     with pytest.raises(RuntimeError, match="Configuration file not found"):
         _ = get_server_settings(config_path=tmp_path / "missing.json")
-
 
 ###############################################################################
 def test_invalid_configuration_file_fails_fast(tmp_path: Path, monkeypatch) -> None:
@@ -259,7 +246,6 @@ def test_invalid_configuration_file_fails_fast(tmp_path: Path, monkeypatch) -> N
 
     with pytest.raises(RuntimeError, match="Unable to load configuration"):
         _ = get_server_settings(config_path=config_path)
-
 
 ###############################################################################
 def test_cloud_provider_client_does_not_fallback_to_provider_env(monkeypatch) -> None:

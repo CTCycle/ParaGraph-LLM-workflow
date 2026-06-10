@@ -14,13 +14,17 @@ from server.domain.workflow_model import (
 )
 
 
+###############################################################################
 class WorkflowRepository:
+
+    # -------------------------------------------------------------------------
     def __init__(self) -> None:
         self._default_root = common_path.RESOURCES_ROOT / "workflows"
         self._root = self._default_root
         self._index_path = self._root / "index.json"
         self._ensure_storage()
 
+    # -------------------------------------------------------------------------
     def list_workflows(self) -> list[WorkflowListItem]:
         index = self._load_index()
         items: list[WorkflowListItem] = []
@@ -35,9 +39,11 @@ class WorkflowRepository:
             )
         return sorted(items, key=lambda entry: entry.updated_at, reverse=True)
 
+    # -------------------------------------------------------------------------
     def new_workflow_id(self) -> str:
         return f"wf_{uuid4().hex[:10]}"
 
+    # -------------------------------------------------------------------------
     def save_workflow(self, document: WorkflowDocument) -> None:
         self._ensure_storage()
         workflow_dir = self._workflow_dir(document.workflow_id)
@@ -49,6 +55,7 @@ class WorkflowRepository:
         )
         self._upsert_index(document)
 
+    # -------------------------------------------------------------------------
     def get_workflow(self, workflow_id: str) -> WorkflowDocument | None:
         index = self._load_index()
         entry = next(
@@ -62,30 +69,37 @@ class WorkflowRepository:
         payload = json.loads(path.read_text(encoding="utf-8"))
         return WorkflowDocument.model_validate(payload)
 
+    # -------------------------------------------------------------------------
     def configure_storage_for_tests(self, root: Path) -> None:
         self._root = root
         self._index_path = self._root / "index.json"
         self._ensure_storage()
 
+    # -------------------------------------------------------------------------
     def reset_for_tests(self) -> None:
         if self._root.exists():
             shutil.rmtree(self._root)
         self._ensure_storage()
 
+    # -------------------------------------------------------------------------
     def restore_default_storage_for_tests(self) -> None:
         self._root = self._default_root
         self._index_path = self._root / "index.json"
         self._ensure_storage()
 
+    # -------------------------------------------------------------------------
     def _ensure_storage(self) -> None:
         self._root.mkdir(parents=True, exist_ok=True)
 
+    # -------------------------------------------------------------------------
     def _workflow_dir(self, workflow_id: str) -> Path:
         return self._root / workflow_id
 
+    # -------------------------------------------------------------------------
     def _workflow_path(self, workflow_id: str) -> Path:
         return self._workflow_dir(workflow_id) / "workflow.json"
 
+    # -------------------------------------------------------------------------
     def _load_index(self) -> list[dict[str, Any]]:
         if not self._index_path.exists():
             return []
@@ -94,9 +108,11 @@ class WorkflowRepository:
             return []
         return [item for item in payload if isinstance(item, dict)]
 
+    # -------------------------------------------------------------------------
     def _save_index(self, entries: list[dict[str, Any]]) -> None:
         self._index_path.write_text(json.dumps(entries, indent=2), encoding="utf-8")
 
+    # -------------------------------------------------------------------------
     def _upsert_index(self, document: WorkflowDocument) -> None:
         entries = self._load_index()
         serialized = {

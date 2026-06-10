@@ -20,22 +20,26 @@ from server.repositories.schemas import (
     UserSession,
 )
 
-
 ###############################################################################
 class ConfigurationRepository:
+
+    # -------------------------------------------------------------------------
     def __init__(
         self, database_factory: DatabaseRepositoryFactory | None = None
     ) -> None:
         self._database_factory = database_factory or DatabaseRepositoryFactory()
 
+    # -------------------------------------------------------------------------
     def _database_engine(self):
         settings = get_server_settings().database
         return self._database_factory.build(settings).engine
 
+    # -------------------------------------------------------------------------
     def _normalize_session_name(self, session_name: str | None) -> str:
         normalized = (session_name or "").strip()
         return normalized or DEFAULT_SESSION_NAME
 
+    # -------------------------------------------------------------------------
     def _normalize_profile_name(self, profile_name: str) -> str:
         normalized = profile_name.strip()
         if not normalized:
@@ -46,12 +50,14 @@ class ConfigurationRepository:
             )
         return normalized
 
+    # -------------------------------------------------------------------------
     def _format_timestamp(self, value: datetime | None) -> str:
         timestamp = value or datetime.now(timezone.utc)
         if timestamp.tzinfo is None:
             timestamp = timestamp.replace(tzinfo=timezone.utc)
         return timestamp.astimezone(timezone.utc).isoformat()
 
+    # -------------------------------------------------------------------------
     def _get_or_create_session(
         self, db_session: Session, session_name: str
     ) -> tuple[UserSession, bool]:
@@ -66,6 +72,7 @@ class ConfigurationRepository:
         db_session.flush()
         return created, True
 
+    # -------------------------------------------------------------------------
     def _serialize_configuration(
         self, session_row: UserSession, access_rows: list[AccessKey]
     ) -> dict[str, Any]:
@@ -87,6 +94,7 @@ class ConfigurationRepository:
             },
         }
 
+    # -------------------------------------------------------------------------
     def _load_access_keys(
         self, db_session: Session, session_id: int
     ) -> list[AccessKey]:
@@ -98,6 +106,7 @@ class ConfigurationRepository:
             ).scalars()
         )
 
+    # -------------------------------------------------------------------------
     def _serialize_profile_summary(
         self, profile_row: ConfigurationProfile
     ) -> dict[str, str]:
@@ -107,6 +116,7 @@ class ConfigurationRepository:
             "updated_at": self._format_timestamp(profile_row.updated_at),
         }
 
+    # -------------------------------------------------------------------------
     def load_configuration(self, session_name: str | None = None) -> dict[str, Any]:
         normalized_session_name = self._normalize_session_name(session_name)
         with Session(self._database_engine()) as db_session:
@@ -119,6 +129,7 @@ class ConfigurationRepository:
             access_rows = self._load_access_keys(db_session, session_row.session_id)
             return self._serialize_configuration(session_row, access_rows)
 
+    # -------------------------------------------------------------------------
     def save_configuration(
         self,
         *,
@@ -181,6 +192,7 @@ class ConfigurationRepository:
             access_rows = self._load_access_keys(db_session, session_row.session_id)
             return self._serialize_configuration(session_row, access_rows)
 
+    # -------------------------------------------------------------------------
     def list_configuration_profiles(
         self, session_name: str | None = None
     ) -> dict[str, Any]:
@@ -210,6 +222,7 @@ class ConfigurationRepository:
                 ],
             }
 
+    # -------------------------------------------------------------------------
     def load_configuration_profile(
         self, *, session_name: str | None, profile_name: str
     ) -> dict[str, Any]:
@@ -251,6 +264,7 @@ class ConfigurationRepository:
                 "ollama": ollama,
             }
 
+    # -------------------------------------------------------------------------
     def save_configuration_profile(
         self,
         *,
@@ -285,6 +299,7 @@ class ConfigurationRepository:
 
             db_session.commit()
 
+    # -------------------------------------------------------------------------
     def save_node_configuration(
         self,
         *,

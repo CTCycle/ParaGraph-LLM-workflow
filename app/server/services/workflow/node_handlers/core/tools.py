@@ -24,6 +24,7 @@ from server.services.workflow.provider import provider_service
 _TOOL_CALLABLES: dict[str, Callable[..., Any]] = {}
 
 
+###############################################################################
 def _json_type(annotation: Any) -> str:
     if annotation in {int}:
         return "integer"
@@ -38,6 +39,7 @@ def _json_type(annotation: Any) -> str:
     return "string"
 
 
+###############################################################################
 def _schema_from_callable_signature(function: Callable[..., Any]) -> dict[str, Any]:
     signature = inspect.signature(function)
     properties: dict[str, Any] = {}
@@ -59,6 +61,7 @@ def _schema_from_callable_signature(function: Callable[..., Any]) -> dict[str, A
     }
 
 
+###############################################################################
 def _register_callable_tool(
     function: Callable[..., Any], source_type: str, source_ref: str = ""
 ) -> ToolDefinition:
@@ -75,6 +78,7 @@ def _register_callable_tool(
     )
 
 
+###############################################################################
 def _safe_load_inline_tool_module(code: str) -> dict[str, Any]:
     tree = ast.parse(code)
     if any(
@@ -91,6 +95,7 @@ def _safe_load_inline_tool_module(code: str) -> dict[str, Any]:
     return namespace
 
 
+###############################################################################
 def _parse_inline_python_tools(code: str) -> list[ToolDefinition]:
     namespace = _safe_load_inline_tool_module(code)
     return [
@@ -100,6 +105,7 @@ def _parse_inline_python_tools(code: str) -> list[ToolDefinition]:
     ]
 
 
+###############################################################################
 def _load_tool_module_from_file(file_path: str) -> dict[str, Any]:
     path = resolve_local_path(file_path)
     if path.suffix.lower() != ".py":
@@ -112,6 +118,7 @@ def _load_tool_module_from_file(file_path: str) -> dict[str, Any]:
     return vars(module)
 
 
+###############################################################################
 def _parse_python_file_tools(
     file_path: str, entrypoint: str = ""
 ) -> list[ToolDefinition]:
@@ -132,6 +139,7 @@ def _parse_python_file_tools(
     ]
 
 
+###############################################################################
 def _parse_signature_tools(signature_text: str) -> list[ToolDefinition]:
     tools: list[ToolDefinition] = []
     for line in signature_text.splitlines():
@@ -166,6 +174,7 @@ def _parse_signature_tools(signature_text: str) -> list[ToolDefinition]:
     return tools
 
 
+###############################################################################
 def _normalize_tool_schema(
     schema: dict[str, Any], tool_name: str = "", description: str = ""
 ) -> ToolDefinition:
@@ -187,6 +196,7 @@ def _normalize_tool_schema(
     )
 
 
+###############################################################################
 def _parse_json_schema_tools(
     schema: dict[str, Any], tool_name: str = "", description: str = ""
 ) -> list[ToolDefinition]:
@@ -199,6 +209,7 @@ def _parse_json_schema_tools(
     return [_normalize_tool_schema(schema, tool_name, description)]
 
 
+###############################################################################
 def _tool_collection_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
 ) -> dict[str, Any]:
@@ -224,6 +235,7 @@ def _tool_collection_executor(
     return {"tools": handle.model_dump(mode="json")}
 
 
+###############################################################################
 def _build_tool_choice_schema(tools: list[ToolDefinition]) -> dict[str, Any]:
     return {
         "type": "object",
@@ -236,10 +248,12 @@ def _build_tool_choice_schema(tools: list[ToolDefinition]) -> dict[str, Any]:
     }
 
 
+###############################################################################
 def _validate_tool_arguments(tool: ToolDefinition, arguments: dict[str, Any]) -> None:
     validate_json_against_schema(arguments, tool.parameters_schema)
 
 
+###############################################################################
 def _execute_selected_tool(selection: ToolCallSelection) -> Any:
     function = _TOOL_CALLABLES.get(selection.tool_name)
     if function is None:
@@ -247,6 +261,7 @@ def _execute_selected_tool(selection: ToolCallSelection) -> Any:
     return function(**selection.arguments)
 
 
+###############################################################################
 def _select_tool_with_structured_model(
     *,
     selection: ProviderModelDefinition,
@@ -276,6 +291,7 @@ def _select_tool_with_structured_model(
     return ToolCallSelection.model_validate({**result, "raw_model_response": result})
 
 
+###############################################################################
 def _select_tool_with_native_provider_tools(
     *,
     selection: ProviderModelDefinition,
@@ -302,6 +318,7 @@ def _select_tool_with_native_provider_tools(
     return ToolCallSelection.model_validate(response)
 
 
+###############################################################################
 def _tool_call_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
 ) -> dict[str, Any]:

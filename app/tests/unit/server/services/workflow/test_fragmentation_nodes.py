@@ -7,6 +7,7 @@ import pytest
 from server.services.workflow import node_registry
 
 
+###############################################################################
 def test_fixed_size_chunks_splits_deferred_documents_by_words(tmp_path: Path) -> None:
     source_dir = tmp_path / "docs"
     source_dir.mkdir(parents=True, exist_ok=True)
@@ -38,6 +39,7 @@ def test_fixed_size_chunks_splits_deferred_documents_by_words(tmp_path: Path) ->
     )
 
 
+###############################################################################
 def test_fixed_size_chunks_supports_chained_chunk_fragmentation_by_characters() -> None:
     payload = node_registry.execute(
         "FIXED_SIZE_CHUNKS",
@@ -66,6 +68,7 @@ def test_fixed_size_chunks_supports_chained_chunk_fragmentation_by_characters() 
     )
 
 
+###############################################################################
 def test_fixed_size_chunks_rejects_invalid_overlap() -> None:
     with pytest.raises(
         ValueError, match="chunk_overlap must be smaller than chunk_size"
@@ -90,6 +93,7 @@ def test_fixed_size_chunks_rejects_invalid_overlap() -> None:
         )
 
 
+###############################################################################
 def test_fixed_size_chunks_requires_non_empty_input() -> None:
     with pytest.raises(
         ValueError, match="requires at least one document, chunk, or text input"
@@ -102,6 +106,7 @@ def test_fixed_size_chunks_requires_non_empty_input() -> None:
         )
 
 
+###############################################################################
 def test_fixed_size_chunks_supports_direct_text_input() -> None:
     payload = node_registry.execute(
         "FIXED_SIZE_CHUNKS",
@@ -113,6 +118,7 @@ def test_fixed_size_chunks_supports_direct_text_input() -> None:
     assert [chunk["text"] for chunk in payload["chunks"]] == ["alpha beta", "gamma"]
 
 
+###############################################################################
 def test_regex_split_chunks_splits_text_by_pattern() -> None:
     payload = node_registry.execute(
         "REGEX_SPLIT_CHUNKS",
@@ -124,6 +130,7 @@ def test_regex_split_chunks_splits_text_by_pattern() -> None:
     assert [chunk["text"] for chunk in payload["chunks"]] == ["alpha", "beta", "gamma"]
 
 
+###############################################################################
 def test_regex_split_chunks_rejects_invalid_regex() -> None:
     with pytest.raises(
         ValueError, match="Invalid regex pattern for REGEX_SPLIT_CHUNKS"
@@ -136,6 +143,7 @@ def test_regex_split_chunks_rejects_invalid_regex() -> None:
         )
 
 
+###############################################################################
 def test_regex_split_chunks_requires_non_empty_input() -> None:
     with pytest.raises(
         ValueError, match="requires at least one document, chunk, or text input"

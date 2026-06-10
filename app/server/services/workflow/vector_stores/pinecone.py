@@ -20,10 +20,12 @@ from server.services.workflow.vector_stores.base import (
 )
 
 
+###############################################################################
 class PineconeVectorStoreAdapter(VectorStoreAdapter):
     backend = "pinecone"
     supports_faiss_augmentation = False
 
+    # -------------------------------------------------------------------------
     def _map_filter(self, filter_spec: dict[str, Any] | None) -> dict[str, Any] | None:
         if not filter_spec:
             return None
@@ -67,6 +69,7 @@ class PineconeVectorStoreAdapter(VectorStoreAdapter):
                 output["$comment"] = f"minimum_should_match={minimum_should_match}"
         return output
 
+    # -------------------------------------------------------------------------
     def validate_connection(
         self,
         *,
@@ -94,6 +97,7 @@ class PineconeVectorStoreAdapter(VectorStoreAdapter):
                 target,
             )
 
+    # -------------------------------------------------------------------------
     def write_points(
         self,
         *,
@@ -188,6 +192,7 @@ class PineconeVectorStoreAdapter(VectorStoreAdapter):
             },
         )
 
+    # -------------------------------------------------------------------------
     def search(
         self,
         *,

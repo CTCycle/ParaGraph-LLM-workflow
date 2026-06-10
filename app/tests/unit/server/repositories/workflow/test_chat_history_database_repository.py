@@ -9,9 +9,10 @@ from server.domain.settings import DatabaseSettings
 from server.repositories.database.base import TabularDatabaseRepository
 from server.repositories.workflow import chat_history_database as chat_history_module
 
-
 ###############################################################################
 class InMemoryTabularRepository(TabularDatabaseRepository):
+
+    # -------------------------------------------------------------------------
     def __init__(self) -> None:
         engine = sqlalchemy.create_engine("sqlite:///:memory:", future=True)
         super().__init__(
@@ -20,20 +21,23 @@ class InMemoryTabularRepository(TabularDatabaseRepository):
             insert_batch_size=2,
         )
 
-
 ###############################################################################
 class FakeDatabaseFactory:
+
+    # -------------------------------------------------------------------------
     def __init__(self, repository: InMemoryTabularRepository) -> None:
         self.repository = repository
         self.build_calls = 0
 
+    # -------------------------------------------------------------------------
     def build(self, settings: DatabaseSettings) -> InMemoryTabularRepository:
         self.build_calls += 1
         return self.repository
 
-
 ###############################################################################
 class FakeServerSettings:
+
+    # -------------------------------------------------------------------------
     def __init__(self) -> None:
         self.database = DatabaseSettings(
             embedded_database=True,
@@ -48,7 +52,6 @@ class FakeServerSettings:
             connect_timeout=10,
             insert_batch_size=2,
         )
-
 
 ###############################################################################
 def test_database_chat_history_repository_builds_database_once(monkeypatch) -> None:

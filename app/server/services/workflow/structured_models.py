@@ -19,6 +19,7 @@ _SCALARS: dict[str, Any] = {
 }
 
 
+###############################################################################
 def infer_model_from_json(name: str, value: dict[str, Any]) -> type[BaseModel]:
     fields: dict[str, tuple[Any, Any]] = {}
     for key, item in value.items():
@@ -43,10 +44,12 @@ def infer_model_from_json(name: str, value: dict[str, Any]) -> type[BaseModel]:
     return create_model(name, **fields)
 
 
+###############################################################################
 def model_to_json_schema(model: type[BaseModel]) -> dict[str, Any]:
     return model.model_json_schema()
 
 
+###############################################################################
 def _annotation_to_type(node: ast.AST, *, field: str) -> Any:
     if isinstance(node, ast.Name):
         if node.id in _SCALARS:
@@ -89,6 +92,7 @@ def _annotation_to_type(node: ast.AST, *, field: str) -> Any:
     )
 
 
+###############################################################################
 def parse_user_pydantic_model(model_source: str) -> type[BaseModel]:
     tree = ast.parse(model_source)
     class_node = next(
@@ -112,11 +116,13 @@ def parse_user_pydantic_model(model_source: str) -> type[BaseModel]:
     return create_model(class_node.name, **fields)
 
 
+###############################################################################
 def validate_json_with_model(value: Any, model: type[BaseModel]) -> dict[str, Any]:
     instance = model.model_validate(value)
     return instance.model_dump(mode="json")
 
 
+###############################################################################
 def validation_error_payload(error: ValidationError) -> dict[str, Any]:
     errors: list[dict[str, Any]] = []
     for issue in error.errors():

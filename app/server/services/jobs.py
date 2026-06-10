@@ -10,9 +10,10 @@ from typing import Any
 from server.common.utils.logger import logger
 from server.domain.jobs import JobState
 
-
 ###############################################################################
 class JobManager:
+
+    # -------------------------------------------------------------------------
     def __init__(self) -> None:
         self._jobs: dict[str, JobState] = {}
         self._threads: dict[str, threading.Thread] = {}

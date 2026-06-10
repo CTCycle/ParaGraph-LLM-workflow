@@ -9,6 +9,7 @@ from server.domain.settings import DatabaseSettings
 from server.repositories.database import sqlite as sqlite_module
 
 
+###############################################################################
 def _build_settings() -> DatabaseSettings:
     return DatabaseSettings(
         embedded_database=True,
@@ -25,6 +26,7 @@ def _build_settings() -> DatabaseSettings:
     )
 
 
+###############################################################################
 def test_sqlite_repository_uses_resources_root_for_default_path(
     tmp_path: Path, monkeypatch
 ) -> None:
@@ -35,6 +37,7 @@ def test_sqlite_repository_uses_resources_root_for_default_path(
     assert repository.db_path == str(tmp_path / "database.db")
 
 
+###############################################################################
 def test_sqlite_repository_save_load_and_count_rows(
     tmp_path: Path, monkeypatch
 ) -> None:
@@ -54,6 +57,7 @@ def test_sqlite_repository_save_load_and_count_rows(
     assert repository.count_rows("datasets") == 2
 
 
+###############################################################################
 def test_sqlite_repository_load_missing_table_returns_empty_frame(
     tmp_path: Path, monkeypatch
 ) -> None:
@@ -66,6 +70,7 @@ def test_sqlite_repository_load_missing_table_returns_empty_frame(
     assert loaded.shape == (0, 0)
 
 
+###############################################################################
 def test_sqlite_repository_count_rows_raises_for_missing_table(
     tmp_path: Path, monkeypatch
 ) -> None:

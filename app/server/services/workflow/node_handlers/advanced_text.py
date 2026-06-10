@@ -21,11 +21,9 @@ PII_PATTERNS = {
     "address": r"\b\d{1,6}\s+[A-Za-z0-9 .'-]+\s+(?:Street|St|Road|Rd|Avenue|Ave|Boulevard|Blvd|Lane|Ln)\b",
 }
 
-
 ###############################################################################
 def _text(inputs: dict[str, Any], key: str = "text") -> str:
     return coerce_text(inputs.get(key, inputs.get("value", "")))
-
 
 ###############################################################################
 def _classifier(
@@ -37,7 +35,6 @@ def _classifier(
         "matches": matches,
         "metadata": metadata or {},
     }
-
 
 ###############################################################################
 def _claim_extractor_executor(
@@ -54,7 +51,6 @@ def _claim_extractor_executor(
             {"claim": claim, "index": index} for index, claim in enumerate(claims)
         ]
     }
-
 
 ###############################################################################
 def _contradiction_detector_executor(
@@ -75,7 +71,6 @@ def _contradiction_detector_executor(
         [],
     )
 
-
 ###############################################################################
 def _entity_extractor_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
@@ -87,7 +82,6 @@ def _entity_extractor_executor(
         for match in re.finditer(r"\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b", text)
     ]
     return {"result": entities}
-
 
 ###############################################################################
 def _entity_resolver_executor(
@@ -114,7 +108,6 @@ def _entity_resolver_executor(
         ]
     }
 
-
 ###############################################################################
 def _pii_detector_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
@@ -129,7 +122,6 @@ def _pii_detector_executor(
             )
     return {"result": matches}
 
-
 ###############################################################################
 def _pii_redactor_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
@@ -139,7 +131,6 @@ def _pii_redactor_executor(
     for pattern in PII_PATTERNS.values():
         text = re.sub(pattern, parsed.replacement, text, flags=re.IGNORECASE)
     return {"result": text}
-
 
 ###############################################################################
 def _prompt_injection_detector_executor(
@@ -159,7 +150,6 @@ def _prompt_injection_detector_executor(
         "prompt_injection" if matches else "clean", 1.0 if matches else 0.0, matches
     )
 
-
 ###############################################################################
 def _instruction_stripper_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
@@ -174,7 +164,6 @@ def _instruction_stripper_executor(
     ]
     return {"result": "\n".join(lines)}
 
-
 ###############################################################################
 def _diff_text_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
@@ -187,7 +176,6 @@ def _diff_text_executor(
     )
     return {"result": "\n".join(diff)}
 
-
 ###############################################################################
 def _patch_apply_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
@@ -196,7 +184,6 @@ def _patch_apply_executor(
     raise ValueError(
         "PATCH_APPLY rejects patches unless context matching is implemented for the target text"
     )
-
 
 ###############################################################################
 def _markdown_parser_executor(
@@ -216,7 +203,6 @@ def _markdown_parser_executor(
         ]
     }
 
-
 ###############################################################################
 def _code_block_extractor_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
@@ -227,7 +213,6 @@ def _code_block_extractor_executor(
         for match in re.finditer(r"```(\w*)\n(.*?)```", _text(inputs), re.S)
     ]
     return {"result": blocks}
-
 
 ###############################################################################
 def _citation_extractor_executor(
@@ -245,7 +230,6 @@ def _citation_extractor_executor(
         }
     }
 
-
 ###############################################################################
 def _date_normalizer_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
@@ -260,7 +244,6 @@ def _date_normalizer_executor(
     except (ValueError, OverflowError):
         return {"result": None}
 
-
 ###############################################################################
 def _unit_number_normalizer_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
@@ -272,7 +255,6 @@ def _unit_number_normalizer_executor(
     ]
     return {"result": matches}
 
-
 ###############################################################################
 def _table_extractor_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
@@ -281,12 +263,14 @@ def _table_extractor_executor(
     rows = [line for line in _text(inputs).splitlines() if "|" in line]
     return {"result": rows}
 
-
 ###############################################################################
 class StaticClassifierExecutor:
+
+    # -------------------------------------------------------------------------
     def __init__(self, label: str) -> None:
         self._label = label
 
+    # -------------------------------------------------------------------------
     def __call__(
         self, parameters: dict[str, Any], inputs: dict[str, Any]
     ) -> dict[str, Any]:

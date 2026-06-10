@@ -37,6 +37,7 @@ SUPPORTED_DATABASE_ENGINES = {"sqlite", "postgres", "postgresql", "mysql"}
 POSTGRES_ENGINES = {"postgres", "postgresql"}
 
 
+###############################################################################
 def _parse_json_value(value: Any, label: str) -> Any:
     if isinstance(value, (dict, list, int, float, bool)) or value is None:
         return value
@@ -49,6 +50,7 @@ def _parse_json_value(value: Any, label: str) -> Any:
         raise ValueError(f"{label} must be valid JSON") from exc
 
 
+###############################################################################
 def normalize_database_engine(value: Any, *, label: str = "engine") -> str:
     normalized = str(value or "").strip().lower()
     if normalized in POSTGRES_ENGINES:
@@ -62,6 +64,7 @@ def normalize_database_engine(value: Any, *, label: str = "engine") -> str:
     )
 
 
+###############################################################################
 class DirectoryLoaderParameters(BaseModel):
     directory_path: str
     recursive: bool = True
@@ -69,6 +72,7 @@ class DirectoryLoaderParameters(BaseModel):
         default_factory=lambda: sorted(SUPPORTED_DOCUMENT_EXTENSIONS)
     )
 
+    # -------------------------------------------------------------------------
     @field_validator("directory_path")
     @classmethod
     def validate_directory_path(cls, value: str) -> str:
@@ -77,6 +81,7 @@ class DirectoryLoaderParameters(BaseModel):
             raise ValueError("directory_path must not be empty")
         return normalized
 
+    # -------------------------------------------------------------------------
     @field_validator("include_extensions", mode="before")
     @classmethod
     def validate_extensions(cls, value: Any) -> list[str]:
@@ -97,10 +102,12 @@ class DirectoryLoaderParameters(BaseModel):
         ]
 
 
+###############################################################################
 class LoadDocumentsParameters(BaseModel):
     folder_path: str
     recursive: bool = True
 
+    # -------------------------------------------------------------------------
     @field_validator("folder_path")
     @classmethod
     def validate_folder_path(cls, value: str) -> str:
@@ -110,10 +117,12 @@ class LoadDocumentsParameters(BaseModel):
         return normalized
 
 
+###############################################################################
 class DocumentTextExtractorParameters(BaseModel):
     include_empty_pages: bool = False
 
 
+###############################################################################
 class DatabaseConnectionParameters(BaseModel):
     engine: str = "sqlite"
     database_name: str = ""
@@ -125,11 +134,13 @@ class DatabaseConnectionParameters(BaseModel):
     options: dict[str, Any] = Field(default_factory=dict)
     connect_timeout_s: float = Field(default=5.0, ge=1.0, le=60.0)
 
+    # -------------------------------------------------------------------------
     @field_validator("engine")
     @classmethod
     def validate_engine(cls, value: str) -> str:
         return normalize_database_engine(value, label="engine")
 
+    # -------------------------------------------------------------------------
     @field_validator("options", mode="before")
     @classmethod
     def validate_options(cls, value: Any) -> dict[str, Any]:
@@ -142,6 +153,7 @@ class DatabaseConnectionParameters(BaseModel):
             raise ValueError("options must be a JSON object")
         return parsed
 
+    # -------------------------------------------------------------------------
     @model_validator(mode="after")
     def validate_engine_specific_fields(self) -> "DatabaseConnectionParameters":
         if self.engine == "sqlite":
@@ -160,6 +172,7 @@ class DatabaseConnectionParameters(BaseModel):
         return self
 
 
+###############################################################################
 class SQLDatabaseParameters(BaseModel):
     db_engine: str = "postgres"
     db_host: str = "127.0.0.1"
@@ -171,6 +184,7 @@ class SQLDatabaseParameters(BaseModel):
     db_ssl_ca: str = ""
     db_connect_timeout: float = Field(default=30.0, ge=1.0, le=120.0)
 
+    # -------------------------------------------------------------------------
     @field_validator("db_engine")
     @classmethod
     def validate_db_engine(cls, value: str) -> str:
@@ -179,6 +193,7 @@ class SQLDatabaseParameters(BaseModel):
             raise ValueError("db_engine must be one of: postgres, mysql")
         return normalized
 
+    # -------------------------------------------------------------------------
     @field_validator("db_host", "db_name", "db_user")
     @classmethod
     def validate_required_text_fields(cls, value: str, info: Any) -> str:
@@ -188,10 +203,12 @@ class SQLDatabaseParameters(BaseModel):
         return normalized
 
 
+###############################################################################
 class SQLFileDatabaseParameters(BaseModel):
     db_path: str = ""
     db_connect_timeout: float = Field(default=30.0, ge=1.0, le=120.0)
 
+    # -------------------------------------------------------------------------
     @field_validator("db_path")
     @classmethod
     def validate_db_path(cls, value: str) -> str:

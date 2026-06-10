@@ -56,7 +56,6 @@ HuggingFaceDownloadJobStatus = Literal[
     "pending", "running", "completed", "failed", "cancelled"
 ]
 
-
 ###############################################################################
 class NodePortDefinition(BaseModel):
     name: str
@@ -68,7 +67,6 @@ class NodePortDefinition(BaseModel):
 
 NodeControllerScope = Literal["source", "target", "both"]
 
-
 ###############################################################################
 class NodeControllerDefinition(BaseModel):
     name: str
@@ -77,7 +75,6 @@ class NodeControllerDefinition(BaseModel):
     accepts_multiple: bool = False
     scope: NodeControllerScope = "target"
     description: str | None = None
-
 
 ###############################################################################
 class NodeParameterDefinition(BaseModel):
@@ -88,7 +85,6 @@ class NodeParameterDefinition(BaseModel):
     ui_control: str = "text"
     description: str | None = None
 
-
 ###############################################################################
 class NodeUiDefinition(BaseModel):
     default_width: int = 280
@@ -96,12 +92,10 @@ class NodeUiDefinition(BaseModel):
     icon: str | None = None
     collapsed_by_default: bool = False
 
-
 ###############################################################################
 class NodePluginRuntimeDefinition(BaseModel):
     script_path: str
     entrypoint: str = "execute"
-
 
 ###############################################################################
 class NodeRuntimeDefinition(BaseModel):
@@ -110,7 +104,6 @@ class NodeRuntimeDefinition(BaseModel):
     deterministic: bool = True
     side_effecting: bool = False
     plugin: NodePluginRuntimeDefinition | None = None
-
 
 ###############################################################################
 class NodeManifest(BaseModel):
@@ -126,16 +119,15 @@ class NodeManifest(BaseModel):
     ui: NodeUiDefinition = Field(default_factory=NodeUiDefinition)
     runtime: NodeRuntimeDefinition
 
+    # -------------------------------------------------------------------------
     @field_validator("category", mode="before")
     @classmethod
     def normalize_category(cls, value: str) -> str:
         return str(value or "").strip().lower()
 
-
 ###############################################################################
 class NodeCatalogResponse(BaseModel):
     nodes: list[NodeManifest] = Field(default_factory=list)
-
 
 ###############################################################################
 class ProviderCapability(BaseModel):
@@ -146,11 +138,9 @@ class ProviderCapability(BaseModel):
     supports_streaming: bool = False
     supports_tool_calling: bool = False
 
-
 ###############################################################################
 class ProviderCatalogResponse(BaseModel):
     providers: list[ProviderCapability] = Field(default_factory=list)
-
 
 ###############################################################################
 class ProviderModelDefinition(BaseModel):
@@ -163,11 +153,9 @@ class ProviderModelDefinition(BaseModel):
     supports_structured_output: bool = True
     timeout_s: float | None = Field(default=None, ge=1)
 
-
 ###############################################################################
 class ProviderModelCatalogResponse(BaseModel):
     models: list[ProviderModelDefinition] = Field(default_factory=list)
-
 
 ###############################################################################
 class OllamaLibraryModelDefinition(BaseModel):
@@ -175,7 +163,6 @@ class OllamaLibraryModelDefinition(BaseModel):
     description: str | None = None
     homepage: str
     pulled: bool = False
-
 
 ###############################################################################
 class OllamaLibraryCatalogResponse(BaseModel):
@@ -185,18 +172,15 @@ class OllamaLibraryCatalogResponse(BaseModel):
     refreshed_at: str
     source: str = "https://ollama.com/library"
 
-
 ###############################################################################
 class OllamaModelPullRequest(BaseModel):
     model: str = Field(min_length=1, max_length=255)
-
 
 ###############################################################################
 class OllamaModelPullResponse(BaseModel):
     ok: bool
     model: str
     message: str
-
 
 ###############################################################################
 class HuggingFaceModelDefinition(BaseModel):
@@ -214,7 +198,6 @@ class HuggingFaceModelDefinition(BaseModel):
     downloaded: bool = False
     size_bytes: int | None = None
 
-
 ###############################################################################
 class HuggingFaceModelCatalogResponse(BaseModel):
     models: list[HuggingFaceModelDefinition] = Field(default_factory=list)
@@ -226,11 +209,9 @@ class HuggingFaceModelCatalogResponse(BaseModel):
     available_tasks: list[str] = Field(default_factory=list)
     available_libraries: list[str] = Field(default_factory=list)
 
-
 ###############################################################################
 class HuggingFaceModelDownloadRequest(BaseModel):
     repo_id: str = Field(min_length=3, max_length=240)
-
 
 ###############################################################################
 class HuggingFaceModelDownloadResponse(BaseModel):
@@ -246,7 +227,6 @@ class HuggingFaceModelDownloadResponse(BaseModel):
     total_bytes: int | None = None
     poll_interval: float = 1.0
 
-
 ###############################################################################
 class HuggingFaceModelDownloadStatusResponse(BaseModel):
     job_id: str
@@ -258,7 +238,6 @@ class HuggingFaceModelDownloadStatusResponse(BaseModel):
     downloaded_bytes: int = 0
     total_bytes: int | None = None
     error: str | None = None
-
 
 ###############################################################################
 class HuggingFaceModelDownloadCancelResponse(BaseModel):

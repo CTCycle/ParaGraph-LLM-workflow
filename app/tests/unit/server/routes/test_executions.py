@@ -5,6 +5,7 @@ import time
 from fastapi.testclient import TestClient
 
 
+###############################################################################
 def _basic_prompt_output_definition() -> dict[str, object]:
     return {
         "schema_version": 2,
@@ -34,6 +35,7 @@ def _basic_prompt_output_definition() -> dict[str, object]:
     }
 
 
+###############################################################################
 def test_compile_flags_duplicate_connections(client: TestClient) -> None:
     definition = _basic_prompt_output_definition()
     definition["connections"] = [
@@ -60,6 +62,7 @@ def test_compile_flags_duplicate_connections(client: TestClient) -> None:
     assert "duplicate_connection" in codes
 
 
+###############################################################################
 def test_compile_flags_input_multiplicity_violation(client: TestClient) -> None:
     definition = {
         "schema_version": 2,
@@ -109,6 +112,7 @@ def test_compile_flags_input_multiplicity_violation(client: TestClient) -> None:
     assert "input_multiplicity" in codes
 
 
+###############################################################################
 def test_compile_flags_missing_ports_and_controllers(client: TestClient) -> None:
     missing_source_port = {
         "schema_version": 2,
@@ -216,6 +220,7 @@ def test_compile_flags_missing_ports_and_controllers(client: TestClient) -> None
     )
 
 
+###############################################################################
 def test_get_execution_returns_404_for_unknown_run(client: TestClient) -> None:
     response = client.get("/executions/run-missing")
 
@@ -223,6 +228,7 @@ def test_get_execution_returns_404_for_unknown_run(client: TestClient) -> None:
     assert response.json()["detail"] == "Run not found: run-missing"
 
 
+###############################################################################
 def test_execution_session_id_round_trips_through_execution_endpoints(
     client: TestClient,
 ) -> None:
@@ -263,6 +269,7 @@ def test_execution_session_id_round_trips_through_execution_endpoints(
     assert last_payload["execution_session_id"] == session_id
 
 
+###############################################################################
 def test_execution_request_id_correlates_response_run_and_events(
     client: TestClient,
 ) -> None:

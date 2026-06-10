@@ -8,12 +8,14 @@ from server.services.workflow.node_handlers.base import NodeHandler
 from server.services.workflow.node_handlers.common import coerce_text
 
 
+###############################################################################
 def _records(value: Any) -> list[Any]:
     if value is None:
         return []
     return value if isinstance(value, list) else [value]
 
 
+###############################################################################
 def _text_of(value: Any) -> str:
     if isinstance(value, dict):
         return coerce_text(
@@ -22,6 +24,7 @@ def _text_of(value: Any) -> str:
     return coerce_text(value)
 
 
+###############################################################################
 def _chunk(text: str, size: int, overlap: int) -> list[dict[str, Any]]:
     size = max(1, size)
     overlap = max(0, min(overlap, size - 1))
@@ -44,6 +47,7 @@ def _chunk(text: str, size: int, overlap: int) -> list[dict[str, Any]]:
     return chunks
 
 
+###############################################################################
 def _normalize_text_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
 ) -> dict[str, Any]:
@@ -61,6 +65,7 @@ def _normalize_text_executor(
     return {"result": text}
 
 
+###############################################################################
 def _regex_extract_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
 ) -> dict[str, Any]:
@@ -79,6 +84,7 @@ def _regex_extract_executor(
     return {"result": matches}
 
 
+###############################################################################
 def _regex_replace_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
 ) -> dict[str, Any]:
@@ -91,6 +97,7 @@ def _regex_replace_executor(
     }
 
 
+###############################################################################
 def _token_split_chunks_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
 ) -> dict[str, Any]:
@@ -103,6 +110,7 @@ def _token_split_chunks_executor(
     }
 
 
+###############################################################################
 def _semantic_split_chunks_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
 ) -> dict[str, Any]:
@@ -121,6 +129,7 @@ def _semantic_split_chunks_executor(
     }
 
 
+###############################################################################
 def _join_merge_text_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
 ) -> dict[str, Any]:
@@ -129,6 +138,7 @@ def _join_merge_text_executor(
     return {"result": separator.join(_text_of(item) for item in values)}
 
 
+###############################################################################
 def _deduplicate_text_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
 ) -> dict[str, Any]:
@@ -143,6 +153,7 @@ def _deduplicate_text_executor(
     return {"result": "\n".join(kept)}
 
 
+###############################################################################
 def _metadata_attach_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
 ) -> dict[str, Any]:
@@ -168,6 +179,7 @@ def _metadata_attach_executor(
     return {"result": {"text": _text_of(value), "metadata": metadata}}
 
 
+###############################################################################
 def _language_detect_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
 ) -> dict[str, Any]:
@@ -182,6 +194,7 @@ def _language_detect_executor(
     }
 
 
+###############################################################################
 def _token_counter_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
 ) -> dict[str, Any]:
@@ -196,6 +209,7 @@ def _token_counter_executor(
     }
 
 
+###############################################################################
 def _truncate_to_budget_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
 ) -> dict[str, Any]:
@@ -215,6 +229,7 @@ def _truncate_to_budget_executor(
     return {"result": result}
 
 
+###############################################################################
 def _llm_summarize_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
 ) -> dict[str, Any]:
@@ -227,6 +242,7 @@ def _llm_summarize_executor(
     return {"result": " ".join(sentences[:max_sentences])}
 
 
+###############################################################################
 def _llm_rewrite_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
 ) -> dict[str, Any]:

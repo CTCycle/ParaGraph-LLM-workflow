@@ -7,15 +7,20 @@ from typing import Any
 from server.domain.execution import ExecutionRunState, ExecutionStepState
 
 
+###############################################################################
 class ExecutionRunRepository:
+
+    # -------------------------------------------------------------------------
     def __init__(self) -> None:
         self._runs: dict[str, ExecutionRunState] = {}
         self._lock = threading.Lock()
 
+    # -------------------------------------------------------------------------
     def create_run(self, run: ExecutionRunState) -> None:
         with self._lock:
             self._runs[run.run_id] = run
 
+    # -------------------------------------------------------------------------
     def get_run(self, run_id: str) -> ExecutionRunState | None:
         with self._lock:
             run = self._runs.get(run_id)
@@ -23,6 +28,7 @@ class ExecutionRunRepository:
                 return None
             return run.model_copy(deep=True)
 
+    # -------------------------------------------------------------------------
     def update_run(self, run_id: str, **kwargs: Any) -> ExecutionRunState | None:
         with self._lock:
             run = self._runs.get(run_id)
@@ -35,6 +41,7 @@ class ExecutionRunRepository:
             self._runs[run_id] = updated
             return updated.model_copy(deep=True)
 
+    # -------------------------------------------------------------------------
     def set_steps(
         self, run_id: str, steps: list[ExecutionStepState]
     ) -> ExecutionRunState | None:
@@ -49,6 +56,7 @@ class ExecutionRunRepository:
             self._runs[run_id] = updated
             return updated.model_copy(deep=True)
 
+    # -------------------------------------------------------------------------
     def reset_for_tests(self) -> None:
         with self._lock:
             self._runs.clear()

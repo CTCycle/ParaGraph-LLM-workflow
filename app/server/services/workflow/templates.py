@@ -12,10 +12,14 @@ from server.services.workflow.nodes import node_registry
 TEMPLATE_ROOT = common_path.RESOURCES_ROOT / "workflow_templates"
 
 
+###############################################################################
 class WorkflowTemplateService:
+
+    # -------------------------------------------------------------------------
     def __init__(self) -> None:
         TEMPLATE_ROOT.mkdir(parents=True, exist_ok=True)
 
+    # -------------------------------------------------------------------------
     def _load_template(self, path: Path) -> WorkflowTemplateManifest:
         template = WorkflowTemplateManifest.model_validate_json(
             path.read_text(encoding="utf-8")
@@ -24,6 +28,7 @@ class WorkflowTemplateService:
         self._validate_compilation(template)
         return template
 
+    # -------------------------------------------------------------------------
     def _validate_required_nodes(self, template: WorkflowTemplateManifest) -> None:
         missing: list[str] = []
         for manifest in template.required_nodes:
@@ -35,6 +40,7 @@ class WorkflowTemplateService:
                 f"Template '{template.id}' references missing node manifests: {', '.join(sorted(missing))}"
             )
 
+    # -------------------------------------------------------------------------
     def _validate_compilation(self, template: WorkflowTemplateManifest) -> None:
         result = compiler_service.compile(template.definition)
         if result.valid:
@@ -48,6 +54,7 @@ class WorkflowTemplateService:
             preview = f"{preview}; (+{len(result.diagnostics) - 3} more)"
         raise ValueError(f"Template '{template.id}' failed compilation: {preview}")
 
+    # -------------------------------------------------------------------------
     def list_templates(self) -> WorkflowTemplateListResponse:
         templates: list[WorkflowTemplateManifest] = []
         seen_ids: set[str] = set()

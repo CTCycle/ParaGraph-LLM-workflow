@@ -8,9 +8,10 @@ from server.domain.settings import DatabaseSettings
 from server.repositories.database.base import TabularDatabaseRepository
 from server.repositories.database.utils import normalize_postgres_engine
 
-
 ###############################################################################
 class PostgresRepository(TabularDatabaseRepository):
+
+    # -------------------------------------------------------------------------
     def __init__(self, settings: DatabaseSettings) -> None:
         if not settings.host:
             raise ValueError("Database host must be provided for external database.")

@@ -12,6 +12,7 @@ from server.services.workflow.node_handlers.common import (
 )
 
 
+###############################################################################
 def _as_object(value: Any, *, label: str) -> dict[str, Any]:
     if value is None:
         return {}
@@ -20,10 +21,12 @@ def _as_object(value: Any, *, label: str) -> dict[str, Any]:
     return value
 
 
+###############################################################################
 def _normalize_headers(headers: dict[str, Any]) -> dict[str, str]:
     return {str(key): coerce_text(value) for key, value in headers.items()}
 
 
+###############################################################################
 def _extract_text(html: str, *, strip_scripts_and_styles: bool) -> str:
     soup = BeautifulSoup(html, "html.parser")
     if strip_scripts_and_styles:
@@ -34,6 +37,7 @@ def _extract_text(html: str, *, strip_scripts_and_styles: bool) -> str:
     )
 
 
+###############################################################################
 def _extract_title(html: str) -> str | None:
     soup = BeautifulSoup(html, "html.parser")
     if soup.title is None:
@@ -42,6 +46,7 @@ def _extract_title(html: str) -> str | None:
     return title or None
 
 
+###############################################################################
 def execute(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
     url = coerce_text(
         inputs.get("url")

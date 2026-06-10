@@ -6,8 +6,11 @@ from server.configurations.startup import get_configuration_runtime
 
 
 # [LOAD ENVIRONMENT VARIABLES]
+
 ###############################################################################
 class EnvironmentVariables:
+
+    # -------------------------------------------------------------------------
     def __init__(self) -> None:
         self.env_path = get_configuration_runtime().environment().ensure_loaded()
 

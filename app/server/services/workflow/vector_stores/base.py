@@ -27,6 +27,7 @@ INDEX_NAME_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
 logger = logging.getLogger(__name__)
 
 
+###############################################################################
 def _resolve_vectorstore_root(storage_directory: str | None) -> Path:
     selected = str(storage_directory or "").strip()
     default_root = VECTORSTORE_ROOT.resolve()
@@ -45,6 +46,7 @@ def _resolve_vectorstore_root(storage_directory: str | None) -> Path:
     return resolved
 
 
+###############################################################################
 def _normalize_index_name(index_name: str) -> str:
     normalized = str(index_name or "").strip()
     if not INDEX_NAME_PATTERN.fullmatch(normalized):
@@ -54,22 +56,26 @@ def _normalize_index_name(index_name: str) -> str:
     return normalized
 
 
+###############################################################################
 class VectorStoreError(ValueError):
     pass
 
 
+###############################################################################
 def _point_attr(point: VectorPoint | dict[str, Any], name: str) -> Any:
     if isinstance(point, dict):
         return point.get(name)
     return getattr(point, name)
 
 
+###############################################################################
 def _store_attr(store: VectorStoreHandle | dict[str, Any], name: str) -> Any:
     if isinstance(store, dict):
         return store.get(name)
     return getattr(store, name)
 
 
+###############################################################################
 def _metric_code(metric: str):
     normalized = metric.lower().strip()
     if normalized == "cosine":
@@ -81,12 +87,14 @@ def _metric_code(metric: str):
     raise VectorStoreError(f"Unsupported vector metric: {metric}")
 
 
+###############################################################################
 def _normalize_vectors(vectors: np.ndarray) -> np.ndarray:
     norms = np.linalg.norm(vectors, axis=1, keepdims=True)
     safe_norms = np.where(norms == 0.0, 1.0, norms)
     return vectors / safe_norms
 
 
+###############################################################################
 def _index_paths(root_path: Path, index_name: str) -> tuple[Path, Path, Path, Path]:
     store_path = root_path / index_name
     return (
@@ -97,10 +105,12 @@ def _index_paths(root_path: Path, index_name: str) -> tuple[Path, Path, Path, Pa
     )
 
 
+###############################################################################
 def _index_file_path(store_path: Path) -> Path:
     return store_path / "index.faiss"
 
 
+###############################################################################
 def _build_index(
     vectors: np.ndarray,
     *,
@@ -140,6 +150,7 @@ def _build_index(
     return index
 
 
+###############################################################################
 def _resolve_store_path_from_handle(store: VectorStoreHandle | dict[str, Any]) -> Path:
     artifact_path = str(_store_attr(store, "artifact_path") or "").strip()
     artifact_root = common_path.ARTIFACT_ROOT.resolve()
@@ -160,6 +171,7 @@ def _resolve_store_path_from_handle(store: VectorStoreHandle | dict[str, Any]) -
     return (root / index_name).resolve()
 
 
+###############################################################################
 def _load_store(
     store: VectorStoreHandle | dict[str, Any],
 ) -> tuple[dict[str, Any], list[dict[str, Any]], np.ndarray, Any]:
@@ -185,6 +197,7 @@ def _load_store(
     return manifest, metadata, vectors, index
 
 
+###############################################################################
 def _candidate_value(item: dict[str, Any], field_name: str) -> Any:
     current: Any = item
     for part in field_name.split("."):
@@ -194,6 +207,7 @@ def _candidate_value(item: dict[str, Any], field_name: str) -> Any:
     return current
 
 
+###############################################################################
 def _matches_clause(item: dict[str, Any], clause: dict[str, Any]) -> bool:
     field_name = str(clause.get("field") or "").strip()
     operator = str(clause.get("op") or "eq").strip().lower()
@@ -225,6 +239,7 @@ def _matches_clause(item: dict[str, Any], clause: dict[str, Any]) -> bool:
     raise VectorStoreError(f"Unsupported filter operator: {operator}")
 
 
+###############################################################################
 def _matches_filter(item: dict[str, Any], filter_spec: dict[str, Any] | None) -> bool:
     if not filter_spec:
         return True
@@ -263,6 +278,7 @@ def _matches_filter(item: dict[str, Any], filter_spec: dict[str, Any] | None) ->
     return True
 
 
+###############################################################################
 def _score_from_metric(metric: str, raw_score: float) -> float:
     normalized = metric.lower().strip()
     if normalized == "l2":
@@ -270,6 +286,7 @@ def _score_from_metric(metric: str, raw_score: float) -> float:
     return raw_score
 
 
+###############################################################################
 def _coerce_metric(metric: str) -> str:
     normalized = metric.lower().strip()
     if normalized == "euclidean":
@@ -277,6 +294,7 @@ def _coerce_metric(metric: str) -> str:
     return normalized
 
 
+###############################################################################
 def _extract_provider_config(
     *,
     provider_config: dict[str, Any] | None,
@@ -289,6 +307,7 @@ def _extract_provider_config(
     return config, endpoint, token
 
 
+###############################################################################
 def _qdrant_condition(clause: dict[str, Any], qm: Any) -> Any:
     field = str(clause.get("field") or "").strip()
     op = str(clause.get("op") or "eq").strip().lower()
@@ -313,6 +332,7 @@ def _qdrant_condition(clause: dict[str, Any], qm: Any) -> Any:
     return None
 
 
+###############################################################################
 def _pinecone_clause(clause: dict[str, Any]) -> dict[str, Any] | None:
     field = str(clause.get("field") or "").strip()
     op = str(clause.get("op") or "eq").strip().lower()
@@ -335,6 +355,7 @@ def _pinecone_clause(clause: dict[str, Any]) -> dict[str, Any] | None:
     return None
 
 
+###############################################################################
 def _milvus_format_value(value: Any) -> str:
     if isinstance(value, str):
         return '"' + value.replace('"', '"') + '"'
@@ -345,6 +366,7 @@ def _milvus_format_value(value: Any) -> str:
     return str(value)
 
 
+###############################################################################
 def _milvus_clause_expression(clause: dict[str, Any]) -> str:
     field = str(clause.get("field") or "").strip()
     op = str(clause.get("op") or "eq").strip().lower()
@@ -367,6 +389,7 @@ def _milvus_clause_expression(clause: dict[str, Any]) -> str:
     return ""
 
 
+###############################################################################
 def _sanitize_metadata_entry(point: VectorPoint | dict[str, Any]) -> dict[str, Any]:
     return {
         "id": _point_attr(point, "id"),
@@ -380,6 +403,7 @@ def _sanitize_metadata_entry(point: VectorPoint | dict[str, Any]) -> dict[str, A
     }
 
 
+###############################################################################
 def _materialize_lancedb_rows(payload: Any) -> list[dict[str, Any]]:
     if hasattr(payload, "to_list"):
         try:
@@ -407,12 +431,14 @@ def _materialize_lancedb_rows(payload: Any) -> list[dict[str, Any]]:
     return []
 
 
+###############################################################################
 class VectorStoreAdapter:
     backend = "faiss"
     supports_hybrid_search = False
     supports_metadata_filtering = True
     supports_faiss_augmentation = True
 
+    # -------------------------------------------------------------------------
     def validate_connection(
         self,
         *,
@@ -436,6 +462,7 @@ class VectorStoreAdapter:
         _normalize_index_name(index_name)
         _resolve_vectorstore_root(storage_directory)
 
+    # -------------------------------------------------------------------------
     def describe_capabilities(self) -> dict[str, Any]:
         return {
             "backend": self.backend,
@@ -444,6 +471,7 @@ class VectorStoreAdapter:
             "supports_faiss_augmentation": bool(self.supports_faiss_augmentation),
         }
 
+    # -------------------------------------------------------------------------
     def write_points(
         self,
         *,
@@ -575,6 +603,7 @@ class VectorStoreAdapter:
             },
         )
 
+    # -------------------------------------------------------------------------
     def search(
         self,
         *,

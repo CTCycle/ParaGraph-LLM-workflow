@@ -14,10 +14,12 @@ _EXECUTION_CONTEXT_VAR: ContextVar[dict[str, str]] = ContextVar(
 )
 
 
+###############################################################################
 def get_execution_context() -> dict[str, str]:
     return dict(_EXECUTION_CONTEXT_VAR.get())
 
 
+###############################################################################
 def set_execution_context(context: dict[str, str]) -> Token[dict[str, str]]:
     normalized_context = {
         "workflow_id": str(context.get("workflow_id") or ""),
@@ -28,5 +30,6 @@ def set_execution_context(context: dict[str, str]) -> Token[dict[str, str]]:
     return _EXECUTION_CONTEXT_VAR.set(normalized_context)
 
 
+###############################################################################
 def reset_execution_context(token: Token[dict[str, str]]) -> None:
     _EXECUTION_CONTEXT_VAR.reset(token)

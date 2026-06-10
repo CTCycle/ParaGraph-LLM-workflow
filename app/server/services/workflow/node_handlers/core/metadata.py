@@ -5,6 +5,7 @@ from typing import Any
 from server.domain.node_handler_core import MetadataParameters
 
 
+###############################################################################
 def _metadata_for_record(
     record: dict[str, Any],
     parameters: MetadataParameters,
@@ -24,6 +25,7 @@ def _metadata_for_record(
     return metadata
 
 
+###############################################################################
 def _merge_record_metadata(
     record: dict[str, Any],
     parameters: MetadataParameters,
@@ -37,6 +39,7 @@ def _merge_record_metadata(
     return {**record, "metadata": merged}
 
 
+###############################################################################
 def _merge_document_metadata(
     document: dict[str, Any],
     parameters: MetadataParameters,
@@ -45,6 +48,7 @@ def _merge_document_metadata(
     return _merge_record_metadata(document, parameters, input_metadata)
 
 
+###############################################################################
 def _merge_chunk_metadata(
     chunk: dict[str, Any],
     parameters: MetadataParameters,
@@ -53,6 +57,7 @@ def _merge_chunk_metadata(
     return _merge_record_metadata(chunk, parameters, input_metadata)
 
 
+###############################################################################
 def _metadata_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
 ) -> dict[str, Any]:

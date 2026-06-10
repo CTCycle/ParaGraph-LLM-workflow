@@ -11,9 +11,10 @@ from server.domain.settings import (
     ServerSettings,
 )
 
-
 ###############################################################################
 class ConfigurationRuntime:
+
+    # -------------------------------------------------------------------------
     def __init__(
         self,
         *,
@@ -91,21 +92,17 @@ class ConfigurationRuntime:
 
 _runtime = ConfigurationRuntime()
 
-
 ###############################################################################
 def get_configuration_runtime() -> ConfigurationRuntime:
     return _runtime
-
 
 ###############################################################################
 def get_server_settings(config_path: str | Path | None = None) -> ServerSettings:
     return _runtime.get_server_settings(config_path=config_path)
 
-
 ###############################################################################
 def get_runtime_settings() -> RuntimeConfigurationSettings:
     return _runtime.get_runtime_settings()
-
 
 ###############################################################################
 def reset_configuration_runtime_for_tests() -> None:

@@ -16,6 +16,7 @@ _SENSITIVE_KEY_TOKENS = (
 )
 
 
+###############################################################################
 def is_cloud_deployment() -> bool:
     return (
         get_configuration_runtime()
@@ -24,6 +25,7 @@ def is_cloud_deployment() -> bool:
     )
 
 
+###############################################################################
 def ensure_path_within_root(path: Path, root: Path, *, label: str) -> Path:
     resolved_path = path.resolve()
     resolved_root = root.resolve()
@@ -34,6 +36,7 @@ def ensure_path_within_root(path: Path, root: Path, *, label: str) -> Path:
     return resolved_path
 
 
+###############################################################################
 def redact_sensitive_payload(value: Any) -> Any:
     if isinstance(value, dict):
         redacted: dict[str, Any] = {}

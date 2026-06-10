@@ -3,6 +3,7 @@ from __future__ import annotations
 from fastapi.testclient import TestClient
 
 
+###############################################################################
 def test_list_workflow_templates_returns_expected_templates(client: TestClient) -> None:
     response = client.get("/workflows/templates")
 
