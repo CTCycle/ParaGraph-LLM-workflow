@@ -15,4 +15,3 @@ __all__ = [
     "node_connectivity_service",
     "node_registry",
 ]
-

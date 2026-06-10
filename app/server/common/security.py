@@ -16,12 +16,16 @@ _SENSITIVE_KEY_TOKENS = (
 )
 
 
+###############################################################################
 def is_cloud_deployment() -> bool:
-    return get_configuration_runtime().environment().get_bool(
-        "PARAGRAPH_CLOUD_MODE", False
+    return (
+        get_configuration_runtime()
+        .environment()
+        .get_bool("PARAGRAPH_CLOUD_MODE", False)
     )
 
 
+###############################################################################
 def ensure_path_within_root(path: Path, root: Path, *, label: str) -> Path:
     resolved_path = path.resolve()
     resolved_root = root.resolve()
@@ -32,6 +36,7 @@ def ensure_path_within_root(path: Path, root: Path, *, label: str) -> Path:
     return resolved_path
 
 
+###############################################################################
 def redact_sensitive_payload(value: Any) -> Any:
     if isinstance(value, dict):
         redacted: dict[str, Any] = {}
@@ -47,4 +52,3 @@ def redact_sensitive_payload(value: Any) -> Any:
     if isinstance(value, tuple):
         return tuple(redact_sensitive_payload(item) for item in value)
     return value
-

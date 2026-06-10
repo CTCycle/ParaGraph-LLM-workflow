@@ -11,9 +11,9 @@ ChatHistoryStorageBackend = Literal["file", "database"]
 DEFAULT_CHAT_HISTORY_STORAGE_BACKEND: ChatHistoryStorageBackend = "file"
 
 
+###############################################################################
 def utc_now() -> datetime:
     return datetime.now(timezone.utc)
-
 
 ###############################################################################
 class ChatHistoryMessage(BaseModel):

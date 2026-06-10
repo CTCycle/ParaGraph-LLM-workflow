@@ -11,6 +11,7 @@ from server.services.workflow.node_handlers.common import (
 )
 
 
+###############################################################################
 def _pick_override(
     inputs: dict[str, Any],
     input_key: str,
@@ -22,6 +23,7 @@ def _pick_override(
     return parameters.get(parameter_key)
 
 
+###############################################################################
 def _as_object(value: Any, *, label: str) -> dict[str, Any]:
     if value is None:
         return {}
@@ -30,10 +32,12 @@ def _as_object(value: Any, *, label: str) -> dict[str, Any]:
     return value
 
 
+###############################################################################
 def _normalize_headers(headers: dict[str, Any]) -> dict[str, str]:
     return {str(key): coerce_text(value) for key, value in headers.items()}
 
 
+###############################################################################
 def _parse_json_if_available(response: httpx.Response) -> Any:
     content_type = (response.headers.get("content-type") or "").lower()
     if "json" not in content_type:
@@ -41,6 +45,7 @@ def _parse_json_if_available(response: httpx.Response) -> Any:
     return response.json()
 
 
+###############################################################################
 def execute(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
     url = coerce_text(_pick_override(inputs, "url", parameters, "url")).strip()
     if not url:
@@ -125,4 +130,3 @@ def execute(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any
             json_output = None
 
     return {"text": text_output, "json": json_output, "response": response_payload}
-

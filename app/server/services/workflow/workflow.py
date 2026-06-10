@@ -11,10 +11,14 @@ from server.domain.workflow_model import (
 )
 
 
+###############################################################################
 class WorkflowService:
+
+    # -------------------------------------------------------------------------
     def list_workflows(self) -> WorkflowListResponse:
         return WorkflowListResponse(workflows=workflow_repository.list_workflows())
 
+    # -------------------------------------------------------------------------
     def create_workflow(self, request: CreateWorkflowRequest) -> WorkflowDocument:
         now = datetime.now(timezone.utc)
         document = WorkflowDocument(
@@ -28,9 +32,11 @@ class WorkflowService:
         workflow_repository.save_workflow(document)
         return document
 
+    # -------------------------------------------------------------------------
     def get_workflow(self, workflow_id: str) -> WorkflowDocument | None:
         return workflow_repository.get_workflow(workflow_id)
 
+    # -------------------------------------------------------------------------
     def update_workflow(
         self, workflow_id: str, request: UpdateWorkflowRequest
     ) -> WorkflowDocument | None:
@@ -49,5 +55,5 @@ class WorkflowService:
         workflow_repository.save_workflow(updated_document)
         return updated_document
 
-workflow_service = WorkflowService()
 
+workflow_service = WorkflowService()

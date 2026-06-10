@@ -36,4 +36,3 @@ DATABASE_HANDLERS = {
 }
 
 __all__ = ["DATABASE_HANDLERS"]
-

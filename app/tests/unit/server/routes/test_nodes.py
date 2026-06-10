@@ -8,10 +8,12 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from server.services.workflow.nodes import connectivity as node_connectivity_module
 
 
+###############################################################################
 class SchemaRouteBase(DeclarativeBase):
     pass
 
 
+###############################################################################
 class SchemaRouteItem(SchemaRouteBase):
     __tablename__ = "schema_items"
 
@@ -19,7 +21,10 @@ class SchemaRouteItem(SchemaRouteBase):
     name: Mapped[str] = mapped_column(String, nullable=False)
 
 
-def test_database_schema_endpoint_returns_sqlite_schema(client: TestClient, tmp_path) -> None:
+###############################################################################
+def test_database_schema_endpoint_returns_sqlite_schema(
+    client: TestClient, tmp_path
+) -> None:
     database_path = tmp_path / "schema.sqlite"
     engine = create_engine(f"sqlite:///{database_path}")
     SchemaRouteBase.metadata.create_all(engine)
@@ -40,12 +45,16 @@ def test_database_schema_endpoint_returns_sqlite_schema(client: TestClient, tmp_
     assert payload["tables"][0]["columns"][0]["name"] == "id"
 
 
+###############################################################################
 def test_check_vector_store_connection_calls_adapter_validate(
     client: TestClient, monkeypatch
 ) -> None:
     calls: dict[str, object] = {}
 
+    ###############################################################################
     class FakeAdapter:
+
+        # -------------------------------------------------------------------------
         def validate_connection(self, **kwargs):
             calls.update(kwargs)
 
@@ -86,6 +95,7 @@ def test_check_vector_store_connection_calls_adapter_validate(
     assert calls["api_key"] == "secret"
 
 
+###############################################################################
 @pytest.mark.parametrize("provider", ["lancedb", "chroma", "faiss"])
 def test_check_vector_store_connection_local_providers_require_storage_path(
     client: TestClient,
@@ -94,7 +104,10 @@ def test_check_vector_store_connection_local_providers_require_storage_path(
 ) -> None:
     calls: dict[str, object] = {}
 
+    ###############################################################################
     class FakeAdapter:
+
+        # -------------------------------------------------------------------------
         def validate_connection(self, **kwargs):
             calls.update(kwargs)
 
@@ -129,6 +142,7 @@ def test_check_vector_store_connection_local_providers_require_storage_path(
     assert calls["storage_directory"] == "C:/tmp/vectorstore"
 
 
+###############################################################################
 @pytest.mark.parametrize("provider", ["qdrant", "pinecone", "weaviate", "milvus"])
 def test_check_vector_store_connection_remote_providers_require_endpoint(
     client: TestClient,
@@ -137,7 +151,10 @@ def test_check_vector_store_connection_remote_providers_require_endpoint(
 ) -> None:
     calls: dict[str, object] = {}
 
+    ###############################################################################
     class FakeAdapter:
+
+        # -------------------------------------------------------------------------
         def validate_connection(self, **kwargs):
             calls.update(kwargs)
 
@@ -170,4 +187,3 @@ def test_check_vector_store_connection_remote_providers_require_endpoint(
     assert response.status_code == 200
     assert response.json()["ok"] is True
     assert calls["endpoint_url"] == "https://vector.example"
-

@@ -7,6 +7,7 @@ from typing import Any
 from pydantic import BaseModel, Field, field_validator
 
 
+###############################################################################
 def _parse_json_object(value: Any, label: str) -> dict[str, Any]:
     if value in (None, ""):
         return {}
@@ -22,6 +23,7 @@ def _parse_json_object(value: Any, label: str) -> dict[str, Any]:
     raise ValueError(f"{label} must be a JSON object")
 
 
+###############################################################################
 def _parse_columns(value: Any) -> list[str]:
     if value in (None, ""):
         return []
@@ -32,9 +34,11 @@ def _parse_columns(value: Any) -> list[str]:
     raise ValueError("columns must be a comma-separated string or an array of strings")
 
 
+###############################################################################
 class _TableParameters(BaseModel):
     table: str
 
+    # -------------------------------------------------------------------------
     @field_validator("table")
     @classmethod
     def validate_table(cls, value: str) -> str:
@@ -44,59 +48,71 @@ class _TableParameters(BaseModel):
         return normalized
 
 
+###############################################################################
 class CrudCreateParameters(_TableParameters):
     values: dict[str, Any] = Field(default_factory=dict)
 
+    # -------------------------------------------------------------------------
     @field_validator("values", mode="before")
     @classmethod
     def validate_values(cls, value: Any) -> dict[str, Any]:
         return _parse_json_object(value, "values")
 
 
+###############################################################################
 class CrudReadParameters(_TableParameters):
     columns: list[str] = Field(default_factory=list)
     filters: dict[str, Any] = Field(default_factory=dict)
     limit: int = Field(default=100, ge=1, le=10_000)
     order_by: str = ""
 
+    # -------------------------------------------------------------------------
     @field_validator("columns", mode="before")
     @classmethod
     def validate_columns(cls, value: Any) -> list[str]:
         return _parse_columns(value)
 
+    # -------------------------------------------------------------------------
     @field_validator("filters", mode="before")
     @classmethod
     def validate_filters(cls, value: Any) -> dict[str, Any]:
         return _parse_json_object(value, "filters")
 
 
+###############################################################################
 class CrudUpdateParameters(_TableParameters):
     values: dict[str, Any] = Field(default_factory=dict)
     filters: dict[str, Any] = Field(default_factory=dict)
 
+    # -------------------------------------------------------------------------
     @field_validator("values", mode="before")
     @classmethod
     def validate_values(cls, value: Any) -> dict[str, Any]:
         return _parse_json_object(value, "values")
 
+    # -------------------------------------------------------------------------
     @field_validator("filters", mode="before")
     @classmethod
     def validate_filters(cls, value: Any) -> dict[str, Any]:
         return _parse_json_object(value, "filters")
 
 
+###############################################################################
 class CrudDeleteParameters(_TableParameters):
     filters: dict[str, Any] = Field(default_factory=dict)
 
+    # -------------------------------------------------------------------------
     @field_validator("filters", mode="before")
     @classmethod
     def validate_filters(cls, value: Any) -> dict[str, Any]:
         return _parse_json_object(value, "filters")
 
 
+###############################################################################
 class CustomSqlQueryParameters(BaseModel):
     sql: str
 
+    # -------------------------------------------------------------------------
     @field_validator("sql")
     @classmethod
     def validate_sql(cls, value: str) -> str:

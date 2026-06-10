@@ -67,4 +67,3 @@ def get_execution(run_id: RunIdPath) -> ExecutionRunState:
 @router.get("/{run_id}/events", response_model=EventHistoryResponse)
 def get_execution_events(run_id: RunIdPath) -> EventHistoryResponse:
     return execution_event_service.get_history(run_id)
-

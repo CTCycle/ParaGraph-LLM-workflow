@@ -1,31 +1,6 @@
 from __future__ import annotations
 
-from pathlib import Path
-
-# [PATHS]
-###############################################################################
-REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
-APP_ROOT = REPOSITORY_ROOT / "app"
-SERVER_ROOT = APP_ROOT / "server"
-CLIENT_ROOT = APP_ROOT / "client"
-SETTINGS_ROOT = REPOSITORY_ROOT / "settings"
-RESOURCES_ROOT = APP_ROOT / "resources"
-FRONTEND_DIST_ROOT = CLIENT_ROOT / "dist"
-FRONTEND_ASSETS_ROOT = FRONTEND_DIST_ROOT / "assets"
-ARTIFACT_ROOT = RESOURCES_ROOT / "artifacts"
-
-ROOT_DIR = str(REPOSITORY_ROOT)
-PROJECT_DIR = str(APP_ROOT)
-SETTING_PATH = str(SETTINGS_ROOT)
-RESOURCES_PATH = str(RESOURCES_ROOT)
-LOGS_PATH = str(RESOURCES_ROOT / "logs")
-ENV_FILE_PATH = str(SETTINGS_ROOT / ".env")
-MODELS_PATH = str(RESOURCES_ROOT / "models")
-CHECKPOINT_PATH = str(RESOURCES_ROOT / "checkpoints")
 DATABASE_FILENAME = "database.db"
-
-###############################################################################
-CONFIGURATION_FILE = str(SETTINGS_ROOT / "configurations.json")
 
 # [FASTAPI METADATA]
 ###############################################################################
@@ -65,4 +40,3 @@ TABLE_REQUIRED_COLUMNS: dict[str, list[str]] = {
     INFERENCE_RUNS_TABLE: ["checkpoint_id", "request_id", "executed_at"],
     INFERENCE_REPORTS_TABLE: ["inference_run_id", "input_name", "output_text"],
 }
-

@@ -12,11 +12,9 @@ from server.repositories.schemas.types import JSONSequence
 class Base(DeclarativeBase):
     pass
 
-
 ###############################################################################
 def utcnow() -> datetime:
     return datetime.now(timezone.utc)
-
 
 ###############################################################################
 class UserSession(Base):
@@ -57,7 +55,6 @@ class UserSession(Base):
         passive_deletes=True,
     )
 
-
 ###############################################################################
 class NodeConfiguration(Base):
     __tablename__ = "nodes"
@@ -87,7 +84,6 @@ class NodeConfiguration(Base):
         UniqueConstraint("session_id", "node_key", name="uq_nodes_session_node_key"),
         Index("ix_nodes_session_type", "session_id", "node_type"),
     )
-
 
 ###############################################################################
 class ConfigurationProfile(Base):
@@ -120,7 +116,6 @@ class ConfigurationProfile(Base):
         ),
         Index("ix_configuration_profiles_session_name", "session_id", "profile_name"),
     )
-
 
 ###############################################################################
 class AccessKey(Base):
@@ -156,7 +151,6 @@ class AccessKey(Base):
         Index("ix_access_keys_provider", "provider"),
     )
 
-
 ###############################################################################
 class ChatHistoryMessageRecord(Base):
     __tablename__ = "chat_history_messages"
@@ -182,4 +176,3 @@ class ChatHistoryMessageRecord(Base):
             "chat_history_message_id",
         ),
     )
-

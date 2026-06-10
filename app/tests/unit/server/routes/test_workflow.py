@@ -10,6 +10,7 @@ from server.domain.node_catalog import ProviderModelDefinition
 from server.services.workflow import provider_service
 
 
+###############################################################################
 def build_simple_definition(prompt_text: str) -> dict[str, object]:
     return {
         "schema_version": 2,
@@ -39,6 +40,7 @@ def build_simple_definition(prompt_text: str) -> dict[str, object]:
     }
 
 
+###############################################################################
 def build_provider_chat_definition() -> dict[str, object]:
     return {
         "schema_version": 2,
@@ -109,6 +111,7 @@ def build_provider_chat_definition() -> dict[str, object]:
     }
 
 
+###############################################################################
 def build_provider_structured_definition(schema: object) -> dict[str, object]:
     return {
         "schema_version": 2,
@@ -156,6 +159,7 @@ def build_provider_structured_definition(schema: object) -> dict[str, object]:
     }
 
 
+###############################################################################
 def build_provider_structured_with_json_output_definition(
     schema: object,
 ) -> dict[str, object]:
@@ -217,6 +221,7 @@ def build_provider_structured_with_json_output_definition(
     }
 
 
+###############################################################################
 def test_compile_returns_plan_for_prompt_graph(client: TestClient) -> None:
     response = client.post(
         "/executions/compile", json={"definition": build_simple_definition("Plan me")}
@@ -229,6 +234,7 @@ def test_compile_returns_plan_for_prompt_graph(client: TestClient) -> None:
     assert payload["plan"]["steps"][0]["node_type"] == "PROMPT"
 
 
+###############################################################################
 def test_compile_rejects_cycles(client: TestClient) -> None:
     response = client.post(
         "/executions/compile",
@@ -274,6 +280,7 @@ def test_compile_rejects_cycles(client: TestClient) -> None:
     assert any(item["code"] == "graph_cycle" for item in payload["diagnostics"])
 
 
+###############################################################################
 def test_compile_rejects_invalid_structured_schema(client: TestClient) -> None:
     response = client.post(
         "/executions/compile",
@@ -292,6 +299,7 @@ def test_compile_rejects_invalid_structured_schema(client: TestClient) -> None:
     )
 
 
+###############################################################################
 def test_compile_rejects_llm_without_model_controller(client: TestClient) -> None:
     response = client.post(
         "/executions/compile",
@@ -336,6 +344,7 @@ def test_compile_rejects_llm_without_model_controller(client: TestClient) -> Non
     assert "missing_required_controller" in codes or "missing_model_selection" in codes
 
 
+###############################################################################
 def test_compile_excludes_skipped_nodes_from_plan(client: TestClient) -> None:
     response = client.post(
         "/executions/compile",
@@ -384,6 +393,7 @@ def test_compile_excludes_skipped_nodes_from_plan(client: TestClient) -> None:
     assert payload["plan"]["metadata"]["skipped_node_ids"] == ["prompt_2"]
 
 
+###############################################################################
 def test_compile_skipped_connection_is_excluded_from_required_input_resolution(
     client: TestClient,
 ) -> None:
@@ -428,6 +438,7 @@ def test_compile_skipped_connection_is_excluded_from_required_input_resolution(
     assert "missing_source_node" not in codes
 
 
+###############################################################################
 def test_compile_ignores_unknown_global_node_aliases(client: TestClient) -> None:
     definition = build_provider_chat_definition()
     definition["metadata"] = {
@@ -451,6 +462,7 @@ def test_compile_ignores_unknown_global_node_aliases(client: TestClient) -> None
     )
 
 
+###############################################################################
 @pytest.mark.parametrize(
     "unsupported_node_type",
     ["USER_PROMPT", "SYSTEM_PROMPT", "EMBEDDING_MODEL", "LANCE_DB"],
@@ -481,12 +493,12 @@ def test_compile_rejects_removed_node_type_aliases(
     payload = response.json()
     assert payload["valid"] is False
     assert any(
-        item["code"] == "unknown_node_type"
-        and unsupported_node_type in item["message"]
+        item["code"] == "unknown_node_type" and unsupported_node_type in item["message"]
         for item in payload["diagnostics"]
     )
 
 
+###############################################################################
 @pytest.mark.parametrize("unsupported_provider", ["anthropic", "local"])
 def test_compile_rejects_removed_provider_aliases(
     client: TestClient, unsupported_provider: str
@@ -523,6 +535,7 @@ def test_compile_rejects_removed_provider_aliases(
     )
 
 
+###############################################################################
 def build_huggingface_chat_definition(model_name: str) -> dict[str, object]:
     return {
         "schema_version": 2,
@@ -569,6 +582,7 @@ def build_huggingface_chat_definition(model_name: str) -> dict[str, object]:
     }
 
 
+###############################################################################
 def test_compile_allows_tokenless_local_huggingface_model(
     client: TestClient, monkeypatch
 ) -> None:
@@ -594,6 +608,7 @@ def test_compile_allows_tokenless_local_huggingface_model(
     assert payload["valid"] is True
 
 
+###############################################################################
 def test_compile_rejects_remote_huggingface_model_without_token(
     client: TestClient, monkeypatch
 ) -> None:
@@ -623,6 +638,7 @@ def test_compile_rejects_remote_huggingface_model_without_token(
     )
 
 
+###############################################################################
 def test_compile_allows_remote_huggingface_model_with_token(
     client: TestClient, monkeypatch
 ) -> None:
@@ -648,6 +664,7 @@ def test_compile_allows_remote_huggingface_model_with_token(
     assert payload["valid"] is True
 
 
+###############################################################################
 def build_stub_model_definition(
     provider: str, model: str, timeout_s: float | None = None
 ) -> ProviderModelDefinition:
@@ -662,6 +679,7 @@ def build_stub_model_definition(
     )
 
 
+###############################################################################
 def test_execute_returns_run_and_persists_output_payload(
     client: TestClient,
     monkeypatch,
@@ -713,14 +731,13 @@ def test_execute_returns_run_and_persists_output_payload(
     ]
 
 
+###############################################################################
 def test_execute_structured_node_rejects_invalid_output(
     client: TestClient,
     monkeypatch,
     wait_for_job: Callable[[str, float], dict[str, object]],
 ) -> None:
-    monkeypatch.setattr(
-        provider_service, "chat", lambda **kwargs: '{"name": 12}'
-    )
+    monkeypatch.setattr(provider_service, "chat", lambda **kwargs: '{"name": 12}')
     monkeypatch.setattr(
         provider_service, "validate_model_request", lambda **kwargs: None
     )
@@ -759,14 +776,13 @@ def test_execute_structured_node_rejects_invalid_output(
     assert run_payload["steps"][2]["status"] == "failed"
 
 
+###############################################################################
 def test_execute_structured_node_emits_json_output_payload(
     client: TestClient,
     monkeypatch,
     wait_for_job: Callable[[str, float], dict[str, object]],
 ) -> None:
-    monkeypatch.setattr(
-        provider_service, "chat", lambda **kwargs: '{"name":"Ada"}'
-    )
+    monkeypatch.setattr(provider_service, "chat", lambda **kwargs: '{"name":"Ada"}')
     monkeypatch.setattr(
         provider_service, "validate_model_request", lambda **kwargs: None
     )
@@ -807,4 +823,3 @@ def test_execute_structured_node_emits_json_output_payload(
     assert run_payload["outputs"] == {
         "output_1": {"json": {"name": "Ada"}, "name": "Ada"}
     }
-

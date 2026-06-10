@@ -8,6 +8,7 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
 from server.services.workflow import node_registry
 
 
+###############################################################################
 def test_load_documents_emits_loaded_records_with_text(
     tmp_path: Path,
 ) -> None:
@@ -35,6 +36,7 @@ def test_load_documents_emits_loaded_records_with_text(
     )
 
 
+###############################################################################
 def test_load_documents_respects_recursive_toggle(tmp_path: Path) -> None:
     source_dir = tmp_path / "collection"
     nested_dir = source_dir / "nested"
@@ -63,6 +65,7 @@ def test_load_documents_respects_recursive_toggle(tmp_path: Path) -> None:
     ) == ["child.txt", "root.txt"]
 
 
+###############################################################################
 def test_load_documents_rejects_non_canonical_folder_path_keys(tmp_path: Path) -> None:
     source_dir = tmp_path / "source-folder"
     source_dir.mkdir(parents=True, exist_ok=True)
@@ -86,6 +89,7 @@ def test_load_documents_rejects_non_canonical_folder_path_keys(tmp_path: Path) -
             )
 
 
+###############################################################################
 def test_load_documents_skips_unsupported_doc_extension(tmp_path: Path) -> None:
     source_dir = tmp_path / "docs"
     source_dir.mkdir(parents=True, exist_ok=True)
@@ -101,10 +105,14 @@ def test_load_documents_skips_unsupported_doc_extension(tmp_path: Path) -> None:
     assert payload["documents"] == []
 
 
+###############################################################################
 def test_sql_file_database_node_roundtrip(tmp_path: Path) -> None:
+
+    ###############################################################################
     class ItemsBase(DeclarativeBase):
         pass
 
+    ###############################################################################
     class Item(ItemsBase):
         __tablename__ = "items"
         id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -134,6 +142,7 @@ def test_sql_file_database_node_roundtrip(tmp_path: Path) -> None:
     assert connection_payload["connection"]["database_name"] == "file_dataset"
 
 
+###############################################################################
 def test_sql_database_requires_required_fields_before_connect_attempt() -> None:
     try:
         node_registry.execute(
@@ -159,4 +168,3 @@ def test_sql_database_requires_required_fields_before_connect_attempt() -> None:
         raise AssertionError(
             "Expected SQL_DATABASE validation failure for missing required fields"
         )
-

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import re
 from typing import Any
 
@@ -15,6 +14,7 @@ from server.services.workflow.node_handlers.common import (
 )
 
 
+###############################################################################
 def _prompt_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
 ) -> dict[str, Any]:
@@ -22,6 +22,7 @@ def _prompt_executor(
     return {"text": coerce_text(parameters.get("prompt_text", "")).strip()}
 
 
+###############################################################################
 def _extract_template_record_text(record: dict[str, Any]) -> str:
     candidate = coerce_text(
         record.get("text") or record.get("content") or record.get("chunk") or ""
@@ -29,6 +30,7 @@ def _extract_template_record_text(record: dict[str, Any]) -> str:
     return candidate
 
 
+###############################################################################
 def _coerce_template_value(value: Any) -> str:
     return render_variable_value(value)
 
@@ -36,6 +38,7 @@ def _coerce_template_value(value: Any) -> str:
 _PROMPT_TEMPLATE_PATTERN = re.compile(r"\{([A-Za-z_]\w*)\}")
 
 
+###############################################################################
 def _collect_prompt_template_variable_maps(raw_variables: Any) -> list[dict[str, Any]]:
     if raw_variables is None:
         return []
@@ -56,6 +59,7 @@ def _collect_prompt_template_variable_maps(raw_variables: Any) -> list[dict[str,
     return variable_maps
 
 
+###############################################################################
 def _build_prompt_template_context(
     inputs: dict[str, Any],
     controllers: dict[str, Any],
@@ -73,6 +77,7 @@ def _build_prompt_template_context(
     return context
 
 
+###############################################################################
 def _render_jinja_template(
     template: str,
     context: dict[str, Any],
@@ -87,21 +92,21 @@ def _render_jinja_template(
     try:
         return environment.from_string(template).render(context)
     except Exception as exc:  # noqa: BLE001
-        raise ValueError(f"PROMPT_TEMPLATE failed to render Jinja template: {exc}") from exc
+        raise ValueError(
+            f"PROMPT_TEMPLATE failed to render Jinja template: {exc}"
+        ) from exc
 
 
+###############################################################################
 def _prompt_template_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
 ) -> dict[str, Any]:
     parsed = PromptTemplateParameters.model_validate(parameters)
-    use_legacy_format = (
-        parsed.template_engine == "format"
-        or (
-            parsed.template
-            and "{{" not in parsed.template
-            and not parsed.system_template.strip()
-            and not parsed.user_template.strip()
-        )
+    use_legacy_format = parsed.template_engine == "format" or (
+        parsed.template
+        and "{{" not in parsed.template
+        and not parsed.system_template.strip()
+        and not parsed.user_template.strip()
     )
     if not use_legacy_format:
         context = _build_prompt_template_context(inputs, {}, parsed)
@@ -109,7 +114,9 @@ def _prompt_template_executor(
             parsed.system_template, context, parsed.strict_variables
         ).strip()
         user_source = parsed.user_template or parsed.template
-        user = _render_jinja_template(user_source, context, parsed.strict_variables).strip()
+        user = _render_jinja_template(
+            user_source, context, parsed.strict_variables
+        ).strip()
         rendered = "\n\n".join(part for part in (system, user) if part)
         return {
             "text": rendered,
@@ -145,9 +152,15 @@ def _prompt_template_executor(
         lambda match: merged_variables[match.group(1)],
         parsed.template,
     )
-    return {"text": rendered, "system": "", "user": rendered, "variables": merged_variables}
+    return {
+        "text": rendered,
+        "system": "",
+        "user": rendered,
+        "variables": merged_variables,
+    }
 
 
+###############################################################################
 def _image_input_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
 ) -> dict[str, Any]:
@@ -156,4 +169,3 @@ def _image_input_executor(
 
 
 __all__ = ["_image_input_executor", "_prompt_executor", "_prompt_template_executor"]
-

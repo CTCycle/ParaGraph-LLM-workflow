@@ -12,6 +12,7 @@ from server.services.workflow.node_handlers.processing.sources import (
 )
 
 
+###############################################################################
 def _flush_current_merged_chunk(
     *,
     current_document_id: str | None,
@@ -68,6 +69,7 @@ def _flush_current_merged_chunk(
     return [], 0, {}, "", 0
 
 
+###############################################################################
 def _merge_small_chunks_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
 ) -> dict[str, Any]:

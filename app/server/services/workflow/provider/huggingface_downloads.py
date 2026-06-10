@@ -29,7 +29,10 @@ from server.services.workflow.provider.helpers import (
 )
 
 
+###############################################################################
 class HuggingFaceDownloadMixin:
+
+    # -------------------------------------------------------------------------
     def download_huggingface_model(
         self,
         *,
@@ -123,6 +126,7 @@ class HuggingFaceDownloadMixin:
             poll_interval=get_server_settings().jobs.polling_interval,
         )
 
+    # -------------------------------------------------------------------------
     def get_huggingface_download_status(
         self, *, job_id: str
     ) -> HuggingFaceModelDownloadStatusResponse:
@@ -174,6 +178,7 @@ class HuggingFaceDownloadMixin:
             error=error,
         )
 
+    # -------------------------------------------------------------------------
     def cancel_huggingface_download(
         self, *, job_id: str
     ) -> HuggingFaceModelDownloadCancelResponse:
@@ -192,6 +197,7 @@ class HuggingFaceDownloadMixin:
             message=f"Cancellation requested for '{status.repo_id}'.",
         )
 
+    # -------------------------------------------------------------------------
     def _build_huggingface_download_manifest(
         self, *, repo_id: str, session_name: str
     ) -> dict[str, Any]:
@@ -242,6 +248,7 @@ class HuggingFaceDownloadMixin:
             "token": token,
         }
 
+    # -------------------------------------------------------------------------
     def _run_huggingface_download_job(
         self,
         *,
@@ -462,6 +469,7 @@ class HuggingFaceDownloadMixin:
             "message": message,
         }
 
+    # -------------------------------------------------------------------------
     def _calculate_huggingface_download_progress(
         self,
         *,
@@ -482,15 +490,18 @@ class HuggingFaceDownloadMixin:
         ratio = (completed_files + bounded_active_file_progress) / total_files
         return min(99.5, max(0.0, ratio * 100.0))
 
+    # -------------------------------------------------------------------------
     def _reset_huggingface_download_directory(self, destination: Path) -> None:
         if destination.exists():
             shutil.rmtree(destination, ignore_errors=True)
         destination.mkdir(parents=True, exist_ok=True)
 
+    # -------------------------------------------------------------------------
     def _cleanup_huggingface_download_directory(self, destination: Path) -> None:
         if destination.exists():
             shutil.rmtree(destination, ignore_errors=True)
 
+    # -------------------------------------------------------------------------
     def _validate_huggingface_download_files(
         self,
         destination: Path,

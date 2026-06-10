@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import mimetypes
 from typing import Any
 from uuid import NAMESPACE_URL, uuid5
 
@@ -19,10 +18,12 @@ from server.services.workflow.node_handlers.ingestion.files import (
 )
 
 
+###############################################################################
 def _make_document_id(source_uri: str) -> str:
     return str(uuid5(NAMESPACE_URL, source_uri))
 
 
+###############################################################################
 def _build_document(
     source_uri: str, text_content: str, mime_type: str, metadata: dict[str, Any]
 ) -> dict[str, Any]:
@@ -37,6 +38,7 @@ def _build_document(
     }
 
 
+###############################################################################
 def _directory_loader_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
 ) -> dict[str, Any]:
@@ -77,6 +79,7 @@ def _directory_loader_executor(
     return {"documents": documents}
 
 
+###############################################################################
 def _load_documents_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
 ) -> dict[str, Any]:
@@ -114,6 +117,7 @@ def _load_documents_executor(
     return {"documents": documents}
 
 
+###############################################################################
 def _document_text_extractor_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
 ) -> dict[str, Any]:
@@ -124,16 +128,28 @@ def _document_text_extractor_executor(
     for document in documents:
         if not isinstance(document, dict):
             continue
-        source_uri = str(document.get("source_uri") or document.get("source") or "").strip()
-        metadata = dict(document.get("metadata", {})) if isinstance(document.get("metadata"), dict) else {}
-        document_id = str(document.get("document_id") or document.get("id") or _make_document_id(source_uri))
+        source_uri = str(
+            document.get("source_uri") or document.get("source") or ""
+        ).strip()
+        metadata = (
+            dict(document.get("metadata", {}))
+            if isinstance(document.get("metadata"), dict)
+            else {}
+        )
+        document_id = str(
+            document.get("document_id")
+            or document.get("id")
+            or _make_document_id(source_uri)
+        )
         path_candidate = str(metadata.get("file_path") or source_uri).strip()
         suffix = str(metadata.get("extension") or "").lower()
         if path_candidate:
             path = resolve_local_path(path_candidate)
             suffix = suffix or path.suffix.lower()
             if path.exists() and path.is_file() and suffix == ".pdf":
-                for page in load_pdf_pages(path, include_empty_pages=parsed.include_empty_pages):
+                for page in load_pdf_pages(
+                    path, include_empty_pages=parsed.include_empty_pages
+                ):
                     extracted.append(
                         {
                             **document,
@@ -168,7 +184,11 @@ def _document_text_extractor_executor(
             {
                 **document,
                 "document_id": document_id,
-                "metadata": {**metadata, "source": source_uri, "document_id": document_id},
+                "metadata": {
+                    **metadata,
+                    "source": source_uri,
+                    "document_id": document_id,
+                },
             }
         )
     return {"documents": extracted}

@@ -5,8 +5,11 @@ from typing import Any
 from server.domain.node_handler_core import MetadataParameters
 
 
+###############################################################################
 def _metadata_for_record(
-    record: dict[str, Any], parameters: MetadataParameters, input_metadata: dict[str, Any]
+    record: dict[str, Any],
+    parameters: MetadataParameters,
+    input_metadata: dict[str, Any],
 ) -> dict[str, Any]:
     metadata = {**parameters.metadata, **input_metadata}
     if parameters.id_field:
@@ -22,32 +25,46 @@ def _metadata_for_record(
     return metadata
 
 
+###############################################################################
 def _merge_record_metadata(
-    record: dict[str, Any], parameters: MetadataParameters, input_metadata: dict[str, Any]
+    record: dict[str, Any],
+    parameters: MetadataParameters,
+    input_metadata: dict[str, Any],
 ) -> dict[str, Any]:
     current = record.get("metadata") if isinstance(record.get("metadata"), dict) else {}
     incoming = _metadata_for_record(record, parameters, input_metadata)
-    merged = incoming if parameters.merge_strategy == "replace" else {**current, **incoming}
+    merged = (
+        incoming if parameters.merge_strategy == "replace" else {**current, **incoming}
+    )
     return {**record, "metadata": merged}
 
 
+###############################################################################
 def _merge_document_metadata(
-    document: dict[str, Any], parameters: MetadataParameters, input_metadata: dict[str, Any]
+    document: dict[str, Any],
+    parameters: MetadataParameters,
+    input_metadata: dict[str, Any],
 ) -> dict[str, Any]:
     return _merge_record_metadata(document, parameters, input_metadata)
 
 
+###############################################################################
 def _merge_chunk_metadata(
-    chunk: dict[str, Any], parameters: MetadataParameters, input_metadata: dict[str, Any]
+    chunk: dict[str, Any],
+    parameters: MetadataParameters,
+    input_metadata: dict[str, Any],
 ) -> dict[str, Any]:
     return _merge_record_metadata(chunk, parameters, input_metadata)
 
 
+###############################################################################
 def _metadata_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
 ) -> dict[str, Any]:
     parsed = MetadataParameters.model_validate(parameters)
-    input_metadata = inputs.get("metadata") if isinstance(inputs.get("metadata"), dict) else {}
+    input_metadata = (
+        inputs.get("metadata") if isinstance(inputs.get("metadata"), dict) else {}
+    )
     outputs: dict[str, Any] = {
         "metadata": {"metadata": {**parsed.metadata, **input_metadata}}
     }

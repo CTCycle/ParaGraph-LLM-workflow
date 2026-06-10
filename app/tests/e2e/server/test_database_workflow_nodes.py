@@ -7,6 +7,7 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 
 
+###############################################################################
 def _poll_run_until_terminal(
     client: TestClient, run_id: str, timeout_s: float = 3.0
 ) -> dict[str, object]:
@@ -22,6 +23,7 @@ def _poll_run_until_terminal(
     raise AssertionError(f"Run {run_id} did not finish. Last payload: {last_payload}")
 
 
+###############################################################################
 def _database_workflow_definition(database_path: Path) -> dict[str, object]:
     return {
         "schema_version": 2,
@@ -46,7 +48,12 @@ def _database_workflow_definition(database_path: Path) -> dict[str, object]:
                 "node_version": 1,
                 "parameters": {
                     "table": "qa_crud_nodes",
-                    "values": {"id": 1, "label": "alpha", "status": "new", "amount": 10},
+                    "values": {
+                        "id": 1,
+                        "label": "alpha",
+                        "status": "new",
+                        "amount": 10,
+                    },
                 },
             },
             {
@@ -120,6 +127,7 @@ def _database_workflow_definition(database_path: Path) -> dict[str, object]:
     }
 
 
+###############################################################################
 def _step_ports(run_payload: dict[str, object], node_id: str) -> dict[str, object]:
     steps = run_payload["steps"]
     assert isinstance(steps, list)
@@ -134,6 +142,7 @@ def _step_ports(run_payload: dict[str, object], node_id: str) -> dict[str, objec
     raise AssertionError(f"Missing step for node {node_id}")
 
 
+###############################################################################
 def test_database_crud_nodes_execute_together_through_compiled_workflow(
     client: TestClient, tmp_path: Path
 ) -> None:
@@ -142,7 +151,9 @@ def test_database_crud_nodes_execute_together_through_compiled_workflow(
     definition = _database_workflow_definition(database_path)
 
     try:
-        compile_response = client.post("/executions/compile", json={"definition": definition})
+        compile_response = client.post(
+            "/executions/compile", json={"definition": definition}
+        )
         assert compile_response.status_code == 200
         compiled = compile_response.json()
         assert compiled["valid"] is True
@@ -150,7 +161,11 @@ def test_database_crud_nodes_execute_together_through_compiled_workflow(
         start_response = client.post(
             "/executions",
             headers={"X-Request-ID": "qa-crud-workflow"},
-            json={"workflow_id": "wf-crud", "execution_session_id": "session-crud", "plan": compiled["plan"]},
+            json={
+                "workflow_id": "wf-crud",
+                "execution_session_id": "session-crud",
+                "plan": compiled["plan"],
+            },
         )
         assert start_response.status_code == 202
 

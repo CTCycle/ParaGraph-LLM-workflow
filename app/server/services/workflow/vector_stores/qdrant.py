@@ -22,10 +22,13 @@ from server.services.workflow.vector_stores.base import (
     _store_attr,
 )
 
+
+###############################################################################
 class QdrantVectorStoreAdapter(VectorStoreAdapter):
     backend = "qdrant"
     supports_faiss_augmentation = False
 
+    # -------------------------------------------------------------------------
     def _build_client(self, *, storage_directory: str, endpoint_url: str, api_key: str):
         if endpoint_url:
             return QdrantClient(url=endpoint_url, api_key=api_key or None)
@@ -33,6 +36,7 @@ class QdrantVectorStoreAdapter(VectorStoreAdapter):
         root_path.mkdir(parents=True, exist_ok=True)
         return QdrantClient(path=str(root_path / "qdrant_local"))
 
+    # -------------------------------------------------------------------------
     def validate_connection(
         self,
         *,
@@ -58,6 +62,7 @@ class QdrantVectorStoreAdapter(VectorStoreAdapter):
         timeout = float(config.get("timeout") or 5)
         client.get_collections(timeout=timeout)
 
+    # -------------------------------------------------------------------------
     def write_points(
         self,
         *,
@@ -156,6 +161,7 @@ class QdrantVectorStoreAdapter(VectorStoreAdapter):
             },
         )
 
+    # -------------------------------------------------------------------------
     def _map_filter(self, filter_spec: dict[str, Any] | None, qm: Any) -> Any:
         if not filter_spec:
             return None
@@ -183,6 +189,7 @@ class QdrantVectorStoreAdapter(VectorStoreAdapter):
             must=must or None, should=should or None, must_not=must_not or None
         )
 
+    # -------------------------------------------------------------------------
     def search(
         self,
         *,
@@ -281,4 +288,3 @@ class QdrantVectorStoreAdapter(VectorStoreAdapter):
                 )
             )
         return results
-

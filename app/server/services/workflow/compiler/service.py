@@ -28,18 +28,23 @@ GLOBAL_CONTROLLER_KINDS: dict[str, str] = {
 }
 
 
+###############################################################################
 def _resolve_provider(parameters: dict[str, object], default: str = "ollama") -> str:
     provider = str(parameters.get("provider", default)).strip().lower()
     return provider or default
 
 
+###############################################################################
 def _binding_sort_key(connection: WorkflowConnection) -> tuple[str, str, str]:
     target_name = connection.to_input or connection.to_controller or ""
     source_name = connection.from_output or connection.from_controller or ""
     return (target_name, connection.from_node, source_name)
 
 
+###############################################################################
 class CompilerService:
+
+    # -------------------------------------------------------------------------
     def _active_definition(
         self, definition: WorkflowDefinition
     ) -> tuple[WorkflowDefinition, list[str]]:
@@ -65,6 +70,7 @@ class CompilerService:
         )
         return active_definition, skipped_node_ids
 
+    # -------------------------------------------------------------------------
     def compile(self, definition: WorkflowDefinition) -> CompileWorkflowResponse:
         active_definition, skipped_node_ids = self._active_definition(definition)
         effective_definition = self._inject_global_controller_connections(
@@ -148,6 +154,7 @@ class CompilerService:
             ),
         )
 
+    # -------------------------------------------------------------------------
     def _inject_global_controller_connections(
         self, definition: WorkflowDefinition
     ) -> WorkflowDefinition:
@@ -238,6 +245,7 @@ class CompilerService:
             update={"connections": [*definition.connections, *injected]}
         )
 
+    # -------------------------------------------------------------------------
     def _resolve_global_source_controller_name(
         self, source_manifest, target_data_type: str
     ) -> str | None:
@@ -254,6 +262,7 @@ class CompilerService:
                 return controller.name
         return None
 
+    # -------------------------------------------------------------------------
     def _read_global_node_ids(
         self,
         definition: WorkflowDefinition,
@@ -275,12 +284,14 @@ class CompilerService:
                 normalized[key] = node_id
         return normalized
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def _controller_scope(scope: str | None) -> str:
         if scope in {"source", "target", "both"}:
             return scope
         return "target"
 
+    # -------------------------------------------------------------------------
     def _collect_diagnostics(
         self, definition: WorkflowDefinition
     ) -> tuple[list[CompilerDiagnostic], dict[str, dict[str, object]]]:
@@ -716,6 +727,7 @@ class CompilerService:
 
         return diagnostics, validated_parameters_by_node
 
+    # -------------------------------------------------------------------------
     def _topological_order(self, definition: WorkflowDefinition) -> list[str]:
         node_ids = [node.node_id for node in definition.nodes]
         indegree = {node_id: 0 for node_id in node_ids}
@@ -749,4 +761,3 @@ class CompilerService:
 
 
 compiler_service = CompilerService()
-

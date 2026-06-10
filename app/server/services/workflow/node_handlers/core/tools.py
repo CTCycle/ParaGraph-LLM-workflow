@@ -24,6 +24,7 @@ from server.services.workflow.provider import provider_service
 _TOOL_CALLABLES: dict[str, Callable[..., Any]] = {}
 
 
+###############################################################################
 def _json_type(annotation: Any) -> str:
     if annotation in {int}:
         return "integer"
@@ -38,6 +39,7 @@ def _json_type(annotation: Any) -> str:
     return "string"
 
 
+###############################################################################
 def _schema_from_callable_signature(function: Callable[..., Any]) -> dict[str, Any]:
     signature = inspect.signature(function)
     properties: dict[str, Any] = {}
@@ -59,6 +61,7 @@ def _schema_from_callable_signature(function: Callable[..., Any]) -> dict[str, A
     }
 
 
+###############################################################################
 def _register_callable_tool(
     function: Callable[..., Any], source_type: str, source_ref: str = ""
 ) -> ToolDefinition:
@@ -75,15 +78,24 @@ def _register_callable_tool(
     )
 
 
+###############################################################################
 def _safe_load_inline_tool_module(code: str) -> dict[str, Any]:
     tree = ast.parse(code)
-    if any(not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Import, ast.ImportFrom)) for node in tree.body):
-        raise ValueError("inline_python tools may contain only imports and function definitions")
+    if any(
+        not isinstance(
+            node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Import, ast.ImportFrom)
+        )
+        for node in tree.body
+    ):
+        raise ValueError(
+            "inline_python tools may contain only imports and function definitions"
+        )
     namespace: dict[str, Any] = {"__builtins__": __builtins__}
     exec(compile(tree, "<inline_tools>", "exec"), namespace)  # noqa: S102
     return namespace
 
 
+###############################################################################
 def _parse_inline_python_tools(code: str) -> list[ToolDefinition]:
     namespace = _safe_load_inline_tool_module(code)
     return [
@@ -93,6 +105,7 @@ def _parse_inline_python_tools(code: str) -> list[ToolDefinition]:
     ]
 
 
+###############################################################################
 def _load_tool_module_from_file(file_path: str) -> dict[str, Any]:
     path = resolve_local_path(file_path)
     if path.suffix.lower() != ".py":
@@ -105,11 +118,20 @@ def _load_tool_module_from_file(file_path: str) -> dict[str, Any]:
     return vars(module)
 
 
-def _parse_python_file_tools(file_path: str, entrypoint: str = "") -> list[ToolDefinition]:
+###############################################################################
+def _parse_python_file_tools(
+    file_path: str, entrypoint: str = ""
+) -> list[ToolDefinition]:
     namespace = _load_tool_module_from_file(file_path)
-    names = [entrypoint] if entrypoint else [
-        name for name, value in namespace.items() if callable(value) and not name.startswith("_")
-    ]
+    names = (
+        [entrypoint]
+        if entrypoint
+        else [
+            name
+            for name, value in namespace.items()
+            if callable(value) and not name.startswith("_")
+        ]
+    )
     return [
         _register_callable_tool(namespace[name], "python_file", source_ref=file_path)
         for name in names
@@ -117,6 +139,7 @@ def _parse_python_file_tools(file_path: str, entrypoint: str = "") -> list[ToolD
     ]
 
 
+###############################################################################
 def _parse_signature_tools(signature_text: str) -> list[ToolDefinition]:
     tools: list[ToolDefinition] = []
     for line in signature_text.splitlines():
@@ -151,8 +174,13 @@ def _parse_signature_tools(signature_text: str) -> list[ToolDefinition]:
     return tools
 
 
-def _normalize_tool_schema(schema: dict[str, Any], tool_name: str = "", description: str = "") -> ToolDefinition:
-    payload = schema.get("function") if isinstance(schema.get("function"), dict) else schema
+###############################################################################
+def _normalize_tool_schema(
+    schema: dict[str, Any], tool_name: str = "", description: str = ""
+) -> ToolDefinition:
+    payload = (
+        schema.get("function") if isinstance(schema.get("function"), dict) else schema
+    )
     name = str(payload.get("name") or tool_name or "").strip()
     parameters = payload.get("parameters") or payload.get("parameters_schema") or schema
     if not name:
@@ -168,18 +196,28 @@ def _normalize_tool_schema(schema: dict[str, Any], tool_name: str = "", descript
     )
 
 
-def _parse_json_schema_tools(schema: dict[str, Any], tool_name: str = "", description: str = "") -> list[ToolDefinition]:
+###############################################################################
+def _parse_json_schema_tools(
+    schema: dict[str, Any], tool_name: str = "", description: str = ""
+) -> list[ToolDefinition]:
     if isinstance(schema.get("tools"), list):
-        return [_normalize_tool_schema(item, tool_name, description) for item in schema["tools"] if isinstance(item, dict)]
+        return [
+            _normalize_tool_schema(item, tool_name, description)
+            for item in schema["tools"]
+            if isinstance(item, dict)
+        ]
     return [_normalize_tool_schema(schema, tool_name, description)]
 
 
+###############################################################################
 def _tool_collection_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
 ) -> dict[str, Any]:
     parsed = ToolCollectionParameters.model_validate(parameters)
     if parsed.source_type == "inline_python":
-        tools = _parse_inline_python_tools(str(inputs.get("code") or parsed.inline_code))
+        tools = _parse_inline_python_tools(
+            str(inputs.get("code") or parsed.inline_code)
+        )
     elif parsed.source_type == "python_file":
         tools = _parse_python_file_tools(parsed.file_path, parsed.entrypoint)
     elif parsed.source_type == "signature":
@@ -197,6 +235,7 @@ def _tool_collection_executor(
     return {"tools": handle.model_dump(mode="json")}
 
 
+###############################################################################
 def _build_tool_choice_schema(tools: list[ToolDefinition]) -> dict[str, Any]:
     return {
         "type": "object",
@@ -209,10 +248,12 @@ def _build_tool_choice_schema(tools: list[ToolDefinition]) -> dict[str, Any]:
     }
 
 
+###############################################################################
 def _validate_tool_arguments(tool: ToolDefinition, arguments: dict[str, Any]) -> None:
     validate_json_against_schema(arguments, tool.parameters_schema)
 
 
+###############################################################################
 def _execute_selected_tool(selection: ToolCallSelection) -> Any:
     function = _TOOL_CALLABLES.get(selection.tool_name)
     if function is None:
@@ -220,10 +261,17 @@ def _execute_selected_tool(selection: ToolCallSelection) -> Any:
     return function(**selection.arguments)
 
 
+###############################################################################
 def _select_tool_with_structured_model(
-    *, selection: ProviderModelDefinition, tools: list[ToolDefinition], parameters: dict[str, Any], inputs: dict[str, Any]
+    *,
+    selection: ProviderModelDefinition,
+    tools: list[ToolDefinition],
+    parameters: dict[str, Any],
+    inputs: dict[str, Any],
 ) -> ToolCallSelection:
-    instruction = str(inputs.get("instruction") or parameters.get("instruction") or "").strip()
+    instruction = str(
+        inputs.get("instruction") or parameters.get("instruction") or ""
+    ).strip()
     prompt = (
         f"{instruction}\n\nAvailable tools:\n"
         f"{json.dumps([tool.model_dump(mode='json') for tool in tools], sort_keys=True)}"
@@ -231,7 +279,11 @@ def _select_tool_with_structured_model(
     result = _execute_model_node(
         provider=selection.provider,
         model_name=selection.model,
-        parameters={**parameters, "prompt": prompt, "response_schema": _build_tool_choice_schema(tools)},
+        parameters={
+            **parameters,
+            "prompt": prompt,
+            "response_schema": _build_tool_choice_schema(tools),
+        },
         inputs={"model": selection.model_dump(mode="json"), "user_prompt": prompt},
         structured_output=True,
         timeout_s=selection.timeout_s,
@@ -239,13 +291,25 @@ def _select_tool_with_structured_model(
     return ToolCallSelection.model_validate({**result, "raw_model_response": result})
 
 
+###############################################################################
 def _select_tool_with_native_provider_tools(
-    *, selection: ProviderModelDefinition, tools: list[ToolDefinition], parameters: dict[str, Any], inputs: dict[str, Any]
+    *,
+    selection: ProviderModelDefinition,
+    tools: list[ToolDefinition],
+    parameters: dict[str, Any],
+    inputs: dict[str, Any],
 ) -> ToolCallSelection:
     response = provider_service.chat_with_tools(
         provider=selection.provider,
         model=selection.model,
-        messages=[{"role": "user", "content": str(inputs.get("instruction") or parameters.get("instruction") or "")}],
+        messages=[
+            {
+                "role": "user",
+                "content": str(
+                    inputs.get("instruction") or parameters.get("instruction") or ""
+                ),
+            }
+        ],
         tools=[tool.model_dump(mode="json") for tool in tools],
         tool_choice=str(parameters.get("tool_choice") or "auto"),
         options={"max_output_tokens": int(parameters.get("max_tokens") or 512)},
@@ -254,6 +318,7 @@ def _select_tool_with_native_provider_tools(
     return ToolCallSelection.model_validate(response)
 
 
+###############################################################################
 def _tool_call_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
 ) -> dict[str, Any]:
@@ -264,20 +329,32 @@ def _tool_call_executor(
     except ValidationError as exc:
         raise ValueError("TOOL_CALL requires model and tools controllers") from exc
 
-    native_supported = provider_service.supports_native_tools(model.provider, model.model)
+    native_supported = provider_service.supports_native_tools(
+        model.provider, model.model
+    )
     if parsed.provider_tool_mode == "native" and not native_supported:
-        raise ValueError(f"Provider '{model.provider}' does not support native tool calling")
+        raise ValueError(
+            f"Provider '{model.provider}' does not support native tool calling"
+        )
     use_native = native_supported and parsed.provider_tool_mode in {"auto", "native"}
     selection = (
         _select_tool_with_native_provider_tools(
-            selection=model, tools=tools_handle.tools, parameters=parameters, inputs=inputs
+            selection=model,
+            tools=tools_handle.tools,
+            parameters=parameters,
+            inputs=inputs,
         )
         if use_native
         else _select_tool_with_structured_model(
-            selection=model, tools=tools_handle.tools, parameters=parameters, inputs=inputs
+            selection=model,
+            tools=tools_handle.tools,
+            parameters=parameters,
+            inputs=inputs,
         )
     )
-    tool = next((item for item in tools_handle.tools if item.name == selection.tool_name), None)
+    tool = next(
+        (item for item in tools_handle.tools if item.name == selection.tool_name), None
+    )
     if tool is None:
         raise ValueError(f"Model selected unknown tool: {selection.tool_name}")
     _validate_tool_arguments(tool, selection.arguments)
@@ -287,7 +364,10 @@ def _tool_call_executor(
         arguments=selection.arguments,
         result=result,
         raw_model_response=selection.raw_model_response,
-        metadata={"executed": parsed.execute_tool, "mode": "native" if use_native else "structured_json"},
+        metadata={
+            "executed": parsed.execute_tool,
+            "mode": "native" if use_native else "structured_json",
+        },
     ).model_dump(mode="json")
     return {"result": output, "json": output}
 

@@ -51,6 +51,7 @@ class ChunkRecord(BaseModel):
     token_count: int
     metadata: dict[str, Any] = Field(default_factory=dict)
 
+    # -------------------------------------------------------------------------
     @field_validator("chunk_index", "token_count")
     @classmethod
     def validate_non_negative(cls, value: int) -> int:
@@ -72,6 +73,7 @@ class VectorPoint(BaseModel):
     embedding_model: str
     metadata: dict[str, Any] = Field(default_factory=dict)
 
+    # -------------------------------------------------------------------------
     @field_validator("vector")
     @classmethod
     def validate_vector(cls, value: list[float]) -> list[float]:
@@ -96,6 +98,7 @@ class VectorStoreHandle(BaseModel):
     vector_index_status: str = "unknown"
     metadata: dict[str, Any] = Field(default_factory=dict)
 
+    # -------------------------------------------------------------------------
     @field_validator("dimension")
     @classmethod
     def validate_dimension(cls, value: int) -> int:
@@ -150,6 +153,7 @@ class ToolDefinition(BaseModel):
     entrypoint: str = ""
     callable_name: str = ""
 
+    # -------------------------------------------------------------------------
     @field_validator("name")
     @classmethod
     def validate_name(cls, value: str) -> str:
@@ -243,4 +247,3 @@ def validate_data_type(data_type: NodeDataType, value: Any) -> Any:
     return _normalize_validated_value(
         DATA_TYPE_ADAPTERS[data_type].validate_python(value)
     )
-

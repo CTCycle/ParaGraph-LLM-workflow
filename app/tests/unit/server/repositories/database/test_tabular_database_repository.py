@@ -6,9 +6,10 @@ import sqlalchemy
 
 from server.repositories.database.base import TabularDatabaseRepository
 
-
 ###############################################################################
 class InMemoryTabularRepository(TabularDatabaseRepository):
+
+    # -------------------------------------------------------------------------
     def __init__(self, insert_batch_size: int = 2) -> None:
         engine = sqlalchemy.create_engine("sqlite:///:memory:", future=True)
         super().__init__(
@@ -16,7 +17,6 @@ class InMemoryTabularRepository(TabularDatabaseRepository):
             db_path=None,
             insert_batch_size=insert_batch_size,
         )
-
 
 ###############################################################################
 def test_save_load_and_count_dynamic_table() -> None:
@@ -45,8 +45,7 @@ def test_save_load_and_count_dynamic_table() -> None:
     assert list(loaded.columns) == ["name", "row_count", "score", "enabled"]
     assert len(loaded) == 2
 
-
-# -----------------------------------------------------------------------------
+###############################################################################
 def test_save_replaces_existing_dynamic_table_rows() -> None:
     repository = InMemoryTabularRepository()
     repository.save_into_database(
@@ -68,8 +67,7 @@ def test_save_replaces_existing_dynamic_table_rows() -> None:
     assert repository.count_rows("replaceable_datasets") == 1
     assert loaded.to_dict(orient="records") == [{"name": "new-a", "value": 3}]
 
-
-# -----------------------------------------------------------------------------
+###############################################################################
 def test_load_missing_table_returns_empty_dataframe() -> None:
     repository = InMemoryTabularRepository()
 
@@ -77,8 +75,7 @@ def test_load_missing_table_returns_empty_dataframe() -> None:
 
     assert loaded.empty
 
-
-# -----------------------------------------------------------------------------
+###############################################################################
 def test_count_missing_table_raises_value_error() -> None:
     repository = InMemoryTabularRepository()
 

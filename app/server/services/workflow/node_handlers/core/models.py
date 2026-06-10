@@ -34,6 +34,7 @@ from server.services.workflow.provider import provider_service
 _HF_MODEL_CACHE: dict[str, tuple[Any, Any]] = {}
 
 
+###############################################################################
 def _extract_prompt_inputs(
     parameters: dict[str, Any], inputs: dict[str, Any]
 ) -> tuple[str, str, str]:
@@ -53,6 +54,7 @@ def _extract_prompt_inputs(
     return user_prompt, system_prompt, image_path
 
 
+###############################################################################
 def _build_messages(
     parameters: dict[str, Any],
     inputs: dict[str, Any],
@@ -101,6 +103,7 @@ def _build_messages(
     return messages
 
 
+###############################################################################
 def _build_generation_options(
     parameters: dict[str, Any], *, include_context_window: bool
 ) -> dict[str, Any]:
@@ -113,6 +116,7 @@ def _build_generation_options(
     return options
 
 
+###############################################################################
 def _resolve_model_selection(
     parameters: dict[str, Any], inputs: dict[str, Any]
 ) -> ProviderModelDefinition:
@@ -126,6 +130,7 @@ def _resolve_model_selection(
         raise ValueError("model controller must be a valid model handle") from exc
 
 
+###############################################################################
 def _run_huggingface_chat(
     *,
     model_name: str,
@@ -166,6 +171,7 @@ def _run_huggingface_chat(
     return decoded.strip()
 
 
+###############################################################################
 def _execute_model_node(
     *,
     provider: str,
@@ -182,7 +188,9 @@ def _execute_model_node(
         try:
             history_handle = ChatHistoryHandle.model_validate(history_handle_input)
         except ValidationError as exc:
-            raise ValueError("history controller must be a valid chat history handle") from exc
+            raise ValueError(
+                "history controller must be a valid chat history handle"
+            ) from exc
 
     history_text = (
         chat_history_service.format_history_for_prompt(history_handle)
@@ -267,7 +275,9 @@ def _execute_model_node(
                 history_handle,
                 system_prompt=system_prompt,
                 user_prompt=user_prompt,
-                assistant_output=chat_history_service.serialize_structured_output(parsed),
+                assistant_output=chat_history_service.serialize_structured_output(
+                    parsed
+                ),
             )
         return {
             "result": parsed,
@@ -285,6 +295,7 @@ def _execute_model_node(
     return {"response": text}
 
 
+###############################################################################
 def _model_provider_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
 ) -> dict[str, Any]:
@@ -308,6 +319,7 @@ def _model_provider_executor(
     }
 
 
+###############################################################################
 def _llm_chat_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
 ) -> dict[str, Any]:
@@ -322,6 +334,7 @@ def _llm_chat_executor(
     )
 
 
+###############################################################################
 def _llm_structured_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
 ) -> dict[str, Any]:

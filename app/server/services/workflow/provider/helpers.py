@@ -173,6 +173,7 @@ def _payload_value(payload: Any, key: str) -> Any:
         return payload.get(key)
     return getattr(payload, key, None)
 
+
 ###############################################################################
 PROVIDER_CAPABILITIES = {
     "ollama": ProviderMetadata(
@@ -407,6 +408,7 @@ def _infer_ollama_metadata(model_name: str) -> ModelMetadata:
     )
 
 
+###############################################################################
 def _infer_huggingface_metadata(repo_id: str) -> ModelMetadata:
     normalized = repo_id.lower()
     supports_image = any(
@@ -424,5 +426,3 @@ def _infer_huggingface_metadata(repo_id: str) -> ModelMetadata:
         supports_reasoning=supports_reasoning,
         supports_structured_output=True,
     )
-
-

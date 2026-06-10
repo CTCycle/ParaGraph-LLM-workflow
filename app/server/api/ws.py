@@ -15,6 +15,7 @@ router = APIRouter(tags=["execution-ws"])
 RUN_ID_PATTERN_RE = re.compile(RUN_ID_PATTERN)
 
 
+###############################################################################
 @router.websocket("/executions/ws/runs/{run_id}")
 async def execution_run_events(
     websocket: WebSocket, run_id: str, replay: bool = True
@@ -46,4 +47,3 @@ async def execution_run_events(
         return
     finally:
         execution_event_service.unsubscribe(run_id, subscription_queue)
-

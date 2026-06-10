@@ -19,10 +19,13 @@ from server.services.workflow.vector_stores.base import (
     _store_attr,
 )
 
+
+###############################################################################
 class WeaviateVectorStoreAdapter(VectorStoreAdapter):
     backend = "weaviate"
     supports_faiss_augmentation = False
 
+    # -------------------------------------------------------------------------
     def _connect(self, *, endpoint_url: str, api_key: str):
         if not endpoint_url:
             raise VectorStoreError("Weaviate requires endpoint_url")
@@ -35,6 +38,7 @@ class WeaviateVectorStoreAdapter(VectorStoreAdapter):
             http_host=endpoint_url, http_port=443, http_secure=True
         )
 
+    # -------------------------------------------------------------------------
     def validate_connection(
         self,
         *,
@@ -60,6 +64,7 @@ class WeaviateVectorStoreAdapter(VectorStoreAdapter):
         finally:
             client.close()
 
+    # -------------------------------------------------------------------------
     def write_points(
         self,
         *,
@@ -140,6 +145,7 @@ class WeaviateVectorStoreAdapter(VectorStoreAdapter):
             },
         )
 
+    # -------------------------------------------------------------------------
     def search(
         self,
         *,
@@ -236,4 +242,3 @@ class WeaviateVectorStoreAdapter(VectorStoreAdapter):
                 )
             )
         return hits
-

@@ -8,7 +8,10 @@ from server.services.workflow import node_registry
 from server.services.workflow.node_handlers.core import routing
 
 
+###############################################################################
 class FakeTokenizer:
+
+    # -------------------------------------------------------------------------
     def __call__(self, text: str, **_: Any) -> dict[str, list[int]]:
         return {
             "input_ids": [len(text), 101],
@@ -17,12 +20,16 @@ class FakeTokenizer:
         }
 
 
+###############################################################################
 class FakeAutoTokenizer:
+
+    # -------------------------------------------------------------------------
     @staticmethod
     def from_pretrained(_: str, **__: Any) -> FakeTokenizer:
         return FakeTokenizer()
 
 
+###############################################################################
 def test_tokenizer_returns_structured_output_only(monkeypatch: MonkeyPatch) -> None:
     routing._TOKENIZER_CACHE.clear()
     monkeypatch.setattr(routing, "AutoTokenizer", FakeAutoTokenizer)
@@ -43,6 +50,7 @@ def test_tokenizer_returns_structured_output_only(monkeypatch: MonkeyPatch) -> N
     assert result["tokenized"]["records"][0]["token_ids"] == [5, 101]
 
 
+###############################################################################
 def test_tokenizer_returns_serialized_output_only(monkeypatch: MonkeyPatch) -> None:
     routing._TOKENIZER_CACHE.clear()
     monkeypatch.setattr(routing, "AutoTokenizer", FakeAutoTokenizer)

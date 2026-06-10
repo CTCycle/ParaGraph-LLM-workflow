@@ -21,6 +21,7 @@ from server.services.workflow.node_handlers.structured import STRUCTURED_HANDLER
 from server.services.workflow.provider import ProviderApiError
 
 
+###############################################################################
 def test_service_package_exports_remain_stable() -> None:
     assert compiler_service is not None
     assert provider_service is not None
@@ -30,6 +31,7 @@ def test_service_package_exports_remain_stable() -> None:
     assert callable(resolve_local_path)
 
 
+###############################################################################
 def test_handler_registries_keep_expected_keys() -> None:
     assert set(CORE_HANDLERS) == {
         "prompt",
@@ -58,21 +60,21 @@ def test_handler_registries_keep_expected_keys() -> None:
         "by_structure_chunks",
         "regex_split_chunks",
         "recursive_split_chunks",
-            "sentence_window_chunks",
-            "merge_small_chunks",
-            "normalize_text",
-            "regex_extract",
-            "regex_replace",
-            "token_split_chunks",
-            "semantic_split_chunks",
-            "join_merge_text",
-            "deduplicate_text",
-            "metadata_attach",
-            "language_detect",
-            "token_counter",
-            "truncate_to_budget",
-            "llm_summarize",
-            "llm_rewrite",
+        "sentence_window_chunks",
+        "merge_small_chunks",
+        "normalize_text",
+        "regex_extract",
+        "regex_replace",
+        "token_split_chunks",
+        "semantic_split_chunks",
+        "join_merge_text",
+        "deduplicate_text",
+        "metadata_attach",
+        "language_detect",
+        "token_counter",
+        "truncate_to_budget",
+        "llm_summarize",
+        "llm_rewrite",
     }
     assert set(INGESTION_HANDLERS) == {
         "directory_loader",

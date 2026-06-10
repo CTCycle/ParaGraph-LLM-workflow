@@ -73,10 +73,12 @@ get_vector_store_adapter = _default_get_vector_store_adapter
 _HF_MODEL_CACHE = _UNUSED_HF_MODEL_CACHE
 
 
+###############################################################################
 def _load_text_executor(
     parameters: dict[str, object], inputs: dict[str, object]
 ) -> dict[str, object]:
     return _load_text_executor_impl(parameters, inputs, text_loader=load_file_text)
+
 
 CORE_HANDLERS = {
     "prompt": NodeHandler(executor=_prompt_executor, parameter_model=PromptParameters),
@@ -145,4 +147,3 @@ __all__ = [
     "get_vector_store_adapter",
     "load_file_text",
 ]
-

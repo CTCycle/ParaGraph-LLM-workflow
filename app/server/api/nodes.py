@@ -37,6 +37,7 @@ def import_node_manifest(manifest: NodeManifest) -> NodeManifest:
         ) from exc
 
 
+###############################################################################
 @router.post("/uploads/directory", response_model=UploadedDirectoryResponse)
 async def upload_directory(
     files: list[UploadFile] = File(...),
@@ -65,6 +66,7 @@ def check_database_connection(
     return node_connectivity_service.check_database_connection(request)
 
 
+###############################################################################
 @router.post("/database-schema", response_model=DatabaseSchemaResponse)
 def get_database_schema(request: DatabaseSchemaRequest) -> DatabaseSchemaResponse:
     try:
@@ -74,7 +76,6 @@ def get_database_schema(request: DatabaseSchemaRequest) -> DatabaseSchemaRespons
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)
         ) from exc
 
-
 ###############################################################################
 @router.post(
     "/check-vector-store-connection", response_model=VectorStoreConnectionCheckResponse
@@ -83,4 +84,3 @@ def check_vector_store_connection(
     request: VectorStoreConnectionCheckRequest,
 ) -> VectorStoreConnectionCheckResponse:
     return node_connectivity_service.check_vector_store_connection(request)
-

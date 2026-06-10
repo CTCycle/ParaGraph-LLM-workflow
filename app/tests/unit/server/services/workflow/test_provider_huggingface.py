@@ -21,7 +21,10 @@ from server.services.workflow.provider.constants import (
 )
 
 
+###############################################################################
 class _FakeExpandApi:
+
+    # -------------------------------------------------------------------------
     def list_models(
         self,
         *,
@@ -41,6 +44,7 @@ class _FakeExpandApi:
         return None
 
 
+###############################################################################
 def test_build_huggingface_list_kwargs_prefers_expand() -> None:
     service = ProviderService()
 
@@ -60,6 +64,7 @@ def test_build_huggingface_list_kwargs_prefers_expand() -> None:
     assert "full" not in kwargs
 
 
+###############################################################################
 def test_huggingface_download_uses_explicit_stream_timeout(
     monkeypatch, tmp_path: Path, job_state_factory
 ) -> None:
@@ -68,20 +73,27 @@ def test_huggingface_download_uses_explicit_stream_timeout(
     files = [{"path": "model.bin", "size": 4}]
     capture: dict[str, object] = {}
 
+    ###############################################################################
     class _FakeResponse:
         headers = {"Content-Length": "4"}
 
+        # -------------------------------------------------------------------------
         def raise_for_status(self) -> None:
             return None
 
+        # -------------------------------------------------------------------------
         def iter_bytes(self, chunk_size: int = 0):
             _ = chunk_size
             yield b"data"
 
+    ###############################################################################
     class _FakeStreamContext:
+
+        # -------------------------------------------------------------------------
         def __enter__(self) -> _FakeResponse:
             return _FakeResponse()
 
+        # -------------------------------------------------------------------------
         def __exit__(self, exc_type, exc, tb) -> bool:
             _ = (exc_type, exc, tb)
             return False
@@ -118,11 +130,15 @@ def test_huggingface_download_uses_explicit_stream_timeout(
     assert timeout.pool == HUGGINGFACE_DOWNLOAD_TIMEOUT_SECONDS
 
 
+###############################################################################
 def test_huggingface_filter_tags_logs_and_falls_back(monkeypatch) -> None:
     service = ProviderService()
     captured: list[dict[str, object]] = []
 
+    ###############################################################################
     class _FailingApi:
+
+        # -------------------------------------------------------------------------
         def get_model_tags(self) -> dict[str, object]:
             raise RuntimeError("tag service unavailable")
 
@@ -140,4 +156,3 @@ def test_huggingface_filter_tags_logs_and_falls_back(monkeypatch) -> None:
     assert libraries == HUGGINGFACE_FALLBACK_LIBRARIES
     assert captured
     assert captured[0]["kwargs"].get("exc_info") is True
-

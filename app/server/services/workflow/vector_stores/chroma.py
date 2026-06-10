@@ -19,10 +19,13 @@ from server.services.workflow.vector_stores.base import (
     _store_attr,
 )
 
+
+###############################################################################
 class ChromaVectorStoreAdapter(VectorStoreAdapter):
     backend = "chroma"
     supports_faiss_augmentation = False
 
+    # -------------------------------------------------------------------------
     def _build_client(self, *, storage_directory: str, endpoint_url: str):
         if endpoint_url:
             return chromadb.HttpClient(host=endpoint_url)
@@ -30,6 +33,7 @@ class ChromaVectorStoreAdapter(VectorStoreAdapter):
         root.mkdir(parents=True, exist_ok=True)
         return chromadb.PersistentClient(path=str(root / "chroma"))
 
+    # -------------------------------------------------------------------------
     def validate_connection(
         self,
         *,
@@ -49,6 +53,7 @@ class ChromaVectorStoreAdapter(VectorStoreAdapter):
         _normalize_index_name(collection_name or index_name)
         client.heartbeat()
 
+    # -------------------------------------------------------------------------
     def write_points(
         self,
         *,
@@ -129,6 +134,7 @@ class ChromaVectorStoreAdapter(VectorStoreAdapter):
             },
         )
 
+    # -------------------------------------------------------------------------
     def search(
         self,
         *,
@@ -211,4 +217,3 @@ class ChromaVectorStoreAdapter(VectorStoreAdapter):
                 )
             )
         return payloads
-

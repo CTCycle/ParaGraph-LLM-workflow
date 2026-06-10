@@ -55,11 +55,14 @@ from server.services.workflow.provider.ollama import (
 )
 
 
+###############################################################################
 class ProviderService(
     OllamaLibraryCatalogMixin,
     HuggingFaceCatalogMixin,
     HuggingFaceDownloadMixin,
 ):
+
+    # -------------------------------------------------------------------------
     def __init__(self) -> None:
         self._cache_lock = Lock()
         self._ollama_library_cache: CachedValue | None = None
@@ -68,15 +71,18 @@ class ProviderService(
         self.ollama_library = OllamaLibraryService(self)
         self.huggingface_catalog = HuggingFaceCatalogService(self)
 
+    # -------------------------------------------------------------------------
     def reset_for_tests(self) -> None:
         with self._cache_lock:
             self._ollama_library_cache = None
             self._huggingface_cache.clear()
             self._huggingface_filter_tags_cache.clear()
 
+    # -------------------------------------------------------------------------
     def _load_configuration(self, session_name: str = DEFAULT_SESSION_NAME):
         return configuration_service.load_configuration(session_name=session_name)
 
+    # -------------------------------------------------------------------------
     def _get_access_key(self, provider: str, session_name: str = DEFAULT_SESSION_NAME):
         config = self._load_configuration(session_name)
         normalized_provider = _normalize_provider(provider)
@@ -86,10 +92,12 @@ class ProviderService(
                 return item
         return None
 
+    # -------------------------------------------------------------------------
     def _ollama_client(self, session_name: str = DEFAULT_SESSION_NAME) -> OllamaClient:
         config = self._load_configuration(session_name)
         return OllamaClient(base_url=config.ollama.base_url)
 
+    # -------------------------------------------------------------------------
     def list_catalog(self) -> ProviderCatalogResponse:
         ordered = ["ollama", "openai", "gemini", "claude", "huggingface"]
         return ProviderCatalogResponse(
@@ -110,6 +118,7 @@ class ProviderService(
             ]
         )
 
+    # -------------------------------------------------------------------------
     def assert_capabilities(
         self,
         provider: str,
@@ -127,6 +136,7 @@ class ProviderService(
         if embeddings and not metadata.supports_embeddings:
             raise ValueError(f"Provider '{provider}' does not support embeddings")
 
+    # -------------------------------------------------------------------------
     def list_models(
         self, session_name: str = DEFAULT_SESSION_NAME
     ) -> ProviderModelCatalogResponse:
@@ -150,6 +160,7 @@ class ProviderService(
             models=[self._to_model_definition(model) for model in deduped.values()]
         )
 
+    # -------------------------------------------------------------------------
     def list_ollama_library_models(
         self,
         *,
@@ -163,6 +174,7 @@ class ProviderService(
             refresh=refresh,
         )
 
+    # -------------------------------------------------------------------------
     def pull_ollama_model(
         self,
         *,
@@ -171,6 +183,7 @@ class ProviderService(
     ) -> OllamaModelPullResponse:
         return self.ollama_library.pull_model(model=model, session_name=session_name)
 
+    # -------------------------------------------------------------------------
     def list_huggingface_models(
         self,
         *,
@@ -198,6 +211,7 @@ class ProviderService(
             refresh=refresh,
         )
 
+    # -------------------------------------------------------------------------
     def _list_ollama_library_models_impl(
         self,
         *,
@@ -236,6 +250,7 @@ class ProviderService(
             refreshed_at=catalog.refreshed_at,
         )
 
+    # -------------------------------------------------------------------------
     def _pull_ollama_model_impl(
         self,
         *,
@@ -268,6 +283,7 @@ class ProviderService(
             message=f"Model '{normalized_model}' is available in Ollama.",
         )
 
+    # -------------------------------------------------------------------------
     def _ollama_models(
         self, session_name: str = DEFAULT_SESSION_NAME
     ) -> tuple[ModelMetadata, ...]:
@@ -285,6 +301,7 @@ class ProviderService(
                 names = [fallback]
         return tuple(_infer_ollama_metadata(name) for name in names)
 
+    # -------------------------------------------------------------------------
     def _to_model_definition(
         self, metadata: ModelMetadata, timeout_s: float | None = None
     ) -> ProviderModelDefinition:
@@ -299,6 +316,7 @@ class ProviderService(
             timeout_s=timeout_s,
         )
 
+    # -------------------------------------------------------------------------
     def build_model_definition(
         self,
         provider: str,
@@ -311,6 +329,7 @@ class ProviderService(
             timeout_s=timeout_s,
         )
 
+    # -------------------------------------------------------------------------
     def get_model_metadata(
         self,
         provider: str,
@@ -340,6 +359,7 @@ class ProviderService(
             f"Unknown model '{model}' for provider '{normalized_provider}'"
         )
 
+    # -------------------------------------------------------------------------
     def validate_model_request(
         self,
         *,
@@ -382,6 +402,7 @@ class ProviderService(
         if structured_output and not metadata.supports_structured_output:
             raise ValueError(f"Model '{model}' does not support structured output")
 
+    # -------------------------------------------------------------------------
     def chat(
         self,
         *,
@@ -416,18 +437,21 @@ class ProviderService(
         except (LLMError, OllamaError) as exc:
             raise ValueError(str(exc)) from exc
 
+    # -------------------------------------------------------------------------
     def supports_native_tools(self, provider: str, model: str = "") -> bool:
         _ = model
         normalized_provider = _normalize_provider(provider)
         metadata = PROVIDER_CAPABILITIES.get(normalized_provider)
         return bool(metadata and metadata.supports_tool_calling)
 
+    # -------------------------------------------------------------------------
     def supports_structured_output(self, provider: str, model: str = "") -> bool:
         _ = model
         normalized_provider = _normalize_provider(provider)
         metadata = PROVIDER_CAPABILITIES.get(normalized_provider)
         return bool(metadata and metadata.supports_structured_output)
 
+    # -------------------------------------------------------------------------
     def chat_structured(
         self,
         *,
@@ -450,6 +474,7 @@ class ProviderService(
             session_name=session_name,
         )
 
+    # -------------------------------------------------------------------------
     def chat_with_tools(
         self,
         *,
@@ -463,7 +488,9 @@ class ProviderService(
         session_name: str = DEFAULT_SESSION_NAME,
     ) -> dict[str, Any]:
         if not self.supports_native_tools(provider, model):
-            raise ValueError(f"Provider '{provider}' does not support native tool calling")
+            raise ValueError(
+                f"Provider '{provider}' does not support native tool calling"
+            )
         prompt_messages = [
             *messages,
             {
@@ -489,10 +516,13 @@ class ProviderService(
             raise ValueError("tool calling response must be a JSON object")
         return {
             "tool_name": data.get("tool_name"),
-            "arguments": data.get("arguments") if isinstance(data.get("arguments"), dict) else {},
+            "arguments": data.get("arguments")
+            if isinstance(data.get("arguments"), dict)
+            else {},
             "raw_model_response": data,
         }
 
+    # -------------------------------------------------------------------------
     def _fallback_embedding(
         self, *, provider: str, model: str, text: str, dimensions: int | None
     ) -> list[float]:
@@ -507,6 +537,7 @@ class ProviderService(
             values.append(round(chunk / 65535.0, 6))
         return values
 
+    # -------------------------------------------------------------------------
     def _ollama_embed(self, *, model: str, text: str, session_name: str) -> list[float]:
         base_url = self._load_configuration(session_name).ollama.base_url.rstrip("/")
         payloads = (
@@ -540,6 +571,7 @@ class ProviderService(
                 last_error = exc
         raise ValueError(str(last_error or "Unable to generate Ollama embeddings"))
 
+    # -------------------------------------------------------------------------
     def _openai_embed(
         self,
         *,
@@ -582,6 +614,7 @@ class ProviderService(
             raise ValueError("Invalid OpenAI embeddings response")
         return [float(item) for item in items[0]["embedding"]]
 
+    # -------------------------------------------------------------------------
     def embed_text(
         self,
         *,
@@ -623,7 +656,4 @@ class ProviderService(
         return vector
 
 
-
-
 provider_service = ProviderService()
-

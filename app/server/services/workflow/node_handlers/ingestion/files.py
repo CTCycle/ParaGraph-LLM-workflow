@@ -9,10 +9,12 @@ from docx import Document
 from pypdf import PdfReader
 
 
+###############################################################################
 def resolve_local_path(path_value: str) -> Path:
     return Path(path_value).expanduser().resolve()
 
 
+###############################################################################
 def _html_to_text(raw_html: str) -> str:
     soup = BeautifulSoup(raw_html, "html.parser")
     for tag in soup(["script", "style", "nav", "header", "footer", "aside"]):
@@ -22,6 +24,7 @@ def _html_to_text(raw_html: str) -> str:
     )
 
 
+###############################################################################
 def _load_docx_text(path: Path) -> str:
     document = Document(str(path))
     return "\n".join(
@@ -31,6 +34,7 @@ def _load_docx_text(path: Path) -> str:
     )
 
 
+###############################################################################
 def load_docx_paragraphs(path: Path) -> list[dict[str, object]]:
     document = Document(str(path))
     return [
@@ -40,6 +44,7 @@ def load_docx_paragraphs(path: Path) -> list[dict[str, object]]:
     ]
 
 
+###############################################################################
 def _load_pdf_text(path: Path) -> str:
     reader = PdfReader(str(path))
     parts: list[str] = []
@@ -50,7 +55,10 @@ def _load_pdf_text(path: Path) -> str:
     return "\n\n".join(parts)
 
 
-def load_pdf_pages(path: Path, *, include_empty_pages: bool = False) -> list[dict[str, object]]:
+###############################################################################
+def load_pdf_pages(
+    path: Path, *, include_empty_pages: bool = False
+) -> list[dict[str, object]]:
     reader = PdfReader(str(path))
     pages: list[dict[str, object]] = []
     for index, page in enumerate(reader.pages, start=1):
@@ -60,6 +68,7 @@ def load_pdf_pages(path: Path, *, include_empty_pages: bool = False) -> list[dic
     return pages
 
 
+###############################################################################
 def _read_text_file(path: Path) -> str:
     try:
         return path.read_text(encoding="utf-8")
@@ -67,6 +76,7 @@ def _read_text_file(path: Path) -> str:
         return path.read_text(encoding="latin-1")
 
 
+###############################################################################
 def load_file_text(path: Path) -> tuple[str, str]:
     suffix = path.suffix.lower()
     if suffix in {".txt", ".md", ".markdown"}:
@@ -95,4 +105,9 @@ def load_file_text(path: Path) -> tuple[str, str]:
     raise ValueError(f"Unsupported document type: {path.suffix or path.name}")
 
 
-__all__ = ["load_docx_paragraphs", "load_file_text", "load_pdf_pages", "resolve_local_path"]
+__all__ = [
+    "load_docx_paragraphs",
+    "load_file_text",
+    "load_pdf_pages",
+    "resolve_local_path",
+]

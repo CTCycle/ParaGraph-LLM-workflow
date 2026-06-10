@@ -119,6 +119,7 @@ class NodeManifest(BaseModel):
     ui: NodeUiDefinition = Field(default_factory=NodeUiDefinition)
     runtime: NodeRuntimeDefinition
 
+    # -------------------------------------------------------------------------
     @field_validator("category", mode="before")
     @classmethod
     def normalize_category(cls, value: str) -> str:
