@@ -2,13 +2,12 @@
 app/resources/artifacts/**
 app/resources/models/**
 app/resources/workflows/**
+app/resources/tokenizers/**
 app/client/node_modules/
 app/client/dist/
 app/client/dist-ssr/
 app/client/logs/
-app/client/src-tauri/target/
-app/client/src-tauri/r/
-app/resources/tokenizers/**
+app/src-tauri/
 app/client/*.local
 runtimes/**
 release/windows/

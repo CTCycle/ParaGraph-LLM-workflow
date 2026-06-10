@@ -9,10 +9,12 @@ from server.services.workflow import node_registry
 from server.repositories.workflow.database import inspect_database_schema
 
 
+###############################################################################
 class DatabaseBase(DeclarativeBase):
     pass
 
 
+###############################################################################
 class User(DatabaseBase):
     __tablename__ = "users"
 
@@ -21,6 +23,7 @@ class User(DatabaseBase):
     status: Mapped[str] = mapped_column(String, nullable=False, default="active")
 
 
+###############################################################################
 class Post(DatabaseBase):
     __tablename__ = "posts"
 
@@ -29,6 +32,7 @@ class Post(DatabaseBase):
     title: Mapped[str] = mapped_column(String, nullable=False)
 
 
+###############################################################################
 def _database_connection(tmp_path: Path) -> dict[str, object]:
     database_path = tmp_path / "crud.sqlite"
     engine = create_engine(f"sqlite:///{database_path}")
@@ -47,6 +51,7 @@ def _database_connection(tmp_path: Path) -> dict[str, object]:
     return payload["connection"]
 
 
+###############################################################################
 def test_database_schema_inspection_reports_tables_columns_and_foreign_keys(
     tmp_path: Path,
 ) -> None:
@@ -55,10 +60,14 @@ def test_database_schema_inspection_reports_tables_columns_and_foreign_keys(
 
     tables = {table["name"]: table for table in schema["tables"]}
     assert {"users", "posts"} <= set(tables)
-    assert any(column["name"] == "id" and column["primary_key"] for column in tables["users"]["columns"])
+    assert any(
+        column["name"] == "id" and column["primary_key"]
+        for column in tables["users"]["columns"]
+    )
     assert tables["posts"]["foreign_keys"][0]["referred_table"] == "users"
 
 
+###############################################################################
 def test_crud_nodes_create_read_update_and_delete_rows(tmp_path: Path) -> None:
     connection = _database_connection(tmp_path)
 
@@ -110,21 +119,28 @@ def test_crud_nodes_create_read_update_and_delete_rows(tmp_path: Path) -> None:
     assert deleted["dataset"]["affected_rows"] == 1
 
 
+###############################################################################
 def test_crud_update_and_delete_require_filters(tmp_path: Path) -> None:
     connection = _database_connection(tmp_path)
 
     for node_type, parameters in [
-        ("CRUD_UPDATE", {"table": "users", "values": {"status": "inactive"}, "filters": {}}),
+        (
+            "CRUD_UPDATE",
+            {"table": "users", "values": {"status": "inactive"}, "filters": {}},
+        ),
         ("CRUD_DELETE", {"table": "users", "filters": {}}),
     ]:
         try:
-            node_registry.execute(node_type, 1, parameters, {}, {"connection": connection})
+            node_registry.execute(
+                node_type, 1, parameters, {}, {"connection": connection}
+            )
         except ValueError as exc:
             assert "filters are required" in str(exc)
         else:
             raise AssertionError(f"Expected {node_type} to reject empty filters")
 
 
+###############################################################################
 def test_custom_sql_query_returns_rows_and_rejects_invalid_sql(tmp_path: Path) -> None:
     connection = _database_connection(tmp_path)
 
@@ -147,4 +163,3 @@ def test_custom_sql_query_returns_rows_and_rejects_invalid_sql(tmp_path: Path) -
             assert "sql" in str(exc)
         else:
             raise AssertionError("Expected invalid SQL to fail validation")
-

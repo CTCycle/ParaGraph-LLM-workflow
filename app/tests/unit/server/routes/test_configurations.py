@@ -13,6 +13,7 @@ from server.domain.configuration import (
 from server.services.configuration import configuration_service
 
 
+###############################################################################
 def _payload(session_name: str = "default") -> AppConfigurationPayload:
     return AppConfigurationPayload(
         session_name=session_name,
@@ -32,6 +33,7 @@ def _payload(session_name: str = "default") -> AppConfigurationPayload:
     )
 
 
+###############################################################################
 def test_configurations_load_save_profile_and_ping_flows(
     client: TestClient, monkeypatch
 ) -> None:
@@ -120,6 +122,7 @@ def test_configurations_load_save_profile_and_ping_flows(
     assert ping_response.json()["ok"] is True
 
 
+###############################################################################
 def test_configuration_profile_errors_map_to_http(
     client: TestClient, monkeypatch
 ) -> None:
@@ -149,4 +152,3 @@ def test_configuration_profile_errors_map_to_http(
     )
     assert save_response.status_code == 400
     assert save_response.json()["detail"] == "Invalid profile name"
-

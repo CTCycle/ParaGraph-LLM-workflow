@@ -11,16 +11,16 @@ from server.domain.chat_history import ChatHistoryMessage
 from server.repositories.database.factory import DatabaseRepositoryFactory
 from server.repositories.schemas import Base, ChatHistoryMessageRecord
 
-
 ###############################################################################
 def _as_utc(timestamp: datetime) -> datetime:
     if timestamp.tzinfo is None:
         return timestamp.replace(tzinfo=timezone.utc)
     return timestamp.astimezone(timezone.utc)
 
-
 ###############################################################################
 class DatabaseChatHistoryRepository:
+
+    # -------------------------------------------------------------------------
     def __init__(
         self, database_factory: DatabaseRepositoryFactory | None = None
     ) -> None:
@@ -29,11 +29,14 @@ class DatabaseChatHistoryRepository:
             get_server_settings().database
         )
 
+    # -------------------------------------------------------------------------
     def _ensure_table(self) -> None:
         Base.metadata.create_all(
-            self._database_repository.engine, tables=[ChatHistoryMessageRecord.__table__]
+            self._database_repository.engine,
+            tables=[ChatHistoryMessageRecord.__table__],
         )
 
+    # -------------------------------------------------------------------------
     def get_messages(
         self, workflow_id: str, execution_session_id: str, node_id: str
     ) -> list[ChatHistoryMessage]:
@@ -60,6 +63,7 @@ class DatabaseChatHistoryRepository:
                 for row in rows
             ]
 
+    # -------------------------------------------------------------------------
     def append_messages(
         self,
         workflow_id: str,
@@ -83,6 +87,7 @@ class DatabaseChatHistoryRepository:
             db_session.commit()
         return self.get_messages(workflow_id, execution_session_id, node_id)
 
+    # -------------------------------------------------------------------------
     def clear_session(self, workflow_id: str, execution_session_id: str) -> None:
         self._ensure_table()
         with Session(self._database_repository.engine) as db_session:
@@ -95,6 +100,7 @@ class DatabaseChatHistoryRepository:
             )
             db_session.commit()
 
+    # -------------------------------------------------------------------------
     def set_messages(
         self,
         workflow_id: str,
@@ -125,6 +131,7 @@ class DatabaseChatHistoryRepository:
                 )
             db_session.commit()
 
+    # -------------------------------------------------------------------------
     def reset_for_tests(self) -> None:
         try:
             self._ensure_table()
@@ -136,4 +143,3 @@ class DatabaseChatHistoryRepository:
 
 
 database_chat_history_repository = DatabaseChatHistoryRepository()
-

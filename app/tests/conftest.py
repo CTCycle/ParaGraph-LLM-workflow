@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from server.common.constants import RESOURCES_PATH
+from server.common import path as common_path
 from server.app import app
 from server.domain.jobs import JobState
 from server.repositories.workflow import (
@@ -22,26 +22,22 @@ from server.services.runtime.events import execution_event_service
 from server.services.workflow.nodes import registry as node_registry_module
 from server.services.workflow.provider import provider_service
 
-
 ###############################################################################
 def clear_job_manager() -> None:
     job_manager.reset_for_tests()
 
-
-# -----------------------------------------------------------------------------
+###############################################################################
 def clear_execution_state() -> None:
     execution_run_repository.reset_for_tests()
     execution_event_service.reset_for_tests()
     in_memory_chat_history_repository.reset_for_tests()
     database_chat_history_repository.reset_for_tests()
 
-
-# -----------------------------------------------------------------------------
+###############################################################################
 def clear_provider_caches() -> None:
     provider_service.reset_for_tests()
 
-
-# -----------------------------------------------------------------------------
+###############################################################################
 def register_job_state(
     job_id: str = "job-test", job_type: str = "workflow"
 ) -> JobState:
@@ -49,8 +45,7 @@ def register_job_state(
     job_manager.register_job_for_tests(state)
     return state
 
-
-# -----------------------------------------------------------------------------
+###############################################################################
 def wait_for_job_completion(job_id: str, timeout_s: float = 2.0) -> dict[str, object]:
     deadline = time.monotonic() + timeout_s
     last_snapshot: dict[str, object] | None = None
@@ -67,7 +62,6 @@ def wait_for_job_completion(job_id: str, timeout_s: float = 2.0) -> dict[str, ob
         f"Job {job_id} did not finish within {timeout_s} seconds. Last snapshot: {last_snapshot}"
     )
 
-
 ###############################################################################
 @pytest.fixture(autouse=True)
 def isolated_job_manager() -> Iterator[None]:
@@ -75,8 +69,7 @@ def isolated_job_manager() -> Iterator[None]:
     yield
     clear_job_manager()
 
-
-# -----------------------------------------------------------------------------
+###############################################################################
 @pytest.fixture(autouse=True)
 def isolated_runtime_state(tmp_path: Path) -> Iterator[None]:
     isolated_root = tmp_path / "workflows"
@@ -101,11 +94,10 @@ def isolated_runtime_state(tmp_path: Path) -> Iterator[None]:
         workflow_repository.restore_default_storage_for_tests()
         file_chat_history_repository.restore_default_storage_for_tests()
 
-
-# -----------------------------------------------------------------------------
+###############################################################################
 @pytest.fixture(autouse=True)
 def isolated_node_registry() -> Iterator[None]:
-    default_node_root = Path(RESOURCES_PATH) / "nodes"
+    default_node_root = common_path.RESOURCES_ROOT / "nodes"
     node_registry_module.NODE_ROOT = default_node_root
     node_registry_module.node_registry.reload()
     try:
@@ -114,22 +106,18 @@ def isolated_node_registry() -> Iterator[None]:
         node_registry_module.NODE_ROOT = default_node_root
         node_registry_module.node_registry.reload()
 
-
-# -----------------------------------------------------------------------------
+###############################################################################
 @pytest.fixture
 def client() -> Iterator[TestClient]:
     with TestClient(app) as test_client:
         yield test_client
 
-
-# -----------------------------------------------------------------------------
+###############################################################################
 @pytest.fixture
 def job_state_factory() -> Callable[[str, str], JobState]:
     return register_job_state
 
-
-# -----------------------------------------------------------------------------
+###############################################################################
 @pytest.fixture
 def wait_for_job() -> Callable[[str, float], dict[str, object]]:
     return wait_for_job_completion
-

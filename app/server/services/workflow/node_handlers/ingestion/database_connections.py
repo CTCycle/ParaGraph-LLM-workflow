@@ -16,6 +16,7 @@ from server.repositories.workflow.database import build_database_url
 from server.services.workflow.node_handlers.ingestion.files import resolve_local_path
 
 
+###############################################################################
 def _build_sql_connection_options(*, db_ssl: bool, db_ssl_ca: str) -> dict[str, Any]:
     options: dict[str, Any] = {}
     if db_ssl:
@@ -25,6 +26,7 @@ def _build_sql_connection_options(*, db_ssl: bool, db_ssl_ca: str) -> dict[str, 
     return options
 
 
+###############################################################################
 def _validate_and_build_database_connection(
     parameters: dict[str, Any],
 ) -> dict[str, Any]:
@@ -42,9 +44,7 @@ def _validate_and_build_database_connection(
         engine.dispose()
 
     resolved_file_path = (
-        str(resolve_local_path(parsed.file_path))
-        if parsed.engine == "sqlite"
-        else None
+        str(resolve_local_path(parsed.file_path)) if parsed.engine == "sqlite" else None
     )
     return {
         "connection": {
@@ -65,6 +65,7 @@ def _validate_and_build_database_connection(
     }
 
 
+###############################################################################
 def _sql_database_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
 ) -> dict[str, Any]:
@@ -86,6 +87,7 @@ def _sql_database_executor(
     return _validate_and_build_database_connection(connection_payload)
 
 
+###############################################################################
 def _sql_file_database_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
 ) -> dict[str, Any]:

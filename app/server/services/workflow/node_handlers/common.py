@@ -6,7 +6,10 @@ from typing import Any
 from bs4 import BeautifulSoup
 
 
+###############################################################################
 class NodeValueService:
+
+    # -------------------------------------------------------------------------
     @staticmethod
     def coerce_text(value: Any) -> str:
         if value is None:
@@ -17,6 +20,7 @@ class NodeValueService:
             return str(value)
         return json.dumps(value)
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def coerce_bool(value: Any) -> bool:
         if isinstance(value, bool):
@@ -25,6 +29,7 @@ class NodeValueService:
             return bool(value)
         return str(value or "").strip().lower() in {"1", "true", "yes", "on"}
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def coerce_int(value: Any, default: int) -> int:
         if value is None:
@@ -34,6 +39,7 @@ class NodeValueService:
         except (TypeError, ValueError):
             return default
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def coerce_float(value: Any, default: float) -> float:
         if value is None:
@@ -43,6 +49,7 @@ class NodeValueService:
         except (TypeError, ValueError):
             return default
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def coerce_text_list(value: Any) -> list[str]:
         if value is None:
@@ -51,6 +58,7 @@ class NodeValueService:
             return [NodeValueService.coerce_text(item) for item in value]
         return [NodeValueService.coerce_text(value)]
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def parse_json_if_possible(value: Any) -> Any:
         if not isinstance(value, str):
@@ -63,6 +71,7 @@ class NodeValueService:
         except json.JSONDecodeError:
             return value
 
+    # -------------------------------------------------------------------------
     @classmethod
     def coerce_json_object(cls, value: Any) -> dict[str, Any]:
         parsed = cls.parse_json_if_possible(value)
@@ -70,6 +79,7 @@ class NodeValueService:
             raise ValueError("value must be a JSON object")
         return parsed
 
+    # -------------------------------------------------------------------------
     @classmethod
     def coerce_json_array(cls, value: Any) -> list[Any]:
         parsed = cls.parse_json_if_possible(value)
@@ -77,6 +87,7 @@ class NodeValueService:
             raise ValueError("value must be a JSON array")
         return parsed
 
+    # -------------------------------------------------------------------------
     @classmethod
     def extract_top_level_json_fields(cls, value: Any) -> dict[str, Any]:
         parsed = cls.parse_json_if_possible(value)
@@ -84,6 +95,7 @@ class NodeValueService:
             return dict(parsed)
         return {}
 
+    # -------------------------------------------------------------------------
     @classmethod
     def merge_named_variables(cls, *payloads: Any) -> dict[str, Any]:
         merged: dict[str, Any] = {}
@@ -99,6 +111,7 @@ class NodeValueService:
                         merged[variable_name] = value
         return merged
 
+    # -------------------------------------------------------------------------
     @classmethod
     def render_variable_value(cls, value: Any) -> str:
         if value is None:
@@ -110,7 +123,12 @@ class NodeValueService:
         if isinstance(value, list):
             if all(isinstance(item, dict) for item in value):
                 text_parts = [
-                    cls.coerce_text(item.get("text") or item.get("content") or item.get("chunk") or "").strip()
+                    cls.coerce_text(
+                        item.get("text")
+                        or item.get("content")
+                        or item.get("chunk")
+                        or ""
+                    ).strip()
                     for item in value
                 ]
                 text_parts = [item for item in text_parts if item]
@@ -127,6 +145,7 @@ class NodeValueService:
         except Exception:  # noqa: BLE001
             return str(value)
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def parse_json_value(value: Any, label: str) -> Any:
         if isinstance(value, (dict, list, int, float, bool)) or value is None:
@@ -139,11 +158,13 @@ class NodeValueService:
         except json.JSONDecodeError as exc:
             raise ValueError(f"{label} must be valid JSON") from exc
 
+    # -------------------------------------------------------------------------
     @classmethod
     def normalize_provider_name(cls, provider: Any, default: str = "ollama") -> str:
         normalized = cls.coerce_text(provider or default).strip().lower()
         return normalized or default
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def strip_html(text: str) -> str:
         soup = BeautifulSoup(text, "html.parser")
@@ -152,7 +173,10 @@ class NodeValueService:
         return " ".join(soup.get_text(" ").split())
 
 
+###############################################################################
 class JsonSchemaService:
+
+    # -------------------------------------------------------------------------
     @classmethod
     def validate_schema_definition(cls, schema: Any, path: str = "$") -> None:
         if not isinstance(schema, dict):
@@ -211,6 +235,7 @@ class JsonSchemaService:
         if enum is not None and not isinstance(enum, list):
             raise ValueError(f"enum at {path} must be an array")
 
+    # -------------------------------------------------------------------------
     @classmethod
     def validate_json_against_schema(
         cls, value: Any, schema: dict[str, Any], path: str = "$"
@@ -273,66 +298,82 @@ node_value_service = NodeValueService()
 json_schema_service = JsonSchemaService()
 
 
+###############################################################################
 def coerce_text(value: Any) -> str:
     return node_value_service.coerce_text(value)
 
 
+###############################################################################
 def coerce_text_list(value: Any) -> list[str]:
     return node_value_service.coerce_text_list(value)
 
 
+###############################################################################
 def coerce_bool(value: Any) -> bool:
     return node_value_service.coerce_bool(value)
 
 
+###############################################################################
 def coerce_int(value: Any, default: int) -> int:
     return node_value_service.coerce_int(value, default)
 
 
+###############################################################################
 def coerce_float(value: Any, default: float) -> float:
     return node_value_service.coerce_float(value, default)
 
 
+###############################################################################
 def parse_json_value(value: Any, label: str) -> Any:
     return node_value_service.parse_json_value(value, label)
 
 
+###############################################################################
 def parse_json_if_possible(value: Any) -> Any:
     return node_value_service.parse_json_if_possible(value)
 
 
+###############################################################################
 def coerce_json_object(value: Any) -> dict[str, Any]:
     return node_value_service.coerce_json_object(value)
 
 
+###############################################################################
 def coerce_json_array(value: Any) -> list[Any]:
     return node_value_service.coerce_json_array(value)
 
 
+###############################################################################
 def extract_top_level_json_fields(value: Any) -> dict[str, Any]:
     return node_value_service.extract_top_level_json_fields(value)
 
 
+###############################################################################
 def merge_named_variables(*payloads: Any) -> dict[str, Any]:
     return node_value_service.merge_named_variables(*payloads)
 
 
+###############################################################################
 def render_variable_value(value: Any) -> str:
     return node_value_service.render_variable_value(value)
 
 
+###############################################################################
 def normalize_provider_name(provider: Any, default: str = "ollama") -> str:
     return node_value_service.normalize_provider_name(provider, default)
 
 
+###############################################################################
 def strip_html(text: str) -> str:
     return node_value_service.strip_html(text)
 
 
+###############################################################################
 def validate_schema_definition(schema: Any, path: str = "$") -> None:
     return json_schema_service.validate_schema_definition(schema, path)
 
 
+###############################################################################
 def validate_json_against_schema(
     value: Any, schema: dict[str, Any], path: str = "$"
 ) -> None:

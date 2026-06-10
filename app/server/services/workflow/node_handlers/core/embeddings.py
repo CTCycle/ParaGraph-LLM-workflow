@@ -42,7 +42,9 @@ _HF_EMBEDDING_CACHE: dict[str, tuple[Any, Any, Any]] = {}
 
 ###############################################################################
 def _resolve_vector_store_adapter(backend: str):
-    override = resolve_core_override("get_vector_store_adapter", get_vector_store_adapter)
+    override = resolve_core_override(
+        "get_vector_store_adapter", get_vector_store_adapter
+    )
     return override(backend)
 
 ###############################################################################
@@ -145,7 +147,9 @@ def _embed_text_with_huggingface(
     cache_key = f"{model_name}\u0000{tokenizer_model_name}"
 
     if cache_key not in _HF_EMBEDDING_CACHE:
-        tokenizer = auto_tokenizer.from_pretrained(tokenizer_model_name, token=access_token)
+        tokenizer = auto_tokenizer.from_pretrained(
+            tokenizer_model_name, token=access_token
+        )
         if getattr(tokenizer, "pad_token", None) is None:
             tokenizer.pad_token = tokenizer.eos_token
         model = auto_model.from_pretrained(model_name, token=access_token)
@@ -432,7 +436,10 @@ def _similarity_search_executor(
     embedding_payload = inputs.get("embedding")
     provider, model_name, tokenizer_name = _extract_embedding_source(embedding_payload)
     query_vector = _resolve_embedding_function()(
-        provider=provider, model_name=model_name, tokenizer_name=tokenizer_name, text=query
+        provider=provider,
+        model_name=model_name,
+        tokenizer_name=tokenizer_name,
+        text=query,
     )
 
     raw_store_payload = inputs.get("store")
@@ -515,6 +522,7 @@ def _normalize_rerank_text(value: str) -> str:
     return " ".join(_normalize_rerank_tokens(value))
 
 
+###############################################################################
 def _term_overlap_score(query_tokens: set[str], text_tokens: set[str]) -> float:
     if not query_tokens:
         return 0.0

@@ -12,13 +12,13 @@ from server.services.workflow.nodes.execution_context import (
 )
 
 
+###############################################################################
 def _resolve_context_identifiers() -> tuple[str, str]:
     context = get_execution_context()
     workflow_id = (context.get("workflow_id") or "").strip() or "workflow"
-    execution_session_id = (
-        (context.get("execution_session_id") or "").strip()
-        or (context.get("run_id") or "").strip()
-    )
+    execution_session_id = (context.get("execution_session_id") or "").strip() or (
+        context.get("run_id") or ""
+    ).strip()
     if not execution_session_id:
         raise ValueError(
             "CHAT_HISTORY nodes require an execution_session_id in execution context"
@@ -26,6 +26,7 @@ def _resolve_context_identifiers() -> tuple[str, str]:
     return workflow_id, execution_session_id
 
 
+###############################################################################
 def execute_chat_history_memory(
     parameters: dict[str, Any], inputs: dict[str, Any]
 ) -> dict[str, Any]:
@@ -46,6 +47,7 @@ def execute_chat_history_memory(
     return {"history": handle.model_dump(mode="json")}
 
 
+###############################################################################
 def execute_chat_history_persisted(
     parameters: dict[str, Any], inputs: dict[str, Any]
 ) -> dict[str, Any]:
@@ -55,9 +57,9 @@ def execute_chat_history_persisted(
     node_id = (context.get("node_id") or "").strip() or "node"
     backend = cast(
         ChatHistoryStorageBackend,
-        str(
-            parameters.get("storage_backend", DEFAULT_CHAT_HISTORY_STORAGE_BACKEND)
-        ).strip().lower(),
+        str(parameters.get("storage_backend", DEFAULT_CHAT_HISTORY_STORAGE_BACKEND))
+        .strip()
+        .lower(),
     )
     handle = ChatHistoryHandle(
         node_type="CHAT_HISTORY_PERSISTED",
@@ -70,4 +72,3 @@ def execute_chat_history_persisted(
         storage_backend=backend,
     )
     return {"history": handle.model_dump(mode="json")}
-

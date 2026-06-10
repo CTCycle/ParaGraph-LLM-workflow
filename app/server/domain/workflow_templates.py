@@ -8,6 +8,7 @@ from server.domain.node_catalog import NodeManifest
 from server.domain.workflow_model import VisualGraph, WorkflowDefinition
 
 
+###############################################################################
 class WorkflowTemplateManifest(BaseModel):
     id: str
     name: str
@@ -19,6 +20,6 @@ class WorkflowTemplateManifest(BaseModel):
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
+###############################################################################
 class WorkflowTemplateListResponse(BaseModel):
     templates: list[WorkflowTemplateManifest] = Field(default_factory=list)
-

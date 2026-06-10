@@ -18,16 +18,19 @@ from server.services.workflow import (
 router = APIRouter(prefix="/workflows", tags=["workflows"])
 
 
+###############################################################################
 @router.get("", response_model=WorkflowListResponse)
 def list_workflows() -> WorkflowListResponse:
     return workflow_service.list_workflows()
 
 
+###############################################################################
 @router.post("", response_model=WorkflowDocument, status_code=status.HTTP_201_CREATED)
 def create_workflow(request: CreateWorkflowRequest) -> WorkflowDocument:
     return workflow_service.create_workflow(request)
 
 
+###############################################################################
 @router.get("/templates", response_model=WorkflowTemplateListResponse)
 def list_workflow_templates() -> WorkflowTemplateListResponse:
     try:
@@ -38,6 +41,7 @@ def list_workflow_templates() -> WorkflowTemplateListResponse:
         ) from exc
 
 
+###############################################################################
 @router.get("/{workflow_id}", response_model=WorkflowDocument)
 def get_workflow(workflow_id: str) -> WorkflowDocument:
     payload = workflow_service.get_workflow(workflow_id)
@@ -49,6 +53,7 @@ def get_workflow(workflow_id: str) -> WorkflowDocument:
     return payload
 
 
+###############################################################################
 @router.put("/{workflow_id}", response_model=WorkflowDocument)
 def update_workflow(
     workflow_id: str, request: UpdateWorkflowRequest
@@ -60,6 +65,3 @@ def update_workflow(
             detail=f"Workflow not found: {workflow_id}",
         )
     return payload
-
-
-

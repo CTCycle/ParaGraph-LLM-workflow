@@ -8,7 +8,7 @@ from typing import Any
 
 from pydantic import ValidationError
 
-from server.common.constants import ARTIFACT_ROOT, RESOURCES_PATH
+from server.common import path as common_path
 from server.domain.node_catalog import NodeCatalogResponse, NodeManifest
 from server.services.configuration import configuration_service
 from server.services.workflow.node_handlers import NODE_HANDLERS
@@ -20,11 +20,12 @@ from server.services.workflow.nodes.execution_context import (
 from server.domain.workflow_payloads import validate_data_type
 
 
-NODE_ROOT = Path(RESOURCES_PATH) / "nodes"
+NODE_ROOT = common_path.RESOURCES_ROOT / "nodes"
 MODEL_NODE_IDS = {"LLM_CHAT", "LLM_STRUCTURED"}
 STRUCTURED_NODE_IDS = {"LLM_STRUCTURED"}
 
 
+###############################################################################
 def _format_parameter_validation_error(error: ValidationError) -> str:
     issues = error.errors()
     if not issues:
@@ -43,6 +44,7 @@ def _format_parameter_validation_error(error: ValidationError) -> str:
     return "; ".join(messages)
 
 
+###############################################################################
 def _execute_plugin_manifest(
     registry: NodeRegistry,
     manifest: NodeManifest,
@@ -58,16 +60,20 @@ def _execute_plugin_manifest(
     return result
 
 
+###############################################################################
 class NodeRegistry:
+
+    # -------------------------------------------------------------------------
     def __init__(self) -> None:
         self._definitions: dict[tuple[str, int], NodeManifest] = {}
         self._manifest_paths: dict[tuple[str, int], Path] = {}
         self._plugin_handlers: dict[tuple[str, int], NodeHandler] = {}
         self._plugin_cache: dict[Path, tuple[int, Any]] = {}
         NODE_ROOT.mkdir(parents=True, exist_ok=True)
-        ARTIFACT_ROOT.mkdir(parents=True, exist_ok=True)
+        common_path.ARTIFACT_ROOT.mkdir(parents=True, exist_ok=True)
         self.reload()
 
+    # -------------------------------------------------------------------------
     def reload(self) -> None:
         definitions: dict[tuple[str, int], NodeManifest] = {}
         manifest_paths: dict[tuple[str, int], Path] = {}
@@ -87,6 +93,7 @@ class NodeRegistry:
         self._manifest_paths = manifest_paths
         self._plugin_handlers = {}
 
+    # -------------------------------------------------------------------------
     def _assert_executor_known(
         self, manifest: NodeManifest, *, source_path: Path | None = None
     ) -> None:
@@ -101,6 +108,7 @@ class NodeRegistry:
                 f"Unknown executor_key '{manifest.runtime.executor_key}' for node '{manifest.id}'"
             )
 
+    # -------------------------------------------------------------------------
     def _manifest_source_path(self, manifest: NodeManifest) -> Path:
         key = (manifest.id, manifest.version)
         path = self._manifest_paths.get(key)
@@ -110,6 +118,7 @@ class NodeRegistry:
             )
         return path
 
+    # -------------------------------------------------------------------------
     def _resolve_plugin_script_path(
         self,
         manifest: NodeManifest,
@@ -141,6 +150,7 @@ class NodeRegistry:
             )
         return resolved
 
+    # -------------------------------------------------------------------------
     def _load_plugin_callable(self, manifest: NodeManifest):
         plugin = manifest.runtime.plugin
         if plugin is None:
@@ -172,6 +182,7 @@ class NodeRegistry:
         self._plugin_cache[script_path] = (modified_at, candidate)
         return candidate
 
+    # -------------------------------------------------------------------------
     def _build_plugin_handler(self, manifest: NodeManifest) -> NodeHandler:
         key = (manifest.id, manifest.version)
         cached = self._plugin_handlers.get(key)
@@ -184,11 +195,13 @@ class NodeRegistry:
         self._plugin_handlers[key] = handler
         return handler
 
+    # -------------------------------------------------------------------------
     def _handler_for_manifest(self, manifest: NodeManifest) -> NodeHandler:
         if manifest.runtime.plugin is not None:
             return self._build_plugin_handler(manifest)
         return NODE_HANDLERS[manifest.runtime.executor_key]
 
+    # -------------------------------------------------------------------------
     def get(self, node_type: str, version: int | None = None) -> NodeManifest | None:
         if version is not None:
             return self._definitions.get((node_type, version))
@@ -201,15 +214,18 @@ class NodeRegistry:
             return None
         return sorted(matching, key=lambda item: item.version)[-1]
 
+    # -------------------------------------------------------------------------
     def list(self) -> list[NodeManifest]:
         return sorted(
             self._definitions.values(),
             key=lambda item: (item.category, item.name, item.version),
         )
 
+    # -------------------------------------------------------------------------
     def catalog_response(self) -> NodeCatalogResponse:
         return NodeCatalogResponse(nodes=self.list())
 
+    # -------------------------------------------------------------------------
     def import_manifest(self, manifest: NodeManifest) -> NodeManifest:
         if self.get(manifest.id, manifest.version) is not None:
             raise ValueError(
@@ -241,6 +257,7 @@ class NodeRegistry:
 
         return created
 
+    # -------------------------------------------------------------------------
     def validate_parameters(
         self, node_type: str, node_version: int, parameters: dict[str, Any]
     ) -> dict[str, Any]:
@@ -259,6 +276,7 @@ class NodeRegistry:
         self._validate_parameter_constraints(manifest, payload)
         return payload
 
+    # -------------------------------------------------------------------------
     def _validate_parameter_constraints(
         self, manifest: NodeManifest, parameters: dict[str, Any]
     ) -> None:
@@ -288,6 +306,7 @@ class NodeRegistry:
                     f"Parameter '{parameter.name}' must be one of: {', '.join(str(item) for item in options)}"
                 )
 
+    # -------------------------------------------------------------------------
     def _validate_ports(
         self, manifest: NodeManifest, values: dict[str, Any], *, label: str
     ) -> dict[str, Any]:
@@ -318,6 +337,7 @@ class NodeRegistry:
                 validated[port.name] = validate_data_type(port.data_type, value)
         return validated
 
+    # -------------------------------------------------------------------------
     def execute(
         self,
         node_type: str,
@@ -369,4 +389,3 @@ class NodeRegistry:
 
 
 node_registry = NodeRegistry()
-

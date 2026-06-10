@@ -6,7 +6,9 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 
-ExecutionStatus = Literal["queued", "running", "completed", "failed", "cancelled", "paused"]
+ExecutionStatus = Literal[
+    "queued", "running", "completed", "failed", "cancelled", "paused"
+]
 ExecutionStepStatus = Literal["queued", "running", "completed", "failed", "skipped"]
 RUN_ID_PATTERN = r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"
 ExecutionEventType = Literal[

@@ -316,4 +316,3 @@ def execute_custom_sql(connection: dict[str, Any], *, sql: str) -> dict[str, Any
         raise ValueError(f"SQL query failed: {exc}") from exc
     finally:
         engine.dispose()
-

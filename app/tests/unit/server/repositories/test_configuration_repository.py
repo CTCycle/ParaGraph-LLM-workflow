@@ -14,6 +14,7 @@ from server.repositories.configuration import ConfigurationRepository
 from server.repositories.database.factory import DatabaseRepositoryFactory
 
 
+###############################################################################
 def _database_settings(*, embedded: bool, engine: str | None) -> DatabaseSettings:
     return DatabaseSettings(
         embedded_database=embedded,
@@ -30,6 +31,7 @@ def _database_settings(*, embedded: bool, engine: str | None) -> DatabaseSetting
     )
 
 
+###############################################################################
 def _server_settings(database: DatabaseSettings) -> ServerSettings:
     return ServerSettings(
         database=database,
@@ -38,13 +40,20 @@ def _server_settings(database: DatabaseSettings) -> ServerSettings:
     )
 
 
-def test_configuration_repository_selects_sqlite_from_runtime_settings(monkeypatch) -> None:
+###############################################################################
+def test_configuration_repository_selects_sqlite_from_runtime_settings(
+    monkeypatch,
+) -> None:
     sqlite_settings = _database_settings(embedded=True, engine=None)
 
+    ###############################################################################
     class FakeFactory:
+
+        # -------------------------------------------------------------------------
         def __init__(self) -> None:
             self.seen: list[DatabaseSettings] = []
 
+        # -------------------------------------------------------------------------
         def build(self, settings: DatabaseSettings):
             self.seen.append(settings)
             return type("Repo", (), {"engine": object()})()
@@ -62,13 +71,20 @@ def test_configuration_repository_selects_sqlite_from_runtime_settings(monkeypat
     assert factory.seen[0].engine is None
 
 
-def test_configuration_repository_selects_postgres_from_runtime_settings(monkeypatch) -> None:
+###############################################################################
+def test_configuration_repository_selects_postgres_from_runtime_settings(
+    monkeypatch,
+) -> None:
     postgres_settings = _database_settings(embedded=False, engine="postgres")
 
+    ###############################################################################
     class FakeFactory:
+
+        # -------------------------------------------------------------------------
         def __init__(self) -> None:
             self.seen: list[DatabaseSettings] = []
 
+        # -------------------------------------------------------------------------
         def build(self, settings: DatabaseSettings):
             self.seen.append(settings)
             return type("Repo", (), {"engine": object()})()
@@ -86,6 +102,7 @@ def test_configuration_repository_selects_postgres_from_runtime_settings(monkeyp
     assert factory.seen[0].engine == "postgres"
 
 
+###############################################################################
 def test_database_repository_factory_rejects_invalid_engine() -> None:
     settings = _database_settings(embedded=False, engine="mysql")
     factory = DatabaseRepositoryFactory()
@@ -94,6 +111,7 @@ def test_database_repository_factory_rejects_invalid_engine() -> None:
         _ = factory.build(settings)
 
 
+###############################################################################
 def test_configuration_repository_reads_current_runtime_settings_each_call(
     monkeypatch,
 ) -> None:
@@ -101,10 +119,14 @@ def test_configuration_repository_reads_current_runtime_settings_each_call(
     postgres_settings = _database_settings(embedded=False, engine="postgresql")
     current_settings = {"database": sqlite_settings}
 
+    ###############################################################################
     class FakeFactory:
+
+        # -------------------------------------------------------------------------
         def __init__(self) -> None:
             self.seen: list[DatabaseSettings] = []
 
+        # -------------------------------------------------------------------------
         def build(self, settings: DatabaseSettings):
             self.seen.append(settings)
             return type("Repo", (), {"engine": object()})()
@@ -123,4 +145,3 @@ def test_configuration_repository_reads_current_runtime_settings_each_call(
     assert factory.seen[0].embedded_database is True
     assert factory.seen[1].embedded_database is False
     assert factory.seen[1].engine == "postgresql"
-

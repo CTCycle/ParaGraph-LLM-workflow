@@ -13,7 +13,7 @@ Last updated: 2026-06-02
 - Frontend runs through `npm run dev` or the related preview and build scripts.
 
 ### Desktop Packaged Mode
-- Implemented in `app/client/src-tauri`.
+- Implemented in `app/src-tauri`.
 - The desktop app boots the backend runtime internally and then loads the web UI in a Tauri window.
 - Release packaging is driven by `release/tauri/build_with_tauri.bat` and npm Tauri scripts.
 

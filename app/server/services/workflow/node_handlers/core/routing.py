@@ -45,7 +45,11 @@ def _collect_tokenizer_inputs(inputs: dict[str, Any]) -> list[dict[str, Any]]:
     records: list[dict[str, Any]] = []
     if inputs.get("text") is not None:
         records.append(
-            {"source_type": "text", "source_id": "text", "text": _payload_text(inputs["text"])}
+            {
+                "source_type": "text",
+                "source_id": "text",
+                "text": _payload_text(inputs["text"]),
+            }
         )
     for name, source_type in (("document", "document"), ("chunk", "chunk")):
         payload = inputs.get(name)
@@ -76,7 +80,9 @@ def _tokenize_executor(
     parsed = TokenizerParameters.model_validate(parameters)
     source_records = _collect_tokenizer_inputs(inputs)
     if not source_records:
-        raise ValueError("TOKENIZER requires text, document, documents, chunk, or chunks input")
+        raise ValueError(
+            "TOKENIZER requires text, document, documents, chunk, or chunks input"
+        )
 
     tokenizer = _load_tokenizer(
         parsed.tokenizer_name, parsed.revision.strip(), bool(parsed.use_fast)
@@ -153,4 +159,3 @@ __all__ = [
     "_text_split_executor",
     "_tokenize_executor",
 ]
-

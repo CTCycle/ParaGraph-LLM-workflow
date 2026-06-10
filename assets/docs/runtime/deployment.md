@@ -12,7 +12,7 @@ Last updated: 2026-06-03
 ## Limitations And Constraints
 - Packaged desktop launcher logic is Windows-only in the current implementation.
 - Long-running workflow execution uses background threads with poll and event-stream status updates.
-- Runtime-heavy folders such as `release/windows`, `app/client/src-tauri/target`, and `app/client/node_modules` are operational artifacts, not source-of-truth code.
+- Runtime-heavy folders such as `release/windows`, `app/src-tauri/target`, and `app/client/node_modules` are operational artifacts, not source-of-truth code.
 
 ## Operational Guidance
 - Treat packaged outputs as build artifacts rather than documentation or source inputs.

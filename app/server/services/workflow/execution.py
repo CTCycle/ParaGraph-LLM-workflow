@@ -20,10 +20,12 @@ from server.services.workflow.nodes import node_registry
 from server.services.workflow.node_handlers.common import extract_top_level_json_fields
 
 
+###############################################################################
 class ExecutionService:
     OUTPUT_NAME_PARAMETER = "__output_name"
     SKIP_SENTINEL = "__paragraph_skip__"
 
+    # -------------------------------------------------------------------------
     def start_execution(
         self,
         plan: CompiledExecutionPlan,
@@ -42,6 +44,7 @@ class ExecutionService:
             },
         )
 
+    # -------------------------------------------------------------------------
     def start_execution_response(
         self,
         plan: CompiledExecutionPlan,
@@ -63,9 +66,11 @@ class ExecutionService:
             poll_interval=get_server_settings().jobs.polling_interval,
         )
 
+    # -------------------------------------------------------------------------
     def get_run(self, run_id: str) -> ExecutionRunState | None:
         return execution_run_repository.get_run(run_id)
 
+    # -------------------------------------------------------------------------
     def execute_plan_job(
         self,
         plan: CompiledExecutionPlan,
@@ -124,6 +129,7 @@ class ExecutionService:
         )
         return {"outputs": output_payload}
 
+    # -------------------------------------------------------------------------
     def _initialize_run(
         self,
         plan: CompiledExecutionPlan,
@@ -163,12 +169,14 @@ class ExecutionService:
             payload={"plan_id": plan.plan_id},
         )
 
+    # -------------------------------------------------------------------------
     def _cancelled(self, job_id: str) -> bool:
         if not job_manager.should_stop(job_id):
             return False
         execution_run_repository.update_run(job_id, status="cancelled")
         return True
 
+    # -------------------------------------------------------------------------
     def _start_step(self, job_id: str, step: Any) -> None:
         self._set_step_state(
             job_id,
@@ -184,6 +192,7 @@ class ExecutionService:
             payload={"node_type": step.node_type, "node_id": step.node_id},
         )
 
+    # -------------------------------------------------------------------------
     def _execute_step(
         self,
         *,
@@ -222,6 +231,7 @@ class ExecutionService:
             }
         )
 
+    # -------------------------------------------------------------------------
     def _resolve_port_outputs(
         self,
         step: Any,
@@ -258,6 +268,7 @@ class ExecutionService:
             cache[cache_key] = port_outputs
         return port_outputs
 
+    # -------------------------------------------------------------------------
     def _complete_step(
         self,
         job_id: str,
@@ -282,6 +293,7 @@ class ExecutionService:
             payload={"output": output_state_public, "progress": progress},
         )
 
+    # -------------------------------------------------------------------------
     def _fail_step(self, job_id: str, step_id: str, message: str) -> None:
         self._set_step_state(
             job_id,
@@ -305,10 +317,12 @@ class ExecutionService:
             payload={"error": message},
         )
 
+    # -------------------------------------------------------------------------
     def _request_id_for_run(self, run_id: str) -> str | None:
         run = execution_run_repository.get_run(run_id)
         return run.request_id if run is not None else None
 
+    # -------------------------------------------------------------------------
     def _resolve_inputs(
         self,
         step,
@@ -343,6 +357,7 @@ class ExecutionService:
 
         return resolved_inputs, resolved_controllers
 
+    # -------------------------------------------------------------------------
     def _resolve_binding_value(
         self,
         binding: Any,
@@ -360,8 +375,13 @@ class ExecutionService:
             return self._publish_named_output(value, output_name)
         return value
 
-    def _should_skip_step(self, step: Any, outputs_by_step: dict[str, dict[str, Any]]) -> bool:
-        input_bindings = [binding for binding in step.bindings if binding.binding_type != "controller"]
+    # -------------------------------------------------------------------------
+    def _should_skip_step(
+        self, step: Any, outputs_by_step: dict[str, dict[str, Any]]
+    ) -> bool:
+        input_bindings = [
+            binding for binding in step.bindings if binding.binding_type != "controller"
+        ]
         if not input_bindings:
             return False
         values = [
@@ -372,9 +392,11 @@ class ExecutionService:
         ]
         return all(self._is_skip_value(value) for value in values)
 
+    # -------------------------------------------------------------------------
     def _is_skip_value(self, value: Any) -> bool:
         return value == self.SKIP_SENTINEL or value is None
 
+    # -------------------------------------------------------------------------
     def _skip_step(self, job_id: str, step_id: str) -> None:
         self._set_step_state(
             job_id,
@@ -383,9 +405,11 @@ class ExecutionService:
             completed_at=datetime.now(timezone.utc),
         )
 
+    # -------------------------------------------------------------------------
     def _is_pause_output(self, outputs: dict[str, Any]) -> bool:
         return bool(outputs.get("paused"))
 
+    # -------------------------------------------------------------------------
     def _pause_run(self, job_id: str, outputs: dict[str, Any]) -> None:
         execution_run_repository.update_run(
             job_id,
@@ -394,6 +418,7 @@ class ExecutionService:
             resume_token=outputs.get("resume_token"),
         )
 
+    # -------------------------------------------------------------------------
     def _publish_named_output(self, value: Any, output_name: str | None) -> Any:
         json_fields = extract_top_level_json_fields(value)
         if not json_fields:
@@ -408,6 +433,7 @@ class ExecutionService:
             }
         return {**json_fields, output_name: value}
 
+    # -------------------------------------------------------------------------
     def _resolve_binding_target(
         self,
         binding_is_controller: bool,
@@ -420,6 +446,7 @@ class ExecutionService:
             return manifests_by_controller, resolved_controllers
         return manifests_by_input, resolved_inputs
 
+    # -------------------------------------------------------------------------
     def _assign_binding_value(
         self,
         input_name: str,
@@ -440,6 +467,7 @@ class ExecutionService:
             return
         target_values[input_name] = value
 
+    # -------------------------------------------------------------------------
     def _resolve_output_name(self, parameters: dict[str, Any]) -> str | None:
         raw_value = parameters.get(self.OUTPUT_NAME_PARAMETER)
         if not isinstance(raw_value, str):
@@ -447,9 +475,11 @@ class ExecutionService:
         normalized = raw_value.strip()
         return normalized or None
 
+    # -------------------------------------------------------------------------
     def _json_safe(self, value: Any) -> Any:
         return json.loads(json.dumps(value, default=str))
 
+    # -------------------------------------------------------------------------
     def _build_cache_key(
         self,
         step,
@@ -469,6 +499,7 @@ class ExecutionService:
         )
         return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
+    # -------------------------------------------------------------------------
     def _extract_terminal_output(
         self,
         node_type: str,
@@ -500,6 +531,7 @@ class ExecutionService:
             return {"json": raw_value}
         return None
 
+    # -------------------------------------------------------------------------
     def _set_step_state(self, run_id: str, step_id: str, **updates: Any) -> None:
         run = execution_run_repository.get_run(run_id)
         if run is None:
@@ -514,6 +546,7 @@ class ExecutionService:
             updated_steps.append(ExecutionStepState.model_validate(payload))
         execution_run_repository.set_steps(run_id, updated_steps)
 
+    # -------------------------------------------------------------------------
     def _redact_output_state(self, output_state: dict[str, Any]) -> dict[str, Any]:
         redacted = redact_sensitive_payload(output_state)
         if isinstance(redacted, dict):
@@ -522,4 +555,3 @@ class ExecutionService:
 
 
 execution_service = ExecutionService()
-

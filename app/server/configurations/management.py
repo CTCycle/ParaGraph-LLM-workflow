@@ -6,17 +6,20 @@ from typing import Any
 
 from pydantic import ValidationError
 
-from server.common.constants import CONFIGURATION_FILE
+from server.common import path as common_path
 from server.domain.settings import (
     RuntimeConfigurationSettings,
     ServerSettings,
-    load_database_settings_from_env,
+    get_database_settings_from_env,
 )
-
 
 ###############################################################################
 class RuntimeConfigurationManager:
-    def __init__(self, configuration_file: str | Path = CONFIGURATION_FILE) -> None:
+
+    # -------------------------------------------------------------------------
+    def __init__(
+        self, configuration_file: str | Path = common_path.CONFIGURATION_FILE
+    ) -> None:
         self._configuration_file = Path(configuration_file)
         self._settings: RuntimeConfigurationSettings | None = None
         self._server_settings: ServerSettings | None = None
@@ -48,15 +51,15 @@ class RuntimeConfigurationManager:
         if not isinstance(payload, dict):
             raise RuntimeError("Configuration must be a JSON object.")
 
-        payload["database"] = load_database_settings_from_env()
-
         try:
             settings = RuntimeConfigurationSettings.model_validate(payload)
         except ValidationError as exc:
             raise RuntimeError(f"Invalid application settings: {exc}") from exc
 
         self._settings = settings
-        self._server_settings = settings.to_server_settings()
+        self._server_settings = settings.to_server_settings(
+            database=get_database_settings_from_env()
+        )
         return settings
 
     # -------------------------------------------------------------------------
@@ -89,4 +92,3 @@ class RuntimeConfigurationManager:
     def get_value(self, block_name: str, key: str, default: Any = None) -> Any:
         block = self.get_block(block_name)
         return block.get(key, default)
-

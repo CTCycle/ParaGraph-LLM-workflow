@@ -35,3 +35,32 @@ jobs:
 
       - name: Run Backend Tests
         run: uv --project app/server run pytest app/tests/unit/server app/tests/e2e/server/test_execution_lifecycle.py
+
+  frontend-validation:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: app/client/package-lock.json
+
+      - name: Install Frontend Dependencies
+        working-directory: app/client
+        run: npm ci
+
+      - name: Lint Frontend
+        working-directory: app/client
+        run: npm run lint
+
+      - name: Build Frontend
+        working-directory: app/client
+        run: npm run build
+
+      - name: Run Frontend Unit Tests
+        working-directory: app/client
+        run: npm run test:unit

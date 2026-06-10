@@ -13,6 +13,7 @@ from server.services.workflow.execution import execution_service
 from server.services.workflow import browser_uploads as browser_uploads_module
 
 
+###############################################################################
 def test_compiler_accepts_single_prompt_node_definition() -> None:
     definition = WorkflowDefinition.model_validate(
         {
@@ -38,6 +39,7 @@ def test_compiler_accepts_single_prompt_node_definition() -> None:
     assert compiled.plan.steps[0].node_type == "PROMPT"
 
 
+###############################################################################
 def test_execution_service_handles_single_non_output_step(job_state_factory) -> None:
     definition = WorkflowDefinition.model_validate(
         {
@@ -70,6 +72,7 @@ def test_execution_service_handles_single_non_output_step(job_state_factory) -> 
     assert run.steps[0].status == "completed"
 
 
+###############################################################################
 def test_save_uploaded_directory_supports_single_uploaded_file(
     monkeypatch, tmp_path: Path
 ) -> None:
@@ -89,4 +92,3 @@ def test_save_uploaded_directory_supports_single_uploaded_file(
     assert staged_file.exists()
     assert staged_file.read_text(encoding="utf-8") == "hello"
     assert staged_file.is_relative_to(Path(staged_root))
-

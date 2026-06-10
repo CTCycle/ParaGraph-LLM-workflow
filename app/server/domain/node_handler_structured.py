@@ -10,11 +10,13 @@ from server.services.workflow.node_handlers.common import parse_json_if_possible
 StructuredModelMode = Literal["auto", "pydantic_source"]
 
 
+###############################################################################
 class PydanticModelParameters(BaseModel):
     model_mode: StructuredModelMode = "auto"
     model_source: str = ""
     example_json: dict[str, Any] = Field(default_factory=dict)
 
+    # -------------------------------------------------------------------------
     @field_validator("example_json", mode="before")
     @classmethod
     def validate_example_json(cls, value: Any) -> dict[str, Any]:
@@ -26,9 +28,11 @@ class PydanticModelParameters(BaseModel):
         return parsed
 
 
+###############################################################################
 class StructuredInputParameters(PydanticModelParameters):
     value: dict[str, Any] = Field(default_factory=dict)
 
+    # -------------------------------------------------------------------------
     @field_validator("value", mode="before")
     @classmethod
     def validate_value(cls, value: Any) -> dict[str, Any]:
@@ -38,13 +42,16 @@ class StructuredInputParameters(PydanticModelParameters):
         return parsed
 
 
+###############################################################################
 class StructuredOutputParameters(PydanticModelParameters):
     pass
 
 
+###############################################################################
 class JsonValidateRepairParameters(PydanticModelParameters):
     repair: bool = False
 
 
+###############################################################################
 class OutputParserParameters(BaseModel):
     output_format: Literal["json", "text"] = "json"

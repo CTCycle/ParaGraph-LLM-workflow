@@ -8,6 +8,7 @@ from server.domain.node_handler_processing import (
 from server.services.workflow import node_registry
 
 
+###############################################################################
 def test_by_delimiter_chunks_loads_deferred_documents_from_file_paths(
     tmp_path: Path,
 ) -> None:
@@ -39,6 +40,7 @@ def test_by_delimiter_chunks_loads_deferred_documents_from_file_paths(
     assert chunks["chunks"][1]["text"] == "It is split later"
 
 
+###############################################################################
 def test_sentence_window_chunks_groups_sentences_from_upstream_chunks() -> None:
     payload = node_registry.execute(
         "SENTENCE_WINDOW_CHUNKS",
@@ -70,6 +72,7 @@ def test_sentence_window_chunks_groups_sentences_from_upstream_chunks() -> None:
     ]
 
 
+###############################################################################
 def test_recursive_then_merge_small_chunks_supports_chained_fragmentation() -> None:
     recursive = node_registry.execute(
         "RECURSIVE_SPLIT_CHUNKS",
@@ -119,6 +122,7 @@ def test_recursive_then_merge_small_chunks_supports_chained_fragmentation() -> N
     assert merged["chunks"][0]["metadata"]["merge_input_count"] == 2
 
 
+###############################################################################
 def test_recursive_split_chunk_separator_parsing_preserves_whitespace_entries() -> None:
     parsed = RecursiveSplitChunksParameters.model_validate(
         {
@@ -131,4 +135,3 @@ def test_recursive_split_chunk_separator_parsing_preserves_whitespace_entries() 
     )
 
     assert parsed.separators == ["\n\n", " "]
-
