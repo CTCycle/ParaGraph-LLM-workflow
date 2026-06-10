@@ -9,10 +9,12 @@ from server.services.workflow import node_registry
 from server.repositories.workflow.database import inspect_database_schema
 
 
+###############################################################################
 class DatabaseBase(DeclarativeBase):
     pass
 
 
+###############################################################################
 class User(DatabaseBase):
     __tablename__ = "users"
 
@@ -21,6 +23,7 @@ class User(DatabaseBase):
     status: Mapped[str] = mapped_column(String, nullable=False, default="active")
 
 
+###############################################################################
 class Post(DatabaseBase):
     __tablename__ = "posts"
 
@@ -29,6 +32,7 @@ class Post(DatabaseBase):
     title: Mapped[str] = mapped_column(String, nullable=False)
 
 
+###############################################################################
 def _database_connection(tmp_path: Path) -> dict[str, object]:
     database_path = tmp_path / "crud.sqlite"
     engine = create_engine(f"sqlite:///{database_path}")
@@ -47,6 +51,7 @@ def _database_connection(tmp_path: Path) -> dict[str, object]:
     return payload["connection"]
 
 
+###############################################################################
 def test_database_schema_inspection_reports_tables_columns_and_foreign_keys(
     tmp_path: Path,
 ) -> None:
@@ -62,6 +67,7 @@ def test_database_schema_inspection_reports_tables_columns_and_foreign_keys(
     assert tables["posts"]["foreign_keys"][0]["referred_table"] == "users"
 
 
+###############################################################################
 def test_crud_nodes_create_read_update_and_delete_rows(tmp_path: Path) -> None:
     connection = _database_connection(tmp_path)
 
@@ -113,6 +119,7 @@ def test_crud_nodes_create_read_update_and_delete_rows(tmp_path: Path) -> None:
     assert deleted["dataset"]["affected_rows"] == 1
 
 
+###############################################################################
 def test_crud_update_and_delete_require_filters(tmp_path: Path) -> None:
     connection = _database_connection(tmp_path)
 
@@ -133,6 +140,7 @@ def test_crud_update_and_delete_require_filters(tmp_path: Path) -> None:
             raise AssertionError(f"Expected {node_type} to reject empty filters")
 
 
+###############################################################################
 def test_custom_sql_query_returns_rows_and_rejects_invalid_sql(tmp_path: Path) -> None:
     connection = _database_connection(tmp_path)
 

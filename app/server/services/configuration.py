@@ -14,24 +14,28 @@ from server.repositories.configuration import (
 )
 from server.services.llm.providers import OllamaClient, OllamaError
 
-
 ###############################################################################
 class ConfigurationService:
+
+    # -------------------------------------------------------------------------
     def __init__(self, repository: ConfigurationRepository | None = None) -> None:
         self._repository = repository or configuration_repository
 
+    # -------------------------------------------------------------------------
     def load_configuration(
         self, session_name: str | None = None
     ) -> AppConfigurationPayload:
         payload = self._repository.load_configuration(session_name=session_name)
         return AppConfigurationPayload.model_validate(payload)
 
+    # -------------------------------------------------------------------------
     def load_public_configuration(
         self, session_name: str | None = None
     ) -> AppConfigurationPayload:
         payload = self.load_configuration(session_name=session_name)
         return self._mask_configuration_secrets(payload)
 
+    # -------------------------------------------------------------------------
     def save_configuration(
         self, payload: AppConfigurationPayload
     ) -> AppConfigurationPayload:
@@ -56,12 +60,14 @@ class ConfigurationService:
         )
         return AppConfigurationPayload.model_validate(stored)
 
+    # -------------------------------------------------------------------------
     def save_public_configuration(
         self, payload: AppConfigurationPayload
     ) -> AppConfigurationPayload:
         stored = self.save_configuration(payload)
         return self._mask_configuration_secrets(stored)
 
+    # -------------------------------------------------------------------------
     def list_configuration_profiles(
         self, session_name: str | None = None
     ) -> ConfigurationProfileListResponse:
@@ -70,6 +76,7 @@ class ConfigurationService:
         )
         return ConfigurationProfileListResponse.model_validate(payload)
 
+    # -------------------------------------------------------------------------
     def load_configuration_profile(
         self, *, session_name: str | None, profile_name: str
     ) -> AppConfigurationPayload:
@@ -84,6 +91,7 @@ class ConfigurationService:
         )
         return AppConfigurationPayload.model_validate(stored)
 
+    # -------------------------------------------------------------------------
     def load_public_configuration_profile(
         self, *, session_name: str | None, profile_name: str
     ) -> AppConfigurationPayload:
@@ -92,6 +100,7 @@ class ConfigurationService:
         )
         return self._mask_configuration_secrets(payload)
 
+    # -------------------------------------------------------------------------
     def save_configuration_profile(
         self,
         *,
@@ -109,6 +118,7 @@ class ConfigurationService:
         )
         return stored
 
+    # -------------------------------------------------------------------------
     def save_public_configuration_profile(
         self,
         *,
@@ -120,6 +130,7 @@ class ConfigurationService:
         )
         return self._mask_configuration_secrets(stored)
 
+    # -------------------------------------------------------------------------
     def ping_ollama(
         self, *, base_url: str | None, session_name: str | None = None
     ) -> OllamaStatusResponse:
@@ -147,6 +158,7 @@ class ConfigurationService:
                 model_count=0,
             )
 
+    # -------------------------------------------------------------------------
     def save_node_manifest(
         self, manifest: NodeManifest, session_name: str | None = None
     ) -> None:
@@ -158,6 +170,7 @@ class ConfigurationService:
             configuration_json=manifest.model_dump(mode="json"),
         )
 
+    # -------------------------------------------------------------------------
     def _mask_configuration_secrets(
         self, payload: AppConfigurationPayload
     ) -> AppConfigurationPayload:

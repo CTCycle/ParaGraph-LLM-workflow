@@ -20,10 +20,12 @@ from server.services.workflow.vector_stores.base import (
 )
 
 
+###############################################################################
 class LanceDbVectorStoreAdapter(VectorStoreAdapter):
     backend = "lancedb"
     supports_faiss_augmentation = False
 
+    # -------------------------------------------------------------------------
     def write_points(
         self,
         *,
@@ -161,6 +163,7 @@ class LanceDbVectorStoreAdapter(VectorStoreAdapter):
             vector_index_status="created" if create_vector_index else "skipped",
         )
 
+    # -------------------------------------------------------------------------
     def search(
         self,
         *,

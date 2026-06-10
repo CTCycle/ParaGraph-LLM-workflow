@@ -16,9 +16,10 @@ from server.repositories.workflow.database import inspect_database_schema
 from server.services.workflow.nodes.registry import node_registry
 from server.services.workflow.vector_stores import get_vector_store_adapter
 
-
 ###############################################################################
 class NodeConnectivityService:
+
+    # -------------------------------------------------------------------------
     def check_database_connection(
         self, request: DatabaseConnectionCheckRequest
     ) -> DatabaseConnectionCheckResponse:
@@ -41,6 +42,7 @@ class NodeConnectivityService:
                 ok=False, message="Database connection check failed."
             )
 
+    # -------------------------------------------------------------------------
     def get_database_schema(
         self, request: DatabaseSchemaRequest
     ) -> DatabaseSchemaResponse:
@@ -53,6 +55,7 @@ class NodeConnectivityService:
         schema = inspect_database_schema(connection_payload["connection"])
         return DatabaseSchemaResponse.model_validate(schema)
 
+    # -------------------------------------------------------------------------
     def check_vector_store_connection(
         self,
         request: VectorStoreConnectionCheckRequest,

@@ -12,6 +12,7 @@ from server.services.workflow.nodes.execution_context import (
 )
 
 
+###############################################################################
 def _resolve_context_identifiers() -> tuple[str, str]:
     context = get_execution_context()
     workflow_id = (context.get("workflow_id") or "").strip() or "workflow"
@@ -25,6 +26,7 @@ def _resolve_context_identifiers() -> tuple[str, str]:
     return workflow_id, execution_session_id
 
 
+###############################################################################
 def execute_chat_history_memory(
     parameters: dict[str, Any], inputs: dict[str, Any]
 ) -> dict[str, Any]:
@@ -45,6 +47,7 @@ def execute_chat_history_memory(
     return {"history": handle.model_dump(mode="json")}
 
 
+###############################################################################
 def execute_chat_history_persisted(
     parameters: dict[str, Any], inputs: dict[str, Any]
 ) -> dict[str, Any]:

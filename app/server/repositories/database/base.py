@@ -27,9 +27,10 @@ from server.common.utils.logger import logger
 from server.repositories.database.utils import normalize_string_columns
 from server.repositories.schemas import Base
 
-
 ###############################################################################
 class TabularDatabaseRepository:
+
+    # -------------------------------------------------------------------------
     def __init__(
         self,
         *,

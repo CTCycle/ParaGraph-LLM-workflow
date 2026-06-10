@@ -6,6 +6,7 @@ from server.repositories.database.sqlite import SQLiteRepository
 from server.repositories.database.utils import normalize_postgres_engine
 
 
+###############################################################################
 class DatabaseRepositoryFactory:
     _SUPPORTED_POSTGRES_ENGINES = {
         "postgres",
@@ -14,6 +15,7 @@ class DatabaseRepositoryFactory:
         "postgresql+psycopg2",
     }
 
+    # -------------------------------------------------------------------------
     def build(
         self, settings: DatabaseSettings
     ) -> SQLiteRepository | PostgresRepository:

@@ -6,6 +6,7 @@ import torch
 import transformers
 
 
+###############################################################################
 def load_huggingface_modules() -> tuple[Any, Any, Any]:
     auto_model_for_causal_lm = getattr(transformers, "AutoModelForCausalLM", None)
     auto_tokenizer = getattr(transformers, "AutoTokenizer", None)
@@ -16,6 +17,7 @@ def load_huggingface_modules() -> tuple[Any, Any, Any]:
     return torch, auto_model_for_causal_lm, auto_tokenizer
 
 
+###############################################################################
 def load_huggingface_embedding_modules() -> tuple[Any, Any, Any]:
     auto_model = getattr(transformers, "AutoModel", None)
     auto_tokenizer = getattr(transformers, "AutoTokenizer", None)

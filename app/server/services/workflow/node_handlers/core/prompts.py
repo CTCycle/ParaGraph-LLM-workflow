@@ -14,6 +14,7 @@ from server.services.workflow.node_handlers.common import (
 )
 
 
+###############################################################################
 def _prompt_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
 ) -> dict[str, Any]:
@@ -21,6 +22,7 @@ def _prompt_executor(
     return {"text": coerce_text(parameters.get("prompt_text", "")).strip()}
 
 
+###############################################################################
 def _extract_template_record_text(record: dict[str, Any]) -> str:
     candidate = coerce_text(
         record.get("text") or record.get("content") or record.get("chunk") or ""
@@ -28,6 +30,7 @@ def _extract_template_record_text(record: dict[str, Any]) -> str:
     return candidate
 
 
+###############################################################################
 def _coerce_template_value(value: Any) -> str:
     return render_variable_value(value)
 
@@ -35,6 +38,7 @@ def _coerce_template_value(value: Any) -> str:
 _PROMPT_TEMPLATE_PATTERN = re.compile(r"\{([A-Za-z_]\w*)\}")
 
 
+###############################################################################
 def _collect_prompt_template_variable_maps(raw_variables: Any) -> list[dict[str, Any]]:
     if raw_variables is None:
         return []
@@ -55,6 +59,7 @@ def _collect_prompt_template_variable_maps(raw_variables: Any) -> list[dict[str,
     return variable_maps
 
 
+###############################################################################
 def _build_prompt_template_context(
     inputs: dict[str, Any],
     controllers: dict[str, Any],
@@ -72,6 +77,7 @@ def _build_prompt_template_context(
     return context
 
 
+###############################################################################
 def _render_jinja_template(
     template: str,
     context: dict[str, Any],
@@ -91,6 +97,7 @@ def _render_jinja_template(
         ) from exc
 
 
+###############################################################################
 def _prompt_template_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
 ) -> dict[str, Any]:
@@ -153,6 +160,7 @@ def _prompt_template_executor(
     }
 
 
+###############################################################################
 def _image_input_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
 ) -> dict[str, Any]:

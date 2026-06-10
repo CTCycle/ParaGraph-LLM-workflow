@@ -24,7 +24,10 @@ from server.domain.node_catalog import (
 )
 
 
+###############################################################################
 class OllamaLibraryCatalogMixin:
+
+    # -------------------------------------------------------------------------
     def _load_ollama_library_catalog(
         self, *, refresh: bool
     ) -> OllamaLibraryCachePayload:
@@ -44,6 +47,7 @@ class OllamaLibraryCatalogMixin:
             )
         return payload
 
+    # -------------------------------------------------------------------------
     def _fetch_ollama_library_catalog(self) -> OllamaLibraryCachePayload:
         try:
             response = httpx.get(
@@ -92,6 +96,7 @@ class OllamaLibraryCatalogMixin:
         refreshed_at = datetime.now(timezone.utc).isoformat()
         return OllamaLibraryCachePayload(models=ordered, refreshed_at=refreshed_at)
 
+    # -------------------------------------------------------------------------
     def _get_pulled_ollama_model_names(self, session_name: str) -> set[str]:
         try:
             pulled = self._ollama_client(session_name).list_models()
@@ -108,10 +113,14 @@ class OllamaLibraryCatalogMixin:
         return normalized
 
 
+###############################################################################
 class OllamaLibraryService:
+
+    # -------------------------------------------------------------------------
     def __init__(self, provider_service: object) -> None:
         self._provider_service = provider_service
 
+    # -------------------------------------------------------------------------
     def list_models(
         self,
         *,
@@ -125,6 +134,7 @@ class OllamaLibraryService:
             refresh=refresh,
         )
 
+    # -------------------------------------------------------------------------
     def pull_model(
         self,
         *,

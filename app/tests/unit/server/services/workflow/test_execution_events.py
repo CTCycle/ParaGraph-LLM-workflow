@@ -9,6 +9,7 @@ from server.services.runtime.events import execution_event_service
 from server.services.workflow.execution import execution_service
 
 
+###############################################################################
 def test_execution_event_sequence_is_monotonic_for_each_run() -> None:
     first = execution_event_service.publish(
         run_id="run-a",
@@ -34,6 +35,7 @@ def test_execution_event_sequence_is_monotonic_for_each_run() -> None:
     ] == [1, 2]
 
 
+###############################################################################
 def test_execution_service_emits_expected_event_order_for_prompt_to_output_plan(
     job_state_factory,
 ) -> None:
@@ -99,6 +101,7 @@ def test_execution_service_emits_expected_event_order_for_prompt_to_output_plan(
     assert [event.payload.get("progress") for event in step_completed] == [50.0, 99.0]
 
 
+###############################################################################
 def test_redact_output_state_masks_nested_sensitive_fields() -> None:
     payload = {
         "inputs": {"text": "hello"},
@@ -125,6 +128,7 @@ def test_redact_output_state_masks_nested_sensitive_fields() -> None:
     assert redacted["ports"]["result"]["metadata"][0]["authorization"] == "***"
 
 
+###############################################################################
 def test_execution_service_skips_cache_key_build_for_non_cacheable_steps(
     job_state_factory, monkeypatch
 ) -> None:
@@ -180,6 +184,7 @@ def test_execution_service_skips_cache_key_build_for_non_cacheable_steps(
     assert result == {"outputs": {"output_1": {"text": "hello"}}}
 
 
+###############################################################################
 def test_execution_service_persists_compact_step_output_payload(
     job_state_factory,
 ) -> None:
@@ -230,6 +235,7 @@ def test_execution_service_persists_compact_step_output_payload(
     assert all(set(step.output.keys()) == {"inputs", "ports"} for step in run.steps)
 
 
+###############################################################################
 def test_execution_service_uses_named_output_as_prompt_template_variable(
     job_state_factory,
 ) -> None:

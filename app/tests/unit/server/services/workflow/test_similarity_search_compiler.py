@@ -4,6 +4,7 @@ from server.domain.workflow_model import WorkflowDefinition
 from server.services.workflow.compiler import compiler_service
 
 
+###############################################################################
 def _build_similarity_workflow(
     *,
     search_mode: str,
@@ -92,6 +93,7 @@ def _build_similarity_workflow(
     )
 
 
+###############################################################################
 def test_compiler_reports_similarity_backend_incompatibilities() -> None:
     definition = _build_similarity_workflow(
         search_mode="hybrid",

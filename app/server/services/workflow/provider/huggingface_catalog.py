@@ -47,7 +47,10 @@ from server.domain.node_catalog import (
 )
 
 
+###############################################################################
 class HuggingFaceCatalogMixin:
+
+    # -------------------------------------------------------------------------
     def _list_huggingface_models_impl(
         self,
         *,
@@ -102,9 +105,11 @@ class HuggingFaceCatalogMixin:
         self._store_huggingface_cached_response(cache_key, response)
         return response
 
+    # -------------------------------------------------------------------------
     def _huggingface_local_model_path(self, repo_id: str) -> Path:
         return HUGGINGFACE_LOCAL_MODELS_ROOT / _huggingface_model_dir_name(repo_id)
 
+    # -------------------------------------------------------------------------
     def _write_huggingface_model_metadata(
         self,
         repo_id: str,
@@ -145,6 +150,7 @@ class HuggingFaceCatalogMixin:
         metadata_path = destination / HUGGINGFACE_LOCAL_MODEL_METADATA_FILE
         metadata_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
+    # -------------------------------------------------------------------------
     def _read_huggingface_metadata(
         self, model_directory: Path
     ) -> dict[str, Any] | None:
@@ -161,6 +167,7 @@ class HuggingFaceCatalogMixin:
             return payload
         return None
 
+    # -------------------------------------------------------------------------
     def _read_huggingface_repo_id_from_metadata(
         self, model_directory: Path
     ) -> str | None:
@@ -173,6 +180,7 @@ class HuggingFaceCatalogMixin:
         fallback = _huggingface_repo_id_from_dir_name(model_directory.name)
         return fallback
 
+    # -------------------------------------------------------------------------
     def _is_huggingface_download_complete(
         self,
         model_directory: Path,
@@ -219,6 +227,7 @@ class HuggingFaceCatalogMixin:
         )
         return True, repo_id, validated_bytes, total_bytes
 
+    # -------------------------------------------------------------------------
     def _downloaded_huggingface_models(self) -> tuple[ModelMetadata, ...]:
         if not HUGGINGFACE_LOCAL_MODELS_ROOT.exists():
             return ()
@@ -240,9 +249,11 @@ class HuggingFaceCatalogMixin:
 
         return tuple(models)
 
+    # -------------------------------------------------------------------------
     def _downloaded_huggingface_repo_ids(self) -> set[str]:
         return {item.model for item in self._downloaded_huggingface_models()}
 
+    # -------------------------------------------------------------------------
     def _build_huggingface_cache_key(
         self,
         *,
@@ -275,6 +286,7 @@ class HuggingFaceCatalogMixin:
             ]
         )
 
+    # -------------------------------------------------------------------------
     def _load_huggingface_cached_response(
         self, cache_key: str, *, refresh: bool
     ) -> HuggingFaceModelCatalogResponse | None:
@@ -291,6 +303,7 @@ class HuggingFaceCatalogMixin:
                 return None
             return payload.model_copy(deep=True)
 
+    # -------------------------------------------------------------------------
     def _store_huggingface_cached_response(
         self, cache_key: str, payload: HuggingFaceModelCatalogResponse
     ) -> None:
@@ -308,6 +321,7 @@ class HuggingFaceCatalogMixin:
                 value=payload.model_copy(deep=True), expires_at=expiry
             )
 
+    # -------------------------------------------------------------------------
     def _fetch_huggingface_models(
         self,
         *,
@@ -416,6 +430,7 @@ class HuggingFaceCatalogMixin:
             available_libraries=sorted(available_libraries),
         )
 
+    # -------------------------------------------------------------------------
     def _load_huggingface_filter_tags(
         self,
         *,
@@ -477,6 +492,7 @@ class HuggingFaceCatalogMixin:
 
         return tasks, libraries
 
+    # -------------------------------------------------------------------------
     def _build_huggingface_list_kwargs(
         self,
         api: Any,
@@ -523,6 +539,7 @@ class HuggingFaceCatalogMixin:
 
         return kwargs
 
+    # -------------------------------------------------------------------------
     def _parse_huggingface_model(
         self, payload: Any
     ) -> HuggingFaceModelDefinition | None:
@@ -577,6 +594,7 @@ class HuggingFaceCatalogMixin:
             size_bytes=_extract_huggingface_model_size(payload),
         )
 
+    # -------------------------------------------------------------------------
     def _visibility_matches(
         self, model_visibility: str, requested_visibility: ModelVisibilityFilter
     ) -> bool:
@@ -584,6 +602,7 @@ class HuggingFaceCatalogMixin:
             return True
         return model_visibility == requested_visibility
 
+    # -------------------------------------------------------------------------
     def _get_huggingface_token(self, session_name: str) -> str | None:
         access_key = self._get_access_key("huggingface", session_name)
         if access_key is None or not access_key.api_key:
@@ -591,10 +610,12 @@ class HuggingFaceCatalogMixin:
         token = access_key.api_key.strip()
         return token or None
 
+    # -------------------------------------------------------------------------
     def _resolve_huggingface_api(self, session_name: str) -> tuple[Any, str | None]:
         token = self._get_huggingface_token(session_name)
         return HfApi(token=token), token
 
+    # -------------------------------------------------------------------------
     def _detect_huggingface_permission_warning(
         self,
         *,
@@ -624,6 +645,7 @@ class HuggingFaceCatalogMixin:
                 return "Hugging Face rate limit reached while validating repository visibility."
             return None
 
+    # -------------------------------------------------------------------------
     def _extract_status_code(self, error: Exception) -> int | None:
         response = getattr(error, "response", None)
         status_code = getattr(response, "status_code", None)
@@ -631,6 +653,7 @@ class HuggingFaceCatalogMixin:
             return status_code
         return None
 
+    # -------------------------------------------------------------------------
     def _translate_huggingface_error(self, error: Exception) -> ProviderApiError:
         status_code = self._extract_status_code(error)
         if status_code == 401:
@@ -671,10 +694,14 @@ class HuggingFaceCatalogMixin:
         )
 
 
+###############################################################################
 class HuggingFaceCatalogService:
+
+    # -------------------------------------------------------------------------
     def __init__(self, provider_service: object) -> None:
         self._provider_service = provider_service
 
+    # -------------------------------------------------------------------------
     def list_models(
         self,
         *,

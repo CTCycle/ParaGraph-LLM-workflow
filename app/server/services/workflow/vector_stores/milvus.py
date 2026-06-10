@@ -21,10 +21,12 @@ from server.services.workflow.vector_stores.base import (
 )
 
 
+###############################################################################
 class MilvusVectorStoreAdapter(VectorStoreAdapter):
     backend = "milvus"
     supports_faiss_augmentation = False
 
+    # -------------------------------------------------------------------------
     def _build_client(self, *, endpoint_url: str, api_key: str, database_name: str):
         uri = endpoint_url or "http://localhost:19530"
         kwargs: dict[str, Any] = {"uri": uri}
@@ -34,6 +36,7 @@ class MilvusVectorStoreAdapter(VectorStoreAdapter):
             kwargs["db_name"] = database_name
         return MilvusClient(**kwargs)
 
+    # -------------------------------------------------------------------------
     def _milvus_filter(self, filter_spec: dict[str, Any] | None) -> str:
         if not filter_spec:
             return ""
@@ -65,6 +68,7 @@ class MilvusVectorStoreAdapter(VectorStoreAdapter):
             parts.append("(" + " or ".join(should) + ")")
         return " and ".join(parts)
 
+    # -------------------------------------------------------------------------
     def validate_connection(
         self,
         *,
@@ -91,6 +95,7 @@ class MilvusVectorStoreAdapter(VectorStoreAdapter):
         )
         client.list_collections()
 
+    # -------------------------------------------------------------------------
     def write_points(
         self,
         *,
@@ -183,6 +188,7 @@ class MilvusVectorStoreAdapter(VectorStoreAdapter):
             },
         )
 
+    # -------------------------------------------------------------------------
     def search(
         self,
         *,

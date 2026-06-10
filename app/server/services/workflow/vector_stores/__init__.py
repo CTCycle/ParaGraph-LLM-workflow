@@ -24,6 +24,7 @@ from server.services.workflow.vector_stores.weaviate import (
 )
 
 
+###############################################################################
 class FaissVectorStoreAdapter(VectorStoreAdapter):
     pass
 
@@ -39,6 +40,7 @@ VECTOR_STORE_ADAPTERS = {
 }
 
 
+###############################################################################
 def get_vector_store_adapter(backend: str) -> VectorStoreAdapter:
     adapter = VECTOR_STORE_ADAPTERS.get(backend.lower().strip())
     if adapter is None:

@@ -73,6 +73,7 @@ get_vector_store_adapter = _default_get_vector_store_adapter
 _HF_MODEL_CACHE = _UNUSED_HF_MODEL_CACHE
 
 
+###############################################################################
 def _load_text_executor(
     parameters: dict[str, object], inputs: dict[str, object]
 ) -> dict[str, object]:

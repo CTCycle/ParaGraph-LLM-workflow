@@ -10,6 +10,7 @@ from server.services.runtime.events import execution_event_service
 from server.services.workflow.provider import provider_service
 
 
+###############################################################################
 def _build_definition() -> dict[str, object]:
     return {
         "schema_version": 2,
@@ -80,6 +81,7 @@ def _build_definition() -> dict[str, object]:
     }
 
 
+###############################################################################
 def _poll_run_until_terminal(
     client: TestClient, run_id: str, timeout_s: float = 3.0
 ) -> list[dict[str, object]]:
@@ -100,6 +102,7 @@ def _poll_run_until_terminal(
     )
 
 
+###############################################################################
 def test_execution_lifecycle_end_to_end_with_websocket_replay(
     client: TestClient, monkeypatch
 ) -> None:

@@ -17,6 +17,7 @@ from server.services.workflow.node_handlers.processing.sources import (
 )
 
 
+###############################################################################
 def _by_structure_chunks_executor(
     parameters: dict[str, object], inputs: dict[str, object]
 ) -> dict[str, object]:
@@ -68,6 +69,7 @@ def _by_structure_chunks_executor(
     return {"chunks": chunks}
 
 
+###############################################################################
 def _regex_split_chunks_executor(
     parameters: dict[str, object], inputs: dict[str, object]
 ) -> dict[str, object]:

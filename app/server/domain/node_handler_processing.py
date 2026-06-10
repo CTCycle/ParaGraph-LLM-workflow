@@ -6,6 +6,7 @@ from typing import Any
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 
+###############################################################################
 def _parse_json_value(value: Any, label: str) -> Any:
     if isinstance(value, (dict, list, int, float, bool)) or value is None:
         return value
@@ -18,11 +19,13 @@ def _parse_json_value(value: Any, label: str) -> Any:
         raise ValueError(f"{label} must be valid JSON") from exc
 
 
+###############################################################################
 class FixedSizeChunksParameters(BaseModel):
     chunk_size: int = Field(default=800, ge=1, le=100_000)
     chunk_overlap: int = Field(default=80, ge=0, le=99_999)
     unit: str = "words"
 
+    # -------------------------------------------------------------------------
     @field_validator("unit")
     @classmethod
     def validate_unit(cls, value: str) -> str:
@@ -31,6 +34,7 @@ class FixedSizeChunksParameters(BaseModel):
             raise ValueError("unit must be one of: words, characters, tokens")
         return normalized
 
+    # -------------------------------------------------------------------------
     @model_validator(mode="after")
     def validate_overlap(self) -> "FixedSizeChunksParameters":
         if self.chunk_overlap >= self.chunk_size:
@@ -38,6 +42,7 @@ class FixedSizeChunksParameters(BaseModel):
         return self
 
 
+###############################################################################
 class ByDelimiterChunksParameters(BaseModel):
     delimiter: str = "newline"
     keep_delimiter: bool = False
@@ -45,6 +50,7 @@ class ByDelimiterChunksParameters(BaseModel):
     max_chunk_size: int = Field(default=0, ge=0, le=100_000)
     overflow_strategy: str = "split_further"
 
+    # -------------------------------------------------------------------------
     @field_validator("delimiter")
     @classmethod
     def validate_delimiter(cls, value: str) -> str:
@@ -53,6 +59,7 @@ class ByDelimiterChunksParameters(BaseModel):
             raise ValueError("delimiter must not be empty")
         return normalized
 
+    # -------------------------------------------------------------------------
     @field_validator("overflow_strategy")
     @classmethod
     def validate_overflow_strategy(cls, value: str) -> str:
@@ -64,6 +71,7 @@ class ByDelimiterChunksParameters(BaseModel):
         return normalized
 
 
+###############################################################################
 class ByStructureChunksParameters(BaseModel):
     strategy: str = "paragraph"
     max_chunk_size: int = Field(default=0, ge=0, le=100_000)
@@ -71,6 +79,7 @@ class ByStructureChunksParameters(BaseModel):
     unit: str = "words"
     overflow_strategy: str = "split_further"
 
+    # -------------------------------------------------------------------------
     @field_validator("strategy")
     @classmethod
     def validate_strategy(cls, value: str) -> str:
@@ -86,6 +95,7 @@ class ByStructureChunksParameters(BaseModel):
             )
         return normalized
 
+    # -------------------------------------------------------------------------
     @field_validator("unit")
     @classmethod
     def validate_unit(cls, value: str) -> str:
@@ -94,6 +104,7 @@ class ByStructureChunksParameters(BaseModel):
             raise ValueError("unit must be one of: words, characters, tokens")
         return normalized
 
+    # -------------------------------------------------------------------------
     @field_validator("overflow_strategy")
     @classmethod
     def validate_overflow_strategy(cls, value: str) -> str:
@@ -105,9 +116,11 @@ class ByStructureChunksParameters(BaseModel):
         return normalized
 
 
+###############################################################################
 class RegexSplitChunksParameters(BaseModel):
     regex: str = ""
 
+    # -------------------------------------------------------------------------
     @field_validator("regex")
     @classmethod
     def validate_regex(cls, value: str) -> str:
@@ -117,6 +130,7 @@ class RegexSplitChunksParameters(BaseModel):
         return normalized
 
 
+###############################################################################
 class RecursiveSplitChunksParameters(BaseModel):
     separators: list[str] = Field(default_factory=lambda: ["\n\n", ". ", " "])
     chunk_size: int = Field(default=800, ge=1, le=100_000)
@@ -124,6 +138,7 @@ class RecursiveSplitChunksParameters(BaseModel):
     unit: str = "words"
     fallback_strategy: str = "continue"
 
+    # -------------------------------------------------------------------------
     @field_validator("separators", mode="before")
     @classmethod
     def parse_separators(cls, value: Any) -> list[str]:
@@ -139,6 +154,7 @@ class RecursiveSplitChunksParameters(BaseModel):
             raise ValueError("separators must include at least one value")
         return normalized
 
+    # -------------------------------------------------------------------------
     @field_validator("unit")
     @classmethod
     def validate_unit(cls, value: str) -> str:
@@ -147,6 +163,7 @@ class RecursiveSplitChunksParameters(BaseModel):
             raise ValueError("unit must be one of: words, characters, tokens")
         return normalized
 
+    # -------------------------------------------------------------------------
     @field_validator("fallback_strategy")
     @classmethod
     def validate_fallback_strategy(cls, value: str) -> str:
@@ -155,6 +172,7 @@ class RecursiveSplitChunksParameters(BaseModel):
             raise ValueError("fallback_strategy must be one of: continue, force_split")
         return normalized
 
+    # -------------------------------------------------------------------------
     @model_validator(mode="after")
     def validate_overlap(self) -> "RecursiveSplitChunksParameters":
         if self.chunk_overlap >= self.chunk_size:
@@ -162,12 +180,14 @@ class RecursiveSplitChunksParameters(BaseModel):
         return self
 
 
+###############################################################################
 class SentenceWindowChunksParameters(BaseModel):
     sentences_per_chunk: int = Field(default=4, ge=1, le=1000)
     sentence_overlap: int = Field(default=1, ge=0, le=999)
     max_chunk_size: int = Field(default=0, ge=0, le=100_000)
     overflow_strategy: str = "split_further"
 
+    # -------------------------------------------------------------------------
     @field_validator("overflow_strategy")
     @classmethod
     def validate_overflow_strategy(cls, value: str) -> str:
@@ -178,6 +198,7 @@ class SentenceWindowChunksParameters(BaseModel):
             )
         return normalized
 
+    # -------------------------------------------------------------------------
     @model_validator(mode="after")
     def validate_overlap(self) -> "SentenceWindowChunksParameters":
         if self.sentence_overlap >= self.sentences_per_chunk:
@@ -187,6 +208,7 @@ class SentenceWindowChunksParameters(BaseModel):
         return self
 
 
+###############################################################################
 class MergeSmallChunksParameters(BaseModel):
     target_chunk_size: int = Field(default=800, ge=1, le=100_000)
     unit: str = "words"
@@ -194,6 +216,7 @@ class MergeSmallChunksParameters(BaseModel):
     merge_strategy: str = "sequential"
     preserve_boundaries: bool = True
 
+    # -------------------------------------------------------------------------
     @field_validator("unit")
     @classmethod
     def validate_unit(cls, value: str) -> str:
@@ -202,6 +225,7 @@ class MergeSmallChunksParameters(BaseModel):
             raise ValueError("unit must be one of: words, characters, tokens")
         return normalized
 
+    # -------------------------------------------------------------------------
     @field_validator("merge_strategy")
     @classmethod
     def validate_merge_strategy(cls, value: str) -> str:

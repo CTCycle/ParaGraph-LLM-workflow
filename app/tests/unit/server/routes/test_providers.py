@@ -7,10 +7,12 @@ from server.services.workflow import provider_service
 from server.services.workflow.provider import ProviderApiError
 
 
+###############################################################################
 def _raise_provider_error(message: str, status_code: int):
     raise ProviderApiError(message, status_code=status_code)
 
 
+###############################################################################
 def test_provider_errors_are_mapped_to_http_status_codes(
     client: TestClient, monkeypatch
 ) -> None:
@@ -71,6 +73,7 @@ def test_provider_errors_are_mapped_to_http_status_codes(
     assert hf_cancel_response.json()["detail"] == "cannot cancel"
 
 
+###############################################################################
 def test_provider_models_include_embedding_capabilities(
     client: TestClient, monkeypatch
 ) -> None:
@@ -118,6 +121,7 @@ def test_provider_models_include_embedding_capabilities(
     ]
 
 
+###############################################################################
 def test_provider_model_definition_propagates_supports_embeddings_flag() -> None:
     metadata = ModelMetadata(
         provider="openai",

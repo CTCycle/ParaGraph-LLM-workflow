@@ -24,12 +24,10 @@ router = APIRouter(prefix="/executions", tags=["executions"])
 logger = logging.getLogger(__name__)
 RunIdPath = Annotated[str, Path(min_length=1, max_length=128, pattern=RUN_ID_PATTERN)]
 
-
 ###############################################################################
 @router.post("/compile", response_model=CompileWorkflowResponse)
 def compile_workflow(request: CompileWorkflowRequest) -> CompileWorkflowResponse:
     return compiler_service.compile(request.definition)
-
 
 ###############################################################################
 @router.post(
@@ -55,7 +53,6 @@ def start_execution(
         request_id=request_id,
     )
 
-
 ###############################################################################
 @router.get("/{run_id}", response_model=ExecutionRunState)
 def get_execution(run_id: RunIdPath) -> ExecutionRunState:
@@ -65,7 +62,6 @@ def get_execution(run_id: RunIdPath) -> ExecutionRunState:
             status_code=status.HTTP_404_NOT_FOUND, detail=f"Run not found: {run_id}"
         )
     return run
-
 
 ###############################################################################
 @router.get("/{run_id}/events", response_model=EventHistoryResponse)

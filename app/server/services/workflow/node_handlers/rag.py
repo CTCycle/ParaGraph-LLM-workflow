@@ -8,12 +8,14 @@ from server.services.workflow.node_handlers.base import NodeHandler
 from server.services.workflow.node_handlers.common import coerce_text, strip_html
 
 
+###############################################################################
 def _items(value: Any) -> list[Any]:
     if value is None:
         return []
     return value if isinstance(value, list) else [value]
 
 
+###############################################################################
 def _text(item: Any) -> str:
     if isinstance(item, dict):
         return coerce_text(
@@ -22,6 +24,7 @@ def _text(item: Any) -> str:
     return coerce_text(item)
 
 
+###############################################################################
 def _html_to_text_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
 ) -> dict[str, Any]:
@@ -29,6 +32,7 @@ def _html_to_text_executor(
     return {"result": strip_html(_text(inputs.get("html", inputs.get("text", ""))))}
 
 
+###############################################################################
 def _ocr_text_extract_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
 ) -> dict[str, Any]:
@@ -43,6 +47,7 @@ def _ocr_text_extract_executor(
     return {"result": ""}
 
 
+###############################################################################
 def _chunk_enricher_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
 ) -> dict[str, Any]:
@@ -65,6 +70,7 @@ def _chunk_enricher_executor(
     return {"chunks": enriched}
 
 
+###############################################################################
 def _context_builder_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
 ) -> dict[str, Any]:
@@ -78,6 +84,7 @@ def _context_builder_executor(
     return {"result": " ".join(words)}
 
 
+###############################################################################
 def _citation_formatter_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
 ) -> dict[str, Any]:
@@ -94,6 +101,7 @@ def _citation_formatter_executor(
     return {"result": citations}
 
 
+###############################################################################
 def _grounding_checker_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
 ) -> dict[str, Any]:

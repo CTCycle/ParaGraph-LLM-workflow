@@ -24,6 +24,7 @@ from server.services.workflow.nodes import registry as node_registry_module
 from server.services.workflow import provider_service
 
 
+###############################################################################
 def build_prompt_to_output_definition() -> dict[str, object]:
     return {
         "schema_version": 2,
@@ -53,6 +54,7 @@ def build_prompt_to_output_definition() -> dict[str, object]:
     }
 
 
+###############################################################################
 def test_nodes_catalog_exposes_registry(client: TestClient) -> None:
     response = client.get("/nodes/catalog")
 
@@ -100,6 +102,7 @@ def test_nodes_catalog_exposes_registry(client: TestClient) -> None:
     assert "retrieval" in categories
 
 
+###############################################################################
 def test_nodes_import_persists_manifest(
     client: TestClient, monkeypatch, tmp_path: Path
 ) -> None:
@@ -165,6 +168,7 @@ def test_nodes_import_persists_manifest(
     assert (node_dir / "custom_echo_v1.json").exists()
 
 
+###############################################################################
 def test_nodes_upload_directory_stages_browser_selected_folder(
     client: TestClient,
 ) -> None:
@@ -195,6 +199,7 @@ def test_nodes_upload_directory_stages_browser_selected_folder(
             shutil.rmtree(staged_root, ignore_errors=True)
 
 
+###############################################################################
 def test_nodes_upload_directory_staging_root_is_stable_across_working_directory(
     client: TestClient, monkeypatch, tmp_path: Path
 ) -> None:
@@ -221,6 +226,7 @@ def test_nodes_upload_directory_staging_root_is_stable_across_working_directory(
             shutil.rmtree(staged_root, ignore_errors=True)
 
 
+###############################################################################
 def test_nodes_upload_directory_rejects_parent_directory_segments(
     client: TestClient,
 ) -> None:
@@ -233,6 +239,7 @@ def test_nodes_upload_directory_rejects_parent_directory_segments(
     assert "relative paths" in response.json()["detail"].lower()
 
 
+###############################################################################
 def test_nodes_upload_directory_rejects_absolute_paths(client: TestClient) -> None:
     response = client.post(
         "/nodes/uploads/directory",
@@ -243,12 +250,16 @@ def test_nodes_upload_directory_rejects_absolute_paths(client: TestClient) -> No
     assert "absolute paths" in response.json()["detail"].lower()
 
 
+###############################################################################
 def test_nodes_database_connection_check_returns_success_for_sqlite(
     client: TestClient, tmp_path: Path
 ) -> None:
+
+    ###############################################################################
     class TestHealthBase(DeclarativeBase):
         pass
 
+    ###############################################################################
     class TestTable(TestHealthBase):
         __tablename__ = "test_table"
         id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -281,6 +292,7 @@ def test_nodes_database_connection_check_returns_success_for_sqlite(
     assert response.json() == {"ok": True, "message": "Database connection successful."}
 
 
+###############################################################################
 def test_nodes_database_connection_check_returns_failure_payload(
     client: TestClient,
 ) -> None:
@@ -308,6 +320,7 @@ def test_nodes_database_connection_check_returns_failure_payload(
     assert "not found" in payload["message"].lower()
 
 
+###############################################################################
 def test_provider_models_endpoint_returns_catalog(
     client: TestClient, monkeypatch
 ) -> None:
@@ -334,6 +347,7 @@ def test_provider_models_endpoint_returns_catalog(
     assert response.json()["models"][0]["model"] == "llama3.2"
 
 
+###############################################################################
 def test_ollama_library_endpoint_returns_rows(client: TestClient, monkeypatch) -> None:
     monkeypatch.setattr(
         provider_service,
@@ -362,6 +376,7 @@ def test_ollama_library_endpoint_returns_rows(client: TestClient, monkeypatch) -
     assert payload["models"][0]["pulled"] is True
 
 
+###############################################################################
 def test_ollama_pull_endpoint_returns_success(client: TestClient, monkeypatch) -> None:
     monkeypatch.setattr(
         provider_service,
@@ -381,6 +396,7 @@ def test_ollama_pull_endpoint_returns_success(client: TestClient, monkeypatch) -
     assert payload["model"] == "llama3.2"
 
 
+###############################################################################
 def test_huggingface_models_endpoint_returns_rows(
     client: TestClient, monkeypatch
 ) -> None:
@@ -421,6 +437,7 @@ def test_huggingface_models_endpoint_returns_rows(
     assert payload["has_more"] is True
 
 
+###############################################################################
 def test_huggingface_download_endpoint_returns_success(
     client: TestClient, monkeypatch
 ) -> None:
@@ -455,6 +472,7 @@ def test_huggingface_download_endpoint_returns_success(
     assert payload["status"] == "running"
 
 
+###############################################################################
 def test_huggingface_download_status_endpoint_returns_payload(
     client: TestClient, monkeypatch
 ) -> None:
@@ -483,6 +501,7 @@ def test_huggingface_download_status_endpoint_returns_payload(
     assert payload["progress"] == 42.0
 
 
+###############################################################################
 def test_huggingface_download_cancel_endpoint_returns_success(
     client: TestClient, monkeypatch
 ) -> None:
@@ -505,6 +524,7 @@ def test_huggingface_download_cancel_endpoint_returns_success(
     assert payload["job_id"] == "job-1234"
 
 
+###############################################################################
 def test_compile_endpoint_returns_diagnostics_for_type_mismatch(
     client: TestClient,
 ) -> None:
@@ -547,6 +567,7 @@ def test_compile_endpoint_returns_diagnostics_for_type_mismatch(
     assert any("Type mismatch" in message for message in messages)
 
 
+###############################################################################
 def test_workflow_crud(client: TestClient) -> None:
     create_response = client.post(
         "/workflows",

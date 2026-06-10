@@ -18,6 +18,7 @@ from server.repositories.workflow.database import (
 )
 
 
+###############################################################################
 def _connection(inputs: dict[str, Any]) -> dict[str, Any]:
     value = inputs.get("connection")
     if not isinstance(value, dict):
@@ -25,6 +26,7 @@ def _connection(inputs: dict[str, Any]) -> dict[str, Any]:
     return value
 
 
+###############################################################################
 def _merged_json_input(
     parameters: dict[str, Any], inputs: dict[str, Any], name: str
 ) -> dict[str, Any]:
@@ -36,6 +38,7 @@ def _merged_json_input(
     return raw_value
 
 
+###############################################################################
 def _crud_create_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
 ) -> dict[str, Any]:
@@ -49,6 +52,7 @@ def _crud_create_executor(
     }
 
 
+###############################################################################
 def _crud_read_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
 ) -> dict[str, Any]:
@@ -67,6 +71,7 @@ def _crud_read_executor(
     }
 
 
+###############################################################################
 def _crud_update_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
 ) -> dict[str, Any]:
@@ -87,6 +92,7 @@ def _crud_update_executor(
     }
 
 
+###############################################################################
 def _crud_delete_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
 ) -> dict[str, Any]:
@@ -100,6 +106,7 @@ def _crud_delete_executor(
     }
 
 
+###############################################################################
 def _custom_sql_query_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
 ) -> dict[str, Any]:

@@ -10,20 +10,27 @@ from server.common import path as common_path
 UPLOAD_ROOT = common_path.ARTIFACT_ROOT / "browser_uploads"
 
 
+###############################################################################
 class UploadedFile(Protocol):
     filename: str | None
 
+    # -------------------------------------------------------------------------
     async def read(self, size: int = -1) -> bytes:
         raise NotImplementedError
 
+    # -------------------------------------------------------------------------
     async def close(self) -> None:
         raise NotImplementedError
 
 
+###############################################################################
 class BrowserUploadService:
+
+    # -------------------------------------------------------------------------
     def __init__(self, upload_root: Path) -> None:
         self._upload_root = upload_root
 
+    # -------------------------------------------------------------------------
     def sanitize_relative_upload_path(self, file_name: str) -> Path:
         normalized = str(file_name or "").replace("\\", "/").strip()
         if not normalized:
@@ -41,6 +48,7 @@ class BrowserUploadService:
 
         return Path(*parts)
 
+    # -------------------------------------------------------------------------
     async def save_uploaded_directory(
         self, files: list[UploadedFile]
     ) -> tuple[str, int, list[str]]:

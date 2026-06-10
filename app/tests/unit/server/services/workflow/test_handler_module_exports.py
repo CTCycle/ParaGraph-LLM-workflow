@@ -21,6 +21,7 @@ from server.services.workflow.node_handlers.structured import STRUCTURED_HANDLER
 from server.services.workflow.provider import ProviderApiError
 
 
+###############################################################################
 def test_service_package_exports_remain_stable() -> None:
     assert compiler_service is not None
     assert provider_service is not None
@@ -30,6 +31,7 @@ def test_service_package_exports_remain_stable() -> None:
     assert callable(resolve_local_path)
 
 
+###############################################################################
 def test_handler_registries_keep_expected_keys() -> None:
     assert set(CORE_HANDLERS) == {
         "prompt",

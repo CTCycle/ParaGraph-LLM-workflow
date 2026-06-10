@@ -3,6 +3,7 @@ from __future__ import annotations
 from server.services.workflow.execution import execution_service
 
 
+###############################################################################
 def test_redact_output_state_masks_sensitive_controller_fields() -> None:
     output_state = {
         "inputs": {"prompt": "hello"},

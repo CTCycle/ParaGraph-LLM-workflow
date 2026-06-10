@@ -10,9 +10,10 @@ from server.domain.execution import (
     EventHistoryResponse,
 )
 
-
 ###############################################################################
 class EventService:
+
+    # -------------------------------------------------------------------------
     def __init__(self) -> None:
         self._lock = threading.Lock()
         self._subscribers: dict[str, list[Queue[ExecutionEventEnvelope]]] = defaultdict(

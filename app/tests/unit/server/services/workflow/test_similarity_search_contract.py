@@ -12,6 +12,7 @@ from server.services.workflow import node_registry
 import server.services.workflow.node_handlers.core as core_handlers
 
 
+###############################################################################
 def _read_parameter_options_from_doc(parameter_name: str) -> list[str]:
     doc_path = (
         common_path.REPOSITORY_ROOT
@@ -33,6 +34,7 @@ def _read_parameter_options_from_doc(parameter_name: str) -> list[str]:
     return re.findall(r"`([^`]+)`", match.group(1))
 
 
+###############################################################################
 def _manifest_parameter_options(parameter_name: str) -> list[str]:
     manifest_path = common_path.RESOURCES_ROOT / "nodes" / "similarity_search_v1.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -42,6 +44,7 @@ def _manifest_parameter_options(parameter_name: str) -> list[str]:
     return [str(item) for item in parameter.get("constraints", {}).get("options", [])]
 
 
+###############################################################################
 def test_similarity_contract_matrix_doc_matches_manifest_options() -> None:
     assert _manifest_parameter_options(
         "search_mode"
@@ -54,6 +57,7 @@ def test_similarity_contract_matrix_doc_matches_manifest_options() -> None:
     ) == _read_parameter_options_from_doc("similarity_strategy")
 
 
+###############################################################################
 def test_similarity_search_parameters_validate_search_engine_rules() -> None:
     parsed = SimilaritySearchParameters.model_validate(
         {
@@ -84,7 +88,10 @@ def test_similarity_search_parameters_validate_search_engine_rules() -> None:
         )
 
 
+###############################################################################
 class _FakeAdapter:
+
+    # -------------------------------------------------------------------------
     def __init__(
         self,
         *,
@@ -97,6 +104,7 @@ class _FakeAdapter:
         self.supports_faiss_augmentation = supports_faiss_augmentation
         self.last_search_kwargs: dict[str, Any] | None = None
 
+    # -------------------------------------------------------------------------
     def describe_capabilities(self) -> dict[str, Any]:
         return {
             "backend": self.backend,
@@ -105,6 +113,7 @@ class _FakeAdapter:
             "supports_faiss_augmentation": self.supports_faiss_augmentation,
         }
 
+    # -------------------------------------------------------------------------
     def search(self, **kwargs: Any) -> list[dict[str, Any]]:
         self.last_search_kwargs = kwargs
         return [
@@ -120,6 +129,7 @@ class _FakeAdapter:
         ]
 
 
+###############################################################################
 def _valid_store_payload(*, backend: str, metric: str = "cosine") -> dict[str, Any]:
     return {
         "backend": backend,
@@ -133,6 +143,7 @@ def _valid_store_payload(*, backend: str, metric: str = "cosine") -> dict[str, A
     }
 
 
+###############################################################################
 def test_similarity_search_executor_rejects_unsupported_backend_modes(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -173,6 +184,7 @@ def test_similarity_search_executor_rejects_unsupported_backend_modes(
         )
 
 
+###############################################################################
 def test_similarity_search_executor_validates_store_payload_and_uses_native_search_engine(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
