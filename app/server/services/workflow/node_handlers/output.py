@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from server.common.utils.values import coerce_text
 from server.services.workflow.node_handlers.base import NodeHandler
-from server.services.workflow.node_handlers.common import node_value_service
 
 
 ###############################################################################
@@ -11,7 +11,7 @@ def _text_output_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
 ) -> dict[str, Any]:
     _ = parameters
-    return {"result": node_value_service.coerce_text(inputs.get("text") or "")}
+    return {"result": coerce_text(inputs.get("text") or "")}
 
 
 ###############################################################################

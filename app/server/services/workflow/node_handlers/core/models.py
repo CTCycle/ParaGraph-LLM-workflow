@@ -10,7 +10,7 @@ from server.domain.node_catalog import ProviderModelDefinition
 from server.domain.node_handler_core import ModelProviderParameters
 from server.services.configuration import configuration_service
 from server.services.workflow.chat_history import chat_history_service
-from server.services.workflow.node_handlers.common import (
+from server.common.utils.values import (
     coerce_bool,
     coerce_int,
     coerce_text,

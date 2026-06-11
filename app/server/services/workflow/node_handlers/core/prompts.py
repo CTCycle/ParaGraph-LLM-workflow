@@ -7,7 +7,7 @@ from jinja2 import StrictUndefined, Undefined
 from jinja2.sandbox import SandboxedEnvironment
 
 from server.domain.node_handler_core import PromptTemplateParameters
-from server.services.workflow.node_handlers.common import (
+from server.common.utils.values import (
     coerce_text,
     merge_named_variables,
     render_variable_value,

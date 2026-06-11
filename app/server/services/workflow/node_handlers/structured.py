@@ -11,7 +11,7 @@ from server.domain.node_handler_structured import (
     StructuredOutputParameters,
 )
 from server.services.workflow.node_handlers.base import NodeHandler
-from server.services.workflow.node_handlers.common import parse_json_if_possible
+from server.common.utils.values import parse_json_if_possible
 from server.services.workflow.structured_models import (
     infer_model_from_json,
     model_to_json_schema,

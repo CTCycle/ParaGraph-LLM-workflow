@@ -3,9 +3,11 @@ from __future__ import annotations
 import shutil
 from typing import Any
 
+from bs4 import BeautifulSoup
+
+from server.common.utils.values import coerce_text
 from server.domain.node_handler_rag import RagParameters
 from server.services.workflow.node_handlers.base import NodeHandler
-from server.services.workflow.node_handlers.common import coerce_text, strip_html
 
 
 ###############################################################################
@@ -25,11 +27,19 @@ def _text(item: Any) -> str:
 
 
 ###############################################################################
+def _strip_html(text: str) -> str:
+    soup = BeautifulSoup(text, "html.parser")
+    for tag in soup(["script", "style", "nav", "header", "footer", "aside"]):
+        tag.decompose()
+    return " ".join(soup.get_text(" ").split())
+
+
+###############################################################################
 def _html_to_text_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
 ) -> dict[str, Any]:
     _ = parameters
-    return {"result": strip_html(_text(inputs.get("html", inputs.get("text", ""))))}
+    return {"result": _strip_html(_text(inputs.get("html", inputs.get("text", ""))))}
 
 
 ###############################################################################
