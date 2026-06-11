@@ -5,7 +5,7 @@ import unicodedata
 from typing import Any
 
 from server.services.workflow.node_handlers.base import NodeHandler
-from server.services.workflow.node_handlers.common import coerce_text
+from server.common.utils.values import coerce_text
 
 
 ###############################################################################

@@ -19,7 +19,7 @@ from server.domain.workflow_payloads import (
     VectorStoreHandle,
 )
 from server.services.configuration import configuration_service
-from server.services.workflow.node_handlers.common import (
+from server.common.utils.values import (
     coerce_text,
     normalize_provider_name,
 )

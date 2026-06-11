@@ -16,7 +16,7 @@ from server.domain.workflow_payloads import (
     ToolCollectionHandle,
     ToolDefinition,
 )
-from server.services.workflow.node_handlers.common import validate_json_against_schema
+from server.common.utils.values import validate_json_against_schema
 from server.services.workflow.node_handlers.core.models import _execute_model_node
 from server.services.workflow.node_handlers.ingestion import resolve_local_path
 from server.services.workflow.provider import provider_service

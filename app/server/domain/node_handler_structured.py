@@ -4,7 +4,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator
 
-from server.services.workflow.node_handlers.common import parse_json_if_possible
+from server.common.utils.values import parse_json_if_possible
 
 
 StructuredModelMode = Literal["auto", "pydantic_source"]

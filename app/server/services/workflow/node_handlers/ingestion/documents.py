@@ -9,7 +9,7 @@ from server.domain.node_handler_ingestion import (
     LoadDocumentsParameters,
     SUPPORTED_DOCUMENT_EXTENSIONS,
 )
-from server.services.workflow.node_handlers.common import coerce_bool, coerce_text
+from server.common.utils.values import coerce_bool, coerce_text
 from server.services.workflow.node_handlers.ingestion.files import (
     load_docx_paragraphs,
     load_file_text,

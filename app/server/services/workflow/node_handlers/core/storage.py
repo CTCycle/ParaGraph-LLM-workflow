@@ -11,7 +11,7 @@ from server.domain.node_handler_core import (
     SaveAsFileParameters,
     SaveAsFolderParameters,
 )
-from server.services.workflow.node_handlers.common import coerce_text
+from server.common.utils.values import coerce_text
 from server.services.workflow.node_handlers.core.constants import (
     SAVE_AS_FILE_CHUNK_SEPARATOR,
     SAVE_AS_FOLDER_INDEX_WIDTH,

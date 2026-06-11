@@ -6,7 +6,7 @@ from typing import Any
 from transformers import AutoTokenizer
 
 from server.domain.node_handler_core import TokenizerParameters
-from server.services.workflow.node_handlers.common import coerce_text
+from server.common.utils.values import coerce_text
 
 _TOKENIZER_CACHE: dict[tuple[str, str, bool], Any] = {}
 

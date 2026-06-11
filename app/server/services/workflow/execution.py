@@ -17,7 +17,7 @@ from server.repositories.workflow import execution_run_repository
 from server.services.jobs import job_manager
 from server.services.runtime.events import execution_event_service
 from server.services.workflow.nodes import node_registry
-from server.services.workflow.node_handlers.common import extract_top_level_json_fields
+from server.common.utils.values import extract_top_level_json_fields
 
 
 ###############################################################################
