@@ -12,6 +12,7 @@ vi.mock('../app/services/configurationsApi', () => ({
     loadConfigurationProfile: vi.fn(),
     saveConfigurationProfile: vi.fn(),
     pingOllama: vi.fn(),
+    pingProvider: vi.fn(),
 }))
 
 describe('ConfigurationsPage profile modal flows', () => {
@@ -21,6 +22,7 @@ describe('ConfigurationsPage profile modal flows', () => {
         const loadConfigurationProfileMock = vi.mocked(workflowApi.loadConfigurationProfile)
         const saveConfigurationProfileMock = vi.mocked(workflowApi.saveConfigurationProfile)
         const pingOllamaMock = vi.mocked(workflowApi.pingOllama)
+        const pingProviderMock = vi.mocked(workflowApi.pingProvider)
 
         fetchConfigurationsMock.mockResolvedValue(createConfigurationPayload())
         listConfigurationProfilesMock.mockResolvedValue({
@@ -52,6 +54,13 @@ describe('ConfigurationsPage profile modal flows', () => {
             message: 'Ollama reachable (12 models)',
             base_url: 'http://127.0.0.1:11434',
             model_count: 12,
+        })
+        pingProviderMock.mockResolvedValue({
+            ok: true,
+            provider: 'lmstudio',
+            message: 'lmstudio reachable (1 model discovered).',
+            base_url: 'http://localhost:1234/v1',
+            model_count: 1,
         })
 
         render(<ConfigurationsPage />)
@@ -85,8 +94,11 @@ describe('ConfigurationsPage profile modal flows', () => {
 
         await screen.findByText("Saved configuration 'team profile'")
 
-        await userEvent.click(screen.getByRole('button', { name: 'Check Status' }))
+        const statusButtons = screen.getAllByRole('button', { name: 'Check Status' })
+        await userEvent.click(statusButtons[0])
         await screen.findByText('Ollama reachable (12 models)')
+        await userEvent.click(statusButtons[1])
+        await screen.findByText('lmstudio reachable (1 model discovered).')
 
         await waitFor(() => {
             expect(saveConfigurationProfileMock).toHaveBeenCalledWith('team profile', expect.any(Object))
@@ -103,7 +115,7 @@ describe('ConfigurationsPage profile modal flows', () => {
         render(<ConfigurationsPage />)
 
         await screen.findByText('Configuration loaded')
-        await userEvent.click(screen.getByRole('button', { name: 'Check Status' }))
+        await userEvent.click(screen.getAllByRole('button', { name: 'Check Status' })[0])
 
         const alert = await screen.findByRole('alert')
         expect(alert).toHaveClass('config-panel-note-error')

@@ -109,6 +109,7 @@ def _build_generation_options(
 ) -> dict[str, Any]:
     max_tokens = max(1, coerce_int(parameters.get("max_tokens"), 512))
     options: dict[str, Any] = {"max_output_tokens": max_tokens}
+    options["use_reasoning"] = coerce_bool(parameters.get("use_reasoning", False))
     if include_context_window:
         context_window = max(0, coerce_int(parameters.get("context_window"), 0))
         if context_window > 0:
@@ -204,7 +205,7 @@ def _execute_model_node(
         structured_schema=schema,
         history_text=history_text,
     )
-    include_context_window = provider in {"ollama", "huggingface"}
+    include_context_window = provider in {"ollama", "huggingface", "lmstudio", "llama"}
     options = _build_generation_options(
         parameters, include_context_window=include_context_window
     )
@@ -308,6 +309,11 @@ def _model_provider_executor(
         model_name = coerce_text(
             configuration_service.load_configuration().ollama.chat_model
         ).strip()
+    if not model_name and provider in {"lmstudio", "llama"}:
+        for item in configuration_service.load_configuration().access_keys:
+            if item.provider == provider and isinstance(item.metadata, dict):
+                model_name = coerce_text(item.metadata.get("chat_model")).strip()
+                break
     if not model_name:
         raise ValueError("MODEL_PROVIDER requires a model_name")
     return {

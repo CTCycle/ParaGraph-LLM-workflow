@@ -5,6 +5,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+
 ###############################################################################
 def _parse_json_value(value: Any, label: str) -> Any:
     if isinstance(value, (dict, list, int, float, bool)) or value is None:
@@ -16,6 +17,7 @@ def _parse_json_value(value: Any, label: str) -> Any:
         return json.loads(text)
     except json.JSONDecodeError as exc:
         raise ValueError(f"{label} must be valid JSON") from exc
+
 
 ###############################################################################
 def _validate_schema_keys(schema: dict[str, Any], path: str) -> None:
@@ -33,6 +35,7 @@ def _validate_schema_keys(schema: dict[str, Any], path: str) -> None:
             f"Unsupported JSON Schema keys at {path}: {', '.join(unsupported)}"
         )
 
+
 ###############################################################################
 def _validate_schema_type(schema: dict[str, Any], path: str) -> None:
     schema_type = schema.get("type")
@@ -47,6 +50,7 @@ def _validate_schema_type(schema: dict[str, Any], path: str) -> None:
     }:
         raise ValueError(f"Unsupported JSON Schema type at {path}: {schema_type}")
 
+
 ###############################################################################
 def _validate_schema_properties(schema: dict[str, Any], path: str) -> None:
     properties = schema.get("properties")
@@ -57,6 +61,7 @@ def _validate_schema_properties(schema: dict[str, Any], path: str) -> None:
     for key, value in properties.items():
         _validate_schema_definition(value, f"{path}.properties.{key}")
 
+
 ###############################################################################
 def _validate_schema_required(schema: dict[str, Any], path: str) -> None:
     required = schema.get("required")
@@ -66,10 +71,12 @@ def _validate_schema_required(schema: dict[str, Any], path: str) -> None:
     ):
         raise ValueError(f"required at {path} must be an array of strings")
 
+
 ###############################################################################
 def _validate_schema_items(schema: dict[str, Any], path: str) -> None:
     if "items" in schema:
         _validate_schema_definition(schema["items"], f"{path}.items")
+
 
 ###############################################################################
 def _validate_schema_additional_properties(schema: dict[str, Any], path: str) -> None:
@@ -79,11 +86,13 @@ def _validate_schema_additional_properties(schema: dict[str, Any], path: str) ->
     ):
         raise ValueError(f"additionalProperties at {path} must be a boolean")
 
+
 ###############################################################################
 def _validate_schema_enum(schema: dict[str, Any], path: str) -> None:
     enum = schema.get("enum")
     if enum is not None and not isinstance(enum, list):
         raise ValueError(f"enum at {path} must be an array")
+
 
 ###############################################################################
 def _validate_schema_definition(schema: Any, path: str = "$") -> None:
@@ -98,9 +107,11 @@ def _validate_schema_definition(schema: Any, path: str = "$") -> None:
     _validate_schema_additional_properties(schema, path)
     _validate_schema_enum(schema, path)
 
+
 ###############################################################################
 class PromptParameters(BaseModel):
     prompt_text: str = ""
+
 
 ###############################################################################
 class PromptTemplateParameters(BaseModel):
@@ -128,15 +139,18 @@ class PromptTemplateParameters(BaseModel):
             raise ValueError("template, system_template, or user_template is required")
         return self
 
+
 ###############################################################################
 class ImageInputParameters(BaseModel):
     file_path: str = ""
+
 
 ###############################################################################
 class ModelProviderParameters(BaseModel):
     provider: str = "ollama"
     model_name: str = ""
     timeout_seconds: float = Field(default=120, ge=1)
+
 
 ###############################################################################
 class ChatParameters(BaseModel):
@@ -146,15 +160,18 @@ class ChatParameters(BaseModel):
     max_tokens: int = Field(default=512, ge=1)
     use_reasoning: bool = False
 
+
 ###############################################################################
 class InMemoryChatHistoryParameters(BaseModel):
     max_messages: int = Field(default=20, ge=1)
     separator: str = "\n"
     keep_prompt_type: bool = True
 
+
 ###############################################################################
 class PersistedChatHistoryParameters(InMemoryChatHistoryParameters):
     storage_backend: Literal["file", "database"] = "file"
+
 
 ###############################################################################
 class StructuredParameters(ChatParameters):
@@ -170,6 +187,7 @@ class StructuredParameters(ChatParameters):
         _validate_schema_definition(schema)
         return schema
 
+
 ###############################################################################
 class EmbeddingParameters(BaseModel):
     provider: str = "ollama"
@@ -181,10 +199,10 @@ class EmbeddingParameters(BaseModel):
     @classmethod
     def validate_provider(cls, value: str) -> str:
         normalized = str(value or "").strip().lower()
-        allowed = {"openai", "gemini", "huggingface", "ollama"}
+        allowed = {"openai", "gemini", "huggingface", "ollama", "lmstudio", "llama"}
         if normalized not in allowed:
             raise ValueError(
-                "provider must be one of: openai, gemini, huggingface, ollama"
+                "provider must be one of: openai, gemini, huggingface, ollama, lmstudio, llama"
             )
         return normalized
 
@@ -193,6 +211,7 @@ class EmbeddingParameters(BaseModel):
     @classmethod
     def normalize_model_reference(cls, value: str) -> str:
         return str(value or "").strip()
+
 
 ###############################################################################
 class SimilaritySearchParameters(BaseModel):
@@ -264,9 +283,11 @@ class SimilaritySearchParameters(BaseModel):
             )
         return self
 
+
 ###############################################################################
 class TextSplitParameters(BaseModel):
     delimiter: str = "\n"
+
 
 ###############################################################################
 class TokenizerParameters(BaseModel):
@@ -298,6 +319,7 @@ class TokenizerParameters(BaseModel):
                 "max_length must be positive when truncation is true or padding is max_length"
             )
         return self
+
 
 ###############################################################################
 class VectorStoreParameters(BaseModel):
@@ -392,6 +414,7 @@ class VectorStoreParameters(BaseModel):
             raise ValueError(f"endpoint_url is required for provider '{self.provider}'")
         return self
 
+
 ###############################################################################
 class RerankParameters(BaseModel):
     strategy: str = "original_score"
@@ -431,6 +454,7 @@ class RerankParameters(BaseModel):
             raise ValueError("score_mode must be one of: replace, boost")
         return normalized
 
+
 ###############################################################################
 class _SaveNodeParameters(BaseModel):
     output_path: str = ""
@@ -446,13 +470,16 @@ class _SaveNodeParameters(BaseModel):
             raise ValueError("extension must be one of: .txt, .md, .doc, .pdf")
         return normalized
 
+
 ###############################################################################
 class SaveAsFileParameters(_SaveNodeParameters):
     pass
 
+
 ###############################################################################
 class SaveAsFolderParameters(_SaveNodeParameters):
     pass
+
 
 ###############################################################################
 class StorageParameters(BaseModel):
@@ -467,9 +494,11 @@ class StorageParameters(BaseModel):
             raise ValueError("storage_path is required. Select a local path.")
         return normalized
 
+
 ###############################################################################
 class RouterParameters(BaseModel):
     expected_value: str = ""
+
 
 ###############################################################################
 class MetadataParameters(BaseModel):
@@ -478,6 +507,7 @@ class MetadataParameters(BaseModel):
     scope: Literal["all", "documents", "chunks"] = "all"
     id_field: str = ""
     metadata_by_id: dict[str, dict[str, Any]] = Field(default_factory=dict)
+
 
 ###############################################################################
 class VectorCollectionParameters(BaseModel):
@@ -489,6 +519,7 @@ class VectorCollectionParameters(BaseModel):
     api_key: str = ""
     database_name: str = ""
     provider_config: dict[str, Any] = Field(default_factory=dict)
+
 
 ###############################################################################
 class ToolCollectionParameters(BaseModel):
@@ -502,6 +533,7 @@ class ToolCollectionParameters(BaseModel):
     entrypoint: str = ""
     tool_name: str = ""
     description: str = ""
+
 
 ###############################################################################
 class ToolCallParameters(BaseModel):

@@ -28,7 +28,10 @@
           "openai",
           "gemini",
           "claude",
-          "huggingface"
+          "deepseek",
+          "huggingface",
+          "lmstudio",
+          "llama"
         ]
       },
       "ui_control": "select",

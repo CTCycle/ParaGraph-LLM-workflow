@@ -9,6 +9,8 @@ from server.domain.configuration import (
     OllamaPingRequest,
     OllamaStatusResponse,
     PROFILE_NAME_PATTERN,
+    ProviderPingRequest,
+    ProviderStatusResponse,
     SESSION_NAME_PATTERN,
 )
 from server.services.configuration import configuration_service
@@ -100,4 +102,23 @@ def ping_ollama(
 ) -> OllamaStatusResponse:
     return configuration_service.ping_ollama(
         base_url=payload.base_url, session_name=session_name
+    )
+
+
+###############################################################################
+@router.post("/providers/ping", response_model=ProviderStatusResponse)
+def ping_provider(
+    payload: ProviderPingRequest,
+    session_name: str = Query(
+        default=DEFAULT_SESSION_NAME,
+        min_length=1,
+        max_length=120,
+        pattern=SESSION_NAME_PATTERN,
+    ),
+) -> ProviderStatusResponse:
+    return configuration_service.ping_provider(
+        provider=payload.provider,
+        base_url=payload.base_url,
+        api_key=payload.api_key,
+        session_name=session_name,
     )
