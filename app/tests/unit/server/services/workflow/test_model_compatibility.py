@@ -79,7 +79,7 @@ def test_validate_model_request_accepts_openai_gemini_and_claude(monkeypatch) ->
     )
     service.validate_model_request(
         provider="claude",
-        model="claude-sonnet-4-20250514",
+        model="claude-sonnet-4-6",
         structured_output=False,
         requires_image=False,
         use_reasoning=False,

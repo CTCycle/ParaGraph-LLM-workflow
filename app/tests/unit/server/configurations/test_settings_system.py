@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 
 import pytest
+from pydantic import ValidationError
 
 from server.configurations.environment import EnvironmentLoader
 from server.configurations.startup import (
@@ -155,7 +156,7 @@ def test_external_database_requires_host_name_and_user(
     runtime = ConfigurationRuntime(environment_loader=EnvironmentLoader(env_path))
 
     with pytest.raises(
-        RuntimeError, match="database.host, database.name, database.user"
+        ValidationError, match="database.host, database.name, database.user"
     ):
         _ = runtime.get_server_settings(config_path=config_path)
 
@@ -222,9 +223,9 @@ def test_runtime_settings_ignore_database_block_from_json(tmp_path: Path) -> Non
     _write_env(env_path, ["DATABASE_EMBEDDED=true"])
 
     runtime = ConfigurationRuntime(environment_loader=EnvironmentLoader(env_path))
+    runtime.initialize(force=True, configuration_file=config_path)
 
-    runtime_settings = runtime.initialize(force=True, configuration_file=config_path)
-
+    runtime_settings = runtime.get_runtime_settings()
     assert runtime_settings.model_dump(by_alias=True) == {
         "global": {"seed": 7},
         "jobs": {"polling_interval": 2.5},
