@@ -43,7 +43,7 @@ function getOptions(manifest: NodeManifest, parameterName: string): string[] {
 describe('WorkflowPage manifest-driven provider and retrieval behavior', () => {
     it('TEXT_EMBEDDING exposes explicit providers and never shows cloud', () => {
         const providerOptions = getOptions(textEmbeddingManifest, 'provider')
-        expect(providerOptions).toEqual(['openai', 'gemini', 'huggingface', 'ollama'])
+        expect(providerOptions).toEqual(['openai', 'gemini', 'huggingface', 'ollama', 'lmstudio', 'llama'])
         expect(providerOptions).not.toContain('cloud')
         expect(textEmbeddingManifest.parameters.find((item) => item.name === 'provider')?.default).toBe('ollama')
         expect(textEmbeddingManifest.parameters.find((item) => item.name === 'model_name')?.default).toBe('nomic-embed-text')

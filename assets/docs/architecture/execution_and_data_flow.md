@@ -1,5 +1,5 @@
 # Execution And Data Flow
-Last updated: 2026-06-02
+Last updated: 2026-06-18
 
 ## Layered Backend Flow
 Typical backend flow follows endpoint to service to repository:
@@ -27,7 +27,7 @@ Typical backend flow follows endpoint to service to repository:
 - `server/services/workflow/structured_models.py`
   - Structured JSON model inference, schema generation, Pydantic-source parsing, and validation payload formatting.
 - `server/services/workflow/provider/service.py`
-  - Provider facade, model metadata, and download orchestration.
+  - Provider facade, model metadata, OpenAI-compatible local provider discovery, and download orchestration.
 - `server/services/workflow/provider/helpers.py`
   - Shared provider constants, metadata, and coercion helpers.
 - `server/services/workflow/provider/ollama.py`
@@ -38,6 +38,8 @@ Typical backend flow follows endpoint to service to repository:
   - Download lifecycle, manifests, progress, cleanup, and integrity validation.
 - `server/services/workflow/node_handlers/core/prompts.py`
   - Prompt, prompt-template, and image-input executors used by the core handler registry.
+- `server/services/llm/providers.py`
+  - Runtime clients for Ollama, cloud providers, and OpenAI-compatible local providers such as LM Studio and llama.cpp.
 - `server/services/workflow/node_handlers/processing/sources.py`
   - Fragment source hydration and measurement helpers.
 - `server/services/workflow/node_handlers/processing/merge.py`

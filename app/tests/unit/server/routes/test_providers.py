@@ -95,7 +95,15 @@ def test_provider_models_include_embedding_capabilities(
     )
 
     by_provider = {
-        provider: [] for provider in ("openai", "gemini", "ollama", "huggingface")
+        provider: []
+        for provider in (
+            "openai",
+            "gemini",
+            "ollama",
+            "huggingface",
+            "lmstudio",
+            "llama",
+        )
     }
     for item in embedding_models:
         provider = item.get("provider")
@@ -114,11 +122,37 @@ def test_provider_models_include_embedding_capabilities(
     assert by_provider["huggingface"], (
         "Hugging Face embedding models should be exposed by /providers/models"
     )
+    assert by_provider["lmstudio"], (
+        "LM Studio embedding models should be exposed by /providers/models"
+    )
+    assert by_provider["llama"], (
+        "llama.cpp embedding models should be exposed by /providers/models"
+    )
     assert not [
         item
         for item in models
         if item.get("provider") == "claude" and item.get("supports_embeddings") is True
     ]
+    assert not [
+        item
+        for item in models
+        if item.get("provider") == "deepseek"
+        and item.get("supports_embeddings") is True
+    ]
+
+
+###############################################################################
+def test_provider_catalog_includes_new_providers(client: TestClient) -> None:
+    response = client.get("/providers/catalog")
+
+    assert response.status_code == 200
+    providers = {item["provider"]: item for item in response.json()["providers"]}
+    assert providers["claude"]["supports_chat"] is True
+    assert providers["claude"]["supports_embeddings"] is False
+    assert providers["deepseek"]["supports_tool_calling"] is True
+    assert providers["deepseek"]["supports_embeddings"] is False
+    assert providers["lmstudio"]["supports_embeddings"] is True
+    assert providers["llama"]["supports_embeddings"] is True
 
 
 ###############################################################################

@@ -383,7 +383,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/NodeManifest-Input"
+                "$ref": "#/components/schemas/NodeManifest"
               }
             }
           },
@@ -395,7 +395,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/NodeManifest-Output"
+                  "$ref": "#/components/schemas/NodeManifest"
                 }
               }
             }
@@ -1394,6 +1394,62 @@
           }
         }
       }
+    },
+    "/configurations/providers/ping": {
+      "post": {
+        "tags": [
+          "configurations"
+        ],
+        "summary": "Ping Provider",
+        "operationId": "ping_provider_configurations_providers_ping_post",
+        "parameters": [
+          {
+            "name": "session_name",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$",
+              "default": "default",
+              "title": "Session Name"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProviderPingRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProviderStatusResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1469,7 +1525,7 @@
           "files": {
             "items": {
               "type": "string",
-              "format": "binary"
+              "contentMediaType": "application/octet-stream"
             },
             "type": "array",
             "title": "Files"
@@ -1509,7 +1565,7 @@
           "plan": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/CompiledExecutionPlan-Output"
+                "$ref": "#/components/schemas/CompiledExecutionPlan"
               },
               {
                 "type": "null"
@@ -1523,44 +1579,7 @@
         ],
         "title": "CompileWorkflowResponse"
       },
-      "CompiledExecutionPlan-Input": {
-        "properties": {
-          "plan_id": {
-            "type": "string",
-            "title": "Plan Id"
-          },
-          "schema_version": {
-            "type": "integer",
-            "title": "Schema Version",
-            "default": 2
-          },
-          "step_order": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Step Order"
-          },
-          "steps": {
-            "items": {
-              "$ref": "#/components/schemas/ExecutionStepPlan"
-            },
-            "type": "array",
-            "title": "Steps"
-          },
-          "metadata": {
-            "additionalProperties": true,
-            "type": "object",
-            "title": "Metadata"
-          }
-        },
-        "type": "object",
-        "required": [
-          "plan_id"
-        ],
-        "title": "CompiledExecutionPlan"
-      },
-      "CompiledExecutionPlan-Output": {
+      "CompiledExecutionPlan": {
         "properties": {
           "plan_id": {
             "type": "string",
@@ -2138,7 +2157,8 @@
               "running",
               "completed",
               "failed",
-              "cancelled"
+              "cancelled",
+              "paused"
             ],
             "title": "Status",
             "default": "queued"
@@ -2183,6 +2203,29 @@
               }
             ],
             "title": "Error"
+          },
+          "pause_payload": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pause Payload"
+          },
+          "resume_token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resume Token"
           }
         },
         "type": "object",
@@ -2328,6 +2371,29 @@
               }
             ],
             "title": "Error"
+          },
+          "pause_payload": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pause Payload"
+          },
+          "resume_token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resume Token"
           }
         },
         "type": "object",
@@ -2751,7 +2817,7 @@
         "properties": {
           "nodes": {
             "items": {
-              "$ref": "#/components/schemas/NodeManifest-Output"
+              "$ref": "#/components/schemas/NodeManifest"
             },
             "type": "array",
             "title": "Nodes"
@@ -2782,7 +2848,13 @@
               "VECTOR_POINT_LIST",
               "VECTOR_STORE_HANDLE",
               "RETRIEVAL_RESULTS",
-              "TOKEN_IDS",
+              "TOKENIZER_OUTPUT",
+              "METADATA",
+              "METADATA_LIST",
+              "TOOL_DEFINITION",
+              "TOOL_COLLECTION_HANDLE",
+              "TOOL_CALL_RESULT",
+              "SQL_OPERATION_RESULT",
               "JSON",
               "MODEL_HANDLE",
               "CHAT_HISTORY_HANDLE",
@@ -2831,91 +2903,7 @@
         ],
         "title": "NodeControllerDefinition"
       },
-      "NodeManifest-Input": {
-        "properties": {
-          "id": {
-            "type": "string",
-            "title": "Id"
-          },
-          "version": {
-            "type": "integer",
-            "title": "Version",
-            "default": 1
-          },
-          "name": {
-            "type": "string",
-            "title": "Name"
-          },
-          "category": {
-            "type": "string",
-            "enum": [
-              "input",
-              "web",
-              "prompt",
-              "model",
-              "memory",
-              "processing",
-              "retrieval",
-              "embeddings",
-              "text_segmentation",
-              "output",
-              "serialization",
-              "vector_storage",
-              "database",
-              "control"
-            ],
-            "title": "Category"
-          },
-          "description": {
-            "type": "string",
-            "title": "Description"
-          },
-          "inputs": {
-            "items": {
-              "$ref": "#/components/schemas/NodePortDefinition"
-            },
-            "type": "array",
-            "title": "Inputs"
-          },
-          "outputs": {
-            "items": {
-              "$ref": "#/components/schemas/NodePortDefinition"
-            },
-            "type": "array",
-            "title": "Outputs"
-          },
-          "controllers": {
-            "items": {
-              "$ref": "#/components/schemas/NodeControllerDefinition"
-            },
-            "type": "array",
-            "title": "Controllers"
-          },
-          "parameters": {
-            "items": {
-              "$ref": "#/components/schemas/NodeParameterDefinition"
-            },
-            "type": "array",
-            "title": "Parameters"
-          },
-          "ui": {
-            "$ref": "#/components/schemas/NodeUiDefinition"
-          },
-          "runtime": {
-            "$ref": "#/components/schemas/NodeRuntimeDefinition"
-          }
-        },
-        "type": "object",
-        "required": [
-          "id",
-          "name",
-          "category",
-          "description",
-          "runtime"
-        ],
-        "title": "NodeManifest"
-      },
-      "NodeManifest-Output": {
+      "NodeManifest": {
         "properties": {
           "id": {
             "type": "string",
@@ -3021,7 +3009,13 @@
               "VECTOR_POINT_LIST",
               "VECTOR_STORE_HANDLE",
               "RETRIEVAL_RESULTS",
-              "TOKEN_IDS",
+              "TOKENIZER_OUTPUT",
+              "METADATA",
+              "METADATA_LIST",
+              "TOOL_DEFINITION",
+              "TOOL_COLLECTION_HANDLE",
+              "TOOL_CALL_RESULT",
+              "SQL_OPERATION_RESULT",
               "JSON",
               "MODEL_HANDLE",
               "CHAT_HISTORY_HANDLE",
@@ -3109,7 +3103,13 @@
               "VECTOR_POINT_LIST",
               "VECTOR_STORE_HANDLE",
               "RETRIEVAL_RESULTS",
-              "TOKEN_IDS",
+              "TOKENIZER_OUTPUT",
+              "METADATA",
+              "METADATA_LIST",
+              "TOOL_DEFINITION",
+              "TOOL_COLLECTION_HANDLE",
+              "TOOL_CALL_RESULT",
+              "SQL_OPERATION_RESULT",
               "JSON",
               "MODEL_HANDLE",
               "CHAT_HISTORY_HANDLE",
@@ -3514,6 +3514,78 @@
         ],
         "title": "ProviderModelDefinition"
       },
+      "ProviderPingRequest": {
+        "properties": {
+          "provider": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 2,
+            "title": "Provider"
+          },
+          "base_url": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 512
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Base Url"
+          },
+          "api_key": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1024
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Api Key"
+          }
+        },
+        "type": "object",
+        "required": [
+          "provider"
+        ],
+        "title": "ProviderPingRequest"
+      },
+      "ProviderStatusResponse": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok"
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "base_url": {
+            "type": "string",
+            "title": "Base Url"
+          },
+          "model_count": {
+            "type": "integer",
+            "title": "Model Count",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "ok",
+          "provider",
+          "message",
+          "base_url"
+        ],
+        "title": "ProviderStatusResponse"
+      },
       "StartExecutionRequest": {
         "properties": {
           "workflow_id": {
@@ -3539,7 +3611,7 @@
             "title": "Execution Session Id"
           },
           "plan": {
-            "$ref": "#/components/schemas/CompiledExecutionPlan-Input"
+            "$ref": "#/components/schemas/CompiledExecutionPlan"
           }
         },
         "type": "object",
@@ -3572,7 +3644,8 @@
               "running",
               "completed",
               "failed",
-              "cancelled"
+              "cancelled",
+              "paused"
             ],
             "title": "Status"
           },
@@ -3675,6 +3748,13 @@
           "type": {
             "type": "string",
             "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
           }
         },
         "type": "object",
@@ -4069,7 +4149,7 @@
           },
           "required_nodes": {
             "items": {
-              "$ref": "#/components/schemas/NodeManifest-Output"
+              "$ref": "#/components/schemas/NodeManifest"
             },
             "type": "array",
             "title": "Required Nodes"

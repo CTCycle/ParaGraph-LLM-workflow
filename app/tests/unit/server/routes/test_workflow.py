@@ -530,7 +530,7 @@ def test_compile_rejects_removed_provider_aliases(
     assert payload["valid"] is False
     assert any(
         item["code"] == "invalid_parameter"
-        and "must be one of: ollama, openai, gemini, claude, huggingface"
+        and "ollama, openai, gemini, claude, deepseek, huggingface, lmstudio, llama"
         for item in payload["diagnostics"]
     )
 

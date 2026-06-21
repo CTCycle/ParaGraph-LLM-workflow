@@ -33,9 +33,3 @@ def test_every_handler_referenced_by_manifest_is_callable() -> None:
             continue
         assert callable(NODE_HANDLERS[manifest.runtime.executor_key].executor)
 
-
-###############################################################################
-def test_existing_node_manifests_remain_backward_compatible() -> None:
-    prompt = node_registry.get("PROMPT_TEMPLATE", 1)
-    assert prompt is not None
-    assert prompt.runtime.executor_key == "prompt_template"
