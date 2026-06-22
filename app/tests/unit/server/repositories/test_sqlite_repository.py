@@ -8,7 +8,6 @@ import pytest
 from server.domain.settings import DatabaseSettings
 from server.repositories.database import sqlite as sqlite_module
 
-
 ###############################################################################
 def _build_settings() -> DatabaseSettings:
     return DatabaseSettings(
@@ -25,7 +24,6 @@ def _build_settings() -> DatabaseSettings:
         insert_batch_size=1000,
     )
 
-
 ###############################################################################
 def test_sqlite_repository_uses_resources_root_for_default_path(
     tmp_path: Path, monkeypatch
@@ -35,7 +33,6 @@ def test_sqlite_repository_uses_resources_root_for_default_path(
     repository = sqlite_module.SQLiteRepository(_build_settings())
 
     assert repository.db_path == str(tmp_path / "database.db")
-
 
 ###############################################################################
 def test_sqlite_repository_save_load_and_count_rows(
@@ -56,7 +53,6 @@ def test_sqlite_repository_save_load_and_count_rows(
     assert list(loaded["name"]) == ["dataset-a", "dataset-b"]
     assert repository.count_rows("datasets") == 2
 
-
 ###############################################################################
 def test_sqlite_repository_load_missing_table_returns_empty_frame(
     tmp_path: Path, monkeypatch
@@ -68,7 +64,6 @@ def test_sqlite_repository_load_missing_table_returns_empty_frame(
 
     assert loaded.empty
     assert loaded.shape == (0, 0)
-
 
 ###############################################################################
 def test_sqlite_repository_count_rows_raises_for_missing_table(

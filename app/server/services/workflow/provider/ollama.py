@@ -23,7 +23,6 @@ from server.domain.node_catalog import (
     OllamaModelPullResponse,
 )
 
-
 ###############################################################################
 class OllamaLibraryCatalogMixin:
 
@@ -111,7 +110,6 @@ class OllamaLibraryCatalogMixin:
             normalized.add(name)
             normalized.add(_model_basename(name))
         return normalized
-
 
 ###############################################################################
 class OllamaLibraryService:

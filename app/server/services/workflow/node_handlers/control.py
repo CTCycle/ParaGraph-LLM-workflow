@@ -12,7 +12,6 @@ from server.common.utils.values import coerce_text
 
 _CACHE: dict[str, Any] = {}
 
-
 ###############################################################################
 def _if_text_contains_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
@@ -30,7 +29,6 @@ def _if_text_contains_executor(
         "selected": "true" if matched else "false",
     }
 
-
 ###############################################################################
 def _switch_by_label_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
@@ -38,7 +36,6 @@ def _switch_by_label_executor(
     parsed = ControlParameters.model_validate(parameters)
     label = coerce_text(inputs.get("label", parsed.label))
     return {label: inputs.get("value", label), "selected": label}
-
 
 ###############################################################################
 def _map_over_chunks_executor(
@@ -55,7 +52,6 @@ def _map_over_chunks_executor(
     else:
         result = chunks
     return {"result": result}
-
 
 ###############################################################################
 def _reduce_chunks_executor(
@@ -76,7 +72,6 @@ def _reduce_chunks_executor(
         )
     }
 
-
 ###############################################################################
 def _batch_processor_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
@@ -88,7 +83,6 @@ def _batch_processor_executor(
     return {
         "result": [{"index": index, "value": item} for index, item in enumerate(items)]
     }
-
 
 ###############################################################################
 def _cache_node_executor(
@@ -102,7 +96,6 @@ def _cache_node_executor(
         _CACHE[key] = inputs.get("value", inputs)
     return {"result": _CACHE[key], "cache_key": key}
 
-
 ###############################################################################
 def _human_review_gate_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
@@ -112,13 +105,11 @@ def _human_review_gate_executor(
         "pause_payload": {"parameters": parameters, "inputs": inputs},
     }
 
-
 ###############################################################################
 def _error_fallback_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
 ) -> dict[str, Any]:
     return {"result": inputs.get("value", parameters.get("fallback"))}
-
 
 ###############################################################################
 def _trace_debug_viewer_executor(

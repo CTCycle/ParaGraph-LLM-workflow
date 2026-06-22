@@ -3,7 +3,6 @@ from __future__ import annotations
 from server.domain.workflow_model import WorkflowDefinition
 from server.services.workflow.compiler import compiler_service
 
-
 ###############################################################################
 def _build_similarity_workflow(
     *,
@@ -91,7 +90,6 @@ def _build_similarity_workflow(
             "metadata": {},
         }
     )
-
 
 ###############################################################################
 def test_compiler_reports_similarity_backend_incompatibilities() -> None:

@@ -17,11 +17,9 @@ from server.services.workflow.node_handlers.ingestion.files import (
     resolve_local_path,
 )
 
-
 ###############################################################################
 def _make_document_id(source_uri: str) -> str:
     return str(uuid5(NAMESPACE_URL, source_uri))
-
 
 ###############################################################################
 def _build_document(
@@ -36,7 +34,6 @@ def _build_document(
         "mime_type": mime_type,
         "metadata": metadata,
     }
-
 
 ###############################################################################
 def _directory_loader_executor(
@@ -78,7 +75,6 @@ def _directory_loader_executor(
         )
     return {"documents": documents}
 
-
 ###############################################################################
 def _load_documents_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
@@ -115,7 +111,6 @@ def _load_documents_executor(
             )
         )
     return {"documents": documents}
-
 
 ###############################################################################
 def _document_text_extractor_executor(

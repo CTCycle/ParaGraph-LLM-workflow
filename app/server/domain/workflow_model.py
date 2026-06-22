@@ -7,7 +7,6 @@ from pydantic import BaseModel, Field, model_validator
 
 from server.domain.execution import CompiledExecutionPlan
 
-
 ###############################################################################
 class WorkflowNodeInstance(BaseModel):
     node_id: str
@@ -15,7 +14,6 @@ class WorkflowNodeInstance(BaseModel):
     node_version: int = 1
     parameters: dict[str, Any] = Field(default_factory=dict)
     skipped: bool = False
-
 
 ###############################################################################
 class WorkflowConnection(BaseModel):
@@ -45,14 +43,12 @@ class WorkflowConnection(BaseModel):
         self.to_controller = None
         return self
 
-
 ###############################################################################
 class WorkflowDefinition(BaseModel):
     schema_version: int = 2
     nodes: list[WorkflowNodeInstance] = Field(default_factory=list)
     connections: list[WorkflowConnection] = Field(default_factory=list)
     metadata: dict[str, Any] = Field(default_factory=dict)
-
 
 ###############################################################################
 class VisualNodeState(BaseModel):
@@ -67,14 +63,12 @@ class VisualNodeState(BaseModel):
     skipped: bool = False
     is_global: bool = False
 
-
 ###############################################################################
 class VisualGraph(BaseModel):
     schema_version: int = 2
     nodes: list[VisualNodeState] = Field(default_factory=list)
     groups: list[dict[str, Any]] = Field(default_factory=list)
     comments: list[dict[str, Any]] = Field(default_factory=list)
-
 
 ###############################################################################
 class WorkflowDocument(BaseModel):
@@ -85,7 +79,6 @@ class WorkflowDocument(BaseModel):
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
-
 ###############################################################################
 class CompilerDiagnostic(BaseModel):
     code: str
@@ -94,11 +87,9 @@ class CompilerDiagnostic(BaseModel):
     node_id: str | None = None
     connection: WorkflowConnection | None = None
 
-
 ###############################################################################
 class CompileWorkflowRequest(BaseModel):
     definition: WorkflowDefinition
-
 
 ###############################################################################
 class CompileWorkflowResponse(BaseModel):
@@ -106,13 +97,11 @@ class CompileWorkflowResponse(BaseModel):
     diagnostics: list[CompilerDiagnostic] = Field(default_factory=list)
     plan: CompiledExecutionPlan | None = None
 
-
 ###############################################################################
 class CreateWorkflowRequest(BaseModel):
     name: str
     definition: WorkflowDefinition
     visual_graph: VisualGraph = Field(default_factory=VisualGraph)
-
 
 ###############################################################################
 class UpdateWorkflowRequest(BaseModel):
@@ -120,13 +109,11 @@ class UpdateWorkflowRequest(BaseModel):
     definition: WorkflowDefinition
     visual_graph: VisualGraph
 
-
 ###############################################################################
 class WorkflowListItem(BaseModel):
     workflow_id: str
     name: str
     updated_at: datetime
-
 
 ###############################################################################
 class WorkflowListResponse(BaseModel):

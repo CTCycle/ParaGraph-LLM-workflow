@@ -10,14 +10,12 @@ from server.configurations.startup import (
 from server.services.workflow import node_registry
 from server.services.workflow.node_handlers import core as core_node_handlers
 
-
 ###############################################################################
 @pytest.fixture(autouse=True)
 def reset_settings_cache() -> None:
     reset_configuration_runtime_for_tests()
     yield
     reset_configuration_runtime_for_tests()
-
 
 ###############################################################################
 def test_save_as_file_and_load_text_supports_absolute_local_paths(
@@ -42,7 +40,6 @@ def test_save_as_file_and_load_text_supports_absolute_local_paths(
     )
     assert loaded["text"] == "local file payload"
 
-
 ###############################################################################
 def test_load_text_supports_workspace_relative_paths(
     tmp_path: Path, monkeypatch
@@ -56,7 +53,6 @@ def test_load_text_supports_workspace_relative_paths(
     )
 
     assert loaded["text"] == "relative payload"
-
 
 ###############################################################################
 def test_load_text_rejects_non_canonical_storage_path_keys(tmp_path: Path) -> None:
@@ -73,7 +69,6 @@ def test_load_text_rejects_non_canonical_storage_path_keys(tmp_path: Path) -> No
     for payload in invalid_payloads:
         with pytest.raises(ValueError, match="storage_path is required"):
             node_registry.execute("LOAD_TEXT", 1, payload, {})
-
 
 ###############################################################################
 def test_save_as_file_supports_chunks_input_single_file_concat(tmp_path: Path) -> None:
@@ -115,7 +110,6 @@ def test_save_as_file_supports_chunks_input_single_file_concat(tmp_path: Path) -
     assert save_result["artifact"]["count"] == 1
     assert save_result["artifact"]["extension"] == ".md"
 
-
 ###############################################################################
 def test_save_as_file_overwrites_existing_single_file_output(tmp_path: Path) -> None:
     destination = tmp_path / "exports" / "existing.txt"
@@ -132,7 +126,6 @@ def test_save_as_file_overwrites_existing_single_file_output(tmp_path: Path) -> 
     assert destination.read_text(encoding="utf-8") == "fresh payload"
     assert save_result["artifact"]["path"] == str(destination.resolve())
     assert save_result["artifact"]["files"] == [str(destination.resolve())]
-
 
 ###############################################################################
 def test_save_as_file_uses_file_name_from_output_path_without_extension(
@@ -151,7 +144,6 @@ def test_save_as_file_uses_file_name_from_output_path_without_extension(
     assert expected_file.exists()
     assert expected_file.read_text(encoding="utf-8") == "payload"
     assert save_result["artifact"]["path"] == str(expected_file.resolve())
-
 
 ###############################################################################
 def test_save_as_folder_supports_documents_input_with_multiple_files(
@@ -199,7 +191,6 @@ def test_save_as_folder_supports_documents_input_with_multiple_files(
         "beta",
     ]
 
-
 ###############################################################################
 def test_save_as_folder_writes_single_text_as_single_file(tmp_path: Path) -> None:
     destination_folder = tmp_path / "exports" / "single_text"
@@ -217,7 +208,6 @@ def test_save_as_folder_writes_single_text_as_single_file(tmp_path: Path) -> Non
     assert len(saved_paths) == 1
     assert saved_paths[0].name == "single_text_000001.txt"
     assert saved_paths[0].read_text(encoding="utf-8") == "payload"
-
 
 ###############################################################################
 def test_save_as_folder_replaces_file_collision_with_folder(tmp_path: Path) -> None:
@@ -257,7 +247,6 @@ def test_save_as_folder_replaces_file_collision_with_folder(tmp_path: Path) -> N
         "beta",
     ]
 
-
 ###############################################################################
 def test_save_as_file_client_side_write_returns_metadata_without_backend_write(
     tmp_path: Path,
@@ -280,7 +269,6 @@ def test_save_as_file_client_side_write_returns_metadata_without_backend_write(
     assert save_result["artifact"]["path"] == str(expected_file)
     assert save_result["artifact"]["files"] == [str(expected_file)]
     assert save_result["artifact"]["item_texts"] == ["payload"]
-
 
 ###############################################################################
 def test_save_as_folder_client_side_write_returns_metadata_without_backend_write(
@@ -330,7 +318,6 @@ def test_save_as_folder_client_side_write_returns_metadata_without_backend_write
     assert save_result["artifact"]["files"] == [str(path) for path in expected_files]
     assert save_result["artifact"]["item_texts"] == ["alpha", "beta"]
 
-
 ###############################################################################
 def test_save_as_file_client_side_write_resolves_deferred_documents_into_item_texts(
     tmp_path: Path,
@@ -370,12 +357,10 @@ def test_save_as_file_client_side_write_resolves_deferred_documents_into_item_te
     assert save_result["artifact"]["files"] == [str(expected_file)]
     assert save_result["artifact"]["item_texts"] == ["resolved deferred document"]
 
-
 ###############################################################################
 def test_load_text_rejects_empty_storage_path() -> None:
     with pytest.raises(ValueError, match="storage_path is required"):
         node_registry.execute("LOAD_TEXT", 1, {"storage_path": ""}, {})
-
 
 ###############################################################################
 def test_save_as_file_rejects_relative_path_traversal() -> None:
@@ -387,7 +372,6 @@ def test_save_as_file_rejects_relative_path_traversal() -> None:
             {"text": "payload"},
         )
 
-
 ###############################################################################
 def test_save_as_folder_rejects_relative_path_traversal() -> None:
     with pytest.raises(ValueError, match="must resolve inside"):
@@ -397,7 +381,6 @@ def test_save_as_folder_rejects_relative_path_traversal() -> None:
             {"output_path": "../../outside", "extension": ".txt"},
             {"text": "payload"},
         )
-
 
 ###############################################################################
 def test_save_as_file_rejects_absolute_paths_in_cloud_mode(
@@ -414,7 +397,6 @@ def test_save_as_file_rejects_absolute_paths_in_cloud_mode(
             {"text": "cloud payload"},
         )
 
-
 ###############################################################################
 def test_save_as_folder_rejects_absolute_paths_in_cloud_mode(
     monkeypatch, tmp_path: Path
@@ -430,7 +412,6 @@ def test_save_as_folder_rejects_absolute_paths_in_cloud_mode(
             {"text": "cloud payload"},
         )
 
-
 ###############################################################################
 def test_load_text_supports_non_utf8_text_with_fallback_encoding(
     tmp_path: Path,
@@ -443,7 +424,6 @@ def test_load_text_supports_non_utf8_text_with_fallback_encoding(
     )
 
     assert loaded["text"] == "café in latin1"
-
 
 ###############################################################################
 def test_load_text_uses_shared_loader_for_pdf_paths(
@@ -466,7 +446,6 @@ def test_load_text_uses_shared_loader_for_pdf_paths(
 
     assert loaded["text"] == "pdf payload"
     assert observed["path"] == source_file.resolve()
-
 
 ###############################################################################
 def test_save_as_folder_resolves_deferred_documents_before_writing(

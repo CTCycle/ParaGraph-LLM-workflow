@@ -4,7 +4,6 @@ import threading
 
 from server.domain.chat_history import ChatHistoryMessage
 
-
 ###############################################################################
 class InMemoryChatHistoryRepository:
 

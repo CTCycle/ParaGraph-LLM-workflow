@@ -6,11 +6,9 @@ from server.domain.provider import ModelMetadata
 from server.services.workflow import provider_service
 from server.services.workflow.provider import ProviderApiError
 
-
 ###############################################################################
 def _raise_provider_error(message: str, status_code: int):
     raise ProviderApiError(message, status_code=status_code)
-
 
 ###############################################################################
 def test_provider_errors_are_mapped_to_http_status_codes(
@@ -71,7 +69,6 @@ def test_provider_errors_are_mapped_to_http_status_codes(
     hf_cancel_response = client.delete("/providers/huggingface/download/job-409")
     assert hf_cancel_response.status_code == 409
     assert hf_cancel_response.json()["detail"] == "cannot cancel"
-
 
 ###############################################################################
 def test_provider_models_include_embedding_capabilities(
@@ -140,7 +137,6 @@ def test_provider_models_include_embedding_capabilities(
         and item.get("supports_embeddings") is True
     ]
 
-
 ###############################################################################
 def test_provider_catalog_includes_new_providers(client: TestClient) -> None:
     response = client.get("/providers/catalog")
@@ -153,7 +149,6 @@ def test_provider_catalog_includes_new_providers(client: TestClient) -> None:
     assert providers["deepseek"]["supports_embeddings"] is False
     assert providers["lmstudio"]["supports_embeddings"] is True
     assert providers["llama"]["supports_embeddings"] is True
-
 
 ###############################################################################
 def test_provider_model_definition_propagates_supports_embeddings_flag() -> None:

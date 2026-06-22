@@ -7,11 +7,9 @@ import pytest
 
 from server.services.workflow.nodes import registry as node_module
 
-
 ###############################################################################
 def write_manifest(path: Path, payload: dict[str, object]) -> None:
     path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
-
 
 ###############################################################################
 def build_plugin_manifest(script_path: str) -> dict[str, object]:
@@ -65,7 +63,6 @@ def build_plugin_manifest(script_path: str) -> dict[str, object]:
         },
     }
 
-
 ###############################################################################
 def test_plugin_node_executes_script_runtime(monkeypatch, tmp_path: Path) -> None:
     node_root = tmp_path / "nodes"
@@ -95,7 +92,6 @@ def execute(parameters, inputs):
         "CUSTOM_SCRIPT_NODE", 1, {"prefix": "pre-"}, {"text": "hello"}
     )
     assert result == {"result": "PRE-HELLO"}
-
 
 ###############################################################################
 def test_plugin_node_rejects_absolute_script_paths(monkeypatch, tmp_path: Path) -> None:

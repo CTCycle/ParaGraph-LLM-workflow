@@ -33,7 +33,6 @@ from server.services.workflow.provider import provider_service
 
 _HF_MODEL_CACHE: dict[str, tuple[Any, Any]] = {}
 
-
 ###############################################################################
 def _extract_prompt_inputs(
     parameters: dict[str, Any], inputs: dict[str, Any]
@@ -52,7 +51,6 @@ def _extract_prompt_inputs(
         image_input.get("path") if isinstance(image_input, dict) else ""
     ).strip()
     return user_prompt, system_prompt, image_path
-
 
 ###############################################################################
 def _build_messages(
@@ -102,7 +100,6 @@ def _build_messages(
         messages.append({"role": "user", "content": user_content})
     return messages
 
-
 ###############################################################################
 def _build_generation_options(
     parameters: dict[str, Any], *, include_context_window: bool
@@ -116,7 +113,6 @@ def _build_generation_options(
             options["num_ctx"] = context_window
     return options
 
-
 ###############################################################################
 def _resolve_model_selection(
     parameters: dict[str, Any], inputs: dict[str, Any]
@@ -129,7 +125,6 @@ def _resolve_model_selection(
         return ProviderModelDefinition.model_validate(model_input)
     except ValidationError as exc:
         raise ValueError("model controller must be a valid model handle") from exc
-
 
 ###############################################################################
 def _run_huggingface_chat(
@@ -170,7 +165,6 @@ def _run_huggingface_chat(
     if decoded.startswith(prompt_text):
         return decoded[len(prompt_text) :].strip()
     return decoded.strip()
-
 
 ###############################################################################
 def _execute_model_node(
@@ -295,7 +289,6 @@ def _execute_model_node(
         )
     return {"response": text}
 
-
 ###############################################################################
 def _model_provider_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
@@ -324,7 +317,6 @@ def _model_provider_executor(
         ).model_dump(mode="json")
     }
 
-
 ###############################################################################
 def _llm_chat_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
@@ -338,7 +330,6 @@ def _llm_chat_executor(
         structured_output=False,
         timeout_s=selection.timeout_s,
     )
-
 
 ###############################################################################
 def _llm_structured_executor(

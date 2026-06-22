@@ -27,19 +27,16 @@ GLOBAL_CONTROLLER_KINDS: dict[str, str] = {
     "VECTOR_STORE_HANDLE": "vector_store",
 }
 
-
 ###############################################################################
 def _resolve_provider(parameters: dict[str, object], default: str = "ollama") -> str:
     provider = str(parameters.get("provider", default)).strip().lower()
     return provider or default
-
 
 ###############################################################################
 def _binding_sort_key(connection: WorkflowConnection) -> tuple[str, str, str]:
     target_name = connection.to_input or connection.to_controller or ""
     source_name = connection.from_output or connection.from_controller or ""
     return (target_name, connection.from_node, source_name)
-
 
 ###############################################################################
 class CompilerService:

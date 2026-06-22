@@ -6,7 +6,6 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
-
 ###############################################################################
 def _poll_run_until_terminal(
     client: TestClient, run_id: str, timeout_s: float = 3.0
@@ -21,7 +20,6 @@ def _poll_run_until_terminal(
             return last_payload
         time.sleep(0.01)
     raise AssertionError(f"Run {run_id} did not finish. Last payload: {last_payload}")
-
 
 ###############################################################################
 def _database_workflow_definition(database_path: Path) -> dict[str, object]:
@@ -126,7 +124,6 @@ def _database_workflow_definition(database_path: Path) -> dict[str, object]:
         "metadata": {},
     }
 
-
 ###############################################################################
 def _step_ports(run_payload: dict[str, object], node_id: str) -> dict[str, object]:
     steps = run_payload["steps"]
@@ -140,7 +137,6 @@ def _step_ports(run_payload: dict[str, object], node_id: str) -> dict[str, objec
             assert isinstance(ports, dict)
             return ports
     raise AssertionError(f"Missing step for node {node_id}")
-
 
 ###############################################################################
 def test_database_crud_nodes_execute_together_through_compiled_workflow(

@@ -3,17 +3,14 @@ from __future__ import annotations
 from server.services.workflow.node_handlers import NODE_HANDLERS
 from server.services.workflow.nodes.registry import node_registry
 
-
 ###############################################################################
 def test_all_manifests_load() -> None:
     assert node_registry.list()
-
 
 ###############################################################################
 def test_no_duplicate_node_type_version() -> None:
     keys = [(manifest.id, manifest.version) for manifest in node_registry.list()]
     assert len(keys) == len(set(keys))
-
 
 ###############################################################################
 def test_every_manifest_executor_key_has_handler() -> None:
@@ -24,7 +21,6 @@ def test_every_manifest_executor_key_has_handler() -> None:
         and manifest.runtime.executor_key not in NODE_HANDLERS
     ]
     assert missing == []
-
 
 ###############################################################################
 def test_every_handler_referenced_by_manifest_is_callable() -> None:

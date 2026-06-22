@@ -36,7 +36,6 @@ def import_node_manifest(manifest: NodeManifest) -> NodeManifest:
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)
         ) from exc
 
-
 ###############################################################################
 @router.post("/uploads/directory", response_model=UploadedDirectoryResponse)
 async def upload_directory(
@@ -64,7 +63,6 @@ def check_database_connection(
     request: DatabaseConnectionCheckRequest,
 ) -> DatabaseConnectionCheckResponse:
     return node_connectivity_service.check_database_connection(request)
-
 
 ###############################################################################
 @router.post("/database-schema", response_model=DatabaseSchemaResponse)

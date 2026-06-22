@@ -46,7 +46,6 @@ from server.domain.node_catalog import (
     ModelVisibilityFilter,
 )
 
-
 ###############################################################################
 class HuggingFaceCatalogMixin:
 
@@ -692,7 +691,6 @@ class HuggingFaceCatalogMixin:
             f"Hugging Face query failed: {error}",
             status_code=502,
         )
-
 
 ###############################################################################
 class HuggingFaceCatalogService:

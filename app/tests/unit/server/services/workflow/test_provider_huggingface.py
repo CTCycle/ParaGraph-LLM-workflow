@@ -20,7 +20,6 @@ from server.services.workflow.provider.constants import (
     HUGGINGFACE_FALLBACK_TASKS,
 )
 
-
 ###############################################################################
 class _FakeExpandApi:
 
@@ -43,7 +42,6 @@ class _FakeExpandApi:
     ) -> None:
         return None
 
-
 ###############################################################################
 def test_build_huggingface_list_kwargs_prefers_expand() -> None:
     service = ProviderService()
@@ -62,7 +60,6 @@ def test_build_huggingface_list_kwargs_prefers_expand() -> None:
 
     assert kwargs["expand"] == list(HUGGINGFACE_MODEL_LIST_EXPAND_FIELDS)
     assert "full" not in kwargs
-
 
 ###############################################################################
 def test_huggingface_download_uses_explicit_stream_timeout(
@@ -128,7 +125,6 @@ def test_huggingface_download_uses_explicit_stream_timeout(
     assert timeout.read == HUGGINGFACE_DOWNLOAD_TIMEOUT_SECONDS
     assert timeout.write == HUGGINGFACE_DOWNLOAD_TIMEOUT_SECONDS
     assert timeout.pool == HUGGINGFACE_DOWNLOAD_TIMEOUT_SECONDS
-
 
 ###############################################################################
 def test_huggingface_filter_tags_logs_and_falls_back(monkeypatch) -> None:

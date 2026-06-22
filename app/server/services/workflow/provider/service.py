@@ -56,13 +56,13 @@ from server.services.workflow.provider.ollama import (
     OllamaLibraryService,
 )
 
-
 ###############################################################################
 class ProviderService(
     OllamaLibraryCatalogMixin,
     HuggingFaceCatalogMixin,
     HuggingFaceDownloadMixin,
 ):
+
     # -------------------------------------------------------------------------
     def __init__(self) -> None:
         self._cache_lock = Lock()

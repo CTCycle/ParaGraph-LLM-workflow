@@ -20,7 +20,6 @@ from server.services.workflow.structured_models import (
     validation_error_payload,
 )
 
-
 ###############################################################################
 def _model_from_parameters(parameters: dict[str, Any], value: dict[str, Any]):
     mode = parameters.get("model_mode", "auto")
@@ -30,7 +29,6 @@ def _model_from_parameters(parameters: dict[str, Any], value: dict[str, Any]):
     if not isinstance(example, dict):
         example = value
     return infer_model_from_json("StructuredPayload", example)
-
 
 ###############################################################################
 def _validate_payload(value: Any, parameters: dict[str, Any]) -> dict[str, Any]:
@@ -54,7 +52,6 @@ def _validate_payload(value: Any, parameters: dict[str, Any]) -> dict[str, Any]:
             **payload,
         }
 
-
 ###############################################################################
 def _structured_input_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
@@ -62,7 +59,6 @@ def _structured_input_executor(
     parsed = StructuredInputParameters.model_validate(parameters)
     _ = inputs
     return _validate_payload(parsed.value, parsed.model_dump(mode="json"))
-
 
 ###############################################################################
 def _structured_output_executor(
@@ -72,7 +68,6 @@ def _structured_output_executor(
     value = inputs.get("value", inputs)
     return _validate_payload(value, parsed.model_dump(mode="json"))
 
-
 ###############################################################################
 def _json_validate_repair_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
@@ -80,7 +75,6 @@ def _json_validate_repair_executor(
     parsed = JsonValidateRepairParameters.model_validate(parameters)
     value = parse_json_if_possible(inputs.get("value", inputs))
     return _validate_payload(value, parsed.model_dump(mode="json"))
-
 
 ###############################################################################
 def _output_parser_executor(

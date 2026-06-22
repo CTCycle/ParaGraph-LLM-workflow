@@ -19,7 +19,6 @@ from server.services.runtime.events import execution_event_service
 from server.services.workflow.nodes import node_registry
 from server.common.utils.values import extract_top_level_json_fields
 
-
 ###############################################################################
 class ExecutionService:
     OUTPUT_NAME_PARAMETER = "__output_name"
