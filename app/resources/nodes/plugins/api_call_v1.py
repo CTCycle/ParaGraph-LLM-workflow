@@ -10,7 +10,6 @@ from server.services.workflow.node_handlers.common import (
     coerce_text,
 )
 
-
 ###############################################################################
 def _pick_override(
     inputs: dict[str, Any],
@@ -22,7 +21,6 @@ def _pick_override(
         return inputs[input_key]
     return parameters.get(parameter_key)
 
-
 ###############################################################################
 def _as_object(value: Any, *, label: str) -> dict[str, Any]:
     if value is None:
@@ -31,11 +29,9 @@ def _as_object(value: Any, *, label: str) -> dict[str, Any]:
         raise ValueError(f"{label} must be a JSON object")
     return value
 
-
 ###############################################################################
 def _normalize_headers(headers: dict[str, Any]) -> dict[str, str]:
     return {str(key): coerce_text(value) for key, value in headers.items()}
-
 
 ###############################################################################
 def _parse_json_if_available(response: httpx.Response) -> Any:
@@ -43,7 +39,6 @@ def _parse_json_if_available(response: httpx.Response) -> Any:
     if "json" not in content_type:
         raise ValueError("Response is not JSON")
     return response.json()
-
 
 ###############################################################################
 def execute(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:

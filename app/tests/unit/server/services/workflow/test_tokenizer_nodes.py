@@ -7,7 +7,6 @@ from pytest import MonkeyPatch
 from server.services.workflow import node_registry
 from server.services.workflow.node_handlers.core import routing
 
-
 ###############################################################################
 class FakeTokenizer:
 
@@ -19,7 +18,6 @@ class FakeTokenizer:
             "token_type_ids": [0, 0],
         }
 
-
 ###############################################################################
 class FakeAutoTokenizer:
 
@@ -27,7 +25,6 @@ class FakeAutoTokenizer:
     @staticmethod
     def from_pretrained(_: str, **__: Any) -> FakeTokenizer:
         return FakeTokenizer()
-
 
 ###############################################################################
 def test_tokenizer_returns_structured_output_only(monkeypatch: MonkeyPatch) -> None:
@@ -48,7 +45,6 @@ def test_tokenizer_returns_structured_output_only(monkeypatch: MonkeyPatch) -> N
 
     assert set(result) == {"tokenized"}
     assert result["tokenized"]["records"][0]["token_ids"] == [5, 101]
-
 
 ###############################################################################
 def test_tokenizer_returns_serialized_output_only(monkeypatch: MonkeyPatch) -> None:

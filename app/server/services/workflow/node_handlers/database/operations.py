@@ -17,14 +17,12 @@ from server.repositories.workflow.database import (
     execute_update,
 )
 
-
 ###############################################################################
 def _connection(inputs: dict[str, Any]) -> dict[str, Any]:
     value = inputs.get("connection")
     if not isinstance(value, dict):
         raise ValueError("Database operation nodes require a connection controller")
     return value
-
 
 ###############################################################################
 def _merged_json_input(
@@ -36,7 +34,6 @@ def _merged_json_input(
     if not isinstance(raw_value, dict):
         raise ValueError(f"{name} must be a JSON object")
     return raw_value
-
 
 ###############################################################################
 def _crud_create_executor(
@@ -50,7 +47,6 @@ def _crud_create_executor(
             _connection(inputs), table_name=parsed.table, values=parsed.values
         )
     }
-
 
 ###############################################################################
 def _crud_read_executor(
@@ -69,7 +65,6 @@ def _crud_read_executor(
             order_by=parsed.order_by,
         )
     }
-
 
 ###############################################################################
 def _crud_update_executor(
@@ -91,7 +86,6 @@ def _crud_update_executor(
         )
     }
 
-
 ###############################################################################
 def _crud_delete_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
@@ -104,7 +98,6 @@ def _crud_delete_executor(
             _connection(inputs), table_name=parsed.table, filters=parsed.filters
         )
     }
-
 
 ###############################################################################
 def _custom_sql_query_executor(

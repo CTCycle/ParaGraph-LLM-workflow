@@ -22,7 +22,6 @@ from server.services.workflow.vector_stores.base import (
     _store_attr,
 )
 
-
 ###############################################################################
 class QdrantVectorStoreAdapter(VectorStoreAdapter):
     backend = "qdrant"

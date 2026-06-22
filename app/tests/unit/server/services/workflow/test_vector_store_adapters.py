@@ -14,7 +14,6 @@ from server.services.workflow.vector_stores import (
     get_vector_store_adapter,
 )
 
-
 ###############################################################################
 def test_pinecone_map_filter_uses_operator_keys() -> None:
     adapter = PineconeVectorStoreAdapter()
@@ -35,7 +34,6 @@ def test_pinecone_map_filter_uses_operator_keys() -> None:
     assert {"metadata.rank": {"$gte": 2}} in mapped["$and"]
     assert mapped["$or"] == [{"metadata.lang": {"$in": ["en", "it"]}}]
     assert mapped["$nor"] == [{"metadata.tenant": {"$eq": "blocked"}}]
-
 
 ###############################################################################
 def test_qdrant_search_rejects_hybrid_mode() -> None:
@@ -58,7 +56,6 @@ def test_qdrant_search_rejects_hybrid_mode() -> None:
         assert "Hybrid search" in str(exc)
     else:
         raise AssertionError("Expected VectorStoreError")
-
 
 ###############################################################################
 def test_weaviate_validate_connection_invokes_collection_exists(monkeypatch) -> None:
@@ -90,7 +87,6 @@ def test_weaviate_validate_connection_invokes_collection_exists(monkeypatch) -> 
     assert calls["collection"] == "docs"
     assert calls["closed"] is True
 
-
 ###############################################################################
 def test_milvus_filter_expression_combines_groups() -> None:
     adapter = MilvusVectorStoreAdapter()
@@ -110,7 +106,6 @@ def test_milvus_filter_expression_combines_groups() -> None:
     assert 'source_uri == "a"' in expression
     assert 'source_uri == "b"' in expression
 
-
 ###############################################################################
 @pytest.mark.parametrize("provider", ["lancedb", "chroma", "faiss"])
 def test_vector_store_parameters_require_storage_path_for_local_providers(
@@ -126,7 +121,6 @@ def test_vector_store_parameters_require_storage_path_for_local_providers(
             }
         )
 
-
 ###############################################################################
 def test_faiss_validate_connection_rejects_relative_storage_path() -> None:
     adapter = get_vector_store_adapter("faiss")
@@ -138,7 +132,6 @@ def test_faiss_validate_connection_rejects_relative_storage_path() -> None:
             index_name="docs", storage_directory="vectorstores/docs"
         )
 
-
 ###############################################################################
 def test_faiss_validate_connection_accepts_absolute_storage_path(
     tmp_path: Path,
@@ -146,7 +139,6 @@ def test_faiss_validate_connection_accepts_absolute_storage_path(
     adapter = get_vector_store_adapter("faiss")
 
     adapter.validate_connection(index_name="docs", storage_directory=str(tmp_path))
-
 
 ###############################################################################
 @pytest.mark.parametrize("provider", ["qdrant", "pinecone", "weaviate", "milvus"])
@@ -162,7 +154,6 @@ def test_vector_store_parameters_require_endpoint_for_remote_providers(
                 "endpoint_url": "",
             }
         )
-
 
 ###############################################################################
 @pytest.mark.parametrize(

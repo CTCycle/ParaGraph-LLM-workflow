@@ -7,7 +7,6 @@ from server.services.workflow.node_handlers.rag import (
     _ocr_text_extract_executor,
 )
 
-
 ###############################################################################
 def test_html_to_text_strips_script_style_nav() -> None:
     result = _html_to_text_executor(
@@ -17,7 +16,6 @@ def test_html_to_text_strips_script_style_nav() -> None:
     assert "n" not in result["result"]
     assert "Hello" in result["result"]
 
-
 ###############################################################################
 def test_context_builder_respects_token_budget() -> None:
     result = _context_builder_executor(
@@ -25,14 +23,12 @@ def test_context_builder_respects_token_budget() -> None:
     )
     assert result["result"] == "one two"
 
-
 ###############################################################################
 def test_grounding_checker_marks_unsupported_claim_when_evidence_absent() -> None:
     result = _grounding_checker_executor(
         {}, {"claim": "missing", "evidence": "present"}
     )
     assert result["label"] == "unsupported"
-
 
 ###############################################################################
 def test_ocr_returns_dependency_error_when_binary_unavailable_or_empty_result() -> None:

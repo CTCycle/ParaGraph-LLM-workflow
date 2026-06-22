@@ -13,14 +13,12 @@ from server.common.utils.values import (
     render_variable_value,
 )
 
-
 ###############################################################################
 def _prompt_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
 ) -> dict[str, Any]:
     _ = inputs
     return {"text": coerce_text(parameters.get("prompt_text", "")).strip()}
-
 
 ###############################################################################
 def _extract_template_record_text(record: dict[str, Any]) -> str:
@@ -29,14 +27,12 @@ def _extract_template_record_text(record: dict[str, Any]) -> str:
     )
     return candidate
 
-
 ###############################################################################
 def _coerce_template_value(value: Any) -> str:
     return render_variable_value(value)
 
 
 _PROMPT_TEMPLATE_PATTERN = re.compile(r"\{([A-Za-z_]\w*)\}")
-
 
 ###############################################################################
 def _collect_prompt_template_variable_maps(raw_variables: Any) -> list[dict[str, Any]]:
@@ -58,7 +54,6 @@ def _collect_prompt_template_variable_maps(raw_variables: Any) -> list[dict[str,
         variable_maps.append(candidate)
     return variable_maps
 
-
 ###############################################################################
 def _build_prompt_template_context(
     inputs: dict[str, Any],
@@ -75,7 +70,6 @@ def _build_prompt_template_context(
                 context.update(value)
     context["blocks"] = dict(parameters.reusable_blocks)
     return context
-
 
 ###############################################################################
 def _render_jinja_template(
@@ -95,7 +89,6 @@ def _render_jinja_template(
         raise ValueError(
             f"PROMPT_TEMPLATE failed to render Jinja template: {exc}"
         ) from exc
-
 
 ###############################################################################
 def _prompt_template_executor(
@@ -158,7 +151,6 @@ def _prompt_template_executor(
         "user": rendered,
         "variables": merged_variables,
     }
-
 
 ###############################################################################
 def _image_input_executor(
