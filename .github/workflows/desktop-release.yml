@@ -1,0 +1,62 @@
+name: Desktop Release
+
+on:
+  workflow_dispatch:
+  release:
+    types:
+      - published
+
+permissions:
+  contents: write
+
+jobs:
+  windows-desktop:
+    runs-on: windows-latest
+    env:
+      CI: "true"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable-x86_64-pc-windows-msvc
+
+      - name: Prepare Tauri environment
+        shell: powershell
+        run: |
+          Copy-Item settings/.env.local.tauri.example settings/.env -Force
+
+      - name: Install local runtimes and dependencies
+        shell: cmd
+        run: |
+          (echo 1& echo.& echo 8) | setup_and_maintenance.bat
+
+      - name: Build desktop artifacts
+        shell: cmd
+        run: |
+          set CI=1
+          release\tauri\build_with_tauri.bat
+
+      - name: Archive release payloads
+        shell: powershell
+        run: |
+          Compress-Archive -Path release/windows/installers/* -DestinationPath release/windows/installers.zip -Force
+          Compress-Archive -Path release/windows/portable/* -DestinationPath release/windows/portable.zip -Force
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-release-windows
+          path: release/windows/**
+          if-no-files-found: error
+
+      - name: Upload release assets
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            release/windows/installers.zip
+            release/windows/portable.zip
+            release/windows/README.txt
