@@ -190,6 +190,10 @@ That includes things like:
 
 ParaGraph can also be packaged as a Windows desktop application through the Tauri build flow.
 
+The `app/src-tauri` directory is versioned as desktop source and build metadata. Keep `Cargo.toml`, `Cargo.lock`, `build.rs`, `tauri.conf.json`, `src/`, `capabilities/`, and `icons/` in Git.
+
+Generated desktop outputs are not committed. Ignore `app/src-tauri/target`, `app/src-tauri/bundle`, `app/src-tauri/gen`, and `release/windows`, and publish Windows `.exe` and installer outputs as release artifacts instead of tracking them in the repository.
+
 If you need that path, use the deployment notes in the runtime documentation:
 
 - [Deployment guide](assets/docs/runtime/deployment.md)
