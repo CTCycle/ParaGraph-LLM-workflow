@@ -3,6 +3,7 @@ app/resources/artifacts/**
 app/resources/models/**
 app/resources/workflows/**
 app/resources/tokenizers/**
+app/resources/logs/**
 app/client/node_modules/
 app/client/dist/
 app/client/dist-ssr/
@@ -22,6 +23,7 @@ app/src-tauri/**/*.tar.gz
 app/client/*.local
 runtimes/**
 release/windows/
+assets/QA/**
 
 # Python
 __pycache__/
@@ -36,6 +38,7 @@ dist/
 build/
 .coverage
 htmlcov/
+app/server/uv.lock
 
 # Node / JS
 **/node_modules/
@@ -65,5 +68,3 @@ Thumbs.db
 !app/src-tauri/Cargo.lock
 
 !.gitkeep
-
-
