@@ -15,6 +15,7 @@ from server.repositories.workflow import (
     execution_run_repository,
     file_chat_history_repository,
     in_memory_chat_history_repository,
+    node_manifest_repository,
     workflow_repository,
 )
 from server.services.jobs import job_manager
@@ -98,12 +99,12 @@ def isolated_runtime_state(tmp_path: Path) -> Iterator[None]:
 @pytest.fixture(autouse=True)
 def isolated_node_registry() -> Iterator[None]:
     default_node_root = common_path.RESOURCES_ROOT / "nodes"
-    node_registry_module.NODE_ROOT = default_node_root
+    node_manifest_repository.configure_storage_for_tests(default_node_root)
     node_registry_module.node_registry.reload()
     try:
         yield
     finally:
-        node_registry_module.NODE_ROOT = default_node_root
+        node_manifest_repository.restore_default_storage_for_tests()
         node_registry_module.node_registry.reload()
 
 ###############################################################################
