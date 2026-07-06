@@ -12,6 +12,7 @@ from server.services.workflow.provider import (
 )
 from server.services.workflow.provider import (
     HUGGINGFACE_MODEL_LIST_EXPAND_FIELDS,
+    ProviderApiError,
     ProviderService,
 )
 from server.services.workflow.provider.constants import (
@@ -60,6 +61,38 @@ def test_build_huggingface_list_kwargs_prefers_expand() -> None:
 
     assert kwargs["expand"] == list(HUGGINGFACE_MODEL_LIST_EXPAND_FIELDS)
     assert "full" not in kwargs
+
+###############################################################################
+def test_huggingface_model_iteration_errors_are_translated(monkeypatch) -> None:
+    service = ProviderService()
+
+    ###############################################################################
+    class _LazyFailingApi:
+
+        # -------------------------------------------------------------------------
+        def list_models(self, **kwargs):
+            _ = kwargs
+            raise AssertionError("generator body should run during iteration")
+            yield
+
+    def _raise_connect_error(self, **kwargs):
+        _ = (self, kwargs)
+        raise httpx.ConnectError("connection refused")
+        yield
+
+    monkeypatch.setattr(_LazyFailingApi, "list_models", _raise_connect_error)
+    monkeypatch.setattr(
+        service, "_resolve_huggingface_api", lambda session_name: (_LazyFailingApi(), None)
+    )
+    monkeypatch.setattr(service, "_downloaded_huggingface_repo_ids", lambda: set())
+
+    try:
+        service.list_huggingface_models(refresh=True)
+    except ProviderApiError as exc:
+        assert exc.status_code == 503
+        assert "Unable to reach Hugging Face" in str(exc)
+    else:
+        raise AssertionError("expected lazy Hugging Face iteration failure to translate")
 
 ###############################################################################
 def test_huggingface_download_uses_explicit_stream_timeout(

@@ -603,7 +603,7 @@ export default function ModelsPage() {
 
                     <div className="models-list" role="list" aria-label="Ollama model list">
                         {ollamaLoading && <div className="models-empty">Loading Ollama models...</div>}
-                        {!ollamaLoading && filteredOllamaModels.length === 0 && (
+                        {!ollamaLoading && !ollamaError && filteredOllamaModels.length === 0 && (
                             <div className="models-empty">No Ollama models match the active filters.</div>
                         )}
                         {!ollamaLoading &&
@@ -725,7 +725,7 @@ export default function ModelsPage() {
 
                     <div className="models-list" role="list" aria-label="Hugging Face model list">
                         {hfLoading && <div className="models-empty">Loading Hugging Face models...</div>}
-                        {!hfLoading && hfModels.length === 0 && <div className="models-empty">No models match the current query.</div>}
+                        {!hfLoading && !hfError && hfModels.length === 0 && <div className="models-empty">No models match the current query.</div>}
                         {!hfLoading &&
                             hfModels.map((model) => {
                                 const visibilityConfig = VISIBILITY_ICON_MAP[model.visibility] ?? VISIBILITY_ICON_MAP.unknown
