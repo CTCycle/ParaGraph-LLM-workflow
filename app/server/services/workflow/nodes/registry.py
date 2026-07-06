@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import importlib.util
-import json
 from functools import partial
 from pathlib import Path
 from typing import Any
@@ -10,6 +9,11 @@ from pydantic import ValidationError
 
 from server.common import path as common_path
 from server.domain.node_catalog import NodeCatalogResponse, NodeManifest
+from server.domain.workflow_payloads import validate_data_type
+from server.repositories.workflow.node_manifest import (
+    NodeManifestRepository,
+    node_manifest_repository,
+)
 from server.services.configuration import configuration_service
 from server.services.workflow.node_handlers import NODE_HANDLERS
 from server.services.workflow.node_handlers.base import NodeHandler
@@ -17,10 +21,8 @@ from server.services.workflow.nodes.execution_context import (
     reset_execution_context,
     set_execution_context,
 )
-from server.domain.workflow_payloads import validate_data_type
 
 
-NODE_ROOT = common_path.RESOURCES_ROOT / "nodes"
 MODEL_NODE_IDS = {"LLM_CHAT", "LLM_STRUCTURED"}
 STRUCTURED_NODE_IDS = {"LLM_STRUCTURED"}
 
@@ -61,12 +63,14 @@ def _execute_plugin_manifest(
 class NodeRegistry:
 
     # -------------------------------------------------------------------------
-    def __init__(self) -> None:
+    def __init__(
+        self, manifest_repository: NodeManifestRepository | None = None
+    ) -> None:
+        self._manifest_repository = manifest_repository or node_manifest_repository
         self._definitions: dict[tuple[str, int], NodeManifest] = {}
         self._manifest_paths: dict[tuple[str, int], Path] = {}
         self._plugin_handlers: dict[tuple[str, int], NodeHandler] = {}
         self._plugin_cache: dict[Path, tuple[int, Any]] = {}
-        NODE_ROOT.mkdir(parents=True, exist_ok=True)
         common_path.ARTIFACT_ROOT.mkdir(parents=True, exist_ok=True)
         self.reload()
 
@@ -74,10 +78,8 @@ class NodeRegistry:
     def reload(self) -> None:
         definitions: dict[tuple[str, int], NodeManifest] = {}
         manifest_paths: dict[tuple[str, int], Path] = {}
-        for path in sorted(NODE_ROOT.glob("*.json")):
-            manifest = NodeManifest.model_validate_json(
-                path.read_text(encoding="utf-8")
-            )
+        for path in self._manifest_repository.list_manifest_files():
+            manifest = self._manifest_repository.load_manifest(path)
             key = (manifest.id, manifest.version)
             if key in definitions:
                 raise ValueError(
@@ -229,12 +231,9 @@ class NodeRegistry:
                 f"Node manifest already exists for {manifest.id} v{manifest.version}"
             )
 
-        filename = f"{manifest.id.lower()}_v{manifest.version}.json"
-        path = NODE_ROOT / filename
+        path = self._manifest_repository.path_for_manifest(manifest)
         self._assert_executor_known(manifest, source_path=path)
-        path.write_text(
-            json.dumps(manifest.model_dump(mode="json"), indent=2), encoding="utf-8"
-        )
+        self._manifest_repository.save_manifest(manifest)
 
         try:
             self.reload()
@@ -245,8 +244,7 @@ class NodeRegistry:
                 )
             configuration_service.save_node_manifest(created)
         except Exception as exc:
-            if path.exists():
-                path.unlink()
+            self._manifest_repository.delete_manifest(path)
             self.reload()
             raise ValueError(
                 f"Failed to persist imported node manifest in database: {exc}"

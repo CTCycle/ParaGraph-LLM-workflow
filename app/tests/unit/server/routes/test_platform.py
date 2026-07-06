@@ -20,6 +20,7 @@ from server.domain.node_catalog import (
     ProviderModelCatalogResponse,
     ProviderModelDefinition,
 )
+from server.repositories.workflow import node_manifest_repository
 from server.services.workflow.nodes import registry as node_registry_module
 from server.services.workflow import provider_service
 
@@ -100,9 +101,7 @@ def test_nodes_catalog_exposes_registry(client: TestClient) -> None:
     assert "retrieval" in categories
 
 ###############################################################################
-def test_nodes_import_persists_manifest(
-    client: TestClient, monkeypatch, tmp_path: Path
-) -> None:
+def test_nodes_import_persists_manifest(client: TestClient, tmp_path: Path) -> None:
     node_dir = tmp_path / "nodes"
     node_dir.mkdir(parents=True, exist_ok=True)
     for manifest in Path("app/resources/nodes").glob("*.json"):
@@ -118,7 +117,7 @@ def test_nodes_import_persists_manifest(
                 plugin_file.read_text(encoding="utf-8"), encoding="utf-8"
             )
 
-    monkeypatch.setattr(node_registry_module, "NODE_ROOT", node_dir)
+    node_manifest_repository.configure_storage_for_tests(node_dir)
     node_registry_module.node_registry.reload()
 
     response = client.post(
