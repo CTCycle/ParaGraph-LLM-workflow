@@ -364,24 +364,27 @@ class HuggingFaceCatalogMixin:
         downloaded_repo_ids = self._downloaded_huggingface_repo_ids()
         visible_index = 0
         has_more = False
-        for item in iterator:
-            parsed = self._parse_huggingface_model(item)
-            if parsed is None:
-                continue
-            parsed.downloaded = parsed.repo_id in downloaded_repo_ids
-            if not self._visibility_matches(parsed.visibility, visibility):
-                continue
+        try:
+            for item in iterator:
+                parsed = self._parse_huggingface_model(item)
+                if parsed is None:
+                    continue
+                parsed.downloaded = parsed.repo_id in downloaded_repo_ids
+                if not self._visibility_matches(parsed.visibility, visibility):
+                    continue
 
-            if visible_index < skip:
+                if visible_index < skip:
+                    visible_index += 1
+                    continue
+
+                if len(rows) >= page_size:
+                    has_more = True
+                    break
+
+                rows.append(parsed)
                 visible_index += 1
-                continue
-
-            if len(rows) >= page_size:
-                has_more = True
-                break
-
-            rows.append(parsed)
-            visible_index += 1
+        except Exception as exc:  # noqa: BLE001
+            raise self._translate_huggingface_error(exc) from exc
 
         warning: str | None = None
         if visibility in {"private", "gated"} and not token:
