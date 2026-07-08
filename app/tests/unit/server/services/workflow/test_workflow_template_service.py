@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 
+from server.services.workflow.provider import provider_service
 from server.services.workflow.nodes import node_registry
 from server.services.workflow.templates import WorkflowTemplateService
 from server.services.workflow import templates as templates_module
@@ -124,3 +125,15 @@ def test_template_service_rejects_non_compiling_definition(
 
     with pytest.raises(ValueError, match="failed compilation"):
         service.list_templates()
+
+###############################################################################
+def test_bundled_templates_do_not_require_access_keys_to_list(monkeypatch) -> None:
+    monkeypatch.setattr(provider_service, "_get_access_key", lambda *args, **kwargs: None)
+
+    payload = templates_module.workflow_template_service.list_templates()
+
+    assert {template.id for template in payload.templates} == {
+        "load_documents_chunk_embed_store_v1",
+        "system_user_llm_chat_output_v1",
+        "system_user_llm_structured_output_v1",
+    }

@@ -43,7 +43,10 @@ class WorkflowTemplateService:
 
     # -------------------------------------------------------------------------
     def _validate_compilation(self, template: WorkflowTemplateManifest) -> None:
-        result = compiler_service.compile(template.definition)
+        result = compiler_service.compile(
+            template.definition,
+            require_access_keys=False,
+        )
         if result.valid:
             return
         if not result.diagnostics:
