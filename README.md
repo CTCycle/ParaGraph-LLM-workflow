@@ -3,7 +3,7 @@
 [![Python](https://img.shields.io/badge/Python-%3E%3D3.14-blue)](https://www.python.org/)
 [![Node.js](https://img.shields.io/badge/Node.js-22.12.0-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![CI](https://github.com/CTCycle/ParaGraph-LLM-workflow/actions/workflows/ci.yml/badge.svg)](https://github.com/CTCycle/ParaGraph-LLM-workflow/actions/workflows/ci.yml)
+[![CI](https://github.com/CTCycle/ParaGraph-LLM-workflow/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/CTCycle/ParaGraph-LLM-workflow/actions/workflows/ci.yml?query=branch%3Adevelop)
 
 ParaGraph is a local application for planning, running, and observing LLM workflows in a visual way.
 
@@ -158,7 +158,7 @@ For more detailed help, use the dedicated docs:
 
 If you want a broader map of the documentation, start here:
 
-- [Project Overview](assets/docs/PROJECT_OVERVIEW.md)
+- [Project Overview](assets/docs/project_index.md)
 
 ## Troubleshooting
 
