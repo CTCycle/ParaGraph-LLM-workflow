@@ -393,6 +393,7 @@ class ProviderService(
         structured_output: bool,
         requires_image: bool,
         use_reasoning: bool,
+        require_access_key: bool = True,
         session_name: str = DEFAULT_SESSION_NAME,
     ) -> None:
         normalized_provider = _normalize_provider(provider)
@@ -400,13 +401,18 @@ class ProviderService(
             normalized_provider, structured_output=structured_output
         )
 
-        if normalized_provider in {"openai", "gemini", "claude", "deepseek"}:
+        if require_access_key and normalized_provider in {
+            "openai",
+            "gemini",
+            "claude",
+            "deepseek",
+        }:
             access_key = self._get_access_key(normalized_provider, session_name)
             if access_key is None or not access_key.api_key:
                 raise ValueError(
                     f"Provider '{normalized_provider}' requires an access key in Configurations"
                 )
-        elif normalized_provider == "huggingface":
+        elif require_access_key and normalized_provider == "huggingface":
             if requires_image:
                 raise ValueError(
                     "Provider 'huggingface' does not support image input in the current local runtime path"
@@ -418,6 +424,11 @@ class ProviderService(
                     raise ValueError(
                         "Provider 'huggingface' requires an access key in Configurations for remote models"
                     )
+
+        if normalized_provider == "huggingface" and requires_image:
+            raise ValueError(
+                "Provider 'huggingface' does not support image input in the current local runtime path"
+            )
 
         metadata = self.get_model_metadata(normalized_provider, model, session_name)
         if requires_image and not metadata.supports_image:
