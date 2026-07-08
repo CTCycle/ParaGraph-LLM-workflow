@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from server.common import path as common_path
 from server.domain.workflow_templates import (
     WorkflowTemplateListResponse,
@@ -10,7 +12,6 @@ from server.services.workflow.nodes import node_registry
 
 
 TEMPLATE_ROOT = common_path.RESOURCES_ROOT / "workflow_templates"
-
 
 ###############################################################################
 class WorkflowTemplateService:
@@ -42,7 +43,10 @@ class WorkflowTemplateService:
 
     # -------------------------------------------------------------------------
     def _validate_compilation(self, template: WorkflowTemplateManifest) -> None:
-        result = compiler_service.compile(template.definition)
+        result = compiler_service.compile(
+            template.definition,
+            require_access_keys=False,
+        )
         if result.valid:
             return
         if not result.diagnostics:

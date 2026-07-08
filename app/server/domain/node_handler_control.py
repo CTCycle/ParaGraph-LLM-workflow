@@ -4,7 +4,6 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-
 ###############################################################################
 class ControlParameters(BaseModel):
     label: str = ""

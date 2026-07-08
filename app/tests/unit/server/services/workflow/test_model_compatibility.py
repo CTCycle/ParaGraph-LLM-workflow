@@ -6,7 +6,6 @@ import server.services.workflow.provider.service as provider_service_module
 from server.services.llm.providers import OllamaClient
 from server.services.workflow.provider import ProviderService
 
-
 ###############################################################################
 def test_ollama_chat_uses_provider_abstraction(monkeypatch) -> None:
     service = ProviderService()
@@ -51,7 +50,6 @@ def test_ollama_chat_uses_provider_abstraction(monkeypatch) -> None:
     assert captured["kwargs"] == {"base_url": "http://127.0.0.1:11434"}
     assert captured["model"] == "llama3.2"
 
-
 ###############################################################################
 def test_validate_model_request_accepts_openai_gemini_and_claude(monkeypatch) -> None:
     service = ProviderService()
@@ -79,12 +77,11 @@ def test_validate_model_request_accepts_openai_gemini_and_claude(monkeypatch) ->
     )
     service.validate_model_request(
         provider="claude",
-        model="claude-sonnet-4-20250514",
+        model="claude-sonnet-4-6",
         structured_output=False,
         requires_image=False,
         use_reasoning=False,
     )
-
 
 ###############################################################################
 def test_validate_model_request_rejects_huggingface_image_input() -> None:
@@ -102,7 +99,6 @@ def test_validate_model_request_rejects_huggingface_image_input() -> None:
         assert "does not support image input" in str(exc)
     else:
         raise AssertionError("Expected ValueError")
-
 
 ###############################################################################
 def test_validate_model_request_allows_huggingface_structured_output(
@@ -126,7 +122,6 @@ def test_validate_model_request_allows_huggingface_structured_output(
         use_reasoning=False,
     )
 
-
 ###############################################################################
 def test_claude_embeddings_are_rejected() -> None:
     service = ProviderService()
@@ -137,7 +132,6 @@ def test_claude_embeddings_are_rejected() -> None:
         assert "does not support embeddings" in str(exc)
     else:
         raise AssertionError("Expected ValueError")
-
 
 ###############################################################################
 def test_ollama_client_chat_uses_chat_endpoint_only(monkeypatch) -> None:

@@ -4,7 +4,6 @@ import pytest
 
 from server.services.workflow import node_registry
 
-
 ###############################################################################
 def test_prompt_template_replaces_single_brace_variables() -> None:
     payload = node_registry.execute(
@@ -21,7 +20,6 @@ def test_prompt_template_replaces_single_brace_variables() -> None:
 
     assert payload["text"] == "Hello Alice from Rome."
 
-
 ###############################################################################
 def test_prompt_template_fails_when_placeholder_is_missing() -> None:
     with pytest.raises(ValueError, match="missing variable values"):
@@ -32,7 +30,6 @@ def test_prompt_template_fails_when_placeholder_is_missing() -> None:
             {"variables": {"known": "ok"}},
         )
 
-
 ###############################################################################
 def test_prompt_template_fails_when_duplicate_variable_is_connected() -> None:
     with pytest.raises(ValueError, match="duplicate variable key"):
@@ -42,7 +39,6 @@ def test_prompt_template_fails_when_duplicate_variable_is_connected() -> None:
             {"template": "Name={name}"},
             {"variables": [{"name": "Alice"}, {"name": "Bob"}]},
         )
-
 
 ###############################################################################
 def test_prompt_template_merges_multiple_input_maps() -> None:

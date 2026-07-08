@@ -3,7 +3,7 @@
 [![Python](https://img.shields.io/badge/Python-%3E%3D3.14-blue)](https://www.python.org/)
 [![Node.js](https://img.shields.io/badge/Node.js-22.12.0-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![CI](https://github.com/CTCycle/ParaGraph-LLM-workflow/actions/workflows/ci.yml/badge.svg)](https://github.com/CTCycle/ParaGraph-LLM-workflow/actions/workflows/ci.yml)
+[![CI](https://github.com/CTCycle/ParaGraph-LLM-workflow/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/CTCycle/ParaGraph-LLM-workflow/actions/workflows/ci.yml?query=branch%3Adevelop)
 
 ParaGraph is a local application for planning, running, and observing LLM workflows in a visual way.
 
@@ -158,7 +158,7 @@ For more detailed help, use the dedicated docs:
 
 If you want a broader map of the documentation, start here:
 
-- [Project Overview](assets/docs/PROJECT_OVERVIEW.md)
+- [Project Overview](assets/docs/project_index.md)
 
 ## Troubleshooting
 
@@ -189,6 +189,10 @@ That includes things like:
 ## Packaging
 
 ParaGraph can also be packaged as a Windows desktop application through the Tauri build flow.
+
+The `app/src-tauri` directory is versioned as desktop source and build metadata. Keep `Cargo.toml`, `Cargo.lock`, `build.rs`, `tauri.conf.json`, `src/`, `capabilities/`, and `icons/` in Git.
+
+Generated desktop outputs are not committed. Ignore `app/src-tauri/target`, `app/src-tauri/bundle`, `app/src-tauri/gen`, and `release/windows`, and publish Windows `.exe` and installer outputs as release artifacts instead of tracking them in the repository.
 
 If you need that path, use the deployment notes in the runtime documentation:
 

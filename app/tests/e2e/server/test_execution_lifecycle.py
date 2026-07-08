@@ -9,7 +9,6 @@ from server.domain.node_catalog import ProviderModelDefinition
 from server.services.runtime.events import execution_event_service
 from server.services.workflow.provider import provider_service
 
-
 ###############################################################################
 def _build_definition() -> dict[str, object]:
     return {
@@ -80,7 +79,6 @@ def _build_definition() -> dict[str, object]:
         "metadata": {},
     }
 
-
 ###############################################################################
 def _poll_run_until_terminal(
     client: TestClient, run_id: str, timeout_s: float = 3.0
@@ -100,7 +98,6 @@ def _poll_run_until_terminal(
     raise AssertionError(
         f"Run {run_id} did not reach terminal state within {timeout_s}s"
     )
-
 
 ###############################################################################
 def test_execution_lifecycle_end_to_end_with_websocket_replay(

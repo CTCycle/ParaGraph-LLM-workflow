@@ -6,7 +6,6 @@ import pytest
 
 from server.services.workflow import node_registry
 
-
 ###############################################################################
 def test_fixed_size_chunks_splits_deferred_documents_by_words(tmp_path: Path) -> None:
     source_dir = tmp_path / "docs"
@@ -38,7 +37,6 @@ def test_fixed_size_chunks_splits_deferred_documents_by_words(tmp_path: Path) ->
         for chunk in payload["chunks"]
     )
 
-
 ###############################################################################
 def test_fixed_size_chunks_supports_chained_chunk_fragmentation_by_characters() -> None:
     payload = node_registry.execute(
@@ -67,7 +65,6 @@ def test_fixed_size_chunks_supports_chained_chunk_fragmentation_by_characters() 
         for chunk in payload["chunks"]
     )
 
-
 ###############################################################################
 def test_fixed_size_chunks_rejects_invalid_overlap() -> None:
     with pytest.raises(
@@ -92,7 +89,6 @@ def test_fixed_size_chunks_rejects_invalid_overlap() -> None:
             },
         )
 
-
 ###############################################################################
 def test_fixed_size_chunks_requires_non_empty_input() -> None:
     with pytest.raises(
@@ -105,7 +101,6 @@ def test_fixed_size_chunks_requires_non_empty_input() -> None:
             {},
         )
 
-
 ###############################################################################
 def test_fixed_size_chunks_supports_direct_text_input() -> None:
     payload = node_registry.execute(
@@ -116,7 +111,6 @@ def test_fixed_size_chunks_supports_direct_text_input() -> None:
     )
 
     assert [chunk["text"] for chunk in payload["chunks"]] == ["alpha beta", "gamma"]
-
 
 ###############################################################################
 def test_regex_split_chunks_splits_text_by_pattern() -> None:
@@ -129,7 +123,6 @@ def test_regex_split_chunks_splits_text_by_pattern() -> None:
 
     assert [chunk["text"] for chunk in payload["chunks"]] == ["alpha", "beta", "gamma"]
 
-
 ###############################################################################
 def test_regex_split_chunks_rejects_invalid_regex() -> None:
     with pytest.raises(
@@ -141,7 +134,6 @@ def test_regex_split_chunks_rejects_invalid_regex() -> None:
             {"regex": "["},
             {"text": "alpha beta"},
         )
-
 
 ###############################################################################
 def test_regex_split_chunks_requires_non_empty_input() -> None:

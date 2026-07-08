@@ -57,11 +57,13 @@
           "openai",
           "gemini",
           "huggingface",
-          "ollama"
+          "ollama",
+          "lmstudio",
+          "llama"
         ]
       },
       "ui_control": "select",
-      "description": "Embedding provider. Ollama with nomic-embed-text is the local default; OpenAI and Gemini embedding models are available when configured."
+      "description": "Embedding provider. Ollama with nomic-embed-text is the local default; OpenAI-compatible local providers and cloud embedding models are available when configured."
     },
     {
       "name": "model_name",

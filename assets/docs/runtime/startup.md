@@ -1,5 +1,5 @@
 # Startup
-Last updated: 2026-06-03
+Last updated: 2026-06-30
 
 ## Local Launcher
 CMD:
@@ -60,6 +60,7 @@ Copy-Item settings\.env.local.tauri.example settings\.env -Force
 ```
 
 ## Startup Notes
+
 - The local launcher is the recommended Windows entry point.
 - Desktop packaging expects the environment file to be prepared before the build starts.
 - First-run startup can be slow because of dependency synchronization, runtime hydration, and frontend build work.

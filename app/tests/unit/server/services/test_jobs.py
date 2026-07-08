@@ -7,20 +7,31 @@ from typing import Any
 from server.services.jobs import job_manager
 
 ###############################################################################
+class RecordingJobRunner:
+    def __init__(self) -> None:
+        self.observed: dict[str, str] = {}
+
+    def __call__(self, *, job_id: str) -> dict[str, Any]:
+        self.observed["job_id"] = job_id
+        job_manager.update_result(job_id, {"stage": "running"})
+        return {"success": True}
+
+###############################################################################
+def cancellable_runner(*, job_id: str) -> dict[str, Any]:
+    while not job_manager.should_stop(job_id):
+        time.sleep(0.01)
+    return {"success": False}
+
+###############################################################################
 def test_start_job_injects_job_id_and_merges_results(
     wait_for_job: Callable[[str, float], dict[str, object]],
 ) -> None:
-    observed: dict[str, str] = {}
-
-    def runner(*, job_id: str) -> dict[str, Any]:
-        observed["job_id"] = job_id
-        job_manager.update_result(job_id, {"stage": "running"})
-        return {"success": True}
+    runner = RecordingJobRunner()
 
     job_id = job_manager.start_job(job_type="unit", runner=runner)
     payload = wait_for_job(job_id)
 
-    assert observed["job_id"] == job_id
+    assert runner.observed["job_id"] == job_id
     assert payload["status"] == "completed"
     assert payload["progress"] == 100.0
     assert payload["result"] == {"stage": "running", "success": True}
@@ -29,12 +40,7 @@ def test_start_job_injects_job_id_and_merges_results(
 def test_cancel_job_marks_running_job_cancelled(
     wait_for_job: Callable[[str, float], dict[str, object]],
 ) -> None:
-    def runner(*, job_id: str) -> dict[str, Any]:
-        while not job_manager.should_stop(job_id):
-            time.sleep(0.01)
-        return {"success": False}
-
-    job_id = job_manager.start_job(job_type="unit", runner=runner)
+    job_id = job_manager.start_job(job_type="unit", runner=cancellable_runner)
 
     assert job_manager.cancel_job(job_id) is True
 

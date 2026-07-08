@@ -100,3 +100,32 @@ class OllamaStatusResponse(BaseModel):
     message: str
     base_url: str
     model_count: int = 0
+
+###############################################################################
+class ProviderPingRequest(BaseModel):
+    provider: str = Field(min_length=2, max_length=64)
+    base_url: str | None = Field(default=None, max_length=512)
+    api_key: str | None = Field(default=None, max_length=1024)
+
+    # -------------------------------------------------------------------------
+    @field_validator("provider", mode="before")
+    @classmethod
+    def normalize_provider(cls, value: Any) -> str:
+        return str(value or "").strip().lower()
+
+    # -------------------------------------------------------------------------
+    @field_validator("base_url", "api_key", mode="before")
+    @classmethod
+    def normalize_optional_text(cls, value: Any) -> str | None:
+        if value is None:
+            return None
+        text = str(value).strip()
+        return text or None
+
+###############################################################################
+class ProviderStatusResponse(BaseModel):
+    ok: bool
+    provider: str
+    message: str
+    base_url: str
+    model_count: int = 0

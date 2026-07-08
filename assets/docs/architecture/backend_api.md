@@ -1,5 +1,5 @@
 # Backend API
-Last updated: 2026-06-02
+Last updated: 2026-06-18
 
 ## Root
 - `GET /`
@@ -46,6 +46,7 @@ Last updated: 2026-06-02
 - `GET /configurations/profiles/{profile_name}`
 - `PUT /configurations/profiles/{profile_name}`
 - `POST /configurations/ollama/ping`
+- `POST /configurations/providers/ping`
 
 ## Boundary Rules
 - HTTP and WebSocket handlers live under `app/server/api`.

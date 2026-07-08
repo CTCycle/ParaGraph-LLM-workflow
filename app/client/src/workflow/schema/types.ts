@@ -505,6 +505,14 @@ export interface OllamaStatusResponse {
     model_count: number
 }
 
+export interface ProviderStatusResponse {
+    ok: boolean
+    provider: string
+    message: string
+    base_url: string
+    model_count: number
+}
+
 export interface DatabaseConnectionCheckResponse {
     ok: boolean
     message: string

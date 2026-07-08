@@ -19,7 +19,6 @@ from server.services.workflow.vector_stores.base import (
     logger,
 )
 
-
 ###############################################################################
 class PineconeVectorStoreAdapter(VectorStoreAdapter):
     backend = "pinecone"

@@ -13,7 +13,6 @@ from server.domain.workflow_model import (
     WorkflowListItem,
 )
 
-
 ###############################################################################
 class WorkflowRepository:
 

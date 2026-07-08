@@ -78,5 +78,21 @@ describe('ModelsPage download transitions', () => {
         expect(getHuggingFaceDownloadStatusMock).toHaveBeenCalledWith('job-1')
         expect(fetchHuggingFaceModelsMock).toHaveBeenCalledTimes(2)
     })
+
+    it('shows provider errors without also showing empty-result copy', async () => {
+        const fetchOllamaLibraryModelsMock = vi.mocked(workflowApi.fetchOllamaLibraryModels)
+        const fetchHuggingFaceModelsMock = vi.mocked(workflowApi.fetchHuggingFaceModels)
+
+        fetchOllamaLibraryModelsMock.mockRejectedValue(new Error('Unable to reach Ollama library'))
+        fetchHuggingFaceModelsMock.mockRejectedValue(new Error('Unable to reach Hugging Face'))
+
+        render(<ModelsPage />)
+
+        await screen.findByText('Unable to reach Ollama library')
+        await screen.findByText('Unable to reach Hugging Face')
+
+        expect(screen.queryByText('No Ollama models match the active filters.')).not.toBeInTheDocument()
+        expect(screen.queryByText('No models match the current query.')).not.toBeInTheDocument()
+    })
 })
 

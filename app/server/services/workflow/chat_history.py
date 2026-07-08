@@ -15,7 +15,6 @@ from server.repositories.workflow import (
     in_memory_chat_history_repository,
 )
 
-
 ###############################################################################
 class ChatHistoryRepository(Protocol):
 
@@ -44,7 +43,6 @@ class ChatHistoryRepository(Protocol):
         node_id: str,
         messages: list[ChatHistoryMessage],
     ) -> None: ...
-
 
 ###############################################################################
 class ChatHistoryService:

@@ -1,5 +1,5 @@
 # Configuration
-Last updated: 2026-06-05
+Last updated: 2026-06-18
 
 ## Shared Configuration Sources
 - Shared environment keys are loaded from `settings/.env`.
@@ -20,6 +20,12 @@ Last updated: 2026-06-05
   - `settings/configurations.json` for non-database runtime settings such as `global.seed` and `jobs.polling_interval`.
 - The default database mode is embedded SQLite through `DATABASE_EMBEDDED=true`.
 - PostgreSQL is optional when embedded mode is disabled.
+- Provider credentials and endpoint overrides are persisted as configuration access key records.
+- Ollama settings remain first-class session fields; DeepSeek, LM Studio, and llama.cpp use access key records with `provider`, optional `api_key`, optional `base_url`, and local default model metadata.
+- Default provider endpoints:
+  - DeepSeek: `https://api.deepseek.com`
+  - LM Studio: `http://localhost:1234/v1`
+  - llama.cpp: `http://localhost:8080/v1`
 
 ## Cross-Runtime Communication
 - Frontend to backend communication targets the relative API base path `/api`.

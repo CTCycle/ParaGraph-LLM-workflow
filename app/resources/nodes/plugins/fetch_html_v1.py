@@ -11,7 +11,6 @@ from server.services.workflow.node_handlers.common import (
     coerce_text,
 )
 
-
 ###############################################################################
 def _as_object(value: Any, *, label: str) -> dict[str, Any]:
     if value is None:
@@ -20,11 +19,9 @@ def _as_object(value: Any, *, label: str) -> dict[str, Any]:
         raise ValueError(f"{label} must be a JSON object")
     return value
 
-
 ###############################################################################
 def _normalize_headers(headers: dict[str, Any]) -> dict[str, str]:
     return {str(key): coerce_text(value) for key, value in headers.items()}
-
 
 ###############################################################################
 def _extract_text(html: str, *, strip_scripts_and_styles: bool) -> str:
@@ -36,7 +33,6 @@ def _extract_text(html: str, *, strip_scripts_and_styles: bool) -> str:
         part.strip() for part in soup.get_text("\n").splitlines() if part.strip()
     )
 
-
 ###############################################################################
 def _extract_title(html: str) -> str | None:
     soup = BeautifulSoup(html, "html.parser")
@@ -44,7 +40,6 @@ def _extract_title(html: str) -> str | None:
         return None
     title = coerce_text(soup.title.get_text()).strip()
     return title or None
-
 
 ###############################################################################
 def execute(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:

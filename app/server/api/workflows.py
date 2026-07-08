@@ -17,18 +17,15 @@ from server.services.workflow import (
 
 router = APIRouter(prefix="/workflows", tags=["workflows"])
 
-
 ###############################################################################
 @router.get("", response_model=WorkflowListResponse)
 def list_workflows() -> WorkflowListResponse:
     return workflow_service.list_workflows()
 
-
 ###############################################################################
 @router.post("", response_model=WorkflowDocument, status_code=status.HTTP_201_CREATED)
 def create_workflow(request: CreateWorkflowRequest) -> WorkflowDocument:
     return workflow_service.create_workflow(request)
-
 
 ###############################################################################
 @router.get("/templates", response_model=WorkflowTemplateListResponse)
@@ -40,7 +37,6 @@ def list_workflow_templates() -> WorkflowTemplateListResponse:
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)
         ) from exc
 
-
 ###############################################################################
 @router.get("/{workflow_id}", response_model=WorkflowDocument)
 def get_workflow(workflow_id: str) -> WorkflowDocument:
@@ -51,7 +47,6 @@ def get_workflow(workflow_id: str) -> WorkflowDocument:
             detail=f"Workflow not found: {workflow_id}",
         )
     return payload
-
 
 ###############################################################################
 @router.put("/{workflow_id}", response_model=WorkflowDocument)

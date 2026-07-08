@@ -3,17 +3,17 @@ from __future__ import annotations
 import shutil
 from typing import Any
 
+from bs4 import BeautifulSoup
+
+from server.common.utils.values import coerce_text
 from server.domain.node_handler_rag import RagParameters
 from server.services.workflow.node_handlers.base import NodeHandler
-from server.services.workflow.node_handlers.common import coerce_text, strip_html
-
 
 ###############################################################################
 def _items(value: Any) -> list[Any]:
     if value is None:
         return []
     return value if isinstance(value, list) else [value]
-
 
 ###############################################################################
 def _text(item: Any) -> str:
@@ -23,14 +23,19 @@ def _text(item: Any) -> str:
         )
     return coerce_text(item)
 
+###############################################################################
+def _strip_html(text: str) -> str:
+    soup = BeautifulSoup(text, "html.parser")
+    for tag in soup(["script", "style", "nav", "header", "footer", "aside"]):
+        tag.decompose()
+    return " ".join(soup.get_text(" ").split())
 
 ###############################################################################
 def _html_to_text_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
 ) -> dict[str, Any]:
     _ = parameters
-    return {"result": strip_html(_text(inputs.get("html", inputs.get("text", ""))))}
-
+    return {"result": _strip_html(_text(inputs.get("html", inputs.get("text", ""))))}
 
 ###############################################################################
 def _ocr_text_extract_executor(
@@ -45,7 +50,6 @@ def _ocr_text_extract_executor(
             }
         }
     return {"result": ""}
-
 
 ###############################################################################
 def _chunk_enricher_executor(
@@ -69,7 +73,6 @@ def _chunk_enricher_executor(
         enriched.append(record)
     return {"chunks": enriched}
 
-
 ###############################################################################
 def _context_builder_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
@@ -82,7 +85,6 @@ def _context_builder_executor(
                 break
             words.append(word)
     return {"result": " ".join(words)}
-
 
 ###############################################################################
 def _citation_formatter_executor(
@@ -99,7 +101,6 @@ def _citation_formatter_executor(
             }
         )
     return {"result": citations}
-
 
 ###############################################################################
 def _grounding_checker_executor(

@@ -22,7 +22,6 @@ _DELIMITER_PRESETS: dict[str, str] = {
     "html_paragraph": "</p>",
 }
 
-
 ###############################################################################
 def _iter_fixed_size_segments(
     text: str,
@@ -62,7 +61,6 @@ def _iter_fixed_size_segments(
         if end >= token_count:
             break
         start += step
-
 
 ###############################################################################
 def _build_chunk_records(
@@ -108,14 +106,12 @@ def _build_chunk_records(
         )
     return chunks
 
-
 ###############################################################################
 def _decode_escaped_text(value: str) -> str:
     try:
         return bytes(value, "utf-8").decode("unicode_escape")
     except UnicodeDecodeError:
         return value
-
 
 ###############################################################################
 def _resolve_delimiter(raw_delimiter: str) -> str:
@@ -127,7 +123,6 @@ def _resolve_delimiter(raw_delimiter: str) -> str:
     if not decoded:
         raise ValueError("delimiter must resolve to a non-empty value")
     return decoded
-
 
 ###############################################################################
 def _iter_split_by_delimiter(
@@ -146,7 +141,6 @@ def _iter_split_by_delimiter(
         yield text[start:end]
         start = index + len(delimiter)
 
-
 ###############################################################################
 def _iter_split_by_regex(text: str, pattern: str) -> Iterator[str]:
     try:
@@ -159,7 +153,6 @@ def _iter_split_by_regex(text: str, pattern: str) -> Iterator[str]:
         cleaned = fragment.strip()
         if cleaned:
             yield cleaned
-
 
 ###############################################################################
 def _apply_overflow(
@@ -192,11 +185,9 @@ def _apply_overflow(
     ):
         yield part
 
-
 ###############################################################################
 def _is_heading_line(line: str) -> bool:
     return bool(_HEADING_PATTERN.match(line))
-
 
 ###############################################################################
 def _split_heading_blocks(text: str) -> list[tuple[str, str, list[str]]]:
@@ -236,7 +227,6 @@ def _split_heading_blocks(text: str) -> list[tuple[str, str, list[str]]]:
 
     return blocks if found_heading else []
 
-
 ###############################################################################
 def _iter_structure_segments(
     text: str, strategy: str
@@ -270,7 +260,6 @@ def _iter_structure_segments(
         cleaned = paragraph.strip()
         if cleaned:
             yield cleaned
-
 
 ###############################################################################
 def _iter_recursive_splits(
@@ -335,7 +324,6 @@ def _iter_recursive_splits(
             measure_text_size=measure_text_size,
             separator_index=separator_index + 1,
         )
-
 
 ###############################################################################
 def _iter_sentence_windows(

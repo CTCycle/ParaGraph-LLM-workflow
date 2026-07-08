@@ -5,7 +5,6 @@ from server.repositories.database.postgres import PostgresRepository
 from server.repositories.database.sqlite import SQLiteRepository
 from server.repositories.database.utils import normalize_postgres_engine
 
-
 ###############################################################################
 class DatabaseRepositoryFactory:
     _SUPPORTED_POSTGRES_ENGINES = {

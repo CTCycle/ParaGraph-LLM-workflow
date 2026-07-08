@@ -7,7 +7,6 @@ import torch
 
 from server.services.workflow.node_handlers import core as core_module
 
-
 ###############################################################################
 def test_huggingface_embedding_uses_eos_token_when_tokenizer_has_no_pad_token(
     monkeypatch,
@@ -83,7 +82,6 @@ def test_huggingface_embedding_uses_eos_token_when_tokenizer_has_no_pad_token(
     assert fake_tokenizer.pad_token == fake_tokenizer.eos_token
     assert len(vector) == 2
     assert sum(item * item for item in vector) == pytest.approx(1.0, abs=1e-6)
-
 
 ###############################################################################
 def test_huggingface_embedding_can_use_explicit_tokenizer_repo(monkeypatch) -> None:

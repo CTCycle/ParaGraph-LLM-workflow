@@ -19,15 +19,9 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
+from server.common.utils.values import coerce_int
 from server.domain.node_handler_ingestion import normalize_database_engine
 from server.domain.workflow_payloads import DatabaseConnectionHandle
-
-###############################################################################
-def _coerce_int(value: Any, default: int) -> int:
-    try:
-        return int(float(value))
-    except (TypeError, ValueError):
-        return default
 
 ###############################################################################
 def _resolve_local_path(path_value: str) -> Path:
@@ -73,7 +67,7 @@ def build_database_url(payload: dict[str, Any]) -> tuple[str | URL, dict[str, An
             query=query,
         ),
         {
-            "connect_timeout": _coerce_int(
+            "connect_timeout": coerce_int(
                 payload.get("connect_timeout_s", options.get("connect_timeout_s")), 5
             )
         },
