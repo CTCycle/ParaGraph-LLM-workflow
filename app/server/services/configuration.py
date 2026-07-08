@@ -5,6 +5,7 @@ from server.domain.configuration import (
     ConfigurationProfileListResponse,
     MASKED_API_KEY_VALUE,
     OllamaStatusResponse,
+    ProviderStatusResponse,
     is_masked_api_key,
 )
 from server.domain.node_catalog import NodeManifest
@@ -12,7 +13,12 @@ from server.repositories.configuration import (
     ConfigurationRepository,
     configuration_repository,
 )
-from server.services.llm.providers import OllamaClient, OllamaError
+from server.services.llm.providers import (
+    LLMError,
+    OllamaClient,
+    OllamaError,
+    OpenAICompatibleLocalClient,
+)
 
 ###############################################################################
 class ConfigurationService:
@@ -155,6 +161,71 @@ class ConfigurationService:
                 ok=False,
                 message=f"Ollama unreachable: {exc}",
                 base_url=resolved_base_url,
+                model_count=0,
+            )
+
+    # -------------------------------------------------------------------------
+    def ping_provider(
+        self,
+        *,
+        provider: str,
+        base_url: str | None,
+        api_key: str | None,
+        session_name: str | None = None,
+    ) -> ProviderStatusResponse:
+        normalized_provider = provider.strip().lower()
+        access_key = None
+        for item in self.load_configuration(session_name=session_name).access_keys:
+            if item.provider == normalized_provider:
+                access_key = item
+                break
+
+        resolved_base_url = base_url or (access_key.base_url if access_key else None)
+        resolved_api_key = api_key or (access_key.api_key if access_key else None)
+
+        try:
+            if normalized_provider == "ollama":
+                status = self.ping_ollama(
+                    base_url=resolved_base_url, session_name=session_name
+                )
+                return ProviderStatusResponse(
+                    ok=status.ok,
+                    provider=normalized_provider,
+                    message=status.message,
+                    base_url=status.base_url,
+                    model_count=status.model_count,
+                )
+
+            if normalized_provider not in {"lmstudio", "llama"}:
+                return ProviderStatusResponse(
+                    ok=False,
+                    provider=normalized_provider,
+                    message=f"Provider '{normalized_provider}' does not support status checks.",
+                    base_url=resolved_base_url or "",
+                    model_count=0,
+                )
+
+            client = OpenAICompatibleLocalClient(
+                provider=normalized_provider,
+                base_url=resolved_base_url,
+                api_key=resolved_api_key,
+            )
+            models = client.list_models()
+            count = len(models)
+            suffix = "" if count == 1 else "s"
+            return ProviderStatusResponse(
+                ok=True,
+                provider=normalized_provider,
+                message=f"{normalized_provider} reachable ({count} model{suffix} discovered).",
+                base_url=client.base_url,
+                model_count=count,
+            )
+        except (ValueError, LLMError, OllamaError) as exc:
+            return ProviderStatusResponse(
+                ok=False,
+                provider=normalized_provider,
+                message=f"{normalized_provider} unreachable: {exc}",
+                base_url=resolved_base_url or "",
                 model_count=0,
             )
 

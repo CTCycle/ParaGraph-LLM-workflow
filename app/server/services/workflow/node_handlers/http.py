@@ -21,7 +21,6 @@ from server.services.workflow.node_handlers.base import NodeHandler
 
 SENSITIVE_HEADERS = {"authorization", "cookie", "set-cookie", "x-api-key"}
 
-
 ###############################################################################
 def _resolve_http_template_values(value: Any, variables: dict[str, Any]) -> Any:
     if isinstance(value, str):
@@ -36,7 +35,6 @@ def _resolve_http_template_values(value: Any, variables: dict[str, Any]) -> Any:
     if isinstance(value, list):
         return [_resolve_http_template_values(item, variables) for item in value]
     return value
-
 
 ###############################################################################
 def _validate_http_url(url: str) -> None:
@@ -61,13 +59,11 @@ def _validate_http_url(url: str) -> None:
                 "HTTP node blocked private, localhost, link-local, multicast, or unspecified target"
             )
 
-
 ###############################################################################
 def _build_query_params(
     parameters: dict[str, Any], inputs: dict[str, Any]
 ) -> dict[str, Any]:
     return _resolve_http_template_values(parameters.get("query", {}), inputs)
-
 
 ###############################################################################
 def _build_headers(
@@ -80,12 +76,10 @@ def _build_headers(
         ).items()
     }
 
-
 ###############################################################################
 def _build_json_body(parameters: dict[str, Any], inputs: dict[str, Any]) -> Any:
     body = parameters.get("json_body", inputs.get("json", inputs.get("body")))
     return _resolve_http_template_values(body, inputs)
-
 
 ###############################################################################
 def _parse_http_response(response: httpx.Response) -> dict[str, Any]:
@@ -105,7 +99,6 @@ def _parse_http_response(response: httpx.Response) -> dict[str, Any]:
         "ok": response.is_success,
         "error": None if response.is_success else response.text,
     }
-
 
 ###############################################################################
 def _execute_http_request(
@@ -127,14 +120,12 @@ def _execute_http_request(
         )
     return _parse_http_response(response)
 
-
 ###############################################################################
 def _http_get_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
 ) -> dict[str, Any]:
     HttpGetParameters.model_validate(parameters)
     return _execute_http_request("GET", parameters, inputs)
-
 
 ###############################################################################
 def _http_post_executor(
@@ -143,7 +134,6 @@ def _http_post_executor(
     HttpPostParameters.model_validate(parameters)
     return _execute_http_request("POST", parameters, inputs)
 
-
 ###############################################################################
 def _http_put_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
@@ -151,14 +141,12 @@ def _http_put_executor(
     HttpPutParameters.model_validate(parameters)
     return _execute_http_request("PUT", parameters, inputs)
 
-
 ###############################################################################
 def _http_patch_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
 ) -> dict[str, Any]:
     HttpPatchParameters.model_validate(parameters)
     return _execute_http_request("PATCH", parameters, inputs)
-
 
 ###############################################################################
 def _http_delete_executor(

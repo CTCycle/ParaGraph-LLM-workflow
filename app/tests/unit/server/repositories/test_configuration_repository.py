@@ -13,7 +13,6 @@ from server.domain.settings import (
 from server.repositories.configuration import ConfigurationRepository
 from server.repositories.database.factory import DatabaseRepositoryFactory
 
-
 ###############################################################################
 def _database_settings(*, embedded: bool, engine: str | None) -> DatabaseSettings:
     return DatabaseSettings(
@@ -30,7 +29,6 @@ def _database_settings(*, embedded: bool, engine: str | None) -> DatabaseSetting
         insert_batch_size=1000,
     )
 
-
 ###############################################################################
 def _server_settings(database: DatabaseSettings) -> ServerSettings:
     return ServerSettings(
@@ -38,7 +36,6 @@ def _server_settings(database: DatabaseSettings) -> ServerSettings:
         global_settings=GlobalSettings(seed=42),
         jobs=JobsSettings(polling_interval=1.0),
     )
-
 
 ###############################################################################
 def test_configuration_repository_selects_sqlite_from_runtime_settings(
@@ -70,7 +67,6 @@ def test_configuration_repository_selects_sqlite_from_runtime_settings(
     assert factory.seen[0].embedded_database is True
     assert factory.seen[0].engine is None
 
-
 ###############################################################################
 def test_configuration_repository_selects_postgres_from_runtime_settings(
     monkeypatch,
@@ -101,7 +97,6 @@ def test_configuration_repository_selects_postgres_from_runtime_settings(
     assert factory.seen[0].embedded_database is False
     assert factory.seen[0].engine == "postgres"
 
-
 ###############################################################################
 def test_database_repository_factory_rejects_invalid_engine() -> None:
     settings = _database_settings(embedded=False, engine="mysql")
@@ -109,7 +104,6 @@ def test_database_repository_factory_rejects_invalid_engine() -> None:
 
     with pytest.raises(ValueError, match="Unsupported database engine"):
         _ = factory.build(settings)
-
 
 ###############################################################################
 def test_configuration_repository_reads_current_runtime_settings_each_call(

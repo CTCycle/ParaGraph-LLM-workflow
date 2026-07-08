@@ -28,6 +28,7 @@ from server.services.llm.providers import (
     LLMError,
     OllamaClient,
     OllamaError,
+    OpenAICompatibleLocalClient,
     select_llm_provider,
 )
 from server.services.workflow.provider.constants import (
@@ -38,6 +39,7 @@ from server.services.workflow.provider.helpers import (
     CURATED_MODELS,
     PROVIDER_CAPABILITIES,
     _infer_huggingface_metadata,
+    _infer_openai_compatible_local_metadata,
     _infer_ollama_metadata,
     _model_basename,
     _normalize_provider,
@@ -53,7 +55,6 @@ from server.services.workflow.provider.ollama import (
     OllamaLibraryCatalogMixin,
     OllamaLibraryService,
 )
-
 
 ###############################################################################
 class ProviderService(
@@ -99,7 +100,16 @@ class ProviderService(
 
     # -------------------------------------------------------------------------
     def list_catalog(self) -> ProviderCatalogResponse:
-        ordered = ["ollama", "openai", "gemini", "claude", "huggingface"]
+        ordered = [
+            "ollama",
+            "openai",
+            "gemini",
+            "claude",
+            "deepseek",
+            "huggingface",
+            "lmstudio",
+            "llama",
+        ]
         return ProviderCatalogResponse(
             providers=[
                 ProviderCapability(
@@ -144,11 +154,16 @@ class ProviderService(
         metadata_rows.extend(self._ollama_models(session_name))
         metadata_rows.extend(CURATED_MODELS.get("ollama", ()))
 
-        for provider in ("openai", "gemini", "claude"):
+        for provider in ("openai", "gemini", "claude", "deepseek"):
             metadata_rows.extend(CURATED_MODELS.get(provider, ()))
 
         metadata_rows.extend(CURATED_MODELS.get("huggingface", ()))
         metadata_rows.extend(self._downloaded_huggingface_models())
+        for provider in ("lmstudio", "llama"):
+            metadata_rows.extend(
+                self._openai_compatible_local_models(provider, session_name)
+            )
+            metadata_rows.extend(CURATED_MODELS.get(provider, ()))
 
         deduped: dict[tuple[str, str], ModelMetadata] = {}
         for row in metadata_rows:
@@ -348,12 +363,22 @@ class ProviderService(
                 if item.model == model:
                     return item
 
+        if normalized_provider in {"lmstudio", "llama"}:
+            for item in self._openai_compatible_local_models(
+                normalized_provider, session_name
+            ):
+                if item.model == model:
+                    return item
+
         for item in CURATED_MODELS.get(normalized_provider, ()):  # pragma: no branch
             if item.model == model:
                 return item
 
         if normalized_provider == "huggingface":
             return _infer_huggingface_metadata(model)
+
+        if normalized_provider in {"lmstudio", "llama"}:
+            return _infer_openai_compatible_local_metadata(normalized_provider, model)
 
         raise ValueError(
             f"Unknown model '{model}' for provider '{normalized_provider}'"
@@ -368,6 +393,7 @@ class ProviderService(
         structured_output: bool,
         requires_image: bool,
         use_reasoning: bool,
+        require_access_key: bool = True,
         session_name: str = DEFAULT_SESSION_NAME,
     ) -> None:
         normalized_provider = _normalize_provider(provider)
@@ -375,13 +401,18 @@ class ProviderService(
             normalized_provider, structured_output=structured_output
         )
 
-        if normalized_provider in {"openai", "gemini", "claude"}:
+        if require_access_key and normalized_provider in {
+            "openai",
+            "gemini",
+            "claude",
+            "deepseek",
+        }:
             access_key = self._get_access_key(normalized_provider, session_name)
             if access_key is None or not access_key.api_key:
                 raise ValueError(
                     f"Provider '{normalized_provider}' requires an access key in Configurations"
                 )
-        elif normalized_provider == "huggingface":
+        elif require_access_key and normalized_provider == "huggingface":
             if requires_image:
                 raise ValueError(
                     "Provider 'huggingface' does not support image input in the current local runtime path"
@@ -393,6 +424,11 @@ class ProviderService(
                     raise ValueError(
                         "Provider 'huggingface' requires an access key in Configurations for remote models"
                     )
+
+        if normalized_provider == "huggingface" and requires_image:
+            raise ValueError(
+                "Provider 'huggingface' does not support image input in the current local runtime path"
+            )
 
         metadata = self.get_model_metadata(normalized_provider, model, session_name)
         if requires_image and not metadata.supports_image:
@@ -422,7 +458,11 @@ class ProviderService(
             kwargs["timeout_s"] = timeout_s
         if normalized_provider == "ollama":
             kwargs["base_url"] = self._load_configuration(session_name).ollama.base_url
-        elif normalized_provider in {"openai", "gemini", "claude"}:
+        elif normalized_provider in {"openai", "gemini", "claude", "deepseek"}:
+            access_key = self._get_access_key(normalized_provider, session_name)
+            kwargs["api_key"] = access_key.api_key if access_key else None
+            kwargs["base_url"] = access_key.base_url if access_key else None
+        elif normalized_provider in {"lmstudio", "llama"}:
             access_key = self._get_access_key(normalized_provider, session_name)
             kwargs["api_key"] = access_key.api_key if access_key else None
             kwargs["base_url"] = access_key.base_url if access_key else None
@@ -615,6 +655,49 @@ class ProviderService(
         return [float(item) for item in items[0]["embedding"]]
 
     # -------------------------------------------------------------------------
+    def _openai_compatible_local_models(
+        self, provider: str, session_name: str = DEFAULT_SESSION_NAME
+    ) -> tuple[ModelMetadata, ...]:
+        access_key = self._get_access_key(provider, session_name)
+        base_url = access_key.base_url if access_key else None
+        api_key = access_key.api_key if access_key else None
+        try:
+            names = OpenAICompatibleLocalClient(
+                provider=provider,
+                base_url=base_url,
+                api_key=api_key,
+                timeout_s=2.0,
+            ).list_models()
+        except (ValueError, LLMError):
+            names = []
+
+        default_model = None
+        if access_key and isinstance(access_key.metadata, dict):
+            default_model = access_key.metadata.get("chat_model")
+        if not names and isinstance(default_model, str) and default_model.strip():
+            names = [default_model.strip()]
+        return tuple(
+            _infer_openai_compatible_local_metadata(provider, name) for name in names
+        )
+
+    # -------------------------------------------------------------------------
+    def _openai_compatible_local_embed(
+        self,
+        *,
+        provider: str,
+        model: str,
+        text: str,
+        session_name: str,
+        dimensions: int | None,
+    ) -> list[float]:
+        access_key = self._get_access_key(provider, session_name)
+        return OpenAICompatibleLocalClient(
+            provider=provider,
+            base_url=access_key.base_url if access_key else None,
+            api_key=access_key.api_key if access_key else None,
+        ).embed(model=model, text=text, dimensions=dimensions)
+
+    # -------------------------------------------------------------------------
     def embed_text(
         self,
         *,
@@ -633,6 +716,14 @@ class ProviderService(
                 )
             elif normalized_provider == "openai":
                 vector = self._openai_embed(
+                    model=model,
+                    text=text,
+                    session_name=session_name,
+                    dimensions=dimensions,
+                )
+            elif normalized_provider in {"lmstudio", "llama"}:
+                vector = self._openai_compatible_local_embed(
+                    provider=normalized_provider,
                     model=model,
                     text=text,
                     session_name=session_name,

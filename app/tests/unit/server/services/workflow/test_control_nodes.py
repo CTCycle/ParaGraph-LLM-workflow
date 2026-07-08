@@ -17,7 +17,6 @@ from server.domain.execution import (
 from server.repositories.workflow.execution_run import execution_run_repository
 from server.services.workflow.execution import execution_service
 
-
 ###############################################################################
 def test_if_text_contains_selects_true_and_false_branch() -> None:
     assert (
@@ -29,14 +28,12 @@ def test_if_text_contains_selects_true_and_false_branch() -> None:
         == "false"
     )
 
-
 ###############################################################################
 def test_switch_by_label_emits_selected_branch() -> None:
     assert (
         _switch_by_label_executor({"label": "route"}, {"value": 1})["selected"]
         == "route"
     )
-
 
 ###############################################################################
 def test_map_and_reduce_chunks_apply_operations() -> None:
@@ -45,22 +42,18 @@ def test_map_and_reduce_chunks_apply_operations() -> None:
     ] == ["A"]
     assert _reduce_chunks_executor({}, {"chunks": ["a", "b"]})["result"] == "a\nb"
 
-
 ###############################################################################
 def test_cache_node_returns_cached_deterministic_output() -> None:
     assert "cache_key" in _cache_node_executor({}, {"value": "x"})
-
 
 ###############################################################################
 def test_human_review_gate_pauses_run_payload() -> None:
     assert _human_review_gate_executor({}, {"value": "x"})["paused"] is True
 
-
 ###############################################################################
 def test_trace_debug_viewer_redacts_sensitive_payload_fields() -> None:
     result = _trace_debug_viewer_executor({}, {"api_key": "secret"})
     assert result["result"]["inputs"]["api_key"] == "[REDACTED]"
-
 
 ###############################################################################
 def test_execution_skips_unselected_branch_and_pauses_run(monkeypatch) -> None:

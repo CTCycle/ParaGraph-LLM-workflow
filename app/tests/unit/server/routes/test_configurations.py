@@ -9,9 +9,9 @@ from server.domain.configuration import (
     ConfigurationProfileSummary,
     OllamaConfiguration,
     OllamaStatusResponse,
+    ProviderStatusResponse,
 )
 from server.services.configuration import configuration_service
-
 
 ###############################################################################
 def _payload(session_name: str = "default") -> AppConfigurationPayload:
@@ -31,7 +31,6 @@ def _payload(session_name: str = "default") -> AppConfigurationPayload:
             embedding_model="nomic-embed-text",
         ),
     )
-
 
 ###############################################################################
 def test_configurations_load_save_profile_and_ping_flows(
@@ -83,6 +82,19 @@ def test_configurations_load_save_profile_and_ping_flows(
             model_count=2,
         ),
     )
+    monkeypatch.setattr(
+        configuration_service,
+        "ping_provider",
+        lambda *, provider, base_url, api_key, session_name="default": (
+            ProviderStatusResponse(
+                ok=True,
+                provider=provider,
+                message=f"{provider} reachable (1 model discovered).",
+                base_url=base_url or "http://localhost:1234/v1",
+                model_count=1,
+            )
+        ),
+    )
 
     load_response = client.get("/configurations", params={"session_name": "session-a"})
     assert load_response.status_code == 200
@@ -121,6 +133,13 @@ def test_configurations_load_save_profile_and_ping_flows(
     assert ping_response.status_code == 200
     assert ping_response.json()["ok"] is True
 
+    provider_ping_response = client.post(
+        "/configurations/providers/ping",
+        params={"session_name": "session-a"},
+        json={"provider": "lmstudio", "base_url": "http://localhost:1234/v1"},
+    )
+    assert provider_ping_response.status_code == 200
+    assert provider_ping_response.json()["provider"] == "lmstudio"
 
 ###############################################################################
 def test_configuration_profile_errors_map_to_http(

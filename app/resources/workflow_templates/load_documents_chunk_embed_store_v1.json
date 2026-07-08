@@ -316,7 +316,9 @@
               "openai",
               "gemini",
               "huggingface",
-              "ollama"
+              "ollama",
+              "lmstudio",
+              "llama"
             ]
           },
           "ui_control": "select",

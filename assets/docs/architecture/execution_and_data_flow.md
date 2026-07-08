@@ -1,5 +1,5 @@
 # Execution And Data Flow
-Last updated: 2026-06-02
+Last updated: 2026-07-03
 
 ## Layered Backend Flow
 Typical backend flow follows endpoint to service to repository:
@@ -12,6 +12,8 @@ Typical backend flow follows endpoint to service to repository:
   - `api/configurations.py` -> `services/configuration.py` -> `repositories/configuration.py` -> SQLAlchemy models in `repositories/schemas/models.py`
 - Provider catalogs and downloads:
   - `api/providers.py` -> `services/workflow/provider/service.py` plus helper, catalog, download, cache, and job modules under `services/workflow/provider/`
+- Node catalog and imported manifests:
+  - `api/nodes.py` -> `services/workflow/nodes/registry.py` -> `repositories/workflow/node_manifest.py`
 - Database node operations:
   - `services/workflow/node_handlers/database/operations.py` -> `repositories/workflow/database.py`
 
@@ -27,7 +29,7 @@ Typical backend flow follows endpoint to service to repository:
 - `server/services/workflow/structured_models.py`
   - Structured JSON model inference, schema generation, Pydantic-source parsing, and validation payload formatting.
 - `server/services/workflow/provider/service.py`
-  - Provider facade, model metadata, and download orchestration.
+  - Provider facade, model metadata, OpenAI-compatible local provider discovery, and download orchestration.
 - `server/services/workflow/provider/helpers.py`
   - Shared provider constants, metadata, and coercion helpers.
 - `server/services/workflow/provider/ollama.py`
@@ -38,6 +40,8 @@ Typical backend flow follows endpoint to service to repository:
   - Download lifecycle, manifests, progress, cleanup, and integrity validation.
 - `server/services/workflow/node_handlers/core/prompts.py`
   - Prompt, prompt-template, and image-input executors used by the core handler registry.
+- `server/services/llm/providers.py`
+  - Runtime clients for Ollama, cloud providers, and OpenAI-compatible local providers such as LM Studio and llama.cpp.
 - `server/services/workflow/node_handlers/processing/sources.py`
   - Fragment source hydration and measurement helpers.
 - `server/services/workflow/node_handlers/processing/merge.py`
@@ -52,12 +56,16 @@ Typical backend flow follows endpoint to service to repository:
   - Deterministic text extraction, classification, redaction, parsing, and normalization.
 - `server/services/workflow/node_handlers/control.py`
   - Branching, batching, caching, human review gates, and trace or debug helpers.
+- `server/services/workflow/nodes/registry.py`
+  - Node manifest validation, runtime handler lookup, plugin loading, parameter validation, and execution.
 - `server/services/jobs.py`
   - Thread-based background job management.
 - `server/services/runtime/events.py`
   - In-memory event bus and per-run history.
 - `server/repositories/workflow/workflow.py`
   - Filesystem workflow storage and indexing.
+- `server/repositories/workflow/node_manifest.py`
+  - Filesystem node manifest loading, import persistence, test storage overrides, and rollback deletion.
 - `server/repositories/workflow/database.py`
   - SQLAlchemy connection URL construction, schema inspection, and database-node CRUD or custom SQL persistence.
 - `server/repositories/configuration.py`

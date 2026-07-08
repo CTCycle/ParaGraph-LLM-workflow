@@ -10,7 +10,6 @@ from server.domain.workflow_model import (
     WorkflowListResponse,
 )
 
-
 ###############################################################################
 class WorkflowService:
 

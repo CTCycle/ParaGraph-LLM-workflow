@@ -6,7 +6,6 @@ from typing import Any
 
 from server.domain.execution import ExecutionRunState, ExecutionStepState
 
-
 ###############################################################################
 class ExecutionRunRepository:
 

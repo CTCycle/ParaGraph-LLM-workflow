@@ -7,7 +7,6 @@ from pydantic import BaseModel, Field
 from server.domain.node_catalog import NodeManifest
 from server.domain.workflow_model import VisualGraph, WorkflowDefinition
 
-
 ###############################################################################
 class WorkflowTemplateManifest(BaseModel):
     id: str
@@ -18,7 +17,6 @@ class WorkflowTemplateManifest(BaseModel):
     visual_graph: VisualGraph = Field(default_factory=VisualGraph)
     required_nodes: list[NodeManifest] = Field(default_factory=list)
     metadata: dict[str, Any] = Field(default_factory=dict)
-
 
 ###############################################################################
 class WorkflowTemplateListResponse(BaseModel):

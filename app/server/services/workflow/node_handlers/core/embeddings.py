@@ -19,7 +19,7 @@ from server.domain.workflow_payloads import (
     VectorStoreHandle,
 )
 from server.services.configuration import configuration_service
-from server.services.workflow.node_handlers.common import (
+from server.common.utils.values import (
     coerce_text,
     normalize_provider_name,
 )
@@ -184,7 +184,7 @@ def _embed_text_with_huggingface(
 def _embed_text_for_text_embedding_node(
     *, provider: str, model_name: str, text: str, tokenizer_name: str = ""
 ) -> list[float]:
-    if provider in {"openai", "ollama"}:
+    if provider in {"openai", "ollama", "lmstudio", "llama"}:
         return provider_service.embed_text(
             provider=provider, model=model_name, text=text
         )
@@ -520,7 +520,6 @@ def _normalize_rerank_tokens(value: str) -> list[str]:
 ###############################################################################
 def _normalize_rerank_text(value: str) -> str:
     return " ".join(_normalize_rerank_tokens(value))
-
 
 ###############################################################################
 def _term_overlap_score(query_tokens: set[str], text_tokens: set[str]) -> float:

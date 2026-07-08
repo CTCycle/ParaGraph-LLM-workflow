@@ -27,19 +27,16 @@ GLOBAL_CONTROLLER_KINDS: dict[str, str] = {
     "VECTOR_STORE_HANDLE": "vector_store",
 }
 
-
 ###############################################################################
 def _resolve_provider(parameters: dict[str, object], default: str = "ollama") -> str:
     provider = str(parameters.get("provider", default)).strip().lower()
     return provider or default
-
 
 ###############################################################################
 def _binding_sort_key(connection: WorkflowConnection) -> tuple[str, str, str]:
     target_name = connection.to_input or connection.to_controller or ""
     source_name = connection.from_output or connection.from_controller or ""
     return (target_name, connection.from_node, source_name)
-
 
 ###############################################################################
 class CompilerService:
@@ -71,14 +68,20 @@ class CompilerService:
         return active_definition, skipped_node_ids
 
     # -------------------------------------------------------------------------
-    def compile(self, definition: WorkflowDefinition) -> CompileWorkflowResponse:
+    def compile(
+        self,
+        definition: WorkflowDefinition,
+        *,
+        require_access_keys: bool = True,
+    ) -> CompileWorkflowResponse:
         active_definition, skipped_node_ids = self._active_definition(definition)
         effective_definition = self._inject_global_controller_connections(
             active_definition
         )
 
         diagnostics, validated_parameters = self._collect_diagnostics(
-            effective_definition
+            effective_definition,
+            require_access_keys=require_access_keys,
         )
         if diagnostics:
             return CompileWorkflowResponse(
@@ -293,7 +296,10 @@ class CompilerService:
 
     # -------------------------------------------------------------------------
     def _collect_diagnostics(
-        self, definition: WorkflowDefinition
+        self,
+        definition: WorkflowDefinition,
+        *,
+        require_access_keys: bool,
     ) -> tuple[list[CompilerDiagnostic], dict[str, dict[str, object]]]:
         diagnostics: list[CompilerDiagnostic] = []
         validated_parameters_by_node: dict[str, dict[str, object]] = {}
@@ -630,6 +636,7 @@ class CompilerService:
                         structured_output=node.node_type in STRUCTURED_NODE_TYPES,
                         requires_image=image_count > 0,
                         use_reasoning=bool(parameters.get("use_reasoning", False)),
+                        require_access_key=require_access_keys,
                     )
                 except ValueError as exc:
                     diagnostics.append(

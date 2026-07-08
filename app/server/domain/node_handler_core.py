@@ -181,10 +181,10 @@ class EmbeddingParameters(BaseModel):
     @classmethod
     def validate_provider(cls, value: str) -> str:
         normalized = str(value or "").strip().lower()
-        allowed = {"openai", "gemini", "huggingface", "ollama"}
+        allowed = {"openai", "gemini", "huggingface", "ollama", "lmstudio", "llama"}
         if normalized not in allowed:
             raise ValueError(
-                "provider must be one of: openai, gemini, huggingface, ollama"
+                "provider must be one of: openai, gemini, huggingface, ollama, lmstudio, llama"
             )
         return normalized
 

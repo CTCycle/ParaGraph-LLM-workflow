@@ -208,6 +208,14 @@ PROVIDER_CAPABILITIES = {
         supports_streaming=True,
         supports_tool_calling=True,
     ),
+    "deepseek": ProviderMetadata(
+        name="deepseek",
+        supports_chat=True,
+        supports_embeddings=False,
+        supports_structured_output=True,
+        supports_streaming=True,
+        supports_tool_calling=True,
+    ),
     "huggingface": ProviderMetadata(
         name="huggingface",
         supports_chat=True,
@@ -215,6 +223,22 @@ PROVIDER_CAPABILITIES = {
         supports_structured_output=True,
         supports_streaming=False,
         supports_tool_calling=False,
+    ),
+    "lmstudio": ProviderMetadata(
+        name="lmstudio",
+        supports_chat=True,
+        supports_embeddings=True,
+        supports_structured_output=True,
+        supports_streaming=True,
+        supports_tool_calling=True,
+    ),
+    "llama": ProviderMetadata(
+        name="llama",
+        supports_chat=True,
+        supports_embeddings=True,
+        supports_structured_output=True,
+        supports_streaming=True,
+        supports_tool_calling=True,
     ),
 }
 
@@ -321,30 +345,45 @@ CURATED_MODELS: dict[str, tuple[ModelMetadata, ...]] = {
     "claude": (
         ModelMetadata(
             provider="claude",
-            model="claude-opus-4-1-20250805",
-            label="Claude Opus 4.1",
+            model="claude-opus-4-8",
+            label="Claude Opus 4.8",
             supports_image=True,
             supports_reasoning=True,
         ),
         ModelMetadata(
             provider="claude",
-            model="claude-sonnet-4-20250514",
-            label="Claude Sonnet 4",
+            model="claude-sonnet-4-6",
+            label="Claude Sonnet 4.6",
             supports_image=True,
             supports_reasoning=True,
         ),
         ModelMetadata(
             provider="claude",
-            model="claude-3-7-sonnet-latest",
-            label="Claude Sonnet 3.7",
+            model="claude-haiku-4-5",
+            label="Claude Haiku 4.5",
             supports_image=True,
             supports_reasoning=True,
         ),
         ModelMetadata(
             provider="claude",
-            model="claude-3-5-haiku-latest",
-            label="Claude Haiku 3.5",
+            model="claude-fable-5",
+            label="Claude Fable 5",
             supports_image=True,
+            supports_reasoning=True,
+        ),
+    ),
+    "deepseek": (
+        ModelMetadata(
+            provider="deepseek",
+            model="deepseek-v4-pro",
+            label="DeepSeek V4 Pro",
+            supports_reasoning=True,
+        ),
+        ModelMetadata(
+            provider="deepseek",
+            model="deepseek-v4-flash",
+            label="DeepSeek V4 Flash",
+            supports_reasoning=True,
         ),
     ),
     "huggingface": (
@@ -383,6 +422,34 @@ CURATED_MODELS: dict[str, tuple[ModelMetadata, ...]] = {
             supports_embeddings=True,
         ),
     ),
+    "lmstudio": (
+        ModelMetadata(
+            provider="lmstudio",
+            model="local-model",
+            label="Local model",
+            supports_structured_output=True,
+        ),
+        ModelMetadata(
+            provider="lmstudio",
+            model="local-embedding-model",
+            label="Local embedding model",
+            supports_embeddings=True,
+        ),
+    ),
+    "llama": (
+        ModelMetadata(
+            provider="llama",
+            model="local-model",
+            label="Local model",
+            supports_structured_output=True,
+        ),
+        ModelMetadata(
+            provider="llama",
+            model="local-embedding-model",
+            label="Local embedding model",
+            supports_embeddings=True,
+        ),
+    ),
 }
 
 ###############################################################################
@@ -407,7 +474,6 @@ def _infer_ollama_metadata(model_name: str) -> ModelMetadata:
         supports_structured_output=True,
     )
 
-
 ###############################################################################
 def _infer_huggingface_metadata(repo_id: str) -> ModelMetadata:
     normalized = repo_id.lower()
@@ -423,6 +489,29 @@ def _infer_huggingface_metadata(repo_id: str) -> ModelMetadata:
         model=repo_id,
         label=repo_id,
         supports_image=supports_image,
+        supports_reasoning=supports_reasoning,
+        supports_structured_output=True,
+    )
+
+###############################################################################
+def _infer_openai_compatible_local_metadata(
+    provider: str, model_name: str
+) -> ModelMetadata:
+    normalized = model_name.lower()
+    supports_image = any(
+        token in normalized for token in ("vision", "vl", "llava", "pixtral", "gemma3")
+    )
+    supports_reasoning = any(
+        token in normalized
+        for token in ("deepseek", "reason", "r1", "qwq", "qwen3", "gpt-oss")
+    )
+    supports_embeddings = any(token in normalized for token in ("embed", "bge", "e5"))
+    return ModelMetadata(
+        provider=provider,
+        model=model_name,
+        label=model_name,
+        supports_image=supports_image,
+        supports_embeddings=supports_embeddings,
         supports_reasoning=supports_reasoning,
         supports_structured_output=True,
     )

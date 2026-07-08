@@ -10,7 +10,7 @@ from server.domain.node_catalog import ProviderModelDefinition
 from server.domain.node_handler_core import ModelProviderParameters
 from server.services.configuration import configuration_service
 from server.services.workflow.chat_history import chat_history_service
-from server.services.workflow.node_handlers.common import (
+from server.common.utils.values import (
     coerce_bool,
     coerce_int,
     coerce_text,
@@ -33,7 +33,6 @@ from server.services.workflow.provider import provider_service
 
 _HF_MODEL_CACHE: dict[str, tuple[Any, Any]] = {}
 
-
 ###############################################################################
 def _extract_prompt_inputs(
     parameters: dict[str, Any], inputs: dict[str, Any]
@@ -52,7 +51,6 @@ def _extract_prompt_inputs(
         image_input.get("path") if isinstance(image_input, dict) else ""
     ).strip()
     return user_prompt, system_prompt, image_path
-
 
 ###############################################################################
 def _build_messages(
@@ -102,19 +100,18 @@ def _build_messages(
         messages.append({"role": "user", "content": user_content})
     return messages
 
-
 ###############################################################################
 def _build_generation_options(
     parameters: dict[str, Any], *, include_context_window: bool
 ) -> dict[str, Any]:
     max_tokens = max(1, coerce_int(parameters.get("max_tokens"), 512))
     options: dict[str, Any] = {"max_output_tokens": max_tokens}
+    options["use_reasoning"] = coerce_bool(parameters.get("use_reasoning", False))
     if include_context_window:
         context_window = max(0, coerce_int(parameters.get("context_window"), 0))
         if context_window > 0:
             options["num_ctx"] = context_window
     return options
-
 
 ###############################################################################
 def _resolve_model_selection(
@@ -128,7 +125,6 @@ def _resolve_model_selection(
         return ProviderModelDefinition.model_validate(model_input)
     except ValidationError as exc:
         raise ValueError("model controller must be a valid model handle") from exc
-
 
 ###############################################################################
 def _run_huggingface_chat(
@@ -170,7 +166,6 @@ def _run_huggingface_chat(
         return decoded[len(prompt_text) :].strip()
     return decoded.strip()
 
-
 ###############################################################################
 def _execute_model_node(
     *,
@@ -204,7 +199,7 @@ def _execute_model_node(
         structured_schema=schema,
         history_text=history_text,
     )
-    include_context_window = provider in {"ollama", "huggingface"}
+    include_context_window = provider in {"ollama", "huggingface", "lmstudio", "llama"}
     options = _build_generation_options(
         parameters, include_context_window=include_context_window
     )
@@ -294,7 +289,6 @@ def _execute_model_node(
         )
     return {"response": text}
 
-
 ###############################################################################
 def _model_provider_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
@@ -308,6 +302,11 @@ def _model_provider_executor(
         model_name = coerce_text(
             configuration_service.load_configuration().ollama.chat_model
         ).strip()
+    if not model_name and provider in {"lmstudio", "llama"}:
+        for item in configuration_service.load_configuration().access_keys:
+            if item.provider == provider and isinstance(item.metadata, dict):
+                model_name = coerce_text(item.metadata.get("chat_model")).strip()
+                break
     if not model_name:
         raise ValueError("MODEL_PROVIDER requires a model_name")
     return {
@@ -317,7 +316,6 @@ def _model_provider_executor(
             timeout_s=timeout_seconds,
         ).model_dump(mode="json")
     }
-
 
 ###############################################################################
 def _llm_chat_executor(
@@ -332,7 +330,6 @@ def _llm_chat_executor(
         structured_output=False,
         timeout_s=selection.timeout_s,
     )
-
 
 ###############################################################################
 def _llm_structured_executor(

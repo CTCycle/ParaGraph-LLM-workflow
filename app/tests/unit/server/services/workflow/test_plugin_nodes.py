@@ -5,13 +5,12 @@ from pathlib import Path
 
 import pytest
 
+from server.repositories.workflow.node_manifest import NodeManifestRepository
 from server.services.workflow.nodes import registry as node_module
-
 
 ###############################################################################
 def write_manifest(path: Path, payload: dict[str, object]) -> None:
     path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
-
 
 ###############################################################################
 def build_plugin_manifest(script_path: str) -> dict[str, object]:
@@ -65,9 +64,8 @@ def build_plugin_manifest(script_path: str) -> dict[str, object]:
         },
     }
 
-
 ###############################################################################
-def test_plugin_node_executes_script_runtime(monkeypatch, tmp_path: Path) -> None:
+def test_plugin_node_executes_script_runtime(tmp_path: Path) -> None:
     node_root = tmp_path / "nodes"
     plugins_root = node_root / "plugins"
     plugins_root.mkdir(parents=True, exist_ok=True)
@@ -88,17 +86,15 @@ def execute(parameters, inputs):
         build_plugin_manifest("plugins/custom_script_node.py"),
     )
 
-    monkeypatch.setattr(node_module, "NODE_ROOT", node_root)
-    registry = node_module.NodeRegistry()
+    registry = node_module.NodeRegistry(NodeManifestRepository(node_root))
 
     result = registry.execute(
         "CUSTOM_SCRIPT_NODE", 1, {"prefix": "pre-"}, {"text": "hello"}
     )
     assert result == {"result": "PRE-HELLO"}
 
-
 ###############################################################################
-def test_plugin_node_rejects_absolute_script_paths(monkeypatch, tmp_path: Path) -> None:
+def test_plugin_node_rejects_absolute_script_paths(tmp_path: Path) -> None:
     node_root = tmp_path / "nodes"
     node_root.mkdir(parents=True, exist_ok=True)
     absolute_script = (tmp_path / "absolute_plugin.py").resolve()
@@ -108,6 +104,5 @@ def test_plugin_node_rejects_absolute_script_paths(monkeypatch, tmp_path: Path) 
         build_plugin_manifest(str(absolute_script)),
     )
 
-    monkeypatch.setattr(node_module, "NODE_ROOT", node_root)
     with pytest.raises(ValueError, match="must be relative"):
-        node_module.NodeRegistry()
+        node_module.NodeRegistry(NodeManifestRepository(node_root))

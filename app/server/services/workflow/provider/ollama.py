@@ -23,7 +23,6 @@ from server.domain.node_catalog import (
     OllamaModelPullResponse,
 )
 
-
 ###############################################################################
 class OllamaLibraryCatalogMixin:
 
@@ -100,7 +99,7 @@ class OllamaLibraryCatalogMixin:
     def _get_pulled_ollama_model_names(self, session_name: str) -> set[str]:
         try:
             pulled = self._ollama_client(session_name).list_models()
-        except ValueError, OllamaError:
+        except (ValueError, OllamaError):
             return set()
 
         normalized: set[str] = set()
@@ -111,7 +110,6 @@ class OllamaLibraryCatalogMixin:
             normalized.add(name)
             normalized.add(_model_basename(name))
         return normalized
-
 
 ###############################################################################
 class OllamaLibraryService:

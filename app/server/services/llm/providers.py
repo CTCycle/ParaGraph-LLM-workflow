@@ -43,6 +43,12 @@ class CloudProvider(str, Enum):
     OPENAI = "openai"
     GEMINI = "gemini"
     CLAUDE = "claude"
+    DEEPSEEK = "deepseek"
+
+###############################################################################
+class LocalOpenAICompatibleProvider(str, Enum):
+    LMSTUDIO = "lmstudio"
+    LLAMA = "llama"
 
 ###############################################################################
 def _get_timeout(timeout_s: float | None) -> float:
@@ -278,6 +284,7 @@ class CloudLLMClient:
             CloudProvider.OPENAI: "https://api.openai.com/v1",
             CloudProvider.GEMINI: "https://generativelanguage.googleapis.com/v1beta",
             CloudProvider.CLAUDE: "https://api.anthropic.com/v1",
+            CloudProvider.DEEPSEEK: "https://api.deepseek.com",
         }
 
         self.base_url = (base_url or default_base_url[self.provider]).rstrip("/")
@@ -365,6 +372,65 @@ class CloudLLMClient:
         if text:
             return text
         raise LLMError("OpenAI response message content is empty")
+
+    # -------------------------------------------------------------------------
+    def _chat_deepseek(
+        self,
+        model: str,
+        messages: list[dict[str, Any]],
+        format: str | None,
+        options: dict[str, Any] | None,
+    ) -> str:
+        if not self.api_key:
+            raise LLMError(
+                "DeepSeek provider is not configured. Add an API key in Configurations."
+            )
+
+        payload: dict[str, Any] = {
+            "model": model,
+            "messages": [
+                {
+                    "role": str(message.get("role", "user")),
+                    "content": _to_openai_content(message.get("content", "")),
+                }
+                for message in messages
+            ],
+            "stream": False,
+        }
+        if options:
+            if "temperature" in options:
+                payload["temperature"] = options["temperature"]
+            if "top_p" in options:
+                payload["top_p"] = options["top_p"]
+            if "max_output_tokens" in options:
+                payload["max_tokens"] = options["max_output_tokens"]
+            if options.get("use_reasoning"):
+                payload["thinking"] = {"type": "enabled"}
+                payload["reasoning_effort"] = str(
+                    options.get("reasoning_effort") or "high"
+                )
+            elif "use_reasoning" in options:
+                payload["thinking"] = {"type": "disabled"}
+        if format == "json":
+            payload["response_format"] = {"type": "json_object"}
+
+        data = self._request(
+            url=f"{self.base_url}/chat/completions",
+            payload=payload,
+            headers={
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json",
+            },
+        )
+        choices = data.get("choices", [])
+        if not choices:
+            raise LLMError("DeepSeek response does not include choices")
+        message = choices[0].get("message", {}) if isinstance(choices[0], dict) else {}
+        content = message.get("content") if isinstance(message, dict) else None
+        text = _flatten_content(content)
+        if text:
+            return text
+        raise LLMError("DeepSeek response message content is empty")
 
     # -------------------------------------------------------------------------
     def _chat_gemini(
@@ -518,7 +584,140 @@ class CloudLLMClient:
             )
         if self.provider == CloudProvider.CLAUDE:
             return self._chat_claude(model=model, messages=messages, options=options)
+        if self.provider == CloudProvider.DEEPSEEK:
+            return self._chat_deepseek(
+                model=model, messages=messages, format=format, options=options
+            )
         raise LLMError(f"Unsupported cloud provider: {self.provider.value}")
+
+###############################################################################
+class OpenAICompatibleLocalClient:
+
+    # -------------------------------------------------------------------------
+    def __init__(
+        self,
+        provider: str,
+        base_url: str | None = None,
+        api_key: str | None = None,
+        timeout_s: float | None = None,
+    ) -> None:
+        normalized = provider.strip().lower()
+        self.provider = LocalOpenAICompatibleProvider(normalized)
+        default_base_url = {
+            LocalOpenAICompatibleProvider.LMSTUDIO: "http://localhost:1234/v1",
+            LocalOpenAICompatibleProvider.LLAMA: "http://localhost:8080/v1",
+        }
+        default_api_key = {
+            LocalOpenAICompatibleProvider.LMSTUDIO: "lm-studio",
+            LocalOpenAICompatibleProvider.LLAMA: "sk-no-key-required",
+        }
+        self.base_url = (base_url or default_base_url[self.provider]).rstrip("/")
+        self.api_key = api_key or default_api_key[self.provider]
+        self.timeout = _get_timeout(timeout_s)
+
+    # -------------------------------------------------------------------------
+    def _request(
+        self,
+        method: str,
+        path: str,
+        payload: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        try:
+            response = httpx.request(
+                method=method,
+                url=f"{self.base_url}{path}",
+                json=payload,
+                timeout=self.timeout,
+                headers={
+                    "Authorization": f"Bearer {self.api_key}",
+                    "Content-Type": "application/json",
+                },
+            )
+        except httpx.TimeoutException as exc:
+            raise LLMTimeout(f"{self.provider.value} request timed out") from exc
+        except httpx.RequestError as exc:
+            raise LLMError(f"Unable to reach {self.provider.value}: {exc}") from exc
+
+        if response.is_error:
+            raise LLMError(
+                f"{self.provider.value} request failed ({response.status_code}): {response.text}"
+            )
+
+        data = response.json()
+        if not isinstance(data, dict):
+            raise LLMError(f"Unexpected {self.provider.value} response payload")
+        return data
+
+    # -------------------------------------------------------------------------
+    def list_models(self) -> list[str]:
+        data = self._request("GET", "/models")
+        items = data.get("data", [])
+        names: list[str] = []
+        if isinstance(items, list):
+            for item in items:
+                if isinstance(item, dict) and isinstance(item.get("id"), str):
+                    names.append(item["id"])
+        return names
+
+    # -------------------------------------------------------------------------
+    def chat(
+        self,
+        model: str,
+        messages: list[dict[str, Any]],
+        format: str | None = None,
+        options: dict[str, Any] | None = None,
+    ) -> str:
+        payload: dict[str, Any] = {
+            "model": model,
+            "messages": [
+                {
+                    "role": str(message.get("role", "user")),
+                    "content": _to_openai_content(message.get("content", "")),
+                }
+                for message in messages
+            ],
+            "stream": False,
+        }
+        if options:
+            if "temperature" in options:
+                payload["temperature"] = options["temperature"]
+            if "top_p" in options:
+                payload["top_p"] = options["top_p"]
+            if "max_output_tokens" in options:
+                payload["max_tokens"] = options["max_output_tokens"]
+            if "num_ctx" in options:
+                payload["num_ctx"] = options["num_ctx"]
+        if format == "json":
+            payload["response_format"] = {"type": "json_object"}
+
+        data = self._request("POST", "/chat/completions", payload=payload)
+        choices = data.get("choices", [])
+        if not choices:
+            raise LLMError(f"{self.provider.value} response does not include choices")
+        message = choices[0].get("message", {}) if isinstance(choices[0], dict) else {}
+        content = message.get("content") if isinstance(message, dict) else None
+        text = _flatten_content(content)
+        if text:
+            return text
+        raise LLMError(f"{self.provider.value} response message content is empty")
+
+    # -------------------------------------------------------------------------
+    def embed(
+        self, model: str, text: str, dimensions: int | None = None
+    ) -> list[float]:
+        payload: dict[str, Any] = {"model": model, "input": text}
+        if dimensions is not None:
+            payload["dimensions"] = dimensions
+        data = self._request("POST", "/embeddings", payload=payload)
+        items = data.get("data", [])
+        if (
+            not isinstance(items, list)
+            or not items
+            or not isinstance(items[0], dict)
+            or not isinstance(items[0].get("embedding"), list)
+        ):
+            raise LLMError(f"Invalid {self.provider.value} embeddings response")
+        return [float(item) for item in items[0]["embedding"]]
 
 ###############################################################################
 def select_llm_provider(provider: str, **kwargs: Any) -> SupportsChat:
@@ -533,8 +732,20 @@ def select_llm_provider(provider: str, **kwargs: Any) -> SupportsChat:
         CloudProvider.OPENAI.value,
         CloudProvider.GEMINI.value,
         CloudProvider.CLAUDE.value,
+        CloudProvider.DEEPSEEK.value,
     }:
         return CloudLLMClient(
+            provider=normalized,
+            api_key=kwargs.get("api_key"),
+            base_url=kwargs.get("base_url"),
+            timeout_s=kwargs.get("timeout_s"),
+        )
+
+    if normalized in {
+        LocalOpenAICompatibleProvider.LMSTUDIO.value,
+        LocalOpenAICompatibleProvider.LLAMA.value,
+    }:
+        return OpenAICompatibleLocalClient(
             provider=normalized,
             api_key=kwargs.get("api_key"),
             base_url=kwargs.get("base_url"),
