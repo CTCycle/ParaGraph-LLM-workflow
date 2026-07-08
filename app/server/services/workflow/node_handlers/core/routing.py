@@ -1,26 +1,21 @@
 from __future__ import annotations
 
 import json
+from functools import lru_cache
 from typing import Any
 
 from transformers import AutoTokenizer
 
-from server.domain.node_handler_core import TokenizerParameters
 from server.common.utils.values import coerce_text
-
-_TOKENIZER_CACHE: dict[tuple[str, str, bool], Any] = {}
+from server.domain.node_handler_core import TokenizerParameters
 
 ###############################################################################
+@lru_cache(maxsize=32)
 def _load_tokenizer(tokenizer_name: str, revision: str, use_fast: bool) -> Any:
-    cache_key = (tokenizer_name, revision, use_fast)
-    if cache_key not in _TOKENIZER_CACHE:
-        kwargs: dict[str, Any] = {"use_fast": use_fast}
-        if revision:
-            kwargs["revision"] = revision
-        _TOKENIZER_CACHE[cache_key] = AutoTokenizer.from_pretrained(
-            tokenizer_name, **kwargs
-        )
-    return _TOKENIZER_CACHE[cache_key]
+    kwargs: dict[str, Any] = {"use_fast": use_fast}
+    if revision:
+        kwargs["revision"] = revision
+    return AutoTokenizer.from_pretrained(tokenizer_name, **kwargs)
 
 ###############################################################################
 def _payload_text(payload: Any) -> str:
