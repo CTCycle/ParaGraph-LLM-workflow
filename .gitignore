@@ -8,21 +8,8 @@ app/client/node_modules/
 app/client/dist/
 app/client/dist-ssr/
 app/client/logs/
-app/src-tauri/target/
-app/src-tauri/bundle/
-app/src-tauri/gen/
-app/src-tauri/**/*.exe
-app/src-tauri/**/*.msi
-app/src-tauri/**/*.dmg
-app/src-tauri/**/*.AppImage
-app/src-tauri/**/*.deb
-app/src-tauri/**/*.rpm
-app/src-tauri/**/*.zip
-app/src-tauri/**/*.7z
-app/src-tauri/**/*.tar.gz
 app/client/*.local
 runtimes/**
-release/windows/
 assets/QA/**
 
 # Python
@@ -65,6 +52,4 @@ Thumbs.db
 *.sqlite*
 *.exe
 *.gz
-!app/src-tauri/Cargo.lock
-
 !.gitkeep

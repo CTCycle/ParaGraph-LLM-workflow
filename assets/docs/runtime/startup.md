@@ -1,18 +1,14 @@
 # Startup
-Last updated: 2026-06-30
+Last updated: 2026-07-11
 
 ## Local Launcher
-CMD:
-
-```bat
-start_on_windows.bat
-```
-
 PowerShell:
 
 ```powershell
-.\start_on_windows.bat
+.\start_on_windows.ps1
 ```
+
+The menu can launch the application, install dependencies, initialize the database, run tests, clear logs or caches, and uninstall local runtime files.
 
 ## Manual Backend
 CMD:
@@ -42,27 +38,9 @@ Set-Location app\client
 npm run dev
 ```
 
-## Desktop Build And Package
-CMD:
-
-```bat
-copy /Y settings\.env.local.tauri.example settings\.env
-start_on_windows.bat
-release\tauri\build_with_tauri.bat
-```
-
-PowerShell:
-
-```powershell
-Copy-Item settings\.env.local.tauri.example settings\.env -Force
-.\start_on_windows.bat
-.\release\tauri\build_with_tauri.bat
-```
-
 ## Startup Notes
 
 - The local launcher is the recommended Windows entry point.
-- Desktop packaging expects the environment file to be prepared before the build starts.
 - First-run startup can be slow because of dependency synchronization, runtime hydration, and frontend build work.
-- If backend readiness fails, the launcher prints the tail of the temporary backend stdout and stderr logs to make startup failures diagnosable.
-- Portable exports must keep the packaged `.exe` beside the generated `runtime/` folder.
+- If `settings/.env` is missing, the launcher creates it from `settings/.env.example` before loading settings.
+- Set `BACKEND_VISIBLE=true` to open a dedicated backend log terminal; the default keeps the backend window hidden.
