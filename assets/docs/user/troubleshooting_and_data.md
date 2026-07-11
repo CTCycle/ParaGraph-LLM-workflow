@@ -1,8 +1,8 @@
 # Troubleshooting And Data
-Last updated: 2026-06-02
+Last updated: 2026-07-11
 
 ## Troubleshooting
-- If startup fails, rerun `start_on_windows.bat` and check the console output.
+- If startup fails, rerun `start_on_windows.ps1` and check the console output.
 - If APIs are unreachable, verify host and port values in `settings/.env`.
 - If model operations fail, verify provider credentials and network reachability.
 - If compile fails, inspect diagnostics and fix missing inputs, controller mismatches, or type mismatches.

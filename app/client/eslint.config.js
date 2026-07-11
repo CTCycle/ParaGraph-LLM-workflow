@@ -9,7 +9,6 @@ export default [
       "dist/**",
       "node_modules/**",
       "test-results/**",
-      "src-tauri/target/**",
     ],
   },
   js.configs.recommended,

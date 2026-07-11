@@ -133,8 +133,8 @@ If your workflow is intended for document retrieval, the usual shape is:
 
 Run:
 
-```bat
-start_on_windows.bat
+```powershell
+.\start_on_windows.ps1
 ```
 
 This is the easiest way to start the app locally. The launcher prepares what it needs, starts the backend and frontend, and opens the interface.
@@ -186,18 +186,6 @@ That includes things like:
 - downloaded models and related assets
 - local database files
 - runtime artifacts created while the app is running
-
-## Packaging
-
-ParaGraph can also be packaged as a Windows desktop application through the Tauri build flow.
-
-The `app/src-tauri` directory is versioned as desktop source and build metadata. Keep `Cargo.toml`, `Cargo.lock`, `build.rs`, `tauri.conf.json`, `src/`, `capabilities/`, and `icons/` in Git.
-
-Generated desktop outputs are not committed. Ignore `app/src-tauri/target`, `app/src-tauri/bundle`, `app/src-tauri/gen`, and `release/windows`, and publish Windows `.exe` and installer outputs as release artifacts instead of tracking them in the repository.
-
-If you need that path, use the deployment notes in the runtime documentation:
-
-- [Deployment guide](assets/docs/runtime/deployment.md)
 
 ## License
 
