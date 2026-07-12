@@ -1,5 +1,5 @@
 # Startup
-Last updated: 2026-07-11
+Last updated: 2026-07-12
 
 ## Local Launcher
 PowerShell:
@@ -43,4 +43,4 @@ npm run dev
 - The local launcher is the recommended Windows entry point.
 - First-run startup can be slow because of dependency synchronization, runtime hydration, and frontend build work.
 - If `settings/.env` is missing, the launcher creates it from `settings/.env.example` before loading settings.
-- Set `BACKEND_VISIBLE=true` to open a dedicated backend log terminal; the default keeps the backend window hidden.
+- Set `BACKEND_LOGS_VISIBLE=true` to open a dedicated backend log terminal. If the key is absent, the launcher defaults to visible logs; set it to `false` for a hidden detached backend.
