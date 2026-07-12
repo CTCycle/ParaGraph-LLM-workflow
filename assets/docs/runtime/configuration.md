@@ -1,5 +1,5 @@
 # Configuration
-Last updated: 2026-07-11
+Last updated: 2026-07-12
 
 ## Shared Configuration Sources
 - Shared environment keys are loaded from `settings/.env`.
@@ -11,7 +11,7 @@ Last updated: 2026-07-11
   - `UI_PORT=8002`
   - `VITE_API_BASE_URL=/api`
   - `RELOAD=false`
-  - `BACKEND_VISIBLE=false`
+  - `BACKEND_LOGS_VISIBLE=true`
 
 ## Runtime Settings
 - Database and runtime behavior split across:
@@ -30,7 +30,7 @@ Last updated: 2026-07-11
 - Frontend to backend communication targets the relative API base path `/api`.
 - In web mode, Vite handles proxying or rewriting to the backend.
 - WebSocket execution streaming uses `/api/executions/ws/runs/{run_id}` derived from the current origin.
-- The Windows launcher starts uvicorn, waits for `/api/health`, then starts Vite preview and opens the UI URL.
+- The Windows launcher starts uvicorn, waits for `/docs`, then starts Vite preview and opens the UI URL.
 
 ## Shared Runtime Data
 - Shared persistence lives under `app/resources`, including workflows, database files, logs, artifacts, and model assets.

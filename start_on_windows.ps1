@@ -160,7 +160,7 @@ function Import-DotEnv {
         UI_PORT = '8001'
         RELOAD = 'false'
         OPTIONAL_DEPENDENCIES = 'false'
-        BACKEND_VISIBLE = 'false'
+        BACKEND_LOGS_VISIBLE = 'true'
     }
     if (-not (Test-Path -LiteralPath $DotEnv)) {
         if (-not (Test-Path -LiteralPath $DotEnvExample)) {
@@ -261,10 +261,10 @@ function Invoke-Launch {
     $backendArgs = @('-m', 'uvicorn', 'server.app:app', '--host', [string]$settings.FASTAPI_HOST, '--port', [string]$backendPort, '--log-level', 'info')
     if ([string]$settings.RELOAD -ieq 'true') { $backendArgs += '--reload' }
     Write-Step "Launching backend on $($settings.FASTAPI_HOST):$backendPort"
-    if ([string]$settings.BACKEND_VISIBLE -ieq 'true') {
+    if ([string]$settings.BACKEND_LOGS_VISIBLE -ieq 'true') {
         $quotedPython = '"' + $VenvPython + '"'
         $backendCommand = "$quotedPython $($backendArgs -join ' ')"
-        Start-Process -FilePath 'cmd.exe' -ArgumentList @('/c', 'start', '"Backend"', 'cmd', '/c', $backendCommand) -WorkingDirectory $AppDir | Out-Null
+        Start-Process -FilePath 'cmd.exe' -ArgumentList @('/d', '/c', 'start', '"ParaGraph Backend Logs"', 'cmd.exe', '/k', $backendCommand) -WorkingDirectory $AppDir | Out-Null
     } else {
         $stdout = Join-Path $env:TEMP 'paragraph-backend.stdout.log'
         $stderr = Join-Path $env:TEMP 'paragraph-backend.stderr.log'
@@ -272,7 +272,7 @@ function Invoke-Launch {
         Start-Process -FilePath $VenvPython -ArgumentList $backendArgs -WorkingDirectory $AppDir -WindowStyle Hidden -RedirectStandardOutput $stdout -RedirectStandardError $stderr | Out-Null
     }
 
-    $healthUrl = "http://$($settings.FASTAPI_HOST):$backendPort/api/health"
+    $healthUrl = "http://$($settings.FASTAPI_HOST):$backendPort/docs"
     Write-Info "Waiting for $healthUrl"
     if (-not (Invoke-HealthCheck -Url $healthUrl -Attempts 60 -IntervalSeconds 1)) {
         Stop-PortListeners -Port $backendPort

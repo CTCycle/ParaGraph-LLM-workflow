@@ -28,7 +28,6 @@ class FakeAutoTokenizer:
 
 ###############################################################################
 def test_tokenizer_returns_structured_output_only(monkeypatch: MonkeyPatch) -> None:
-    routing._TOKENIZER_CACHE.clear()
     monkeypatch.setattr(routing, "AutoTokenizer", FakeAutoTokenizer)
 
     result = node_registry.execute(
@@ -48,7 +47,6 @@ def test_tokenizer_returns_structured_output_only(monkeypatch: MonkeyPatch) -> N
 
 ###############################################################################
 def test_tokenizer_returns_serialized_output_only(monkeypatch: MonkeyPatch) -> None:
-    routing._TOKENIZER_CACHE.clear()
     monkeypatch.setattr(routing, "AutoTokenizer", FakeAutoTokenizer)
 
     result = node_registry.execute(
