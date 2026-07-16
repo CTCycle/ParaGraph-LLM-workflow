@@ -12,6 +12,7 @@ Last updated: 2026-07-12
   - `VITE_API_BASE_URL=/api`
   - `RELOAD=false`
   - `BACKEND_LOGS_VISIBLE=true`
+  - `always_rebuild=true`
 
 ## Runtime Settings
 - Database and runtime behavior split across:
