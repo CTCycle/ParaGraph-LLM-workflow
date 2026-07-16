@@ -105,7 +105,6 @@ class PromptParameters(BaseModel):
 ###############################################################################
 class PromptTemplateParameters(BaseModel):
     template: str = ""
-    template_engine: Literal["format", "jinja2"] = "jinja2"
     system_template: str = ""
     user_template: str = ""
     reusable_blocks: dict[str, str] = Field(default_factory=dict)

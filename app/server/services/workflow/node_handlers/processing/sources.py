@@ -98,9 +98,7 @@ def _iter_sources(inputs: dict[str, Any]) -> Iterator[dict[str, Any]]:
 
     for parent_chunk in _iter_mapping_payload(inputs.get("chunks")):
         parent_chunk_id = str(parent_chunk.get("id", "")).strip()
-        parent_document_id = (
-            str(parent_chunk.get("document_id", "")).strip() or parent_chunk_id
-        )
+        parent_document_id = str(parent_chunk["document_id"]).strip()
         source_uri = str(parent_chunk.get("source_uri", "")).strip()
         text = str(parent_chunk.get("text", ""))
         if not text.strip():

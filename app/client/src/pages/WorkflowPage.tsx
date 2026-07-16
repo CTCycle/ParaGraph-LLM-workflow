@@ -166,11 +166,7 @@ export type NodeItemRecord = {
 }
 
 export function createExecutionSessionId(): string {
-    const cryptoApi = globalThis.crypto
-    if (cryptoApi && typeof cryptoApi.randomUUID === 'function') {
-        return cryptoApi.randomUUID()
-    }
-    return `sess_${Date.now()}_${Math.round(Math.random() * 1_000_000)}`
+    return crypto.randomUUID()
 }
 
 export function resolveExecutionSessionId(
@@ -1037,14 +1033,7 @@ function resolveNodeDimensions(node: Node<WorkflowNodeData>): { width?: number; 
 }
 
 function cloneNodeParameters(parameters: Record<string, unknown>): Record<string, unknown> {
-    if (typeof structuredClone === 'function') {
-        return structuredClone(parameters)
-    }
-    try {
-        return JSON.parse(JSON.stringify(parameters)) as Record<string, unknown>
-    } catch {
-        return { ...parameters }
-    }
+    return structuredClone(parameters)
 }
 
 function defaultParameters(manifest: NodeManifest): Record<string, unknown> {
@@ -1304,7 +1293,7 @@ function isWorkflowDefinitionPayload(value: unknown): value is WorkflowDefinitio
     }
 
     return (
-        isFiniteNumber(value.schema_version) &&
+        value.schema_version === 2 &&
         Array.isArray(value.nodes) &&
         value.nodes.every(isWorkflowNodeInstancePayload) &&
         Array.isArray(value.connections) &&
@@ -1319,7 +1308,7 @@ function isVisualGraphPayload(value: unknown): value is VisualGraph {
     }
 
     return (
-        isFiniteNumber(value.schema_version) &&
+        value.schema_version === 2 &&
         Array.isArray(value.nodes) &&
         value.nodes.every(isVisualNodeStatePayload) &&
         Array.isArray(value.groups) &&
@@ -1354,15 +1343,7 @@ function isWorkflowOpenIntentPayload(value: unknown): value is WorkflowOpenInten
         return typeof value.node_id === 'string' && isFiniteNumber(value.node_version)
     }
     if (value.type === 'load-template') {
-        if (isWorkflowTemplatePayload(value.template)) {
-            return true
-        }
-        return (
-            typeof value.template_name === 'string' &&
-            (value.template_id === undefined || typeof value.template_id === 'string') &&
-            isWorkflowDefinitionPayload(value.definition) &&
-            isVisualGraphPayload(value.visual_graph)
-        )
+        return isWorkflowTemplatePayload(value.template)
     }
     return false
 }
@@ -1374,7 +1355,7 @@ function isWorkflowShareBundlePayload(value: unknown): value is WorkflowShareBun
 
     const workflow = value.workflow
     return (
-        isFiniteNumber(value.bundle_version) &&
+        value.bundle_version === 1 &&
         typeof value.app === 'string' &&
         typeof value.created_at === 'string' &&
         Array.isArray(value.required_nodes) &&
@@ -1392,20 +1373,6 @@ function readImportedWorkflowPayload(value: unknown): ImportedWorkflowPayload {
             definition: value.workflow.definition,
             visualGraph: value.workflow.visual_graph,
             requiredNodes: value.required_nodes,
-        }
-    }
-
-    if (
-        isRecord(value) &&
-        typeof value.name === 'string' &&
-        isWorkflowDefinitionPayload(value.definition) &&
-        isVisualGraphPayload(value.visual_graph)
-    ) {
-        return {
-            name: value.name,
-            definition: value.definition,
-            visualGraph: value.visual_graph,
-            requiredNodes: [],
         }
     }
 
@@ -3071,14 +3038,9 @@ function WorkflowEditor() {
             return
         }
 
-        const templateName = rawIntent.template?.name ?? rawIntent.template_name
-        const templateDefinition = rawIntent.template?.definition ?? rawIntent.definition
-        const templateVisualGraph = rawIntent.template?.visual_graph ?? rawIntent.visual_graph
-        if (!templateName || !templateDefinition || !templateVisualGraph) {
-            setStatusText('Unable to load template payload from navigation state')
-            clearIntentState()
-            return
-        }
+        const templateName = rawIntent.template.name
+        const templateDefinition = rawIntent.template.definition
+        const templateVisualGraph = rawIntent.template.visual_graph
 
         const requiredManifestKeys = new Set(
             templateDefinition.nodes.map((node) => `${node.node_type}:${node.node_version}`),

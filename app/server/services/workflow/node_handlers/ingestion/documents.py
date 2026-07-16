@@ -27,9 +27,7 @@ def _build_document(
 ) -> dict[str, Any]:
     return {
         "id": _make_document_id(source_uri),
-        "document_id": _make_document_id(source_uri),
         "text": text_content.strip(),
-        "source": source_uri,
         "source_uri": source_uri,
         "mime_type": mime_type,
         "metadata": metadata,
@@ -123,19 +121,13 @@ def _document_text_extractor_executor(
     for document in documents:
         if not isinstance(document, dict):
             continue
-        source_uri = str(
-            document.get("source_uri") or document.get("source") or ""
-        ).strip()
+        source_uri = str(document.get("source_uri", "")).strip()
         metadata = (
             dict(document.get("metadata", {}))
             if isinstance(document.get("metadata"), dict)
             else {}
         )
-        document_id = str(
-            document.get("document_id")
-            or document.get("id")
-            or _make_document_id(source_uri)
-        )
+        document_id = str(document["id"])
         path_candidate = str(metadata.get("file_path") or source_uri).strip()
         suffix = str(metadata.get("extension") or "").lower()
         if path_candidate:
@@ -148,7 +140,6 @@ def _document_text_extractor_executor(
                     extracted.append(
                         {
                             **document,
-                            "document_id": document_id,
                             "text": page["text"],
                             "metadata": {
                                 **metadata,
@@ -164,7 +155,6 @@ def _document_text_extractor_executor(
                     extracted.append(
                         {
                             **document,
-                            "document_id": document_id,
                             "text": paragraph["text"],
                             "metadata": {
                                 **metadata,
@@ -178,7 +168,6 @@ def _document_text_extractor_executor(
         extracted.append(
             {
                 **document,
-                "document_id": document_id,
                 "metadata": {
                     **metadata,
                     "source": source_uri,

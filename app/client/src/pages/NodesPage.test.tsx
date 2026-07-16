@@ -142,10 +142,10 @@ describe('NodesPage', () => {
             state: {
                 workflow_intent: {
                     type: 'load-template',
-                    template_id: 'template-1',
-                    template_name: 'Simple Chat',
-                    definition: expect.any(Object),
-                    visual_graph: expect.any(Object),
+                    template: expect.objectContaining({
+                        id: 'template-1',
+                        name: 'Simple Chat',
+                    }),
                 },
             },
         })
