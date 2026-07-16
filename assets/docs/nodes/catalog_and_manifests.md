@@ -1,5 +1,5 @@
 # Catalog And Manifests
-Last updated: 2026-06-02
+Last updated: 2026-07-16
 
 ## Purpose
 This branch documents the ParaGraph node system, the node catalog, and the contracts that allow nodes to participate in workflow compilation and execution.
@@ -43,5 +43,6 @@ Runtime validation happens through backend node registry logic before nodes are 
 ## Compatibility Rules
 - Node manifests are contract-critical.
 - Changes to IDs, versions, ports, or controller contracts can break existing workflows.
-- Prefer adding new versions instead of changing version semantics in place.
+- Workflow and visual graph schema versions are explicit and currently fixed at version 2.
+- Prefer adding new versions instead of changing node version semantics in place.
 - Keep manifest descriptions explicit so the Nodes page remains understandable to end users.

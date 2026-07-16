@@ -118,7 +118,7 @@ export interface WorkflowConnection {
 }
 
 export interface WorkflowDefinition {
-    schema_version: number
+    schema_version: 2
     nodes: WorkflowNodeInstance[]
     connections: WorkflowConnection[]
     metadata: Record<string, unknown>
@@ -138,7 +138,7 @@ export interface VisualNodeState {
 }
 
 export interface VisualGraph {
-    schema_version: number
+    schema_version: 2
     nodes: VisualNodeState[]
     groups: Record<string, unknown>[]
     comments: Record<string, unknown>[]
@@ -154,7 +154,7 @@ export interface WorkflowDocument {
 }
 
 export interface WorkflowShareBundle {
-    bundle_version: number
+    bundle_version: 1
     app: string
     created_at: string
     workflow: {
@@ -188,11 +188,7 @@ export interface WorkflowOpenIntentAddNode {
 
 export interface WorkflowOpenIntentLoadTemplate {
     type: 'load-template'
-    template?: WorkflowTemplate
-    template_id?: string
-    template_name?: string
-    definition?: WorkflowDefinition
-    visual_graph?: VisualGraph
+    template: WorkflowTemplate
 }
 
 export type WorkflowOpenIntent = WorkflowOpenIntentAddNode | WorkflowOpenIntentLoadTemplate

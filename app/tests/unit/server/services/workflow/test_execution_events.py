@@ -255,7 +255,7 @@ def test_execution_service_uses_named_output_as_prompt_template_variable(
                 node_version=1,
                 category="prompt",
                 executor_key="prompt_template",
-                parameters={"template": "{greeting}"},
+                parameters={"template": "{{ greeting }}"},
                 bindings=[
                     ExecutionBinding(
                         binding_type="input",

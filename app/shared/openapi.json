@@ -3812,8 +3812,8 @@
         "properties": {
           "schema_version": {
             "type": "integer",
-            "title": "Schema Version",
-            "default": 2
+            "const": 2,
+            "title": "Schema Version"
           },
           "nodes": {
             "items": {
@@ -3840,6 +3840,9 @@
           }
         },
         "type": "object",
+        "required": [
+          "schema_version"
+        ],
         "title": "VisualGraph"
       },
       "VisualNodeState": {
@@ -3975,8 +3978,8 @@
         "properties": {
           "schema_version": {
             "type": "integer",
-            "title": "Schema Version",
-            "default": 2
+            "const": 2,
+            "title": "Schema Version"
           },
           "nodes": {
             "items": {
@@ -3999,6 +4002,9 @@
           }
         },
         "type": "object",
+        "required": [
+          "schema_version"
+        ],
         "title": "WorkflowDefinition"
       },
       "WorkflowDocument": {
@@ -4086,8 +4092,7 @@
           },
           "node_version": {
             "type": "integer",
-            "title": "Node Version",
-            "default": 1
+            "title": "Node Version"
           },
           "parameters": {
             "additionalProperties": true,
@@ -4103,7 +4108,8 @@
         "type": "object",
         "required": [
           "node_id",
-          "node_type"
+          "node_type",
+          "node_version"
         ],
         "title": "WorkflowNodeInstance"
       },

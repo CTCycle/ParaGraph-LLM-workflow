@@ -1,5 +1,5 @@
 # Processing And Retrieval
-Last updated: 2026-06-02
+Last updated: 2026-07-16
 
 ## Similarity Search Contract
 - `search_mode`
@@ -35,7 +35,7 @@ HTTP nodes can also use named variables in query parameters or request body temp
 ## Prompt And Structured JSON Nodes
 - `PROMPT_TEMPLATE` is presented as Template and Prompt Format.
 - It supports Jinja syntax, including `system_template`, `user_template`, `reusable_blocks`, and strict missing-variable validation.
-- Legacy `{name}` formatting remains supported for existing workflows.
+- Prompt templates use Jinja syntax only; legacy `{name}` formatting is not supported.
 - `LLM_STRUCTURED` handles structured generation and extraction.
 - It returns the main JSON object as `result` plus `schema`, `valid`, and `errors`.
 - Validation can use JSON Schema mode, an inferred model, or pasted Pydantic model source parsed without executing arbitrary Python.

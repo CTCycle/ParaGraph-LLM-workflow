@@ -11,7 +11,7 @@ from server.domain.execution import CompiledExecutionPlan
 class WorkflowNodeInstance(BaseModel):
     node_id: str
     node_type: str
-    node_version: int = 1
+    node_version: int
     parameters: dict[str, Any] = Field(default_factory=dict)
     skipped: bool = False
 
@@ -45,7 +45,7 @@ class WorkflowConnection(BaseModel):
 
 ###############################################################################
 class WorkflowDefinition(BaseModel):
-    schema_version: int = 2
+    schema_version: Literal[2]
     nodes: list[WorkflowNodeInstance] = Field(default_factory=list)
     connections: list[WorkflowConnection] = Field(default_factory=list)
     metadata: dict[str, Any] = Field(default_factory=dict)
@@ -65,7 +65,7 @@ class VisualNodeState(BaseModel):
 
 ###############################################################################
 class VisualGraph(BaseModel):
-    schema_version: int = 2
+    schema_version: Literal[2]
     nodes: list[VisualNodeState] = Field(default_factory=list)
     groups: list[dict[str, Any]] = Field(default_factory=list)
     comments: list[dict[str, Any]] = Field(default_factory=list)
