@@ -23,7 +23,6 @@ def _extract_template_record_text(record: dict[str, Any]) -> str:
     return candidate
 
 ###############################################################################
-###############################################################################
 def _build_prompt_template_context(
     inputs: dict[str, Any],
     controllers: dict[str, Any],
