@@ -7,6 +7,7 @@ from server.domain.node_handler_database import (
     CrudDeleteParameters,
     CrudReadParameters,
     CrudUpdateParameters,
+    CrudUpsertParameters,
     CustomSqlQueryParameters,
 )
 from server.repositories.workflow.database import (
@@ -15,7 +16,9 @@ from server.repositories.workflow.database import (
     execute_delete,
     execute_read,
     execute_update,
+    execute_upsert,
 )
+
 
 ###############################################################################
 def _connection(inputs: dict[str, Any]) -> dict[str, Any]:
@@ -23,6 +26,7 @@ def _connection(inputs: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(value, dict):
         raise ValueError("Database operation nodes require a connection controller")
     return value
+
 
 ###############################################################################
 def _merged_json_input(
@@ -35,6 +39,7 @@ def _merged_json_input(
         raise ValueError(f"{name} must be a JSON object")
     return raw_value
 
+
 ###############################################################################
 def _crud_create_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
@@ -44,9 +49,13 @@ def _crud_create_executor(
     )
     return {
         "dataset": execute_create(
-            _connection(inputs), table_name=parsed.table, values=parsed.values
+            _connection(inputs),
+            table_name=parsed.table,
+            values=parsed.values,
+            schema=parsed.schema_name or None,
         )
     }
+
 
 ###############################################################################
 def _crud_read_executor(
@@ -63,8 +72,11 @@ def _crud_read_executor(
             filters=parsed.filters,
             limit=parsed.limit,
             order_by=parsed.order_by,
+            offset=parsed.offset,
+            schema=parsed.schema_name or None,
         )
     }
+
 
 ###############################################################################
 def _crud_update_executor(
@@ -83,8 +95,13 @@ def _crud_update_executor(
             table_name=parsed.table,
             values=parsed.values,
             filters=parsed.filters,
+            schema=parsed.schema_name or None,
+            version_column=parsed.version_column or None,
+            expected_version=parsed.expected_version,
+            increment_version=parsed.increment_version,
         )
     }
+
 
 ###############################################################################
 def _crud_delete_executor(
@@ -95,16 +112,46 @@ def _crud_delete_executor(
     )
     return {
         "dataset": execute_delete(
-            _connection(inputs), table_name=parsed.table, filters=parsed.filters
+            _connection(inputs),
+            table_name=parsed.table,
+            filters=parsed.filters,
+            schema=parsed.schema_name or None,
+            version_column=parsed.version_column or None,
+            expected_version=parsed.expected_version,
         )
     }
+
 
 ###############################################################################
 def _custom_sql_query_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
 ) -> dict[str, Any]:
     parsed = CustomSqlQueryParameters.model_validate(parameters)
-    return {"dataset": execute_custom_sql(_connection(inputs), sql=parsed.sql)}
+    return {
+        "dataset": execute_custom_sql(
+            _connection(inputs),
+            sql=parsed.sql,
+            parameters=parsed.parameters,
+            read_only=parsed.read_only,
+        )
+    }
+
+
+###############################################################################
+def _crud_upsert_executor(
+    parameters: dict[str, Any], inputs: dict[str, Any]
+) -> dict[str, Any]:
+    parsed = CrudUpsertParameters.model_validate(parameters)
+    return {
+        "dataset": execute_upsert(
+            _connection(inputs),
+            table_name=parsed.table,
+            conflict_columns=parsed.conflict_columns,
+            insert_values=parsed.insert_values,
+            update_values=parsed.update_values,
+            schema=parsed.schema_name or None,
+        )
+    }
 
 
 __all__ = [
@@ -112,5 +159,6 @@ __all__ = [
     "_crud_delete_executor",
     "_crud_read_executor",
     "_crud_update_executor",
+    "_crud_upsert_executor",
     "_custom_sql_query_executor",
 ]

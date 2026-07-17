@@ -21,14 +21,17 @@ from server.api.workflows import router as workflows_router
 from server.api.ws import router as ws_router
 from server.configurations.startup import get_server_settings
 from server.repositories.database.initializer import initialize_database
+from server.repositories.workflow.database import reset_database_engines
 from server.services.startup_validation import run_startup_validations
 from server.services.workflow.execution import execution_service
 
 warnings.filterwarnings("ignore", category=FutureWarning)
 
+
 ###############################################################################
 def _client_build_available() -> bool:
     return (common_path.FRONTEND_DIST_ROOT / "index.html").is_file()
+
 
 ###############################################################################
 def _resolve_client_file(full_path: str) -> Path | None:
@@ -43,9 +46,11 @@ def _resolve_client_file(full_path: str) -> Path | None:
 
     return None
 
+
 ###############################################################################
 def serve_client_root() -> FileResponse:
     return FileResponse(common_path.FRONTEND_DIST_ROOT / "index.html")
+
 
 ###############################################################################
 def serve_client_path(full_path: str) -> FileResponse:
@@ -54,9 +59,11 @@ def serve_client_path(full_path: str) -> FileResponse:
         return FileResponse(client_file)
     return FileResponse(common_path.FRONTEND_DIST_ROOT / "index.html")
 
+
 ###############################################################################
 def redirect_root_to_docs() -> RedirectResponse:
     return RedirectResponse("/docs")
+
 
 ###############################################################################
 @asynccontextmanager
@@ -66,7 +73,11 @@ async def app_lifespan(application: FastAPI) -> AsyncIterator[None]:
     run_startup_validations()
     execution_service.recover_interrupted()
     application.state.server_settings = settings
-    yield
+    try:
+        yield
+    finally:
+        reset_database_engines()
+
 
 ###############################################################################
 def create_app() -> FastAPI:

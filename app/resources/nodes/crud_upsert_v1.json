@@ -1,0 +1,23 @@
+{
+  "id": "CRUD_UPSERT",
+  "version": 1,
+  "name": "Upsert",
+  "category": "database",
+  "description": "Insert or update one row using an explicit SQLite or PostgreSQL conflict target.",
+  "inputs": [],
+  "outputs": [{"name": "dataset", "data_type": "DATASET", "required": true}],
+  "controllers": [{
+    "name": "connection", "data_type": "DATABASE_CONNECTION", "required": true,
+    "accepts_multiple": false, "scope": "target",
+    "description": "Database connection controller from a database node."
+  }],
+  "parameters": [
+    {"name": "table", "data_type": "TEXT", "default": "", "constraints": {"required": true}, "ui_control": "text"},
+    {"name": "schema_name", "data_type": "TEXT", "default": "", "ui_control": "text"},
+    {"name": "conflict_columns", "data_type": "TEXT", "default": "", "constraints": {"required": true}, "ui_control": "text"},
+    {"name": "insert_values", "data_type": "JSON", "default": {}, "constraints": {"required": true}, "ui_control": "json"},
+    {"name": "update_values", "data_type": "JSON", "default": {}, "constraints": {"required": true}, "ui_control": "json"}
+  ],
+  "ui": {"default_width": 380, "accent_color": "#7c3aed", "collapsed_by_default": false},
+  "runtime": {"executor_key": "crud_upsert", "cacheable": false, "deterministic": false, "side_effecting": true}
+}

@@ -12,8 +12,12 @@ from server.domain.node_handler_ingestion import (
     SQLDatabaseParameters,
     SQLFileDatabaseParameters,
 )
-from server.repositories.workflow.database import build_database_url
+from server.repositories.workflow.database import (
+    build_database_url,
+    register_database_credential,
+)
 from server.services.workflow.node_handlers.ingestion.files import resolve_local_path
+
 
 ###############################################################################
 def _build_sql_connection_options(*, db_ssl: bool, db_ssl_ca: str) -> dict[str, Any]:
@@ -23,6 +27,7 @@ def _build_sql_connection_options(*, db_ssl: bool, db_ssl_ca: str) -> dict[str, 
         if db_ssl_ca.strip():
             options["ssl_ca"] = db_ssl_ca.strip()
     return options
+
 
 ###############################################################################
 def _validate_and_build_database_connection(
@@ -44,6 +49,11 @@ def _validate_and_build_database_connection(
     resolved_file_path = (
         str(resolve_local_path(parsed.file_path)) if parsed.engine == "sqlite" else None
     )
+    credential_ref = (
+        register_database_credential(parsed.password)
+        if parsed.engine != "sqlite" and parsed.password
+        else None
+    )
     return {
         "connection": {
             "engine": parsed.engine,
@@ -52,7 +62,8 @@ def _validate_and_build_database_connection(
             "host": parsed.host or None,
             "port": parsed.port,
             "username": parsed.username or None,
-            "password": parsed.password or None,
+            "password": None,
+            "credential_ref": credential_ref,
             "file_path": resolved_file_path,
             "read_only": False,
             "options": {
@@ -61,6 +72,7 @@ def _validate_and_build_database_connection(
             },
         }
     }
+
 
 ###############################################################################
 def _sql_database_executor(
@@ -82,6 +94,7 @@ def _sql_database_executor(
         "connect_timeout_s": parsed.db_connect_timeout,
     }
     return _validate_and_build_database_connection(connection_payload)
+
 
 ###############################################################################
 def _sql_file_database_executor(
