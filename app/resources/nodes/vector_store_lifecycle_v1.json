@@ -1,0 +1,99 @@
+{
+  "id": "VECTOR_STORE_LIFECYCLE",
+  "version": 1,
+  "name": "Vector Store Lifecycle",
+  "category": "vector_storage",
+  "description": "Inspect, reload, update, or delete vector records and collections through the connected store adapter.",
+  "inputs": [
+    {
+      "name": "vectors",
+      "data_type": "VECTOR_POINT_LIST",
+      "required": false,
+      "accepts_multiple": true,
+      "description": "Replacement vector records for the update operation."
+    }
+  ],
+  "outputs": [
+    {
+      "name": "result",
+      "data_type": "JSON",
+      "required": true,
+      "accepts_multiple": false,
+      "description": "Structured collection information or mutation counts and affected IDs."
+    },
+    {
+      "name": "store",
+      "data_type": "VECTOR_STORE_HANDLE",
+      "required": false,
+      "accepts_multiple": false,
+      "description": "Reloaded store handle when the collection still exists."
+    }
+  ],
+  "controllers": [
+    {
+      "name": "store",
+      "data_type": "VECTOR_STORE_HANDLE",
+      "required": true,
+      "accepts_multiple": false,
+      "description": "Vector store handle to manage.",
+      "scope": "target"
+    }
+  ],
+  "parameters": [
+    {
+      "name": "operation",
+      "data_type": "TEXT",
+      "default": "inspect",
+      "constraints": {
+        "required": true,
+        "options": ["update", "delete_ids", "delete_document", "delete_filter", "inspect", "delete_collection", "reload"]
+      },
+      "ui_control": "select",
+      "description": "Lifecycle operation to perform."
+    },
+    {
+      "name": "ids",
+      "data_type": "JSON",
+      "default": [],
+      "constraints": {},
+      "ui_control": "json",
+      "description": "Vector record IDs for delete_ids."
+    },
+    {
+      "name": "document_id",
+      "data_type": "TEXT",
+      "default": "",
+      "constraints": {},
+      "ui_control": "text",
+      "description": "Owned source document ID for delete_document."
+    },
+    {
+      "name": "metadata_filter",
+      "data_type": "JSON",
+      "default": {},
+      "constraints": {},
+      "ui_control": "json",
+      "description": "Shared metadata filter contract for delete_filter."
+    },
+    {
+      "name": "lock_timeout",
+      "data_type": "JSON",
+      "default": 10.0,
+      "constraints": {"min": 0.1, "max": 120},
+      "ui_control": "number",
+      "description": "Maximum seconds to wait for a local store writer lock."
+    }
+  ],
+  "ui": {
+    "default_width": 380,
+    "accent_color": "#59a6ff",
+    "collapsed_by_default": false
+  },
+  "runtime": {
+    "executor_key": "vector_store_lifecycle",
+    "cacheable": false,
+    "deterministic": false,
+    "side_effecting": true,
+    "idempotent": true
+  }
+}

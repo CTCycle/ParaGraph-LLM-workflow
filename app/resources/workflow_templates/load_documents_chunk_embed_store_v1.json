@@ -41,16 +41,17 @@
       {
         "node_id": "vector_store_1",
         "node_type": "VECTOR_STORE",
-        "node_version": 1,
+        "node_version": 2,
         "parameters": {
           "provider": "lancedb",
           "index_name": "documents",
           "namespace": "",
           "distance_metric": "cosine",
           "write_mode": "overwrite",
+          "id_conflict_policy": "upsert",
           "storage_path": "artifacts/vector_store",
           "endpoint_url": "",
-          "api_key": "",
+          "credential_profile": "",
           "collection_name": "",
           "database_name": "",
           "provider_config": {}
@@ -350,7 +351,7 @@
     },
     {
       "id": "VECTOR_STORE",
-      "version": 1,
+      "version": 2,
       "name": "Vector Store",
       "category": "vector_storage",
       "description": "Persist embedding vectors using the selected vector store provider.",

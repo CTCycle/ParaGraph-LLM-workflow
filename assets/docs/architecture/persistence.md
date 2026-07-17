@@ -36,3 +36,5 @@ Last updated: 2026-07-17
 - Workflow definitions remain file-based by design.
 - Runtime event history is durable; live subscriptions are process-local.
 - Database configuration affects internal app records and database-node integrations, but not the source-of-truth workflow graph JSON files.
+- Local FAISS vector indexes use temporary sibling builds, per-index bounded file locks, and atomic directory replacement so failed writes retain the last committed index.
+- LanceDB relies on its versioned table commits and a per-table writer lock; Chroma uses its persistent client and backend-native collection metric metadata.

@@ -75,6 +75,8 @@ class VectorPoint(BaseModel):
     vector: list[float]
     embedding_provider: str
     embedding_model: str
+    embedding_revision: str = ""
+    normalized: bool = False
     metadata: dict[str, Any] = Field(default_factory=dict)
 
     # -------------------------------------------------------------------------
@@ -97,6 +99,8 @@ class VectorStoreHandle(BaseModel):
     dimension: int
     embedding_provider: str
     embedding_model: str
+    embedding_revision: str = ""
+    normalized: bool = False
     collection_name: str = ""
     indexed_metadata_fields: list[str] = Field(default_factory=list)
     keyword_index_status: str = "unsupported"
@@ -110,6 +114,32 @@ class VectorStoreHandle(BaseModel):
         if value <= 0:
             raise ValueError("vector store dimensions must be greater than zero")
         return value
+
+
+###############################################################################
+class VectorMutationResult(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    operation: str
+    affected_count: int = 0
+    affected_ids: list[str] = Field(default_factory=list)
+    conflicts: list[str] = Field(default_factory=list)
+
+
+###############################################################################
+class VectorCollectionInfo(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    backend: str
+    index_name: str
+    exists: bool
+    count: int = 0
+    metric: str = ""
+    dimension: int = 0
+    embedding_provider: str = ""
+    embedding_model: str = ""
+    embedding_revision: str = ""
+    normalized: bool = False
 
 
 ###############################################################################

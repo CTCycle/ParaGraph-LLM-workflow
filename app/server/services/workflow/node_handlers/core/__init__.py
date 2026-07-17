@@ -16,6 +16,7 @@ from server.domain.node_handler_core import (
     StructuredParameters,
     TokenizerParameters,
     VectorStoreParameters,
+    VectorStoreLifecycleParameters,
 )
 from server.services.configuration import configuration_service
 from server.services.workflow.node_handlers import ingestion as ingestion_module
@@ -32,6 +33,7 @@ from server.services.workflow.node_handlers.core.embeddings import (
     _rerank_results_executor,
     _similarity_search_executor,
     _vector_store_executor,
+    _vector_store_lifecycle_executor,
 )
 from server.services.workflow.node_handlers.core.models import (
     _HF_MODEL_CACHE as _UNUSED_HF_MODEL_CACHE,
@@ -91,6 +93,10 @@ CORE_HANDLERS = {
     ),
     "vector_store": NodeHandler(
         executor=_vector_store_executor, parameter_model=VectorStoreParameters
+    ),
+    "vector_store_lifecycle": NodeHandler(
+        executor=_vector_store_lifecycle_executor,
+        parameter_model=VectorStoreLifecycleParameters,
     ),
     "similarity_search": NodeHandler(
         executor=_similarity_search_executor, parameter_model=SimilaritySearchParameters

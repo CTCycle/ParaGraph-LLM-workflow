@@ -1,6 +1,6 @@
 {
   "id": "VECTOR_STORE",
-  "version": 1,
+  "version": 2,
   "name": "Vector Store Upsert",
   "category": "vector_storage",
   "description": "Upsert embedding vectors using the selected vector store provider and return the stored handle plus an upsert summary.",
@@ -115,6 +115,20 @@
       "description": "Whether to overwrite the index or append to it."
     },
     {
+      "name": "id_conflict_policy",
+      "data_type": "TEXT",
+      "default": "upsert",
+      "constraints": {
+        "required": true,
+        "options": [
+          "reject",
+          "upsert"
+        ]
+      },
+      "ui_control": "select",
+      "description": "Reject duplicate record IDs or deterministically replace them."
+    },
+    {
       "name": "storage_path",
       "data_type": "TEXT",
       "default": "",
@@ -148,11 +162,11 @@
       }
     },
     {
-      "name": "api_key",
+      "name": "credential_profile",
       "data_type": "TEXT",
       "default": "",
-      "ui_control": "password",
-      "description": "Provider API key when required.",
+      "ui_control": "text",
+      "description": "Saved configuration profile used to resolve provider credentials at runtime.",
       "constraints": {
         "visible_when": {
           "provider": [

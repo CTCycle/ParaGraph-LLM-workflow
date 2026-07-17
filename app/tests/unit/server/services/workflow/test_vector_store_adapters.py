@@ -13,6 +13,29 @@ from server.services.workflow.vector_stores import (
     WeaviateVectorStoreAdapter,
     get_vector_store_adapter,
 )
+from server.services.workflow.vector_stores.base import (
+    VectorStoreConflictError,
+    _redacted_provider_config,
+    _resolve_runtime_secret,
+    reset_vector_secret_registry,
+)
+from server.services.workflow.vector_stores import base as vector_store_base
+
+
+def _point(point_id: str, document_id: str, vector: list[float]) -> dict[str, object]:
+    return {
+        "id": point_id,
+        "chunk_id": f"chunk-{point_id}",
+        "document_id": document_id,
+        "text": point_id,
+        "source_uri": "local",
+        "vector": vector,
+        "embedding_provider": "test",
+        "embedding_model": "embedding-v1",
+        "embedding_revision": "r1",
+        "normalized": False,
+        "metadata": {"kind": "test"},
+    }
 
 ###############################################################################
 def test_pinecone_map_filter_uses_operator_keys() -> None:
@@ -145,7 +168,7 @@ def test_faiss_validate_connection_accepts_absolute_storage_path(
 def test_vector_store_parameters_require_endpoint_for_remote_providers(
     provider: str,
 ) -> None:
-    with pytest.raises(ValueError, match="endpoint_url is required"):
+    with pytest.raises(ValueError, match="endpoint_url"):
         VectorStoreParameters.model_validate(
             {
                 "provider": provider,
@@ -176,3 +199,121 @@ def test_vector_store_capabilities_matrix(
     assert capabilities["supports_metadata_filtering"] is True
     assert capabilities["supports_hybrid_search"] is False
     assert capabilities["supports_faiss_augmentation"] is supports_faiss_augmentation
+
+
+###############################################################################
+def test_faiss_lifecycle_is_owned_reloadable_and_explicit(tmp_path: Path) -> None:
+    adapter = get_vector_store_adapter("faiss")
+    store = adapter.write_points(
+        index_name="docs",
+        storage_directory=str(tmp_path),
+        metric="cosine",
+        write_mode="overwrite",
+        id_conflict_policy="upsert",
+        index_type="flat",
+        points=[
+            _point("one", "doc-a", [1.0, 0.0]),
+            _point("two", "doc-a", [0.0, 1.0]),
+            _point("three", "doc-b", [0.5, 0.5]),
+        ],
+    )
+
+    assert adapter.inspect_collection(store=store).count == 3
+    deleted = adapter.delete_document(store=store, document_id="doc-a")
+    assert deleted.affected_ids == ["one", "two"]
+    assert adapter.reload(store=store).metadata["count"] == 1
+    removed = adapter.delete_collection(store=store)
+    assert removed.affected_ids == ["three"]
+
+
+###############################################################################
+def test_faiss_duplicate_and_compatibility_policies_are_stable(tmp_path: Path) -> None:
+    adapter = get_vector_store_adapter("faiss")
+    store = adapter.write_points(
+        index_name="docs",
+        storage_directory=str(tmp_path),
+        metric="cosine",
+        write_mode="overwrite",
+        id_conflict_policy="upsert",
+        index_type="flat",
+        points=[_point("one", "doc-a", [1.0, 0.0])],
+    )
+
+    with pytest.raises(VectorStoreConflictError) as duplicate:
+        adapter.write_points(
+            index_name="docs",
+            storage_directory=str(tmp_path),
+            metric="cosine",
+            write_mode="append",
+            id_conflict_policy="reject",
+            index_type="flat",
+            points=[_point("one", "doc-a", [0.0, 1.0])],
+        )
+    assert duplicate.value.conflicts == ["one"]
+
+    incompatible = _point("two", "doc-b", [1.0, 0.0])
+    incompatible["embedding_model"] = "embedding-v2"
+    with pytest.raises(VectorStoreError, match="embedding_model"):
+        adapter.write_points(
+            index_name="docs",
+            storage_directory=str(tmp_path),
+            metric="cosine",
+            write_mode="append",
+            id_conflict_policy="upsert",
+            index_type="flat",
+            points=[incompatible],
+        )
+    assert adapter.reload(store=store).metadata["count"] == 1
+
+
+###############################################################################
+def test_faiss_failed_atomic_write_preserves_last_good_store(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    adapter = get_vector_store_adapter("faiss")
+    store = adapter.write_points(
+        index_name="docs",
+        storage_directory=str(tmp_path),
+        metric="cosine",
+        write_mode="overwrite",
+        id_conflict_policy="upsert",
+        index_type="flat",
+        points=[_point("one", "doc-a", [1.0, 0.0])],
+    )
+
+    def fail_build(*args: object, **kwargs: object) -> object:
+        raise RuntimeError("injected index build failure")
+
+    monkeypatch.setattr(vector_store_base, "_build_index", fail_build)
+    with pytest.raises(RuntimeError, match="injected index build failure"):
+        adapter.write_points(
+            index_name="docs",
+            storage_directory=str(tmp_path),
+            metric="cosine",
+            write_mode="overwrite",
+            id_conflict_policy="upsert",
+            index_type="flat",
+            points=[_point("two", "doc-b", [0.0, 1.0])],
+        )
+
+    assert adapter.reload(store=store).metadata["count"] == 1
+    assert not list(tmp_path.glob(".docs.tmp-*"))
+
+
+###############################################################################
+def test_runtime_vector_secret_handles_are_redacted_and_disposable() -> None:
+    safe = _redacted_provider_config(
+        {
+            "provider": "qdrant",
+            "api_key": "sk-sensitive-value",
+            "password": "hidden",
+        },
+        "sk-sensitive-value",
+    )
+
+    serialized = str(safe)
+    assert "sk-sensitive-value" not in serialized
+    assert "hidden" not in serialized
+    assert _resolve_runtime_secret(safe) == "sk-sensitive-value"
+    reset_vector_secret_registry()
+    assert _resolve_runtime_secret(safe) == ""
