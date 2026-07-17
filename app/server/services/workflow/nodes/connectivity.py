@@ -71,7 +71,7 @@ class NodeConnectivityService:
                 storage_directory=parsed.storage_path,
                 namespace=parsed.namespace,
                 endpoint_url=parsed.endpoint_url,
-                api_key=parsed.api_key,
+                api_key="",
                 collection_name=parsed.collection_name,
                 database_name=parsed.database_name,
                 provider_config=parsed.provider_config,

@@ -89,11 +89,16 @@ Representative newer manifests include:
   - `UNIT_NUMBER_NORMALIZER`
 
 ## Web API Nodes
-- HTTP GET, POST, PUT, PATCH, and DELETE nodes use the backend `httpx` client.
+- `HTTP_REQUEST` is the single versioned HTTP node and supports GET, POST, PUT,
+  PATCH, DELETE, HEAD, and OPTIONS through one shared transport contract.
 - Only `http` and `https` schemes are allowed.
 - Hostnames are resolved before requests and loopback, private, link-local, multicast, and unspecified addresses are blocked by default.
-- `PARAGRAPH_ALLOW_PRIVATE_HTTP_NODES=true` should only be enabled in trusted local environments when private targets are required.
-- Sensitive headers such as `authorization`, `cookie`, `set-cookie`, and `x-api-key` are redacted in traces.
+- Redirects are disabled by default, revalidated on every hop, and HTTPS
+  downgrade is forbidden unless explicitly enabled on a trusted local request.
+- Request retries are bounded; unsafe methods require an idempotency key or an
+  explicit opt-in, and response/download byte limits are enforced while reading.
+- Credential profiles resolve secrets at execution time. Secrets and sensitive
+  response headers are redacted from returned metadata.
 
 ## Control, Tokenizer, Metadata, And Vector Search
 - Control nodes include `IF_TEXT_CONTAINS`, `REDUCE_CHUNKS`, `CACHE_NODE`, `HUMAN_REVIEW_GATE`, and `TRACE_DEBUG_VIEWER`.

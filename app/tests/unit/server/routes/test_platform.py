@@ -62,11 +62,10 @@ def test_nodes_catalog_exposes_registry(client: TestClient) -> None:
 
     ids = {node["id"] for node in payload["nodes"]}
     assert ids >= {
-        "API_CALL",
         "BY_DELIMITER_CHUNKS",
         "BY_STRUCTURE_CHUNKS",
-        "FETCH_HTML",
         "FIXED_SIZE_CHUNKS",
+        "HTTP_REQUEST",
         "JSON_OUTPUT",
         "LLM_CHAT",
         "LLM_STRUCTURED",
