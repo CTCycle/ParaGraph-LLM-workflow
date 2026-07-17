@@ -1,5 +1,5 @@
 # Persistence
-Last updated: 2026-06-02
+Last updated: 2026-07-17
 
 ## File-Based Persistence
 - Workflow graph definitions are stored as JSON under `app/resources/workflows`.
@@ -17,17 +17,22 @@ Last updated: 2026-06-02
   - `configuration_profiles`
   - `nodes`
   - `chat_history_messages`
+  - `execution_runs`
+  - `execution_steps`
+  - `execution_events`
 
 ## Persistence Layer Responsibilities
 - SQLite and PostgreSQL repositories share tabular persistence through `repositories/database/base.py`.
 - Engine-specific adapters only construct, validate, and connect to their backends.
 - Database workflow nodes use `repositories/workflow/database.py` for inspected external and SQLite connection operations.
 
-## In-Memory Runtime Stores
-- Execution runs are tracked in `repositories/workflow/execution_run.py`.
-- Execution event history and subscribers are tracked in `services/runtime/events.py`.
+## Execution Durability
+- Runs, serialized plans, step state and outputs, pause tokens, final outputs, and ordered event history are stored in the application database.
+- Event sequences are monotonic per run and survive backend restart.
+- Only active WebSocket subscriber queues and thread-job control flags remain process-local.
+- `ExecutionRunRepository.cleanup_retention(days)` is the explicit bounded cleanup boundary. No background deletion service runs automatically.
 
 ## Storage Boundary Rules
 - Workflow definitions remain file-based by design.
-- Runtime event history is ephemeral and process-local.
+- Runtime event history is durable; live subscriptions are process-local.
 - Database configuration affects internal app records and database-node integrations, but not the source-of-truth workflow graph JSON files.

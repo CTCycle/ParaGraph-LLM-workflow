@@ -18,9 +18,18 @@ ExecutionEventType = Literal[
     "execution.step.progress",
     "execution.step.completed",
     "execution.step.failed",
+    "execution.cancellation.requested",
+    "execution.cancelled",
+    "execution.step.retry.started",
+    "execution.step.retry.failed",
+    "execution.step.timeout",
+    "execution.paused",
+    "execution.resumed",
+    "execution.recovered",
     "execution.completed",
     "execution.failed",
 ]
+
 
 ###############################################################################
 class ExecutionBinding(BaseModel):
@@ -28,6 +37,7 @@ class ExecutionBinding(BaseModel):
     input_name: str
     source_node_id: str
     source_output: str
+
 
 ###############################################################################
 class ExecutionStepPlan(BaseModel):
@@ -43,6 +53,7 @@ class ExecutionStepPlan(BaseModel):
     retries: int = 0
     cacheable: bool = False
 
+
 ###############################################################################
 class CompiledExecutionPlan(BaseModel):
     plan_id: str
@@ -50,6 +61,7 @@ class CompiledExecutionPlan(BaseModel):
     step_order: list[str] = Field(default_factory=list)
     steps: list[ExecutionStepPlan] = Field(default_factory=list)
     metadata: dict[str, Any] = Field(default_factory=dict)
+
 
 ###############################################################################
 class ExecutionStepState(BaseModel):
@@ -63,6 +75,10 @@ class ExecutionStepState(BaseModel):
     error: str | None = None
     pause_payload: dict[str, Any] | None = None
     resume_token: str | None = None
+    position: int = 0
+    attempt_count: int = 0
+    blocked_reason: str | None = None
+
 
 ###############################################################################
 class ExecutionRunState(BaseModel):
@@ -80,6 +96,9 @@ class ExecutionRunState(BaseModel):
     error: str | None = None
     pause_payload: dict[str, Any] | None = None
     resume_token: str | None = None
+    plan: CompiledExecutionPlan | None = None
+    cancellation_requested: bool = False
+
 
 ###############################################################################
 class ExecutionEventEnvelope(BaseModel):
@@ -91,11 +110,13 @@ class ExecutionEventEnvelope(BaseModel):
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     payload: dict[str, Any] = Field(default_factory=dict)
 
+
 ###############################################################################
 class StartExecutionRequest(BaseModel):
     workflow_id: str | None = None
     execution_session_id: str | None = None
     plan: CompiledExecutionPlan
+
 
 ###############################################################################
 class StartExecutionResponse(BaseModel):
@@ -105,8 +126,22 @@ class StartExecutionResponse(BaseModel):
     execution_session_id: str | None = None
     poll_interval: float = 1.0
 
+
 ###############################################################################
 class EventHistoryResponse(BaseModel):
     run_id: str
     request_id: str | None = None
     events: list[ExecutionEventEnvelope] = Field(default_factory=list)
+
+
+###############################################################################
+class ResumeExecutionRequest(BaseModel):
+    resume_token: str
+    reviewed_payload: dict[str, Any] | None = None
+
+
+###############################################################################
+class ExecutionActionResponse(BaseModel):
+    run_id: str
+    status: ExecutionStatus
+    message: str

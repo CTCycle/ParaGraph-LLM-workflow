@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+import uuid
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
 from datetime import datetime, timezone
 from typing import Any
 
@@ -19,6 +21,7 @@ from server.services.runtime.events import execution_event_service
 from server.services.workflow.nodes import node_registry
 from server.common.utils.values import extract_top_level_json_fields
 
+
 ###############################################################################
 class ExecutionService:
     OUTPUT_NAME_PARAMETER = "__output_name"
@@ -32,6 +35,10 @@ class ExecutionService:
         execution_session_id: str | None = None,
         request_id: str | None = None,
     ) -> str:
+        run_id = str(uuid.uuid4())[:8]
+        self._initialize_run(
+            plan, workflow_id, execution_session_id, run_id, request_id=request_id
+        )
         return job_manager.start_job(
             job_type="workflow",
             runner=self.execute_plan_job,
@@ -41,6 +48,7 @@ class ExecutionService:
                 "execution_session_id": execution_session_id,
                 "request_id": request_id,
             },
+            job_id=run_id,
         )
 
     # -------------------------------------------------------------------------
@@ -60,7 +68,7 @@ class ExecutionService:
         return StartExecutionResponse(
             run_id=run_id,
             request_id=request_id,
-            status="running",
+            status="queued",
             execution_session_id=execution_session_id,
             poll_interval=get_server_settings().jobs.polling_interval,
         )
@@ -78,11 +86,25 @@ class ExecutionService:
         execution_session_id: str | None = None,
         request_id: str | None = None,
     ) -> dict[str, Any]:
-        self._initialize_run(
-            plan, workflow_id, execution_session_id, job_id, request_id=request_id
-        )
-        outputs_by_step: dict[str, dict[str, Any]] = {}
-        output_payload: dict[str, dict[str, Any]] = {}
+        if execution_run_repository.get_run(job_id) is None:
+            self._initialize_run(
+                plan, workflow_id, execution_session_id, job_id, request_id=request_id
+            )
+        else:
+            execution_run_repository.update_run(job_id, status="running")
+            execution_event_service.publish(
+                run_id=job_id,
+                event_type="execution.started",
+                request_id=request_id,
+                payload={"plan_id": plan.plan_id},
+            )
+        persisted = execution_run_repository.get_run(job_id)
+        outputs_by_step = {
+            step.step_id: dict(step.output.get("ports", {}))
+            for step in (persisted.steps if persisted else [])
+            if step.status == "completed"
+        }
+        output_payload = dict(persisted.outputs if persisted else {})
         cache: dict[str, dict[str, Any]] = {}
         step_lookup = {step.step_id: step for step in plan.steps}
         total_steps = len(plan.step_order) or 1
@@ -92,12 +114,19 @@ class ExecutionService:
                 return {}
 
             step = step_lookup[step_id]
+            current = execution_run_repository.get_run(job_id)
+            current_step = (
+                next((item for item in current.steps if item.step_id == step_id), None)
+                if current
+                else None
+            )
+            if current_step is not None and current_step.status == "completed":
+                continue
             try:
                 if self._should_skip_step(step, outputs_by_step):
                     self._skip_step(job_id, step_id)
                     continue
-                self._start_step(job_id, step)
-                output_state_public = self._execute_step(
+                output_state_public = self._execute_step_with_policy(
                     job_id=job_id,
                     workflow_id=workflow_id,
                     execution_session_id=execution_session_id,
@@ -117,6 +146,8 @@ class ExecutionService:
                 self._fail_step(job_id, step_id, str(exc))
                 raise
 
+        if self._cancelled(job_id):
+            return {}
         execution_run_repository.update_run(
             job_id, status="completed", outputs=output_payload, progress=100.0
         )
@@ -140,9 +171,12 @@ class ExecutionService:
     ) -> None:
         steps_state = [
             ExecutionStepState(
-                step_id=step.step_id, node_id=step.node_id, node_type=step.node_type
+                step_id=step.step_id,
+                node_id=step.node_id,
+                node_type=step.node_type,
+                position=index,
             )
-            for step in plan.steps
+            for index, step in enumerate(plan.steps)
         ]
         run = ExecutionRunState(
             run_id=job_id,
@@ -150,6 +184,7 @@ class ExecutionService:
             workflow_id=workflow_id,
             execution_session_id=execution_session_id,
             plan_id=plan.plan_id,
+            plan=plan,
             status="queued",
             steps=steps_state,
         )
@@ -170,25 +205,207 @@ class ExecutionService:
 
     # -------------------------------------------------------------------------
     def _cancelled(self, job_id: str) -> bool:
-        if not job_manager.should_stop(job_id):
+        run = execution_run_repository.get_run(job_id)
+        requested = bool(run and run.cancellation_requested)
+        if not requested and not job_manager.should_stop(job_id):
             return False
-        execution_run_repository.update_run(job_id, status="cancelled")
+        if run and run.status not in ("completed", "failed", "cancelled"):
+            execution_run_repository.update_run(job_id, status="cancelled")
+            execution_event_service.publish(
+                run_id=job_id,
+                event_type="execution.cancelled",
+                request_id=run.request_id,
+                payload={"message": "Execution cancelled"},
+            )
         return True
 
+    def cancel(self, run_id: str) -> ExecutionRunState | None:
+        run = execution_run_repository.get_run(run_id)
+        if run is None or run.status in ("completed", "failed", "cancelled"):
+            return run
+        execution_run_repository.update_run(run_id, cancellation_requested=True)
+        execution_event_service.publish(
+            run_id=run_id,
+            event_type="execution.cancellation.requested",
+            request_id=run.request_id,
+            payload={"status": run.status},
+        )
+        manager_accepted = job_manager.cancel_job(run_id)
+        if run.status in ("queued", "paused") or not manager_accepted:
+            self._cancelled(run_id)
+        return execution_run_repository.get_run(run_id)
+
+    def resume(
+        self,
+        run_id: str,
+        resume_token: str,
+        reviewed_payload: dict[str, Any] | None = None,
+    ) -> ExecutionRunState | None:
+        run = execution_run_repository.get_run(run_id)
+        if run is None:
+            return None
+        if (
+            run.status != "paused"
+            or not run.resume_token
+            or run.resume_token != resume_token
+        ):
+            raise ValueError("Run is not paused or resume token is invalid")
+        if run.plan is None:
+            raise ValueError("Persisted execution plan is unavailable")
+        execution_run_repository.update_run(
+            run_id,
+            status="queued",
+            pause_payload=None,
+            resume_token=None,
+            cancellation_requested=False,
+        )
+        execution_event_service.publish(
+            run_id=run_id,
+            event_type="execution.resumed",
+            request_id=run.request_id,
+            payload={"reviewed_payload": reviewed_payload or {}},
+        )
+        job_manager.start_job(
+            job_type="workflow",
+            runner=self.execute_plan_job,
+            kwargs={
+                "plan": run.plan,
+                "workflow_id": run.workflow_id,
+                "execution_session_id": run.execution_session_id,
+                "request_id": run.request_id,
+            },
+            job_id=run_id,
+        )
+        return execution_run_repository.get_run(run_id)
+
+    def recover_interrupted(self) -> int:
+        recovered = 0
+        for run in execution_run_repository.list_recoverable():
+            if run.plan is None:
+                execution_run_repository.update_run(
+                    run.run_id,
+                    status="failed",
+                    error="RECOVERY_UNAVAILABLE: persisted plan is missing",
+                )
+                continue
+            if any(step.status == "running" for step in run.steps):
+                message = (
+                    "RECOVERY_UNAVAILABLE: an interrupted running step may have "
+                    "produced side effects"
+                )
+                execution_run_repository.update_run(
+                    run.run_id, status="failed", error=message
+                )
+                execution_event_service.publish(
+                    run_id=run.run_id,
+                    event_type="execution.recovered",
+                    request_id=run.request_id,
+                    payload={"policy": "marked_unrecoverable", "error": message},
+                )
+                continue
+            execution_run_repository.update_run(run.run_id, status="queued")
+            execution_event_service.publish(
+                run_id=run.run_id,
+                event_type="execution.recovered",
+                request_id=run.request_id,
+                payload={"policy": "resume_after_completed_steps"},
+            )
+            job_manager.start_job(
+                job_type="workflow",
+                runner=self.execute_plan_job,
+                kwargs={
+                    "plan": run.plan,
+                    "workflow_id": run.workflow_id,
+                    "execution_session_id": run.execution_session_id,
+                    "request_id": run.request_id,
+                },
+                job_id=run.run_id,
+            )
+            recovered += 1
+        return recovered
+
+    def _execute_step_with_policy(self, **kwargs: Any) -> dict[str, Any]:
+        step = kwargs["step"]
+        job_id = kwargs["job_id"]
+        attempts = step.retries + 1
+        for attempt in range(1, attempts + 1):
+            self._start_step(job_id, step, attempt)
+            local_kwargs = dict(kwargs)
+            local_kwargs["outputs_by_step"] = dict(kwargs["outputs_by_step"])
+            local_kwargs["output_payload"] = dict(kwargs["output_payload"])
+            local_kwargs["cache"] = dict(kwargs["cache"])
+            executor = ThreadPoolExecutor(
+                max_workers=1, thread_name_prefix=f"step-{step.step_id}"
+            )
+            future = executor.submit(self._execute_step, **local_kwargs)
+            try:
+                result = future.result(
+                    timeout=(step.timeout_ms / 1000) if step.timeout_ms else None
+                )
+                kwargs["outputs_by_step"].clear()
+                kwargs["outputs_by_step"].update(local_kwargs["outputs_by_step"])
+                kwargs["output_payload"].clear()
+                kwargs["output_payload"].update(local_kwargs["output_payload"])
+                kwargs["cache"].clear()
+                kwargs["cache"].update(local_kwargs["cache"])
+                executor.shutdown(wait=False)
+                return result
+            except FutureTimeoutError as exc:
+                future.cancel()
+                executor.shutdown(wait=False, cancel_futures=True)
+                message = f"STEP_TIMEOUT: step exceeded {step.timeout_ms} ms"
+                execution_event_service.publish(
+                    run_id=job_id,
+                    event_type="execution.step.timeout",
+                    step_id=step.step_id,
+                    request_id=self._request_id_for_run(job_id),
+                    payload={
+                        "attempt": attempt,
+                        "timeout_ms": step.timeout_ms,
+                        "error": message,
+                    },
+                )
+                raise TimeoutError(message) from exc
+            except Exception as exc:  # noqa: BLE001
+                executor.shutdown(wait=False, cancel_futures=True)
+                if attempt >= attempts:
+                    raise
+                execution_event_service.publish(
+                    run_id=job_id,
+                    event_type="execution.step.retry.failed",
+                    step_id=step.step_id,
+                    request_id=self._request_id_for_run(job_id),
+                    payload={"attempt": attempt, "error": str(exc)},
+                )
+                execution_event_service.publish(
+                    run_id=job_id,
+                    event_type="execution.step.retry.started",
+                    step_id=step.step_id,
+                    request_id=self._request_id_for_run(job_id),
+                    payload={"attempt": attempt + 1, "max_attempts": attempts},
+                )
+        raise RuntimeError("Unreachable retry state")
+
     # -------------------------------------------------------------------------
-    def _start_step(self, job_id: str, step: Any) -> None:
+    def _start_step(self, job_id: str, step: Any, attempt: int = 1) -> None:
         self._set_step_state(
             job_id,
             step.step_id,
             status="running",
             started_at=datetime.now(timezone.utc),
+            attempt_count=attempt,
+            error=None,
         )
         execution_event_service.publish(
             run_id=job_id,
             event_type="execution.step.started",
             step_id=step.step_id,
             request_id=self._request_id_for_run(job_id),
-            payload={"node_type": step.node_type, "node_id": step.node_id},
+            payload={
+                "node_type": step.node_type,
+                "node_id": step.node_id,
+                "attempt": attempt,
+            },
         )
 
     # -------------------------------------------------------------------------
@@ -402,6 +619,7 @@ class ExecutionService:
             step_id,
             status="skipped",
             completed_at=datetime.now(timezone.utc),
+            blocked_reason="All bound inputs were skipped or missing",
         )
 
     # -------------------------------------------------------------------------
@@ -415,6 +633,12 @@ class ExecutionService:
             status="paused",
             pause_payload=outputs.get("pause_payload"),
             resume_token=outputs.get("resume_token"),
+        )
+        execution_event_service.publish(
+            run_id=job_id,
+            event_type="execution.paused",
+            request_id=self._request_id_for_run(job_id),
+            payload={"pause_payload": outputs.get("pause_payload") or {}},
         )
 
     # -------------------------------------------------------------------------
@@ -532,18 +756,7 @@ class ExecutionService:
 
     # -------------------------------------------------------------------------
     def _set_step_state(self, run_id: str, step_id: str, **updates: Any) -> None:
-        run = execution_run_repository.get_run(run_id)
-        if run is None:
-            return
-        updated_steps: list[ExecutionStepState] = []
-        for step in run.steps:
-            if step.step_id != step_id:
-                updated_steps.append(step)
-                continue
-            payload = step.model_dump()
-            payload.update(updates)
-            updated_steps.append(ExecutionStepState.model_validate(payload))
-        execution_run_repository.set_steps(run_id, updated_steps)
+        execution_run_repository.update_step(run_id, step_id, **updates)
 
     # -------------------------------------------------------------------------
     def _redact_output_state(self, output_state: dict[str, Any]) -> dict[str, Any]:

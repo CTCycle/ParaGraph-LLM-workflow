@@ -261,6 +261,11 @@ export interface ExecutionStepState {
     completed_at?: string | null
     output: Record<string, unknown>
     error?: string | null
+    position: number
+    attempt_count: number
+    blocked_reason?: string | null
+    pause_payload?: Record<string, unknown> | null
+    resume_token?: string | null
 }
 
 export interface ExecutionRunState {
@@ -278,6 +283,8 @@ export interface ExecutionRunState {
     error?: string | null
     pause_payload?: Record<string, unknown> | null
     resume_token?: string | null
+    plan?: CompiledExecutionPlan | null
+    cancellation_requested: boolean
 }
 
 export type ExecutionEventType =
@@ -287,6 +294,14 @@ export type ExecutionEventType =
     | 'execution.step.progress'
     | 'execution.step.completed'
     | 'execution.step.failed'
+    | 'execution.cancellation.requested'
+    | 'execution.cancelled'
+    | 'execution.step.retry.started'
+    | 'execution.step.retry.failed'
+    | 'execution.step.timeout'
+    | 'execution.paused'
+    | 'execution.resumed'
+    | 'execution.recovered'
     | 'execution.completed'
     | 'execution.failed'
 

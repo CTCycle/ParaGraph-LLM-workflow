@@ -22,6 +22,7 @@ from server.api.ws import router as ws_router
 from server.configurations.startup import get_server_settings
 from server.repositories.database.initializer import initialize_database
 from server.services.startup_validation import run_startup_validations
+from server.services.workflow.execution import execution_service
 
 warnings.filterwarnings("ignore", category=FutureWarning)
 
@@ -63,6 +64,7 @@ async def app_lifespan(application: FastAPI) -> AsyncIterator[None]:
     settings = get_server_settings()
     initialize_database()
     run_startup_validations()
+    execution_service.recover_interrupted()
     application.state.server_settings = settings
     yield
 

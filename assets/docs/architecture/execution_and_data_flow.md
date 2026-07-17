@@ -7,7 +7,7 @@ Typical backend flow follows endpoint to service to repository:
 - Workflows:
   - `api/workflows.py` -> `services/workflow/workflow.py` -> `repositories/workflow/workflow.py`
 - Execution lifecycle:
-  - `api/executions.py` -> `services/workflow/compiler/service.py` and `services/workflow/execution.py` -> in-memory run and event repositories
+  - `api/executions.py` -> `services/workflow/compiler/service.py` and `services/workflow/execution.py` -> SQLAlchemy-backed run, step, and event repositories
 - Configurations:
   - `api/configurations.py` -> `services/configuration.py` -> `repositories/configuration.py` -> SQLAlchemy models in `repositories/schemas/models.py`
 - Provider catalogs and downloads:
@@ -61,7 +61,7 @@ Typical backend flow follows endpoint to service to repository:
 - `server/services/jobs.py`
   - Thread-based background job management.
 - `server/services/runtime/events.py`
-  - In-memory event bus and per-run history.
+  - Durable per-run event history plus process-local live subscriber queues.
 - `server/repositories/workflow/workflow.py`
   - Filesystem workflow storage and indexing.
 - `server/repositories/workflow/node_manifest.py`
@@ -91,6 +91,8 @@ Typical backend flow follows endpoint to service to repository:
   - `POST /nodes/uploads/directory` for multipart uploads.
   - `WS /executions/ws/runs/{run_id}` for streaming run events.
 - Long-running workflow execution is offloaded to background threads through `JobManager`.
+- Runs persist their compiled plan and completed step outputs. Startup recovery resumes queued or interrupted runs after completed steps; it never re-executes a durably completed step.
+- Per-step timeouts prevent late results from updating durable state, but Python cannot forcibly terminate an underlying provider thread. Live WebSocket subscribers remain process-local and clients reconnect to durable history after restart.
 - Async handlers avoid CPU-heavy loops; blocking workflow execution happens in job threads instead of request handlers.
 
 ## Compiler Diagnostics
