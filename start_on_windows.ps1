@@ -161,7 +161,7 @@ function Import-DotEnv {
         RELOAD = 'false'
         OPTIONAL_DEPENDENCIES = 'false'
         BACKEND_LOGS_VISIBLE = 'true'
-        always_rebuild = 'true'
+        ALWAYS_REBUILD = 'true'
     }
     if (-not (Test-Path -LiteralPath $DotEnv)) {
         if (-not (Test-Path -LiteralPath $DotEnvExample)) {
@@ -210,12 +210,12 @@ function Sync-Dependencies([System.Collections.IDictionary]$Settings, [switch]$P
             & $NpmCmd install
         }
         if ($LASTEXITCODE -ne 0) { throw "npm dependency installation failed with exit code $LASTEXITCODE" }
-        if ([string]$Settings.always_rebuild -ieq 'true') {
+        if ([string]$Settings.ALWAYS_REBUILD -ieq 'true') {
             Write-Step 'Building frontend'
             & $NpmCmd run build
             if ($LASTEXITCODE -ne 0) { throw "Frontend build failed with exit code $LASTEXITCODE" }
         } else {
-            Write-Info 'Skipping frontend build because always_rebuild=false.'
+            Write-Info 'Skipping frontend build because ALWAYS_REBUILD=false.'
         }
     } finally { Pop-Location }
 

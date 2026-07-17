@@ -44,4 +44,4 @@ npm run dev
 - First-run startup can be slow because of dependency synchronization, runtime hydration, and frontend build work.
 - If `settings/.env` is missing, the launcher creates it from `settings/.env.example` before loading settings.
 - Set `BACKEND_LOGS_VISIBLE=true` to open a dedicated backend log terminal. If the key is absent, the launcher defaults to visible logs; set it to `false` for a hidden detached backend.
-- Set `always_rebuild=false` to skip the frontend build during application startup; it defaults to `true`.
+- Set `ALWAYS_REBUILD=false` to skip the frontend build during application startup; it defaults to `true`.
