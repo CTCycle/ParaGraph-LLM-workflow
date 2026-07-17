@@ -30,30 +30,6 @@ def _if_text_contains_executor(
     }
 
 ###############################################################################
-def _switch_by_label_executor(
-    parameters: dict[str, Any], inputs: dict[str, Any]
-) -> dict[str, Any]:
-    parsed = ControlParameters.model_validate(parameters)
-    label = coerce_text(inputs.get("label", parsed.label))
-    return {label: inputs.get("value", label), "selected": label}
-
-###############################################################################
-def _map_over_chunks_executor(
-    parameters: dict[str, Any], inputs: dict[str, Any]
-) -> dict[str, Any]:
-    parsed = ControlParameters.model_validate(parameters)
-    chunks = inputs.get("chunks", [])
-    if not isinstance(chunks, list):
-        chunks = [chunks]
-    if parsed.operation == "uppercase":
-        result = [coerce_text(item).upper() for item in chunks]
-    elif parsed.operation == "lowercase":
-        result = [coerce_text(item).lower() for item in chunks]
-    else:
-        result = chunks
-    return {"result": result}
-
-###############################################################################
 def _reduce_chunks_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
 ) -> dict[str, Any]:
@@ -70,18 +46,6 @@ def _reduce_chunks_executor(
             else coerce_text(item)
             for item in chunks
         )
-    }
-
-###############################################################################
-def _batch_processor_executor(
-    parameters: dict[str, Any], inputs: dict[str, Any]
-) -> dict[str, Any]:
-    _ = parameters
-    items = inputs.get("items", inputs.get("value", []))
-    if not isinstance(items, list):
-        items = [items]
-    return {
-        "result": [{"index": index, "value": item} for index, item in enumerate(items)]
     }
 
 ###############################################################################
@@ -106,12 +70,6 @@ def _human_review_gate_executor(
     }
 
 ###############################################################################
-def _error_fallback_executor(
-    parameters: dict[str, Any], inputs: dict[str, Any]
-) -> dict[str, Any]:
-    return {"result": inputs.get("value", parameters.get("fallback"))}
-
-###############################################################################
 def _trace_debug_viewer_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
 ) -> dict[str, Any]:
@@ -127,18 +85,10 @@ CONTROL_HANDLERS = {
     "if_text_contains": NodeHandler(
         executor=_if_text_contains_executor, parameter_model=ControlParameters
     ),
-    "switch_by_label": NodeHandler(
-        executor=_switch_by_label_executor, parameter_model=ControlParameters
-    ),
-    "map_over_chunks": NodeHandler(
-        executor=_map_over_chunks_executor, parameter_model=ControlParameters
-    ),
     "reduce_chunks": NodeHandler(
         executor=_reduce_chunks_executor, parameter_model=ControlParameters
     ),
-    "batch_processor": NodeHandler(executor=_batch_processor_executor),
     "cache_node": NodeHandler(executor=_cache_node_executor),
     "human_review_gate": NodeHandler(executor=_human_review_gate_executor),
-    "error_fallback": NodeHandler(executor=_error_fallback_executor),
     "trace_debug_viewer": NodeHandler(executor=_trace_debug_viewer_executor),
 }

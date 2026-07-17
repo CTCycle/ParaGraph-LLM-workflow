@@ -4,9 +4,7 @@ from server.services.workflow.node_handlers.control import (
     _cache_node_executor,
     _human_review_gate_executor,
     _if_text_contains_executor,
-    _map_over_chunks_executor,
     _reduce_chunks_executor,
-    _switch_by_label_executor,
     _trace_debug_viewer_executor,
 )
 from server.domain.execution import (
@@ -29,17 +27,7 @@ def test_if_text_contains_selects_true_and_false_branch() -> None:
     )
 
 ###############################################################################
-def test_switch_by_label_emits_selected_branch() -> None:
-    assert (
-        _switch_by_label_executor({"label": "route"}, {"value": 1})["selected"]
-        == "route"
-    )
-
-###############################################################################
-def test_map_and_reduce_chunks_apply_operations() -> None:
-    assert _map_over_chunks_executor({"operation": "uppercase"}, {"chunks": ["a"]})[
-        "result"
-    ] == ["A"]
+def test_reduce_chunks_joins_text() -> None:
     assert _reduce_chunks_executor({}, {"chunks": ["a", "b"]})["result"] == "a\nb"
 
 ###############################################################################
