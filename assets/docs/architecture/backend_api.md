@@ -1,5 +1,5 @@
 # Backend API
-Last updated: 2026-06-18
+Last updated: 2026-07-17
 
 ## Root
 - `GET /`
@@ -18,6 +18,8 @@ Last updated: 2026-06-18
 - `POST /executions`
 - `GET /executions/{run_id}`
 - `GET /executions/{run_id}/events`
+- `POST /executions/{run_id}/cancel`
+- `POST /executions/{run_id}/resume`
 - `WS /executions/ws/runs/{run_id}`
 
 ## Nodes

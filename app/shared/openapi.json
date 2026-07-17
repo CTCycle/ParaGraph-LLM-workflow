@@ -351,6 +351,106 @@
         }
       }
     },
+    "/executions/{run_id}/cancel": {
+      "post": {
+        "tags": [
+          "executions"
+        ],
+        "summary": "Cancel Execution",
+        "operationId": "cancel_execution_executions__run_id__cancel_post",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExecutionActionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/executions/{run_id}/resume": {
+      "post": {
+        "tags": [
+          "executions"
+        ],
+        "summary": "Resume Execution",
+        "operationId": "resume_execution_executions__run_id__resume_post",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResumeExecutionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExecutionActionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/nodes/catalog": {
       "get": {
         "tags": [
@@ -2014,6 +2114,37 @@
         ],
         "title": "EventHistoryResponse"
       },
+      "ExecutionActionResponse": {
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "title": "Run Id"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "completed",
+              "failed",
+              "cancelled",
+              "paused"
+            ],
+            "title": "Status"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "run_id",
+          "status",
+          "message"
+        ],
+        "title": "ExecutionActionResponse"
+      },
       "ExecutionBinding": {
         "properties": {
           "binding_type": {
@@ -2057,6 +2188,14 @@
               "execution.step.progress",
               "execution.step.completed",
               "execution.step.failed",
+              "execution.cancellation.requested",
+              "execution.cancelled",
+              "execution.step.retry.started",
+              "execution.step.retry.failed",
+              "execution.step.timeout",
+              "execution.paused",
+              "execution.resumed",
+              "execution.recovered",
               "execution.completed",
               "execution.failed"
             ],
@@ -2230,6 +2369,21 @@
               }
             ],
             "title": "Resume Token"
+          },
+          "plan": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CompiledExecutionPlan"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "cancellation_requested": {
+            "type": "boolean",
+            "title": "Cancellation Requested",
+            "default": false
           }
         },
         "type": "object",
@@ -2398,6 +2552,27 @@
               }
             ],
             "title": "Resume Token"
+          },
+          "position": {
+            "type": "integer",
+            "title": "Position",
+            "default": 0
+          },
+          "attempt_count": {
+            "type": "integer",
+            "title": "Attempt Count",
+            "default": 0
+          },
+          "blocked_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Blocked Reason"
           }
         },
         "type": "object",
@@ -3589,6 +3764,31 @@
           "base_url"
         ],
         "title": "ProviderStatusResponse"
+      },
+      "ResumeExecutionRequest": {
+        "properties": {
+          "resume_token": {
+            "type": "string",
+            "title": "Resume Token"
+          },
+          "reviewed_payload": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewed Payload"
+          }
+        },
+        "type": "object",
+        "required": [
+          "resume_token"
+        ],
+        "title": "ResumeExecutionRequest"
       },
       "StartExecutionRequest": {
         "properties": {
