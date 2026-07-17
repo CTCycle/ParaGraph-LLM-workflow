@@ -40,7 +40,7 @@ import {
 } from '../app/services/nodesApi'
 import { compileWorkflow } from '../app/services/workflowsApi'
 import { fetchProviderModels } from '../app/services/providersApi'
-import { pollExecution, startExecution, subscribeExecutionEvents } from '../app/services/executionsApi'
+import { cancelExecution, pollExecution, startExecution, subscribeExecutionEvents } from '../app/services/executionsApi'
 import { usePageMetadata } from '../app/hooks/usePageMetadata'
 import { useNodeCatalog } from '../workflow/hooks/useNodeCatalog'
 import {
@@ -50,6 +50,7 @@ import {
 import { NODE_CATEGORY_LABELS, NODE_CATEGORY_ORDER } from '../workflow/schema/nodeCategory'
 import {
     CompiledExecutionPlan,
+    CompilerDiagnostic,
     ExecutionRunState,
     NodeCategory,
     NodeManifest,
@@ -2454,6 +2455,7 @@ function WorkflowEditor() {
     const [providerModels, setProviderModels] = useState<ProviderModelDefinition[]>([])
     const [statusText, setStatusText] = useState('Ready')
     const [executionErrorModal, setExecutionErrorModal] = useState<WorkflowExecutionErrorModal | null>(null)
+    const [compileDiagnostics, setCompileDiagnostics] = useState<CompilerDiagnostic[]>([])
     const [isRunning, setIsRunning] = useState(false)
     const [activeRun, setActiveRun] = useState<PersistedActiveExecution | null>(null)
     const [executionSessionId, setExecutionSessionId] = useState<string>(() => resolveExecutionSessionId(null))
@@ -3983,6 +3985,7 @@ function WorkflowEditor() {
             return
         }
         setExecutionErrorModal(null)
+        setCompileDiagnostics([])
         setResumeRunSnapshot(null)
         runWorkflowLockRef.current = true
         setIsRunning(true)
@@ -4010,6 +4013,7 @@ function WorkflowEditor() {
             }
 
             const compileResponse = await compileWorkflow(definition)
+            setCompileDiagnostics(compileResponse.diagnostics)
             if (!compileResponse.valid || !compileResponse.plan) {
                 throw new Error(compileResponse.diagnostics.map((item) => item.message).join('; ') || 'Compilation failed')
             }
@@ -4053,6 +4057,17 @@ function WorkflowEditor() {
                 setIsRunning(false)
                 activePlanRef.current = null
             }
+        }
+    }
+
+    async function requestCancellation(): Promise<void> {
+        if (!activeRun || !isRunning) return
+        setStatusText('Requesting cancellation...')
+        try {
+            const response = await cancelExecution(activeRun.run_id)
+            setStatusText(response.message || `Run ${response.status}`)
+        } catch (error) {
+            setStatusText(error instanceof Error ? `Cancellation failed: ${error.message}` : 'Cancellation failed')
         }
     }
 
@@ -4106,8 +4121,35 @@ function WorkflowEditor() {
                     >
                         {isRunning ? 'Running...' : 'Run Workflow'}
                     </button>
+                    {isRunning && activeRun && (
+                        <button
+                            type="button"
+                            className="workflow-cancel"
+                            onClick={() => void requestCancellation()}
+                            aria-label="Cancel running workflow"
+                        >
+                            Cancel Run
+                        </button>
+                    )}
                 </div>
             </nav>
+
+            {compileDiagnostics.length > 0 && (
+                <section className="workflow-diagnostics" aria-label="Compilation diagnostics">
+                    <h2>Compilation diagnostics</h2>
+                    {compileDiagnostics.map((diagnostic, index) => (
+                        <div
+                            key={`${diagnostic.code}-${diagnostic.node_id ?? 'graph'}-${index}`}
+                            className={`workflow-diagnostic workflow-diagnostic-${diagnostic.level}`}
+                            role={diagnostic.level === 'error' ? 'alert' : 'status'}
+                        >
+                            <strong>{diagnostic.level === 'warning' ? 'Warning' : 'Error'}: {diagnostic.code}</strong>
+                            <span>{diagnostic.message}</span>
+                            {diagnostic.node_id && <small>Node: {diagnostic.node_id}</small>}
+                        </div>
+                    ))}
+                </section>
+            )}
 
             {executionErrorModal && (
                 <div
