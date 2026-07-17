@@ -32,6 +32,20 @@
       },
       "ui_control": "textarea",
       "description": "A single SQL statement. Use this for advanced queries outside the CRUD nodes."
+    },
+    {
+      "name": "parameters",
+      "data_type": "JSON",
+      "default": {},
+      "ui_control": "json",
+      "description": "Named bind parameters referenced as :name in the SQL text."
+    },
+    {
+      "name": "read_only",
+      "data_type": "BOOLEAN",
+      "default": false,
+      "ui_control": "checkbox",
+      "description": "Require a read-only query even when the connection permits writes."
     }
   ],
   "ui": {

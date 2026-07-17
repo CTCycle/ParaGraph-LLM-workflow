@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+import threading
 from typing import Any
 
 from sqlalchemy import delete, func, select
@@ -29,11 +30,17 @@ class ExecutionRunRepository:
         self, database_factory: DatabaseRepositoryFactory | None = None
     ) -> None:
         self._database_factory = database_factory or DatabaseRepositoryFactory()
+        self._cached_engine = None
+        self._engine_lock = threading.Lock()
 
     def _engine(self):
-        engine = self._database_factory.build(get_server_settings().database).engine
-        Base.metadata.create_all(engine)
-        return engine
+        with self._engine_lock:
+            if self._cached_engine is None:
+                self._cached_engine = self._database_factory.build(
+                    get_server_settings().database
+                ).engine
+                Base.metadata.create_all(self._cached_engine)
+            return self._cached_engine
 
     @staticmethod
     def _aware(value: datetime | None) -> datetime | None:

@@ -67,7 +67,7 @@ Typical backend flow follows endpoint to service to repository:
 - `server/repositories/workflow/node_manifest.py`
   - Filesystem node manifest loading, import persistence, test storage overrides, and rollback deletion.
 - `server/repositories/workflow/database.py`
-  - SQLAlchemy connection URL construction, schema inspection, and database-node CRUD or custom SQL persistence.
+  - Bounded engine reuse, credential-safe connection identity, schema inspection, read-only enforcement, parameterized SQL, and transactional CRUD/bulk/upsert persistence.
 - `server/repositories/configuration.py`
   - Session, profile, and access-key persistence in the application database.
 - `server/repositories/database/base.py`

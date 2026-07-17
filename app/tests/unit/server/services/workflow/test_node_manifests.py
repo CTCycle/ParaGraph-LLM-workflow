@@ -9,14 +9,17 @@ from server.domain.node_catalog import NodeManifest
 from server.services.workflow.node_handlers import NODE_HANDLERS
 from server.services.workflow.nodes.registry import node_registry
 
+
 ###############################################################################
 def test_all_manifests_load() -> None:
     assert node_registry.list()
+
 
 ###############################################################################
 def test_no_duplicate_node_type_version() -> None:
     keys = [(manifest.id, manifest.version) for manifest in node_registry.list()]
     assert len(keys) == len(set(keys))
+
 
 ###############################################################################
 def test_every_manifest_executor_key_has_handler() -> None:
@@ -28,12 +31,14 @@ def test_every_manifest_executor_key_has_handler() -> None:
     ]
     assert missing == []
 
+
 ###############################################################################
 def test_every_handler_referenced_by_manifest_is_callable() -> None:
     for manifest in node_registry.list():
         if manifest.runtime.plugin is not None:
             continue
         assert callable(NODE_HANDLERS[manifest.runtime.executor_key].executor)
+
 
 ###############################################################################
 def test_every_registered_handler_is_referenced_by_a_manifest() -> None:
@@ -44,6 +49,7 @@ def test_every_registered_handler_is_referenced_by_a_manifest() -> None:
     }
     assert set(NODE_HANDLERS).difference(referenced) == set()
 
+
 ###############################################################################
 def test_every_manifest_parameter_model_accepts_manifest_defaults() -> None:
     required_parameter_fixtures: dict[str, dict[str, object]] = {
@@ -51,6 +57,12 @@ def test_every_manifest_parameter_model_accepts_manifest_defaults() -> None:
         "CRUD_DELETE": {"table": "items"},
         "CRUD_READ": {"table": "items"},
         "CRUD_UPDATE": {"table": "items"},
+        "CRUD_UPSERT": {
+            "table": "items",
+            "conflict_columns": "id",
+            "insert_values": {"id": 1},
+            "update_values": {"id": 1},
+        },
         "LOAD_DOCUMENTS": {"folder_path": "."},
         "LOAD_TEXT": {"storage_path": "input.txt"},
         "PROMPT_TEMPLATE": {"template": "{{ text }}"},
@@ -78,6 +90,7 @@ def test_every_manifest_parameter_model_accepts_manifest_defaults() -> None:
                 f"{handler.parameter_model.__name__}: {exc}"
             )
 
+
 ###############################################################################
 @pytest.mark.parametrize("field", ["inputs", "outputs", "controllers", "parameters"])
 def test_manifest_rejects_duplicate_contract_names(field: str) -> None:
@@ -96,6 +109,7 @@ def test_manifest_rejects_duplicate_contract_names(field: str) -> None:
 
     with pytest.raises(ValidationError, match=f"duplicate {field[:-1]}"):
         NodeManifest.model_validate(payload)
+
 
 ###############################################################################
 def test_execute_rejects_undeclared_handler_outputs(
@@ -119,4 +133,3 @@ def test_execute_rejects_undeclared_handler_outputs(
 
     with pytest.raises(ValueError, match="produced undeclared outputs: surprise"):
         node_registry.execute("PROMPT", 1, {"text": "ok"}, {})
-
