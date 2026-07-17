@@ -44,9 +44,5 @@ class StructuredOutputParameters(PydanticModelParameters):
     pass
 
 ###############################################################################
-class JsonValidateRepairParameters(PydanticModelParameters):
-    repair: bool = False
-
-###############################################################################
 class OutputParserParameters(BaseModel):
     output_format: Literal["json", "text"] = "json"

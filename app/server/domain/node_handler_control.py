@@ -1,12 +1,9 @@
 from __future__ import annotations
 
-from typing import Any
-
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 ###############################################################################
 class ControlParameters(BaseModel):
-    label: str = ""
     keyword: str = ""
+    regex: bool = False
     operation: str = "identity"
-    metadata: dict[str, Any] = Field(default_factory=dict)
