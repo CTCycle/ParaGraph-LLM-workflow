@@ -104,3 +104,18 @@ Representative newer manifests include:
 - `VECTOR_STORE` hides backend-specific collection, metadata, indexing, and search behavior behind the vector store adapter interface.
 - Vector store handles include backend, collection or index, metric, dimension, embedding provider and model, and index metadata.
 - `SIMILARITY_SEARCH` validates vector store metric and embedding source before search, and only forwards metadata filters or hybrid mode when the backend advertises support.
+
+## Vector Store Lifecycle Contract
+- `VECTOR_STORE` version 2 defines explicit `reject` and `upsert` duplicate-ID policies. Insert-style writes reject conflicts; upserts deterministically replace matching record IDs.
+- Vector records persist source document and chunk ownership plus embedding provider, model, optional revision, dimension, normalization behavior, and native distance metric. Appends and searches reject incompatible contracts before a backend call.
+- `VECTOR_STORE_LIFECYCLE` exposes update, delete-by-ID, delete-by-document, metadata-filter deletion where supported, collection inspection/deletion, and reload. Results contain affected IDs and counts; unsupported adapter operations return a stable explicit error.
+- FAISS writes build a complete temporary sibling store under a per-index bounded file lock, then atomically replace the committed directory. A failed build removes temporary state and preserves the last committed index.
+- LanceDB uses its versioned native table commits plus a per-table bounded writer lock. Chroma configures its native HNSW metric and stores structured metadata as JSON because Chroma metadata values are scalar.
+- Shared filters provide equality, membership, existence, containment, and range clauses. Backends advertise filtering support; client-side filtering over-fetches at most five times the requested limit and applies the final limit after filtering.
+- Remote credentials are resolved from a saved configuration profile at execution time. Handles contain only a bounded runtime secret handle and the profile reference, never the resolved API key.
+
+## Vector Backend Validation Matrix
+- FAISS: local insert/upsert, duplicate conflict, compatibility rejection, search/filter, update, document deletion, inspection, reload, collection deletion, and last-good-state behavior executed.
+- LanceDB: local write, inspection, update/delete primitives, reload, and collection deletion executed with native versioned storage.
+- Chroma: local write, native metric configuration, inspection, document deletion, reload, and collection deletion executed.
+- Qdrant, Pinecone, Weaviate, and Milvus: dialect-aware implementation and supplemental contract coverage only in the baseline environment; no external service runtime claim is made.

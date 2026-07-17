@@ -297,7 +297,7 @@ class VectorStoreParameters(BaseModel):
     namespace: str = ""
     storage_path: str = ""
     endpoint_url: str = ""
-    api_key: str = ""
+    credential_profile: str = ""
     collection_name: str = ""
     database_name: str = ""
     provider_config: dict[str, Any] = Field(default_factory=dict)
@@ -308,7 +308,7 @@ class VectorStoreParameters(BaseModel):
     create_keyword_index: bool = False
     metadata_index_fields: list[str] = Field(default_factory=list)
     metadata_schema: dict[str, str] = Field(default_factory=dict)
-    id_conflict_policy: Literal["error", "overwrite", "skip"] = "overwrite"
+    id_conflict_policy: Literal["reject", "upsert"] = "upsert"
 
     # -------------------------------------------------------------------------
     @field_validator("write_mode")
@@ -379,9 +379,44 @@ class VectorStoreParameters(BaseModel):
 
         if self.provider in local_storage_providers and not storage_path:
             raise ValueError(f"storage_path is required for provider '{self.provider}'")
-        if self.provider in remote_endpoint_providers and not endpoint_url:
-            raise ValueError(f"endpoint_url is required for provider '{self.provider}'")
+        if (
+            self.provider in remote_endpoint_providers
+            and not endpoint_url
+            and not self.credential_profile.strip()
+        ):
+            raise ValueError(
+                f"endpoint_url or credential_profile is required for provider '{self.provider}'"
+            )
         return self
+
+
+###############################################################################
+class VectorStoreLifecycleParameters(BaseModel):
+    operation: Literal[
+        "update",
+        "delete_ids",
+        "delete_document",
+        "delete_filter",
+        "inspect",
+        "delete_collection",
+        "reload",
+    ] = "inspect"
+    ids: list[str] = Field(default_factory=list)
+    document_id: str = ""
+    metadata_filter: dict[str, Any] = Field(default_factory=dict)
+    lock_timeout: float = Field(default=10.0, gt=0, le=120)
+
+    # -------------------------------------------------------------------------
+    @model_validator(mode="after")
+    def validate_operation_arguments(self) -> "VectorStoreLifecycleParameters":
+        if self.operation == "delete_ids" and not self.ids:
+            raise ValueError("delete_ids requires at least one vector record ID")
+        if self.operation == "delete_document" and not self.document_id.strip():
+            raise ValueError("delete_document requires document_id")
+        if self.operation == "delete_filter" and not self.metadata_filter:
+            raise ValueError("delete_filter requires metadata_filter")
+        return self
+
 
 ###############################################################################
 class RerankParameters(BaseModel):

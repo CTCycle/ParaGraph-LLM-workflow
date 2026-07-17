@@ -14,6 +14,8 @@ from server.services.workflow.vector_stores.base import (
     _normalize_index_name,
     _pinecone_clause,
     _point_attr,
+    _redacted_provider_config,
+    _resolve_runtime_secret,
     _sanitize_metadata_entry,
     _store_attr,
     logger,
@@ -22,6 +24,7 @@ from server.services.workflow.vector_stores.base import (
 ###############################################################################
 class PineconeVectorStoreAdapter(VectorStoreAdapter):
     backend = "pinecone"
+    supported_operations = frozenset({"insert", "upsert", "search", "close"})
     supports_faiss_augmentation = False
 
     # -------------------------------------------------------------------------
@@ -187,7 +190,7 @@ class PineconeVectorStoreAdapter(VectorStoreAdapter):
             metadata={
                 "namespace": namespace,
                 "collection_name": target_index,
-                "provider_config": {**config, "api_key": token},
+                "provider_config": _redacted_provider_config(config, token),
             },
         )
 
@@ -221,10 +224,10 @@ class PineconeVectorStoreAdapter(VectorStoreAdapter):
             if isinstance(metadata.get("provider_config"), dict)
             else {}
         )
-        token = str(config.get("api_key") or "").strip()
+        token = _resolve_runtime_secret(config)
         if not token:
             raise VectorStoreError(
-                "Pinecone search requires api_key in provider_config"
+                "Pinecone credentials are unavailable; reconnect using a secret reference"
             )
 
         client = Pinecone(api_key=token)

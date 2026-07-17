@@ -14,6 +14,8 @@ from server.services.workflow.vector_stores.base import (
     _matches_filter,
     _normalize_index_name,
     _point_attr,
+    _redacted_provider_config,
+    _resolve_runtime_secret,
     _sanitize_metadata_entry,
     _score_from_metric,
     _store_attr,
@@ -22,6 +24,7 @@ from server.services.workflow.vector_stores.base import (
 ###############################################################################
 class WeaviateVectorStoreAdapter(VectorStoreAdapter):
     backend = "weaviate"
+    supported_operations = frozenset({"insert", "upsert", "search", "close"})
     supports_faiss_augmentation = False
 
     # -------------------------------------------------------------------------
@@ -140,7 +143,7 @@ class WeaviateVectorStoreAdapter(VectorStoreAdapter):
             metadata={
                 "endpoint_url": endpoint,
                 "collection_name": collection,
-                "provider_config": {**config, "api_key": token},
+                "provider_config": _redacted_provider_config(config, token),
             },
         )
 
@@ -180,7 +183,7 @@ class WeaviateVectorStoreAdapter(VectorStoreAdapter):
         endpoint = str(
             metadata.get("endpoint_url") or config.get("endpoint_url") or ""
         ).strip()
-        token = str(config.get("api_key") or "").strip()
+        token = _resolve_runtime_secret(config)
         collection = str(
             metadata.get("collection_name") or _store_attr(store, "index_name") or ""
         ).strip()

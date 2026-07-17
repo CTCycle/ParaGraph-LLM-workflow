@@ -15,6 +15,8 @@ from server.services.workflow.vector_stores.base import (
     _matches_filter,
     _normalize_index_name,
     _point_attr,
+    _redacted_provider_config,
+    _resolve_runtime_secret,
     _qdrant_condition,
     _resolve_vectorstore_root,
     _sanitize_metadata_entry,
@@ -25,6 +27,7 @@ from server.services.workflow.vector_stores.base import (
 ###############################################################################
 class QdrantVectorStoreAdapter(VectorStoreAdapter):
     backend = "qdrant"
+    supported_operations = frozenset({"insert", "upsert", "search", "close"})
     supports_faiss_augmentation = False
 
     # -------------------------------------------------------------------------
@@ -59,7 +62,10 @@ class QdrantVectorStoreAdapter(VectorStoreAdapter):
             storage_directory=storage_directory, endpoint_url=endpoint, api_key=token
         )
         timeout = float(config.get("timeout") or 5)
-        client.get_collections(timeout=timeout)
+        try:
+            client.get_collections(timeout=timeout)
+        finally:
+            client.close()
 
     # -------------------------------------------------------------------------
     def write_points(
@@ -144,7 +150,7 @@ class QdrantVectorStoreAdapter(VectorStoreAdapter):
             )
         client.upsert(collection_name=collection, points=payloads)
 
-        return VectorStoreHandle(
+        handle = VectorStoreHandle(
             backend=self.backend,
             index_name=collection,
             artifact_path="",
@@ -156,9 +162,11 @@ class QdrantVectorStoreAdapter(VectorStoreAdapter):
                 "endpoint_url": endpoint,
                 "storage_directory": storage_directory,
                 "collection_name": collection,
-                "provider_config": {**config, "api_key": token},
+                "provider_config": _redacted_provider_config(config, token),
             },
         )
+        client.close()
+        return handle
 
     # -------------------------------------------------------------------------
     def _map_filter(self, filter_spec: dict[str, Any] | None, qm: Any) -> Any:
@@ -225,7 +233,7 @@ class QdrantVectorStoreAdapter(VectorStoreAdapter):
             metadata.get("endpoint_url") or config.get("endpoint_url") or ""
         ).strip()
         storage_directory = str(metadata.get("storage_directory") or "").strip()
-        token = str(config.get("api_key") or "").strip()
+        token = _resolve_runtime_secret(config)
         collection = str(
             metadata.get("collection_name") or _store_attr(store, "index_name") or ""
         ).strip()
@@ -286,4 +294,5 @@ class QdrantVectorStoreAdapter(VectorStoreAdapter):
                     metadata=(payload.get("metadata", {}) if include_metadata else {}),
                 )
             )
+        client.close()
         return results

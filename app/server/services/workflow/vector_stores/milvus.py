@@ -15,6 +15,8 @@ from server.services.workflow.vector_stores.base import (
     _milvus_clause_expression,
     _normalize_index_name,
     _point_attr,
+    _redacted_provider_config,
+    _resolve_runtime_secret,
     _sanitize_metadata_entry,
     _score_from_metric,
     _store_attr,
@@ -23,6 +25,7 @@ from server.services.workflow.vector_stores.base import (
 ###############################################################################
 class MilvusVectorStoreAdapter(VectorStoreAdapter):
     backend = "milvus"
+    supported_operations = frozenset({"insert", "upsert", "search", "close"})
     supports_faiss_augmentation = False
 
     # -------------------------------------------------------------------------
@@ -92,7 +95,10 @@ class MilvusVectorStoreAdapter(VectorStoreAdapter):
             api_key=token,
             database_name=str(config.get("database_name") or database_name or ""),
         )
-        client.list_collections()
+        try:
+            client.list_collections()
+        finally:
+            client.close()
 
     # -------------------------------------------------------------------------
     def write_points(
@@ -171,7 +177,7 @@ class MilvusVectorStoreAdapter(VectorStoreAdapter):
             )
         client.insert(collection_name=collection, data=rows)
 
-        return VectorStoreHandle(
+        handle = VectorStoreHandle(
             backend=self.backend,
             index_name=collection,
             artifact_path="",
@@ -183,9 +189,11 @@ class MilvusVectorStoreAdapter(VectorStoreAdapter):
                 "endpoint_url": endpoint,
                 "database_name": database,
                 "collection_name": collection,
-                "provider_config": {**config, "api_key": token},
+                "provider_config": _redacted_provider_config(config, token),
             },
         )
+        client.close()
+        return handle
 
     # -------------------------------------------------------------------------
     def search(
@@ -226,7 +234,7 @@ class MilvusVectorStoreAdapter(VectorStoreAdapter):
         database = str(
             metadata.get("database_name") or config.get("database_name") or ""
         ).strip()
-        token = str(config.get("api_key") or "").strip()
+        token = _resolve_runtime_secret(config)
         collection = str(
             metadata.get("collection_name") or _store_attr(store, "index_name") or ""
         ).strip()
@@ -288,4 +296,5 @@ class MilvusVectorStoreAdapter(VectorStoreAdapter):
                     metadata=(entity.get("metadata", {}) if include_metadata else {}),
                 )
             )
+        client.close()
         return hits

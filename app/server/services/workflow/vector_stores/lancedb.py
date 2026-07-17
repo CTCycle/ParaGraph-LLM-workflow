@@ -5,8 +5,11 @@ import lancedb
 from server.services.workflow.vector_stores.base import (
     Any,
     RetrievalHit,
+    VectorCollectionInfo,
+    VectorMutationResult,
     VectorPoint,
     VectorStoreAdapter,
+    VectorStoreConflictError,
     VectorStoreError,
     VectorStoreHandle,
     _matches_filter,
@@ -17,12 +20,16 @@ from server.services.workflow.vector_stores.base import (
     _sanitize_metadata_entry,
     _score_from_metric,
     _store_attr,
+    _store_lock,
 )
 
 ###############################################################################
 class LanceDbVectorStoreAdapter(VectorStoreAdapter):
     backend = "lancedb"
     supports_faiss_augmentation = False
+    supported_operations = frozenset(
+        {"insert", "upsert", "update", "delete_ids", "delete_document", "delete_filter", "inspect", "delete_collection", "reload", "close"}
+    )
 
     # -------------------------------------------------------------------------
     def write_points(
@@ -43,6 +50,8 @@ class LanceDbVectorStoreAdapter(VectorStoreAdapter):
         nlist: int = 256,
         hnsw_m: int = 16,
         create_vector_index: bool = True,
+        id_conflict_policy: str = "reject",
+        lock_timeout: float = 10.0,
         **_: Any,
     ) -> VectorStoreHandle:
         _ = (
@@ -82,9 +91,11 @@ class LanceDbVectorStoreAdapter(VectorStoreAdapter):
         db = lancedb.connect(str(root_path))
         table_names = set(db.table_names())
 
-        if write_mode_normalized == "append" and normalized_index_name in table_names:
-            table = db.open_table(normalized_index_name)
-            current_rows = _materialize_lancedb_rows(table)
+        with _store_lock(root_path / normalized_index_name, lock_timeout):
+            current_rows: list[dict[str, Any]] = []
+            if write_mode_normalized == "append" and normalized_index_name in table_names:
+                table = db.open_table(normalized_index_name)
+                current_rows = _materialize_lancedb_rows(table)
             if current_rows:
                 existing_vector = (
                     current_rows[0].get("vector")
@@ -120,8 +131,26 @@ class LanceDbVectorStoreAdapter(VectorStoreAdapter):
                     raise VectorStoreError(
                         "Existing LanceDB table embedding model does not match incoming vectors"
                     )
-            table.add(rows)
-        else:
+                existing_ids = {str(row.get("id", "")) for row in current_rows}
+                incoming_ids = [str(row.get("id", "")) for row in rows]
+                duplicate_incoming = {
+                    item_id for item_id in incoming_ids if incoming_ids.count(item_id) > 1
+                }
+                if duplicate_incoming:
+                    raise VectorStoreConflictError(list(duplicate_incoming))
+                conflicts = existing_ids.intersection(incoming_ids)
+                policy = id_conflict_policy.strip().lower()
+                if policy not in {"reject", "upsert"}:
+                    raise VectorStoreError(
+                        "id_conflict_policy must be 'reject' or 'upsert'"
+                    )
+                if conflicts and policy == "reject":
+                    raise VectorStoreConflictError(list(conflicts))
+                if conflicts:
+                    current_rows = [
+                        row for row in current_rows if str(row.get("id", "")) not in conflicts
+                    ]
+                rows = [*current_rows, *rows]
             table = db.create_table(normalized_index_name, data=rows, mode="overwrite")
 
         if create_vector_index:
@@ -147,6 +176,8 @@ class LanceDbVectorStoreAdapter(VectorStoreAdapter):
             dimension=dimension,
             embedding_provider=str(_point_attr(points[0], "embedding_provider") or ""),
             embedding_model=str(_point_attr(points[0], "embedding_model") or ""),
+            embedding_revision=str(_point_attr(points[0], "embedding_revision") or ""),
+            normalized=metric_normalized == "cosine",
             metadata={
                 "index_type": index_type.lower().strip(),
                 "count": len(_materialize_lancedb_rows(table)),
@@ -236,3 +267,161 @@ class LanceDbVectorStoreAdapter(VectorStoreAdapter):
             if len(results) >= top_k:
                 break
         return results
+
+    # -------------------------------------------------------------------------
+    def _table(self, store: VectorStoreHandle | dict[str, Any]):
+        metadata = _store_attr(store, "metadata") or {}
+        root = _resolve_vectorstore_root(metadata.get("storage_directory"))
+        name = str(metadata.get("table_name") or _store_attr(store, "index_name"))
+        db = lancedb.connect(str(root))
+        return db, db.open_table(name), root, name
+
+    # -------------------------------------------------------------------------
+    def inspect_collection(
+        self, *, store: VectorStoreHandle | dict[str, Any]
+    ) -> VectorCollectionInfo:
+        _, table, _, name = self._table(store)
+        rows = _materialize_lancedb_rows(table)
+        first = rows[0] if rows else {}
+        vector = first.get("vector") if isinstance(first.get("vector"), list) else []
+        return VectorCollectionInfo(
+            backend=self.backend,
+            index_name=name,
+            exists=True,
+            count=len(rows),
+            metric=str(_store_attr(store, "metric") or ""),
+            dimension=len(vector),
+            embedding_provider=str(first.get("embedding_provider", "")),
+            embedding_model=str(first.get("embedding_model", "")),
+            embedding_revision=str(first.get("embedding_revision", "")),
+            normalized=bool(first.get("normalized", False)),
+        )
+
+    # -------------------------------------------------------------------------
+    def _delete_matching(
+        self,
+        *,
+        store: VectorStoreHandle | dict[str, Any],
+        predicate: Any,
+        operation: str,
+        lock_timeout: float,
+    ) -> VectorMutationResult:
+        db, table, root, name = self._table(store)
+        rows = _materialize_lancedb_rows(table)
+        affected = [str(row.get("id", "")) for row in rows if predicate(row)]
+        retained = [row for row in rows if not predicate(row)]
+        with _store_lock(root / name, lock_timeout):
+            if retained:
+                db.create_table(name, data=retained, mode="overwrite")
+            else:
+                db.drop_table(name)
+        return VectorMutationResult(
+            operation=operation,
+            affected_count=len(affected),
+            affected_ids=sorted(affected),
+        )
+
+    # -------------------------------------------------------------------------
+    def delete_ids(
+        self,
+        *,
+        store: VectorStoreHandle | dict[str, Any],
+        ids: list[str],
+        lock_timeout: float = 10.0,
+    ) -> VectorMutationResult:
+        requested = set(ids)
+        return self._delete_matching(
+            store=store,
+            predicate=lambda row: str(row.get("id", "")) in requested,
+            operation="delete_ids",
+            lock_timeout=lock_timeout,
+        )
+
+    # -------------------------------------------------------------------------
+    def update_points(
+        self,
+        *,
+        store: VectorStoreHandle | dict[str, Any],
+        points: list[VectorPoint | dict[str, Any]],
+        lock_timeout: float = 10.0,
+    ) -> VectorMutationResult:
+        _, table, root, name = self._table(store)
+        existing = {str(row.get("id", "")) for row in _materialize_lancedb_rows(table)}
+        ids = [str(_point_attr(point, "id") or "") for point in points]
+        missing = sorted(set(ids).difference(existing))
+        if missing:
+            raise VectorStoreError(
+                "Cannot update missing vector record IDs: " + ", ".join(missing)
+            )
+        self.write_points(
+            index_name=name,
+            storage_directory=str(root),
+            metric=str(_store_attr(store, "metric") or "cosine"),
+            write_mode="append",
+            id_conflict_policy="upsert",
+            points=points,
+            create_vector_index=False,
+            lock_timeout=lock_timeout,
+        )
+        return VectorMutationResult(
+            operation="update", affected_count=len(ids), affected_ids=sorted(ids)
+        )
+
+    # -------------------------------------------------------------------------
+    def delete_document(
+        self,
+        *,
+        store: VectorStoreHandle | dict[str, Any],
+        document_id: str,
+        lock_timeout: float = 10.0,
+    ) -> VectorMutationResult:
+        return self._delete_matching(
+            store=store,
+            predicate=lambda row: str(row.get("document_id", "")) == document_id,
+            operation="delete_document",
+            lock_timeout=lock_timeout,
+        )
+
+    # -------------------------------------------------------------------------
+    def delete_filter(
+        self,
+        *,
+        store: VectorStoreHandle | dict[str, Any],
+        filter_spec: dict[str, Any],
+        lock_timeout: float = 10.0,
+    ) -> VectorMutationResult:
+        return self._delete_matching(
+            store=store,
+            predicate=lambda row: _matches_filter(row, filter_spec),
+            operation="delete_filter",
+            lock_timeout=lock_timeout,
+        )
+
+    # -------------------------------------------------------------------------
+    def delete_collection(
+        self, *, store: VectorStoreHandle | dict[str, Any], **_: Any
+    ) -> VectorMutationResult:
+        db, table, _, name = self._table(store)
+        ids = [str(row.get("id", "")) for row in _materialize_lancedb_rows(table)]
+        db.drop_table(name)
+        return VectorMutationResult(
+            operation="delete_collection", affected_count=len(ids), affected_ids=ids
+        )
+
+    # -------------------------------------------------------------------------
+    def reload(self, *, store: VectorStoreHandle | dict[str, Any]) -> VectorStoreHandle:
+        info = self.inspect_collection(store=store)
+        payload = store if isinstance(store, dict) else store.model_dump(mode="json")
+        metadata = dict(payload.get("metadata") or {})
+        metadata["count"] = info.count
+        return VectorStoreHandle.model_validate(
+            payload
+            | {
+                "dimension": info.dimension,
+                "embedding_provider": info.embedding_provider,
+                "embedding_model": info.embedding_model,
+                "embedding_revision": info.embedding_revision,
+                "normalized": info.normalized,
+                "metadata": metadata,
+            }
+        )

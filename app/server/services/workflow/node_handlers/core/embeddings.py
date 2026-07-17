@@ -11,6 +11,7 @@ from server.domain.node_handler_core import (
     EmbeddingParameters,
     RerankParameters,
     SimilaritySearchParameters,
+    VectorStoreLifecycleParameters,
     VectorStoreParameters,
 )
 from server.domain.workflow_payloads import (
@@ -396,17 +397,38 @@ def _vector_store_executor(
     if not points:
         raise ValueError("VECTOR_STORE requires at least one vectors input")
     adapter = _resolve_vector_store_adapter(parsed.provider)
+    resolved_api_key = ""
+    resolved_endpoint = parsed.endpoint_url
+    if parsed.credential_profile:
+        profile = configuration_service.load_configuration_profile(
+            session_name=None, profile_name=parsed.credential_profile
+        )
+        access_key = next(
+            (item for item in profile.access_keys if item.provider == parsed.provider),
+            None,
+        )
+        if access_key is None:
+            raise ValueError(
+                f"Credential profile '{parsed.credential_profile}' has no entry for "
+                f"provider '{parsed.provider}'"
+            )
+        resolved_api_key = access_key.api_key or ""
+        resolved_endpoint = resolved_endpoint or access_key.base_url or ""
     store = adapter.write_points(
         index_name=parsed.index_name,
         storage_directory=parsed.storage_path,
         metric=parsed.distance_metric,
         write_mode=parsed.write_mode,
         namespace=parsed.namespace,
-        endpoint_url=parsed.endpoint_url,
-        api_key=parsed.api_key,
+        endpoint_url=resolved_endpoint,
+        api_key=resolved_api_key,
         collection_name=parsed.collection_name,
         database_name=parsed.database_name,
-        provider_config=parsed.provider_config,
+        provider_config={
+            **parsed.provider_config,
+            "credential_profile": parsed.credential_profile,
+            "provider": parsed.provider,
+        },
         index_type=parsed.index_type,
         create_vector_index=parsed.create_vector_index,
         create_keyword_index=parsed.create_keyword_index,
@@ -423,6 +445,57 @@ def _vector_store_executor(
             "stored_ids": [str(point.get("id", "")) for point in points],
         },
     }
+
+
+###############################################################################
+def _vector_store_lifecycle_executor(
+    parameters: dict[str, Any], inputs: dict[str, Any]
+) -> dict[str, Any]:
+    parsed = VectorStoreLifecycleParameters.model_validate(parameters)
+    raw_store = inputs.get("store")
+    if not isinstance(raw_store, dict):
+        raise ValueError("VECTOR_STORE_LIFECYCLE requires a vector store handle")
+    store = VectorStoreHandle.model_validate(raw_store)
+    adapter = _resolve_vector_store_adapter(store.backend)
+    operation = parsed.operation
+    if operation == "inspect":
+        result = adapter.inspect_collection(store=store)
+    elif operation == "reload":
+        reloaded = adapter.reload(store=store)
+        return {"result": reloaded.model_dump(mode="json"), "store": reloaded.model_dump(mode="json")}
+    elif operation == "update":
+        points = _flatten_vector_point_inputs(inputs.get("vectors"))
+        if not points:
+            raise ValueError("Vector update requires at least one vector point")
+        result = adapter.update_points(
+            store=store, points=points, lock_timeout=parsed.lock_timeout
+        )
+    elif operation == "delete_ids":
+        result = adapter.delete_ids(
+            store=store, ids=parsed.ids, lock_timeout=parsed.lock_timeout
+        )
+    elif operation == "delete_document":
+        result = adapter.delete_document(
+            store=store,
+            document_id=parsed.document_id,
+            lock_timeout=parsed.lock_timeout,
+        )
+    elif operation == "delete_filter":
+        result = adapter.delete_filter(
+            store=store,
+            filter_spec=parsed.metadata_filter,
+            lock_timeout=parsed.lock_timeout,
+        )
+    else:
+        result = adapter.delete_collection(
+            store=store, lock_timeout=parsed.lock_timeout
+        )
+    payload = result.model_dump(mode="json")
+    response = {"result": payload}
+    if operation != "delete_collection":
+        response["store"] = adapter.reload(store=store).model_dump(mode="json")
+    return response
+
 
 ###############################################################################
 def _similarity_search_executor(
@@ -621,4 +694,5 @@ __all__ = [
     "_rerank_results_executor",
     "_similarity_search_executor",
     "_vector_store_executor",
+    "_vector_store_lifecycle_executor",
 ]

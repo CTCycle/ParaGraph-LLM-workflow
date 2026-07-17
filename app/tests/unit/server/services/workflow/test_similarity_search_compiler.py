@@ -33,7 +33,7 @@ def _build_similarity_workflow(
                 {
                     "node_id": "store_vectors",
                     "node_type": "VECTOR_STORE",
-                    "node_version": 1,
+                    "node_version": 2,
                     "parameters": {
                         "provider": "chroma",
                         "index_name": "docs",
