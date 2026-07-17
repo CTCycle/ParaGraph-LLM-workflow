@@ -369,6 +369,21 @@ class NodeRegistry:
         token = set_execution_context(context or {})
         try:
             outputs = handler.executor(validated_parameters, execution_inputs)
+            if not isinstance(outputs, dict):
+                raise ValueError(
+                    f"Node '{manifest.id}' executor must return an object"
+                )
+            declared_output_names = {
+                port.name for port in [*manifest.outputs, *manifest.controllers]
+            }
+            undeclared_output_names = sorted(
+                set(outputs).difference(declared_output_names)
+            )
+            if undeclared_output_names:
+                joined = ", ".join(undeclared_output_names)
+                raise ValueError(
+                    f"Node '{manifest.id}' produced undeclared outputs: {joined}"
+                )
             validated_outputs = self._validate_ports(manifest, outputs, label="output")
             validated_controller_outputs = self._validate_ports(
                 manifest, outputs, label="controller"

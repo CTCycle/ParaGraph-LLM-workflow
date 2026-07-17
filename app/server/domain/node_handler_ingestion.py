@@ -62,43 +62,6 @@ def normalize_database_engine(value: Any, *, label: str = "engine") -> str:
     )
 
 ###############################################################################
-class DirectoryLoaderParameters(BaseModel):
-    directory_path: str
-    recursive: bool = True
-    include_extensions: list[str] = Field(
-        default_factory=lambda: sorted(SUPPORTED_DOCUMENT_EXTENSIONS)
-    )
-
-    # -------------------------------------------------------------------------
-    @field_validator("directory_path")
-    @classmethod
-    def validate_directory_path(cls, value: str) -> str:
-        normalized = value.strip()
-        if not normalized:
-            raise ValueError("directory_path must not be empty")
-        return normalized
-
-    # -------------------------------------------------------------------------
-    @field_validator("include_extensions", mode="before")
-    @classmethod
-    def validate_extensions(cls, value: Any) -> list[str]:
-        parsed = (
-            _parse_json_value(value, "include_extensions")
-            if isinstance(value, str)
-            else value
-        )
-        if not isinstance(parsed, list) or not all(
-            isinstance(item, str) for item in parsed
-        ):
-            raise ValueError(
-                "include_extensions must be a JSON array of file extensions"
-            )
-        return [
-            item.lower() if item.startswith(".") else f".{item.lower()}"
-            for item in parsed
-        ]
-
-###############################################################################
 class LoadDocumentsParameters(BaseModel):
     folder_path: str
     recursive: bool = True

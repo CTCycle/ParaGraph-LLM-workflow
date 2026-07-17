@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 NodeCategory = Literal[
@@ -124,6 +124,26 @@ class NodeManifest(BaseModel):
     @classmethod
     def normalize_category(cls, value: str) -> str:
         return str(value or "").strip().lower()
+
+    # -------------------------------------------------------------------------
+    @model_validator(mode="after")
+    def validate_unique_contract_names(self) -> NodeManifest:
+        for label, definitions in (
+            ("input", self.inputs),
+            ("output", self.outputs),
+            ("controller", self.controllers),
+            ("parameter", self.parameters),
+        ):
+            names = [definition.name for definition in definitions]
+            duplicates = sorted(
+                name for name in set(names) if names.count(name) > 1
+            )
+            if duplicates:
+                joined = ", ".join(duplicates)
+                raise ValueError(
+                    f"Node '{self.id}' has duplicate {label} names: {joined}"
+                )
+        return self
 
 ###############################################################################
 class NodeCatalogResponse(BaseModel):

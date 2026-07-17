@@ -3,20 +3,17 @@ from __future__ import annotations
 from server.domain.node_handler_core import (
     ChatParameters,
     EmbeddingParameters,
-    ImageInputParameters,
     InMemoryChatHistoryParameters,
     ModelProviderParameters,
     PersistedChatHistoryParameters,
     PromptParameters,
     PromptTemplateParameters,
     RerankParameters,
-    RouterParameters,
     SaveAsFileParameters,
     SaveAsFolderParameters,
     SimilaritySearchParameters,
     StorageParameters,
     StructuredParameters,
-    TextSplitParameters,
     TokenizerParameters,
     VectorStoreParameters,
 )
@@ -48,14 +45,10 @@ from server.services.workflow.node_handlers.core.models import (
     _model_provider_executor,
 )
 from server.services.workflow.node_handlers.core.prompts import (
-    _image_input_executor,
     _prompt_executor,
     _prompt_template_executor,
 )
 from server.services.workflow.node_handlers.core.routing import (
-    _if_executor,
-    _router_executor,
-    _text_split_executor,
     _tokenize_executor,
 )
 from server.services.workflow.node_handlers.core.storage import (
@@ -84,9 +77,6 @@ CORE_HANDLERS = {
     "prompt_template": NodeHandler(
         executor=_prompt_template_executor, parameter_model=PromptTemplateParameters
     ),
-    "image_input": NodeHandler(
-        executor=_image_input_executor, parameter_model=ImageInputParameters
-    ),
     "model_provider": NodeHandler(
         executor=_model_provider_executor, parameter_model=ModelProviderParameters
     ),
@@ -111,9 +101,6 @@ CORE_HANDLERS = {
     "tokenize": NodeHandler(
         executor=_tokenize_executor, parameter_model=TokenizerParameters
     ),
-    "text_split": NodeHandler(
-        executor=_text_split_executor, parameter_model=TextSplitParameters
-    ),
     "save_as_file": NodeHandler(
         executor=_save_as_file_executor, parameter_model=SaveAsFileParameters
     ),
@@ -123,8 +110,6 @@ CORE_HANDLERS = {
     "load_text": NodeHandler(
         executor=_load_text_executor, parameter_model=StorageParameters
     ),
-    "if": NodeHandler(executor=_if_executor),
-    "router": NodeHandler(executor=_router_executor, parameter_model=RouterParameters),
     "chat_history_memory": NodeHandler(
         executor=execute_chat_history_memory,
         parameter_model=InMemoryChatHistoryParameters,

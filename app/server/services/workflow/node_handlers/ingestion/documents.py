@@ -7,9 +7,7 @@ from server.domain.node_handler_ingestion import (
     DocumentTextExtractorParameters,
     LOAD_DOCUMENTS_SUPPORTED_EXTENSIONS,
     LoadDocumentsParameters,
-    SUPPORTED_DOCUMENT_EXTENSIONS,
 )
-from server.common.utils.values import coerce_bool, coerce_text
 from server.services.workflow.node_handlers.ingestion.files import (
     load_docx_paragraphs,
     load_file_text,
@@ -32,46 +30,6 @@ def _build_document(
         "mime_type": mime_type,
         "metadata": metadata,
     }
-
-###############################################################################
-def _directory_loader_executor(
-    parameters: dict[str, Any], inputs: dict[str, Any]
-) -> dict[str, Any]:
-    _ = inputs
-    directory = resolve_local_path(
-        coerce_text(parameters.get("directory_path")).strip()
-    )
-    if not directory.exists() or not directory.is_dir():
-        raise ValueError(f"Directory not found: {directory}")
-
-    recursive = coerce_bool(parameters.get("recursive", True))
-    include_extensions = parameters.get("include_extensions") or sorted(
-        SUPPORTED_DOCUMENT_EXTENSIONS
-    )
-    if not isinstance(include_extensions, list):
-        raise ValueError("include_extensions must be an array")
-    extensions = {str(item).lower() for item in include_extensions}
-    paths = directory.rglob("*") if recursive else directory.glob("*")
-
-    documents: list[dict[str, Any]] = []
-    for path in sorted(paths):
-        if not path.is_file() or path.suffix.lower() not in extensions:
-            continue
-        text_content, mime_type = load_file_text(path)
-        documents.append(
-            _build_document(
-                str(path.resolve()),
-                text_content,
-                mime_type,
-                {
-                    "extension": path.suffix.lower(),
-                    "file_name": path.name,
-                    "relative_path": str(path.relative_to(directory)),
-                    "size_bytes": path.stat().st_size,
-                },
-            )
-        )
-    return {"documents": documents}
 
 ###############################################################################
 def _load_documents_executor(
@@ -179,7 +137,6 @@ def _document_text_extractor_executor(
 
 
 __all__ = [
-    "_directory_loader_executor",
     "_document_text_extractor_executor",
     "_load_documents_executor",
 ]

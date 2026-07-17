@@ -128,10 +128,6 @@ class PromptTemplateParameters(BaseModel):
         return self
 
 ###############################################################################
-class ImageInputParameters(BaseModel):
-    file_path: str = ""
-
-###############################################################################
 class ModelProviderParameters(BaseModel):
     provider: str = "ollama"
     model_name: str = ""
@@ -262,10 +258,6 @@ class SimilaritySearchParameters(BaseModel):
                 "faiss_augmented search_engine currently supports search_mode='vector' only"
             )
         return self
-
-###############################################################################
-class TextSplitParameters(BaseModel):
-    delimiter: str = "\n"
 
 ###############################################################################
 class TokenizerParameters(BaseModel):
@@ -465,10 +457,6 @@ class StorageParameters(BaseModel):
         if not normalized:
             raise ValueError("storage_path is required. Select a local path.")
         return normalized
-
-###############################################################################
-class RouterParameters(BaseModel):
-    expected_value: str = ""
 
 ###############################################################################
 class MetadataParameters(BaseModel):
