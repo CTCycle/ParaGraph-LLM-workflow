@@ -64,13 +64,12 @@ def test_check_vector_store_connection_calls_adapter_validate(
         "/nodes/check-vector-store-connection",
         json={
             "node_type": "VECTOR_STORE",
-            "node_version": 1,
+            "node_version": 2,
             "parameters": {
                 "provider": "qdrant",
                 "index_name": "docs",
                 "storage_path": "",
                 "endpoint_url": "https://qdrant.local",
-                "api_key": "secret",
                 "collection_name": "docs",
                 "database_name": "",
                 "namespace": "",
@@ -88,7 +87,7 @@ def test_check_vector_store_connection_calls_adapter_validate(
     }
     assert calls["index_name"] == "docs"
     assert calls["endpoint_url"] == "https://qdrant.local"
-    assert calls["api_key"] == "secret"
+    assert calls["api_key"] == ""
 
 ###############################################################################
 @pytest.mark.parametrize("provider", ["lancedb", "chroma", "faiss"])
@@ -115,13 +114,12 @@ def test_check_vector_store_connection_local_providers_require_storage_path(
         "/nodes/check-vector-store-connection",
         json={
             "node_type": "VECTOR_STORE",
-            "node_version": 1,
+            "node_version": 2,
             "parameters": {
                 "provider": provider,
                 "index_name": "docs",
                 "storage_path": "C:/tmp/vectorstore",
                 "endpoint_url": "",
-                "api_key": "",
                 "collection_name": "",
                 "database_name": "",
                 "namespace": "",
@@ -161,13 +159,12 @@ def test_check_vector_store_connection_remote_providers_require_endpoint(
         "/nodes/check-vector-store-connection",
         json={
             "node_type": "VECTOR_STORE",
-            "node_version": 1,
+            "node_version": 2,
             "parameters": {
                 "provider": provider,
                 "index_name": "docs",
                 "storage_path": "",
                 "endpoint_url": "https://vector.example",
-                "api_key": "token",
                 "collection_name": "",
                 "database_name": "",
                 "namespace": "",
