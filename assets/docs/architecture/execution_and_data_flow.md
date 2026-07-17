@@ -1,5 +1,5 @@
 # Execution And Data Flow
-Last updated: 2026-07-03
+Last updated: 2026-07-17
 
 ## Layered Backend Flow
 Typical backend flow follows endpoint to service to repository:
@@ -92,3 +92,10 @@ Typical backend flow follows endpoint to service to repository:
   - `WS /executions/ws/runs/{run_id}` for streaming run events.
 - Long-running workflow execution is offloaded to background threads through `JobManager`.
 - Async handlers avoid CPU-heavy loops; blocking workflow execution happens in job threads instead of request handlers.
+
+## Compiler Diagnostics
+- Compiler errors block plan creation; warnings are returned with an otherwise valid plan.
+- Graph warnings cover missing terminal outputs, disconnected nodes, disconnected side effects, nodes that do not contribute to terminal outputs, and connections from conditional branch outputs.
+- Workflow node instances accept optional `timeout_ms` and `retries` values, which are copied into execution steps.
+- Non-positive timeouts, negative retry counts, and retries on side-effecting nodes without an idempotency contract block compilation.
+- Conditional branch warnings describe the current missing-value activation model. Explicit activation tokens and catch or iteration regions require separate execution-engine support.

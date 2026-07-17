@@ -83,7 +83,7 @@ class CompilerService:
             effective_definition,
             require_access_keys=require_access_keys,
         )
-        if diagnostics:
+        if any(diagnostic.level == "error" for diagnostic in diagnostics):
             return CompileWorkflowResponse(
                 valid=False, diagnostics=diagnostics, plan=None
             )
@@ -135,6 +135,8 @@ class CompilerService:
                     executor_key=manifest.runtime.executor_key,
                     parameters=validated_parameters.get(node.node_id, node.parameters),
                     bindings=bindings,
+                    timeout_ms=node.timeout_ms,
+                    retries=node.retries,
                     cacheable=manifest.runtime.cacheable,
                 )
             )
@@ -148,7 +150,7 @@ class CompilerService:
 
         return CompileWorkflowResponse(
             valid=True,
-            diagnostics=[],
+            diagnostics=diagnostics,
             plan=CompiledExecutionPlan(
                 plan_id=f"plan_{uuid4().hex[:12]}",
                 step_order=[step.step_id for step in steps],
@@ -334,6 +336,34 @@ class CompilerService:
                     )
                 )
                 continue
+
+            if node.timeout_ms is not None and node.timeout_ms <= 0:
+                diagnostics.append(
+                    CompilerDiagnostic(
+                        code="invalid_timeout",
+                        message=f"Node '{node.node_id}' timeout_ms must be greater than zero",
+                        node_id=node.node_id,
+                    )
+                )
+            if node.retries < 0:
+                diagnostics.append(
+                    CompilerDiagnostic(
+                        code="invalid_retries",
+                        message=f"Node '{node.node_id}' retries must be zero or greater",
+                        node_id=node.node_id,
+                    )
+                )
+            elif node.retries > 0 and manifest.runtime.side_effecting:
+                diagnostics.append(
+                    CompilerDiagnostic(
+                        code="unsafe_side_effect_retry",
+                        message=(
+                            f"Node '{node.node_id}' is side-effecting and cannot be "
+                            "retried without an idempotency contract"
+                        ),
+                        node_id=node.node_id,
+                    )
+                )
 
             for parameter in manifest.parameters:
                 required = bool(parameter.constraints.get("required"))
@@ -732,7 +762,110 @@ class CompilerService:
         except ValueError as exc:
             diagnostics.append(CompilerDiagnostic(code="graph_cycle", message=str(exc)))
 
+        diagnostics.extend(self._collect_graph_diagnostics(definition))
+
         return diagnostics, validated_parameters_by_node
+
+    # -------------------------------------------------------------------------
+    def _collect_graph_diagnostics(
+        self, definition: WorkflowDefinition
+    ) -> list[CompilerDiagnostic]:
+        diagnostics: list[CompilerDiagnostic] = []
+        node_by_id = {node.node_id: node for node in definition.nodes}
+        manifests = {
+            node.node_id: node_registry.get(node.node_type, node.node_version)
+            for node in definition.nodes
+        }
+        connected_node_ids: set[str] = set()
+        reverse_adjacency: dict[str, set[str]] = defaultdict(set)
+
+        for connection in definition.connections:
+            if (
+                connection.from_node not in node_by_id
+                or connection.to_node not in node_by_id
+            ):
+                continue
+            connected_node_ids.update((connection.from_node, connection.to_node))
+            reverse_adjacency[connection.to_node].add(connection.from_node)
+
+            source_node = node_by_id[connection.from_node]
+            if (
+                connection.connection_type == "data"
+                and source_node.node_type == "IF_TEXT_CONTAINS"
+                and connection.from_output in {"true", "false"}
+            ):
+                diagnostics.append(
+                    CompilerDiagnostic(
+                        code="conditional_output_connection",
+                        level="warning",
+                        message=(
+                            f"Connection from conditional output "
+                            f"'{connection.from_node}.{connection.from_output}' "
+                            "may not produce a value at runtime"
+                        ),
+                        connection=connection,
+                    )
+                )
+
+        terminal_node_ids = {
+            node_id
+            for node_id, manifest in manifests.items()
+            if manifest is not None and manifest.category == "output"
+        }
+        if definition.nodes and not terminal_node_ids:
+            diagnostics.append(
+                CompilerDiagnostic(
+                    code="missing_terminal_output",
+                    level="warning",
+                    message="Workflow has no terminal output node",
+                )
+            )
+
+        contributing_node_ids = set(terminal_node_ids)
+        queue = deque(sorted(terminal_node_ids))
+        while queue:
+            current = queue.popleft()
+            for source in sorted(reverse_adjacency[current]):
+                if source in contributing_node_ids:
+                    continue
+                contributing_node_ids.add(source)
+                queue.append(source)
+
+        for node in definition.nodes:
+            manifest = manifests[node.node_id]
+            if manifest is None:
+                continue
+            if node.node_id not in connected_node_ids:
+                code = (
+                    "disconnected_side_effect"
+                    if manifest.runtime.side_effecting
+                    else "disconnected_node"
+                )
+                diagnostics.append(
+                    CompilerDiagnostic(
+                        code=code,
+                        level="warning",
+                        message=f"Node '{node.node_id}' is disconnected",
+                        node_id=node.node_id,
+                    )
+                )
+            if (
+                terminal_node_ids
+                and node.node_id not in contributing_node_ids
+                and not manifest.runtime.side_effecting
+            ):
+                diagnostics.append(
+                    CompilerDiagnostic(
+                        code="node_not_contributing_to_output",
+                        level="warning",
+                        message=(
+                            f"Node '{node.node_id}' does not contribute to any "
+                            "terminal output"
+                        ),
+                        node_id=node.node_id,
+                    )
+                )
+        return diagnostics
 
     # -------------------------------------------------------------------------
     def _topological_order(self, definition: WorkflowDefinition) -> list[str]:

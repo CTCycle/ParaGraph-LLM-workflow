@@ -104,6 +104,8 @@ export interface WorkflowNodeInstance {
     node_type: string
     node_version: number
     parameters: Record<string, unknown>
+    timeout_ms?: number | null
+    retries?: number
     skipped?: boolean
 }
 
@@ -229,7 +231,7 @@ export interface CompiledExecutionPlan {
 export interface CompilerDiagnostic {
     code: string
     message: string
-    level: string
+    level: 'error' | 'warning'
     node_id?: string | null
     connection?: WorkflowConnection | null
 }
