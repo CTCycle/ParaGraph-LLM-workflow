@@ -79,12 +79,4 @@ def _prompt_template_executor(
         "variables": context,
     }
 
-###############################################################################
-def _image_input_executor(
-    parameters: dict[str, Any], inputs: dict[str, Any]
-) -> dict[str, Any]:
-    _ = inputs
-    return {"image": {"path": coerce_text(parameters.get("file_path", "")).strip()}}
-
-
-__all__ = ["_image_input_executor", "_prompt_executor", "_prompt_template_executor"]
+__all__ = ["_prompt_executor", "_prompt_template_executor"]

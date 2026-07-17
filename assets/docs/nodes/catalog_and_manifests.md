@@ -1,5 +1,5 @@
 # Catalog And Manifests
-Last updated: 2026-07-16
+Last updated: 2026-07-17
 
 ## Purpose
 This branch documents the ParaGraph node system, the node catalog, and the contracts that allow nodes to participate in workflow compilation and execution.
@@ -39,6 +39,11 @@ A node manifest includes:
 - Runtime metadata such as executor key, cacheability, determinism, side effects, and optional plugin metadata
 
 Runtime validation happens through backend node registry logic before nodes are admitted into execution plans.
+
+Manifest contract validation rejects duplicate input, output, controller, and
+parameter names. During execution, handlers must return an object containing
+only outputs or source controllers declared by the manifest, and every required
+output must be present.
 
 ## Compatibility Rules
 - Node manifests are contract-critical.
