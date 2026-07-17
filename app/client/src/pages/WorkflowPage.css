@@ -1478,3 +1478,38 @@
 
 
 
+.workflow-diagnostics {
+    display: grid;
+    gap: 0.5rem;
+    margin: 0.75rem 1rem;
+    padding: 0.75rem;
+    border: 1px solid var(--border-subtle, #334155);
+    border-radius: 0.5rem;
+    background: var(--surface-raised, #111827);
+}
+
+.workflow-diagnostics h2 {
+    margin: 0;
+    font-size: 0.85rem;
+}
+
+.workflow-diagnostic {
+    display: grid;
+    gap: 0.15rem;
+    padding: 0.5rem;
+    border-left: 0.25rem solid currentColor;
+    font-size: 0.8rem;
+}
+
+.workflow-diagnostic-warning {
+    color: #fbbf24;
+}
+
+.workflow-diagnostic-error {
+    color: #f87171;
+}
+
+.workflow-diagnostic span,
+.workflow-diagnostic small {
+    color: var(--text-primary, #e5e7eb);
+}

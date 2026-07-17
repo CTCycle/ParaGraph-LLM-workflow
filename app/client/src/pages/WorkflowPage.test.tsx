@@ -9,7 +9,7 @@ import {
 } from './WorkflowPage'
 
 import textEmbeddingManifestJson from '../../../resources/nodes/text_embedding_v1.json'
-import vectorStoreManifestJson from '../../../resources/nodes/vector_store_v1.json'
+import vectorStoreManifestJson from '../../../resources/nodes/vector_store_v2.json'
 import rerankManifestJson from '../../../resources/nodes/rerank_results_v1.json'
 import similaritySearchManifestJson from '../../../resources/nodes/similarity_search_v1.json'
 import chatHistoryMemoryManifestJson from '../../../resources/nodes/chat_history_memory_v1.json'

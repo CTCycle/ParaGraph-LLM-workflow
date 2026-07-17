@@ -38,6 +38,10 @@ jobs:
 
   frontend-validation:
     runs-on: ubuntu-latest
+    env:
+      FASTAPI_HOST: 127.0.0.1
+      FASTAPI_PORT: 8000
+      PYTHONPATH: app
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -46,6 +50,26 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "22"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Start backend for live E2E
+        shell: bash
+        run: |
+          uv --project app/server sync --extra test
+          (cd app/server && uv run uvicorn server.app:app --host 127.0.0.1 --port 8000 --log-level warning > "$RUNNER_TEMP/paragraph-backend.log" 2>&1 & echo $! > "$RUNNER_TEMP/paragraph-backend.pid")
+          for i in {1..60}; do
+            if curl --fail --silent --max-time 2 http://127.0.0.1:8000/docs >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat "$RUNNER_TEMP/paragraph-backend.log"
+          exit 1
 
       - name: Install Frontend Dependencies
         working-directory: app/client
@@ -62,3 +86,29 @@ jobs:
       - name: Run Frontend Unit Tests
         working-directory: app/client
         run: npm run test:unit
+
+      - name: Install Playwright browser
+        working-directory: app/client
+        run: npx playwright install --with-deps chromium
+
+      - name: Run live Playwright E2E
+        working-directory: app/client
+        run: npm run test:e2e
+
+      - name: Upload Playwright artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: paragraph-playwright-results
+          path: |
+            app/client/test-results
+            app/client/playwright-report
+            ${{ runner.temp }}/paragraph-backend.log
+
+      - name: Stop live backend
+        if: always()
+        shell: bash
+        run: |
+          if [ -f "$RUNNER_TEMP/paragraph-backend.pid" ]; then
+            kill "$(cat "$RUNNER_TEMP/paragraph-backend.pid")" || true
+          fi
