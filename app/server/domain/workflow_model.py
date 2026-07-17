@@ -13,6 +13,8 @@ class WorkflowNodeInstance(BaseModel):
     node_type: str
     node_version: int
     parameters: dict[str, Any] = Field(default_factory=dict)
+    timeout_ms: int | None = None
+    retries: int = 0
     skipped: bool = False
 
 ###############################################################################
@@ -83,7 +85,7 @@ class WorkflowDocument(BaseModel):
 class CompilerDiagnostic(BaseModel):
     code: str
     message: str
-    level: str = "error"
+    level: Literal["error", "warning"] = "error"
     node_id: str | None = None
     connection: WorkflowConnection | None = None
 

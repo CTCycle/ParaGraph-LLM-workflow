@@ -1628,6 +1628,10 @@
           },
           "level": {
             "type": "string",
+            "enum": [
+              "error",
+              "warning"
+            ],
             "title": "Level",
             "default": "error"
           },
@@ -4098,6 +4102,22 @@
             "additionalProperties": true,
             "type": "object",
             "title": "Parameters"
+          },
+          "timeout_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Timeout Ms"
+          },
+          "retries": {
+            "type": "integer",
+            "title": "Retries",
+            "default": 0
           },
           "skipped": {
             "type": "boolean",
