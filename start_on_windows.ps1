@@ -30,6 +30,50 @@ function Write-Info([string]$Message) { Write-Host "[INFO] $Message" -Foreground
 function Write-Warn([string]$Message) { Write-Host "[WARN] $Message" -ForegroundColor Yellow }
 function Write-Fatal([string]$Message) { Write-Host "[FATAL] $Message" -ForegroundColor Red }
 
+function Write-MenuDivider {
+    Write-Host ('-' * 57) -ForegroundColor DarkGray
+}
+
+function Write-MenuOption {
+    param(
+        [Parameter(Mandatory = $true)][string]$Number,
+        [Parameter(Mandatory = $true)][string]$Title,
+        [Parameter(Mandatory = $true)][string]$Description,
+        [switch]$Destructive
+    )
+    $numberColor = if ($Destructive) { 'DarkYellow' } else { 'Cyan' }
+    $titleColor = if ($Destructive) { 'Yellow' } else { 'White' }
+    Write-Host ("  [{0}]" -f $Number) -ForegroundColor $numberColor -NoNewline
+    Write-Host (" {0}" -f $Title.PadRight(30)) -ForegroundColor $titleColor -NoNewline
+    Write-Host $Description -ForegroundColor DarkGray
+}
+
+function Show-Menu {
+    Clear-Host
+    Write-Host
+    Write-Host '  PARAGRAPH' -ForegroundColor Cyan
+    Write-Host '  LLM Workflow' -ForegroundColor White
+    Write-Host '  Local workspace control center' -ForegroundColor DarkGray
+    Write-Host
+    Write-MenuDivider
+    Write-Host '  WORKSPACE ACTIONS' -ForegroundColor DarkCyan
+    Write-MenuDivider
+    Write-MenuOption -Number '1' -Title 'Launch application' -Description 'Start backend and frontend'
+    Write-MenuOption -Number '2' -Title 'Install or update dependencies' -Description 'Sync runtimes and build UI'
+    Write-MenuOption -Number '3' -Title 'Initialize database' -Description 'Seed local catalogs'
+    Write-MenuOption -Number '4' -Title 'Run test suite' -Description 'Execute project checks'
+    Write-Host
+    Write-Host '  MAINTENANCE' -ForegroundColor DarkCyan
+    Write-MenuDivider
+    Write-MenuOption -Number '5' -Title 'Remove logs' -Description 'Delete local log files'
+    Write-MenuOption -Number '6' -Title 'Clear cache' -Description 'Remove Python and uv caches'
+    Write-MenuOption -Number '7' -Title 'Uninstall application' -Description 'Remove local runtimes and dependencies' -Destructive
+    Write-MenuOption -Number '8' -Title 'Exit' -Description 'Close this launcher'
+    Write-MenuDivider
+    Write-Host '  Enter a number to continue. Local data and settings are preserved by maintenance actions.' -ForegroundColor DarkGray
+    Write-Host
+}
+
 function Clear-PythonEnvironment {
     foreach ($name in 'PYTHONHOME', 'PYTHONPATH', 'PYTHONNOUSERSITE') {
         [Environment]::SetEnvironmentVariable($name, $null, 'Process')
@@ -356,20 +400,8 @@ function Wait-ForMenu {
 }
 
 while ($true) {
-    Clear-Host
-    Write-Host '========================================='
-    Write-Host '    ParaGraph -- LLM Workflow'
-    Write-Host '========================================='
-    Write-Host '1.  Launch application'
-    Write-Host '2.  Install / update dependencies'
-    Write-Host '3.  Initialize database'
-    Write-Host '4.  Run test suite'
-    Write-Host '5.  Remove logs'
-    Write-Host '6.  Clear cache'
-    Write-Host '7.  Uninstall application'
-    Write-Host '8.  Exit'
-    Write-Host '========================================='
-    $selection = Read-Host 'Select an option (1-8)'
+    Show-Menu
+    $selection = Read-Host '  Select an option (1-8)'
     if ($selection -notmatch '^[1-8]$') {
         Write-Warn 'Select a number from 1 through 8.'
         Wait-ForMenu
