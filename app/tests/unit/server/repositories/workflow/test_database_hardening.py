@@ -17,6 +17,7 @@ from server.repositories.workflow.database import (
 )
 
 
+###############################################################################
 def _connection(path: Path, *, read_only: bool = False) -> dict[str, object]:
     return {
         "engine": "sqlite",
@@ -32,6 +33,7 @@ def _connection(path: Path, *, read_only: bool = False) -> dict[str, object]:
     }
 
 
+###############################################################################
 @pytest.fixture
 def database(tmp_path: Path):
     path = tmp_path / "hardening.sqlite"
@@ -47,6 +49,7 @@ def database(tmp_path: Path):
     reset_database_engines()
 
 
+###############################################################################
 def test_engine_reuse_disposal_and_credential_safe_identity(database: Path) -> None:
     reset_database_engines()
     connection = _connection(database)
@@ -61,6 +64,7 @@ def test_engine_reuse_disposal_and_credential_safe_identity(database: Path) -> N
     assert engine_registry.size() == 0
 
 
+###############################################################################
 def test_read_only_enforcement_and_parameterized_single_statement_sql(
     database: Path,
 ) -> None:
@@ -83,6 +87,7 @@ def test_read_only_enforcement_and_parameterized_single_statement_sql(
         execute_custom_sql(writable, sql="delete from items", read_only=True)
 
 
+###############################################################################
 def test_generated_ids_pagination_upsert_and_optimistic_concurrency(
     database: Path,
 ) -> None:
@@ -128,6 +133,7 @@ def test_generated_ids_pagination_upsert_and_optimistic_concurrency(
     assert conflict["affected_rows"] == 0
 
 
+###############################################################################
 def test_bulk_create_rolls_back_entire_batch_on_constraint_failure(
     database: Path,
 ) -> None:

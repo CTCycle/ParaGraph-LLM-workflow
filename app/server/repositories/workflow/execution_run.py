@@ -23,9 +23,11 @@ from server.repositories.schemas import (
 )
 
 
+###############################################################################
 class ExecutionRunRepository:
     """Durable execution state backed by the application database."""
 
+    # -------------------------------------------------------------------------
     def __init__(
         self, database_factory: DatabaseRepositoryFactory | None = None
     ) -> None:
@@ -33,6 +35,7 @@ class ExecutionRunRepository:
         self._cached_engine = None
         self._engine_lock = threading.Lock()
 
+    # -------------------------------------------------------------------------
     def _engine(self):
         with self._engine_lock:
             if self._cached_engine is None:
@@ -42,12 +45,14 @@ class ExecutionRunRepository:
                 Base.metadata.create_all(self._cached_engine)
             return self._cached_engine
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def _aware(value: datetime | None) -> datetime | None:
         if value is not None and value.tzinfo is None:
             return value.replace(tzinfo=timezone.utc)
         return value
 
+    # -------------------------------------------------------------------------
     def create_run(self, run: ExecutionRunState) -> None:
         if run.plan is None:
             raise ValueError("Execution run requires its serialized plan")
@@ -74,6 +79,7 @@ class ExecutionRunRepository:
             for position, step in enumerate(run.steps):
                 session.add(self._step_record(run.run_id, step, position))
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def _step_record(
         run_id: str, step: ExecutionStepState, position: int
@@ -95,6 +101,7 @@ class ExecutionRunRepository:
             resume_token=step.resume_token,
         )
 
+    # -------------------------------------------------------------------------
     def get_run(self, run_id: str) -> ExecutionRunState | None:
         with Session(self._engine()) as session:
             row = session.get(ExecutionRunRecord, run_id)
@@ -143,6 +150,7 @@ class ExecutionRunRepository:
                 ],
             )
 
+    # -------------------------------------------------------------------------
     def update_run(self, run_id: str, **kwargs: Any) -> ExecutionRunState | None:
         aliases = {"outputs": "outputs_json", "pause_payload": "pause_payload_json"}
         with Session(self._engine()) as session, session.begin():
@@ -157,6 +165,7 @@ class ExecutionRunRepository:
             row.updated_at = datetime.now(timezone.utc)
         return self.get_run(run_id)
 
+    # -------------------------------------------------------------------------
     def update_step(
         self, run_id: str, step_id: str, **updates: Any
     ) -> ExecutionRunState | None:
@@ -180,6 +189,7 @@ class ExecutionRunRepository:
                 run.updated_at = datetime.now(timezone.utc)
         return self.get_run(run_id)
 
+    # -------------------------------------------------------------------------
     def set_steps(
         self, run_id: str, steps: list[ExecutionStepState]
     ) -> ExecutionRunState | None:
@@ -197,6 +207,7 @@ class ExecutionRunRepository:
             )
         return self.get_run(run_id)
 
+    # -------------------------------------------------------------------------
     def append_event(
         self,
         *,
@@ -236,6 +247,7 @@ class ExecutionRunRepository:
             payload=payload,
         )
 
+    # -------------------------------------------------------------------------
     def get_events(self, run_id: str) -> list[ExecutionEventEnvelope]:
         with Session(self._engine()) as session:
             rows = list(
@@ -258,6 +270,7 @@ class ExecutionRunRepository:
                 for row in rows
             ]
 
+    # -------------------------------------------------------------------------
     def list_recoverable(self) -> list[ExecutionRunState]:
         with Session(self._engine()) as session:
             ids = list(
@@ -269,6 +282,7 @@ class ExecutionRunRepository:
             )
         return [run for run_id in ids if (run := self.get_run(run_id)) is not None]
 
+    # -------------------------------------------------------------------------
     def cleanup_completed_before(self, cutoff: datetime) -> int:
         with Session(self._engine()) as session, session.begin():
             result = session.execute(
@@ -279,6 +293,7 @@ class ExecutionRunRepository:
             )
             return int(result.rowcount or 0)
 
+    # -------------------------------------------------------------------------
     def cleanup_retention(self, retention_days: int) -> int:
         if retention_days < 1:
             raise ValueError("retention_days must be at least one")
@@ -286,6 +301,7 @@ class ExecutionRunRepository:
             datetime.now(timezone.utc) - timedelta(days=retention_days)
         )
 
+    # -------------------------------------------------------------------------
     def reset_for_tests(self) -> None:
         with Session(self._engine()) as session, session.begin():
             session.execute(delete(ExecutionEventRecord))

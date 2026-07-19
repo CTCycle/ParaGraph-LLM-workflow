@@ -11,10 +11,12 @@ from server.services.workflow.http_transport import HttpTransportError, SecureHt
 from server.common import path as common_path
 
 
+###############################################################################
 def PUBLIC_RESOLVER(host: str, port: int) -> list[str]:
     return ["93.184.216.34"]
 
 
+###############################################################################
 def _execute(handler, *, parameters=None, sleep=lambda delay: None, cancelled=lambda: False):
     parsed = HttpRequestParameters.model_validate(
         {"url": "https://example.test/resource", **(parameters or {})}
@@ -28,6 +30,7 @@ def _execute(handler, *, parameters=None, sleep=lambda delay: None, cancelled=la
     ).execute(parsed, {})
 
 
+###############################################################################
 @pytest.mark.parametrize("method", ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"])
 def test_all_supported_methods_use_shared_transport(method: str) -> None:
     seen: list[str] = []
@@ -43,6 +46,7 @@ def test_all_supported_methods_use_shared_transport(method: str) -> None:
     assert seen == [method]
 
 
+###############################################################################
 @pytest.mark.parametrize(
     ("body_mode", "parameters", "expected"),
     [
@@ -69,6 +73,7 @@ def test_request_body_modes(body_mode, parameters, expected: bytes) -> None:
     )
 
 
+###############################################################################
 def test_binary_invalid_json_and_size_limit() -> None:
     result = _execute(
         lambda request: httpx.Response(200, content=b"\x00\x01"),
@@ -89,6 +94,7 @@ def test_binary_invalid_json_and_size_limit() -> None:
     assert too_large.value.code == "response_too_large"
 
 
+###############################################################################
 def test_file_response_commits_only_an_accepted_response(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setattr(common_path, "ARTIFACT_ROOT", tmp_path)
     destination = tmp_path / "response.bin"
@@ -117,6 +123,7 @@ def test_file_response_commits_only_an_accepted_response(tmp_path: Path, monkeyp
     assert not list(tmp_path.glob("*.partial-*"))
 
 
+###############################################################################
 def test_retry_after_and_idempotency_key_retention() -> None:
     calls: list[str] = []
     delays: list[float] = []
@@ -147,6 +154,7 @@ def test_retry_after_and_idempotency_key_retention() -> None:
     assert delays[0] == 1 and 0 <= delays[1] <= 2
 
 
+###############################################################################
 def test_unsafe_retry_requires_explicit_contract() -> None:
     with pytest.raises(ValueError, match="unsafe HTTP retries"):
         HttpRequestParameters(
@@ -154,6 +162,7 @@ def test_unsafe_retry_requires_explicit_contract() -> None:
         )
 
 
+###############################################################################
 def test_redirect_revalidation_and_loop_limit() -> None:
     calls = 0
 
@@ -168,6 +177,7 @@ def test_redirect_revalidation_and_loop_limit() -> None:
     assert calls == 2
 
 
+###############################################################################
 @pytest.mark.parametrize(
     "address",
     ["127.0.0.1", "10.0.0.1", "169.254.169.254", "::1", "::ffff:127.0.0.1"],
@@ -179,6 +189,7 @@ def test_ssrf_blocks_private_metadata_and_mapped_addresses(address: str) -> None
     assert blocked.value.code == "ssrf_blocked"
 
 
+###############################################################################
 def test_credential_url_dns_rebinding_and_cancellation() -> None:
     with pytest.raises(HttpTransportError) as credentials:
         SecureHttpTransport(resolver=PUBLIC_RESOLVER).execute(

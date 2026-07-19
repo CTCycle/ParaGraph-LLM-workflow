@@ -18,6 +18,7 @@ from server.services.workflow.execution import execution_service
 from server.services.workflow.nodes import node_registry
 
 
+###############################################################################
 def _plan(*, retries: int = 0, timeout_ms: int | None = None) -> CompiledExecutionPlan:
     step = ExecutionStepPlan(
         step_id="step",
@@ -35,6 +36,7 @@ def _plan(*, retries: int = 0, timeout_ms: int | None = None) -> CompiledExecuti
     )
 
 
+###############################################################################
 def test_run_steps_and_events_survive_repository_reinstantiation() -> None:
     plan = _plan()
     execution_run_repository.create_run(
@@ -67,6 +69,7 @@ def test_run_steps_and_events_survive_repository_reinstantiation() -> None:
     assert [event.sequence for event in fresh_events.events] == [1]
 
 
+###############################################################################
 def test_retry_succeeds_without_restarting_prior_steps(
     job_state_factory, monkeypatch
 ) -> None:
@@ -90,6 +93,7 @@ def test_retry_succeeds_without_restarting_prior_steps(
     assert run.status == "completed"
 
 
+###############################################################################
 def test_retry_exhaustion_records_final_failure(job_state_factory, monkeypatch) -> None:
     monkeypatch.setattr(
         node_registry,
@@ -108,6 +112,7 @@ def test_retry_exhaustion_records_final_failure(job_state_factory, monkeypatch) 
     assert run.steps[0].attempt_count == 2
 
 
+###############################################################################
 def test_timeout_late_result_cannot_overwrite_terminal_state(
     job_state_factory, monkeypatch
 ) -> None:
@@ -129,6 +134,7 @@ def test_timeout_late_result_cannot_overwrite_terminal_state(
     assert run.steps[0].output == {}
 
 
+###############################################################################
 def test_cancel_before_start_and_retention_cleanup() -> None:
     plan = _plan()
     execution_service._initialize_run(plan, None, None, "cancel-run", request_id=None)  # noqa: SLF001

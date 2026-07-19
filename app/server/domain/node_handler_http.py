@@ -4,7 +4,6 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-
 ###############################################################################
 class HttpRequestParameters(BaseModel):
     url: str = ""
@@ -41,11 +40,13 @@ class HttpRequestParameters(BaseModel):
     retry_unsafe: bool = False
     idempotency_key: str = ""
 
+    # -------------------------------------------------------------------------
     @field_validator("method", mode="before")
     @classmethod
     def normalize_method(cls, value: Any) -> str:
         return str(value or "GET").strip().upper()
 
+    # -------------------------------------------------------------------------
     @model_validator(mode="after")
     def validate_modes(self) -> "HttpRequestParameters":
         if self.body_mode == "file" and not self.upload_path.strip():

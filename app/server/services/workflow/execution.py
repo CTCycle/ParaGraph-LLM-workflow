@@ -21,7 +21,6 @@ from server.services.runtime.events import execution_event_service
 from server.services.workflow.nodes import node_registry
 from server.common.utils.values import extract_top_level_json_fields
 
-
 ###############################################################################
 class ExecutionService:
     OUTPUT_NAME_PARAMETER = "__output_name"
@@ -219,6 +218,7 @@ class ExecutionService:
             )
         return True
 
+    # -------------------------------------------------------------------------
     def cancel(self, run_id: str) -> ExecutionRunState | None:
         run = execution_run_repository.get_run(run_id)
         if run is None or run.status in ("completed", "failed", "cancelled"):
@@ -235,6 +235,7 @@ class ExecutionService:
             self._cancelled(run_id)
         return execution_run_repository.get_run(run_id)
 
+    # -------------------------------------------------------------------------
     def resume(
         self,
         run_id: str,
@@ -278,6 +279,7 @@ class ExecutionService:
         )
         return execution_run_repository.get_run(run_id)
 
+    # -------------------------------------------------------------------------
     def recover_interrupted(self) -> int:
         recovered = 0
         for run in execution_run_repository.list_recoverable():
@@ -324,6 +326,7 @@ class ExecutionService:
             recovered += 1
         return recovered
 
+    # -------------------------------------------------------------------------
     def _execute_step_with_policy(self, **kwargs: Any) -> dict[str, Any]:
         step = kwargs["step"]
         job_id = kwargs["job_id"]

@@ -66,25 +66,22 @@ def _normalize_index_name(index_name: str) -> str:
 class VectorStoreError(ValueError):
     code = "vector_store_error"
 
-
 ###############################################################################
 class VectorStoreUnsupportedOperationError(VectorStoreError):
     code = "unsupported_operation"
-
 
 ###############################################################################
 class VectorStoreConflictError(VectorStoreError):
     code = "duplicate_vector_ids"
 
+    # -------------------------------------------------------------------------
     def __init__(self, conflicts: list[str]) -> None:
         self.conflicts = sorted(set(conflicts))
         super().__init__(f"Duplicate vector record IDs: {', '.join(self.conflicts)}")
 
-
 ###############################################################################
 class VectorStoreLockTimeoutError(VectorStoreError):
     code = "lock_timeout"
-
 
 ###############################################################################
 @contextmanager
@@ -333,7 +330,6 @@ def _extract_provider_config(
     token = str(config.get("api_key") or api_key or "").strip()
     return config, endpoint, token
 
-
 ###############################################################################
 def _register_runtime_secret(secret: str) -> str:
     if not secret:
@@ -343,7 +339,6 @@ def _register_runtime_secret(secret: str) -> str:
     while len(_SECRET_REGISTRY) > _SECRET_REGISTRY_LIMIT:
         _SECRET_REGISTRY.popitem(last=False)
     return handle
-
 
 ###############################################################################
 def _resolve_runtime_secret(config: dict[str, Any]) -> str:
@@ -365,11 +360,9 @@ def _resolve_runtime_secret(config: dict[str, Any]) -> str:
     )
     return access_key.api_key or "" if access_key else ""
 
-
 ###############################################################################
 def reset_vector_secret_registry() -> None:
     _SECRET_REGISTRY.clear()
-
 
 ###############################################################################
 def _redacted_provider_config(config: dict[str, Any], token: str) -> dict[str, Any]:

@@ -18,7 +18,6 @@ from server.repositories.workflow.database import (
 )
 from server.services.workflow.node_handlers.ingestion.files import resolve_local_path
 
-
 ###############################################################################
 def _build_sql_connection_options(*, db_ssl: bool, db_ssl_ca: str) -> dict[str, Any]:
     options: dict[str, Any] = {}
@@ -27,7 +26,6 @@ def _build_sql_connection_options(*, db_ssl: bool, db_ssl_ca: str) -> dict[str, 
         if db_ssl_ca.strip():
             options["ssl_ca"] = db_ssl_ca.strip()
     return options
-
 
 ###############################################################################
 def _validate_and_build_database_connection(
@@ -73,7 +71,6 @@ def _validate_and_build_database_connection(
         }
     }
 
-
 ###############################################################################
 def _sql_database_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
@@ -94,7 +91,6 @@ def _sql_database_executor(
         "connect_timeout_s": parsed.db_connect_timeout,
     }
     return _validate_and_build_database_connection(connection_payload)
-
 
 ###############################################################################
 def _sql_file_database_executor(

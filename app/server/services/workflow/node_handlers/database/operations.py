@@ -19,14 +19,12 @@ from server.repositories.workflow.database import (
     execute_upsert,
 )
 
-
 ###############################################################################
 def _connection(inputs: dict[str, Any]) -> dict[str, Any]:
     value = inputs.get("connection")
     if not isinstance(value, dict):
         raise ValueError("Database operation nodes require a connection controller")
     return value
-
 
 ###############################################################################
 def _merged_json_input(
@@ -38,7 +36,6 @@ def _merged_json_input(
     if not isinstance(raw_value, dict):
         raise ValueError(f"{name} must be a JSON object")
     return raw_value
-
 
 ###############################################################################
 def _crud_create_executor(
@@ -55,7 +52,6 @@ def _crud_create_executor(
             schema=parsed.schema_name or None,
         )
     }
-
 
 ###############################################################################
 def _crud_read_executor(
@@ -76,7 +72,6 @@ def _crud_read_executor(
             schema=parsed.schema_name or None,
         )
     }
-
 
 ###############################################################################
 def _crud_update_executor(
@@ -102,7 +97,6 @@ def _crud_update_executor(
         )
     }
 
-
 ###############################################################################
 def _crud_delete_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
@@ -121,7 +115,6 @@ def _crud_delete_executor(
         )
     }
 
-
 ###############################################################################
 def _custom_sql_query_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
@@ -135,7 +128,6 @@ def _custom_sql_query_executor(
             read_only=parsed.read_only,
         )
     }
-
 
 ###############################################################################
 def _crud_upsert_executor(
