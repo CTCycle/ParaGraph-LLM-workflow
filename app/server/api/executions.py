@@ -26,12 +26,10 @@ router = APIRouter(prefix="/executions", tags=["executions"])
 logger = logging.getLogger(__name__)
 RunIdPath = Annotated[str, Path(min_length=1, max_length=128, pattern=RUN_ID_PATTERN)]
 
-
 ###############################################################################
 @router.post("/compile", response_model=CompileWorkflowResponse)
 def compile_workflow(request: CompileWorkflowRequest) -> CompileWorkflowResponse:
     return compiler_service.compile(request.definition)
-
 
 ###############################################################################
 @router.post(
@@ -57,7 +55,6 @@ def start_execution(
         request_id=request_id,
     )
 
-
 ###############################################################################
 @router.get("/{run_id}", response_model=ExecutionRunState)
 def get_execution(run_id: RunIdPath) -> ExecutionRunState:
@@ -68,12 +65,10 @@ def get_execution(run_id: RunIdPath) -> ExecutionRunState:
         )
     return run
 
-
 ###############################################################################
 @router.get("/{run_id}/events", response_model=EventHistoryResponse)
 def get_execution_events(run_id: RunIdPath) -> EventHistoryResponse:
     return execution_event_service.get_history(run_id)
-
 
 ###############################################################################
 @router.post("/{run_id}/cancel", response_model=ExecutionActionResponse)
@@ -100,7 +95,6 @@ def cancel_execution(run_id: RunIdPath) -> ExecutionActionResponse:
         if run.status != "cancelled"
         else "Execution cancelled",
     )
-
 
 ###############################################################################
 @router.post("/{run_id}/resume", response_model=ExecutionActionResponse)

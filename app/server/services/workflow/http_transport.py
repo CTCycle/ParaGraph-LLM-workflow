@@ -33,17 +33,19 @@ SENSITIVE_HEADERS = {
 REDIRECT_STATUSES = {301, 302, 303, 307, 308}
 RETRYABLE_METHODS = {"GET", "PUT", "DELETE", "HEAD", "OPTIONS"}
 
-
 ###############################################################################
 class HttpTransportError(ValueError):
+
+    # -------------------------------------------------------------------------
     def __init__(self, code: str, message: str, **details: Any) -> None:
         self.code = code
         self.details = details
         super().__init__(message)
 
-
 ###############################################################################
 class SecureHttpTransport:
+
+    # -------------------------------------------------------------------------
     def __init__(
         self,
         *,
@@ -59,6 +61,7 @@ class SecureHttpTransport:
         self._jitter = jitter
         self._cancelled = cancelled or (lambda: False)
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def _resolve_addresses(host: str, port: int) -> list[str]:
         return sorted(
@@ -68,6 +71,7 @@ class SecureHttpTransport:
             }
         )
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def _validate_address(address: str) -> None:
         parsed = ipaddress.ip_address(address)
@@ -86,6 +90,7 @@ class SecureHttpTransport:
                 "HTTP request target resolved to a blocked network address",
             )
 
+    # -------------------------------------------------------------------------
     def _validate_and_pin(self, url: str) -> tuple[str, str, tuple[str, str, int]]:
         parsed = urlsplit(url)
         if parsed.scheme not in {"http", "https"} or not parsed.hostname:
@@ -111,6 +116,7 @@ class SecureHttpTransport:
         )
         return pinned_url, parsed.hostname, (parsed.scheme, parsed.hostname.lower(), port)
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def _accepted(status: int, accepted: list[int | str]) -> bool:
         for item in accepted:
@@ -125,6 +131,7 @@ class SecureHttpTransport:
                     return True
         return False
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def _retry_after(value: str | None) -> float | None:
         if not value:
@@ -140,6 +147,7 @@ class SecureHttpTransport:
             parsed = parsed.replace(tzinfo=UTC)
         return max(0.0, (parsed - datetime.now(UTC)).total_seconds())
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def _redact_headers(headers: httpx.Headers | dict[str, str]) -> dict[str, str]:
         return {
@@ -147,6 +155,7 @@ class SecureHttpTransport:
             for key, value in headers.items()
         }
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def _resolve_artifact_path(path_value: str) -> Path:
         candidate = Path(path_value).expanduser()
@@ -156,6 +165,7 @@ class SecureHttpTransport:
             candidate.resolve(), common_path.ARTIFACT_ROOT.resolve(), label="artifact path"
         )
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def _resolve_credentials(parameters: HttpRequestParameters) -> tuple[str, str | None]:
         if parameters.auth_mode == "none":
@@ -178,6 +188,7 @@ class SecureHttpTransport:
             )
         return access_key.api_key, access_key.base_url
 
+    # -------------------------------------------------------------------------
     def _request_content(
         self, parameters: HttpRequestParameters, inputs: dict[str, Any]
     ) -> tuple[dict[str, Any], list[Any]]:
@@ -212,6 +223,7 @@ class SecureHttpTransport:
             files["file"] = (path.name, handle)
         return {"data": fields, "files": files}, opened
 
+    # -------------------------------------------------------------------------
     def execute(
         self, parameters: HttpRequestParameters, inputs: dict[str, Any]
     ) -> dict[str, Any]:

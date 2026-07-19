@@ -389,7 +389,6 @@ class VectorStoreParameters(BaseModel):
             )
         return self
 
-
 ###############################################################################
 class VectorStoreLifecycleParameters(BaseModel):
     operation: Literal[
@@ -416,7 +415,6 @@ class VectorStoreLifecycleParameters(BaseModel):
         if self.operation == "delete_filter" and not self.metadata_filter:
             raise ValueError("delete_filter requires metadata_filter")
         return self
-
 
 ###############################################################################
 class RerankParameters(BaseModel):

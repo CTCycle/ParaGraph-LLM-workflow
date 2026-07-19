@@ -446,7 +446,6 @@ def _vector_store_executor(
         },
     }
 
-
 ###############################################################################
 def _vector_store_lifecycle_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
@@ -495,7 +494,6 @@ def _vector_store_lifecycle_executor(
     if operation != "delete_collection":
         response["store"] = adapter.reload(store=store).model_dump(mode="json")
     return response
-
 
 ###############################################################################
 def _similarity_search_executor(

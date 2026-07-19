@@ -22,6 +22,7 @@ from server.services.workflow.vector_stores.base import (
 from server.services.workflow.vector_stores import base as vector_store_base
 
 
+###############################################################################
 def _point(point_id: str, document_id: str, vector: list[float]) -> dict[str, object]:
     return {
         "id": point_id,
@@ -200,7 +201,6 @@ def test_vector_store_capabilities_matrix(
     assert capabilities["supports_hybrid_search"] is False
     assert capabilities["supports_faiss_augmentation"] is supports_faiss_augmentation
 
-
 ###############################################################################
 def test_faiss_lifecycle_is_owned_reloadable_and_explicit(tmp_path: Path) -> None:
     adapter = get_vector_store_adapter("faiss")
@@ -224,7 +224,6 @@ def test_faiss_lifecycle_is_owned_reloadable_and_explicit(tmp_path: Path) -> Non
     assert adapter.reload(store=store).metadata["count"] == 1
     removed = adapter.delete_collection(store=store)
     assert removed.affected_ids == ["three"]
-
 
 ###############################################################################
 def test_faiss_duplicate_and_compatibility_policies_are_stable(tmp_path: Path) -> None:
@@ -265,7 +264,6 @@ def test_faiss_duplicate_and_compatibility_policies_are_stable(tmp_path: Path) -
         )
     assert adapter.reload(store=store).metadata["count"] == 1
 
-
 ###############################################################################
 def test_faiss_failed_atomic_write_preserves_last_good_store(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -298,7 +296,6 @@ def test_faiss_failed_atomic_write_preserves_last_good_store(
 
     assert adapter.reload(store=store).metadata["count"] == 1
     assert not list(tmp_path.glob(".docs.tmp-*"))
-
 
 ###############################################################################
 def test_runtime_vector_secret_handles_are_redacted_and_disposable() -> None:

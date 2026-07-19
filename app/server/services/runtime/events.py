@@ -9,15 +9,18 @@ from server.domain.execution import ExecutionEventEnvelope, EventHistoryResponse
 from server.repositories.workflow.execution_run import execution_run_repository
 
 
+###############################################################################
 class EventService:
     """Durable history with process-local live subscriber queues."""
 
+    # -------------------------------------------------------------------------
     def __init__(self) -> None:
         self._lock = threading.Lock()
         self._subscribers: dict[str, list[Queue[ExecutionEventEnvelope]]] = defaultdict(
             list
         )
 
+    # -------------------------------------------------------------------------
     def publish(
         self,
         *,
@@ -40,12 +43,14 @@ class EventService:
             queue.put(event)
         return event
 
+    # -------------------------------------------------------------------------
     def subscribe(self, run_id: str) -> Queue[ExecutionEventEnvelope]:
         queue: Queue[ExecutionEventEnvelope] = Queue()
         with self._lock:
             self._subscribers[run_id].append(queue)
         return queue
 
+    # -------------------------------------------------------------------------
     def unsubscribe(self, run_id: str, queue: Queue[ExecutionEventEnvelope]) -> None:
         with self._lock:
             queues = self._subscribers.get(run_id, [])
@@ -54,6 +59,7 @@ class EventService:
             if not queues:
                 self._subscribers.pop(run_id, None)
 
+    # -------------------------------------------------------------------------
     def get_history(self, run_id: str) -> EventHistoryResponse:
         events = execution_run_repository.get_events(run_id)
         return EventHistoryResponse(
@@ -62,6 +68,7 @@ class EventService:
             events=events,
         )
 
+    # -------------------------------------------------------------------------
     def reset_for_tests(self) -> None:
         with self._lock:
             self._subscribers.clear()
