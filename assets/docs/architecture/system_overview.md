@@ -1,5 +1,5 @@
 # System Overview
-Last updated: 2026-07-11
+Last updated: 2026-07-20
 
 ## System Summary
 ParaGraph is a local-first workflow platform composed of:
@@ -53,3 +53,4 @@ The repository contains source code plus generated and runtime-heavy folders. Th
 ## Runtime Topology
 - In web mode, the frontend and backend run as separate processes with API traffic routed through the configured base path.
 - Shared runtime artifacts live under `app/resources`, regardless of whether the app is started through the launcher or manually.
+- Workflow runs are durable application-database records: the frontend can reload or reconnect to a run, recover queued or interrupted work after backend startup, and resume paused human-review steps with a resume token.

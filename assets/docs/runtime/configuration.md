@@ -1,5 +1,5 @@
 # Configuration
-Last updated: 2026-07-12
+Last updated: 2026-07-20
 
 ## Shared Configuration Sources
 - Shared environment keys are loaded from `settings/.env`.
@@ -7,7 +7,9 @@ Last updated: 2026-07-12
 
 ## Default Local Values
 - `.env.example` provides defaults such as:
+  - `FASTAPI_HOST=127.0.0.1`
   - `FASTAPI_PORT=5002`
+  - `UI_HOST=127.0.0.1`
   - `UI_PORT=8002`
   - `VITE_API_BASE_URL=/api`
   - `RELOAD=false`
@@ -35,3 +37,4 @@ Last updated: 2026-07-12
 
 ## Shared Runtime Data
 - Shared persistence lives under `app/resources`, including workflows, database files, logs, artifacts, and model assets.
+- The launcher imports `settings/.env` into the process environment before starting either process. Its fallback values are `FASTAPI_PORT=8000` and `UI_PORT=8001` only when individual keys are absent; the checked-in template overrides them to `5002` and `8002`.
