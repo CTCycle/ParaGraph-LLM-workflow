@@ -21,7 +21,6 @@ from server.services.workflow.vector_stores.base import (
 )
 from server.services.workflow.vector_stores import base as vector_store_base
 
-
 ###############################################################################
 def _point(point_id: str, document_id: str, vector: list[float]) -> dict[str, object]:
     return {

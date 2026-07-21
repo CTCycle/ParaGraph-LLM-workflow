@@ -16,7 +16,6 @@ from server.repositories.workflow.database import (
     reset_database_engines,
 )
 
-
 ###############################################################################
 def _connection(path: Path, *, read_only: bool = False) -> dict[str, object]:
     return {
@@ -31,7 +30,6 @@ def _connection(path: Path, *, read_only: bool = False) -> dict[str, object]:
         "credential_ref": None,
         "options": {},
     }
-
 
 ###############################################################################
 @pytest.fixture
@@ -48,7 +46,6 @@ def database(tmp_path: Path):
     yield path
     reset_database_engines()
 
-
 ###############################################################################
 def test_engine_reuse_disposal_and_credential_safe_identity(database: Path) -> None:
     reset_database_engines()
@@ -62,7 +59,6 @@ def test_engine_reuse_disposal_and_credential_safe_identity(database: Path) -> N
     )
     reset_database_engines()
     assert engine_registry.size() == 0
-
 
 ###############################################################################
 def test_read_only_enforcement_and_parameterized_single_statement_sql(
@@ -85,7 +81,6 @@ def test_read_only_enforcement_and_parameterized_single_statement_sql(
         execute_custom_sql(writable, sql="select 1; select 2")
     with pytest.raises(ValueError, match="READ_ONLY_SQL_REQUIRED"):
         execute_custom_sql(writable, sql="delete from items", read_only=True)
-
 
 ###############################################################################
 def test_generated_ids_pagination_upsert_and_optimistic_concurrency(
@@ -131,7 +126,6 @@ def test_generated_ids_pagination_upsert_and_optimistic_concurrency(
         increment_version=True,
     )
     assert conflict["affected_rows"] == 0
-
 
 ###############################################################################
 def test_bulk_create_rolls_back_entire_batch_on_constraint_failure(
