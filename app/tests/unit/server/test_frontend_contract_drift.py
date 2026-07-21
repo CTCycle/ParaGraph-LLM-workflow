@@ -3,7 +3,6 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-
 ###############################################################################
 def _literal_members(source: str, declaration: str) -> set[str]:
     match = re.search(
@@ -13,7 +12,6 @@ def _literal_members(source: str, declaration: str) -> set[str]:
     )
     assert match, f"Could not find {declaration}"
     return set(re.findall(r"['\"]([A-Z][A-Z0-9_]*)['\"]", match.group("body")))
-
 
 ###############################################################################
 def test_frontend_node_data_types_match_backend_contract() -> None:
