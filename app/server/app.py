@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 import warnings
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -74,13 +73,6 @@ async def app_lifespan(application: FastAPI) -> AsyncIterator[None]:
 
 ###############################################################################
 def create_app() -> FastAPI:
-    tauri_mode = os.getenv("PARAGRAPH_TAURI_MODE", "").strip().lower() in {
-        "1",
-        "true",
-        "yes",
-        "on",
-    }
-
     app = FastAPI(
         title=FASTAPI_TITLE,
         version=FASTAPI_VERSION,
@@ -88,7 +80,6 @@ def create_app() -> FastAPI:
         lifespan=app_lifespan,
     )
 
-    app.state.tauri_mode = tauri_mode
     app.middleware("http")(request_id_middleware)
 
     app.include_router(workflows_router)
@@ -98,7 +89,7 @@ def create_app() -> FastAPI:
     app.include_router(configurations_router)
     app.include_router(ws_router)
 
-    if tauri_mode and _client_build_available():
+    if _client_build_available():
         if common_path.FRONTEND_ASSETS_ROOT.is_dir():
             app.mount(
                 "/assets",
