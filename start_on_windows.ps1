@@ -270,6 +270,39 @@ function Sync-Dependencies([System.Collections.IDictionary]$Settings, [switch]$P
     Write-Ok 'Dependencies and frontend build are ready.'
 }
 
+function Test-DependenciesReady {
+    $frontendPackage = Join-Path $ClientDir 'package.json'
+    $frontendLock = Join-Path $ClientDir 'package-lock.json'
+    $frontendModules = Join-Path $ClientDir 'node_modules'
+    $frontendInstallState = Join-Path $frontendModules '.package-lock.json'
+    $frontendRunner = Join-Path $frontendModules '.bin\vite.cmd'
+    $backendEntrypoint = Join-Path $ServerDir 'app.py'
+
+    if (-not (Test-Path -LiteralPath $PythonExe) -or
+        -not (Test-Path -LiteralPath $UvExe) -or
+        -not (Test-Path -LiteralPath $NodeExe) -or
+        -not (Test-Path -LiteralPath $NpmCmd) -or
+        -not (Test-Path -LiteralPath $VenvPython) -or
+        -not (Test-Path -LiteralPath $backendEntrypoint) -or
+        -not (Test-Path -LiteralPath $frontendPackage) -or
+        -not (Test-Path -LiteralPath $frontendLock) -or
+        -not (Test-Path -LiteralPath $frontendInstallState) -or
+        -not (Test-Path -LiteralPath $frontendRunner)) {
+        return $false
+    }
+
+    & $PythonExe --version *> $null
+    if ($LASTEXITCODE -ne 0) { return $false }
+    & $UvExe --version *> $null
+    if ($LASTEXITCODE -ne 0) { return $false }
+    & $NodeExe --version *> $null
+    if ($LASTEXITCODE -ne 0) { return $false }
+    & $VenvPython -c 'import fastapi, uvicorn' *> $null
+    if ($LASTEXITCODE -ne 0) { return $false }
+
+    return $true
+}
+
 function Stop-PortListeners([int]$Port) {
     $pids = netstat -ano | ForEach-Object {
         if ($_ -match "^\s*TCP\s+\S+:$Port\s+\S+\s+LISTENING\s+(\d+)\s*$") { [int]$Matches[1] }
@@ -298,7 +331,14 @@ function Get-ListenerPid([int]$Port) {
 function Invoke-Launch {
     Ensure-PortableRuntimes
     $settings = Import-DotEnv
-    Sync-Dependencies -Settings $settings
+    Set-LauncherEnvironment
+    if (-not (Test-DependenciesReady)) {
+        Write-Step 'Required application environments are missing or unusable; installing dependencies.'
+        Sync-Dependencies -Settings $settings
+    }
+    else {
+        Write-Ok 'Application environments are ready; skipped dependency installation.'
+    }
     if (-not (Test-Path -LiteralPath $VenvPython)) { throw "Virtual environment Python not found at $VenvPython" }
 
     $backendPort = [int]$settings.FASTAPI_PORT
