@@ -48,6 +48,15 @@ function Write-MenuOption {
     Write-Host $Description -ForegroundColor DarkGray
 }
 
+function Read-InstallationType {
+    $selection = (Read-Host 'Installation type [1=Development, 2=Standard]').Trim()
+    switch ($selection) {
+        '1' { return 'Development' }
+        '2' { return 'Standard' }
+        default { throw 'Invalid installation type. Enter 1 for Development or 2 for Standard.' }
+    }
+}
+
 function Show-Menu {
     Clear-Host
     Write-Host
@@ -203,7 +212,6 @@ function Import-DotEnv {
         UI_HOST = '127.0.0.1'
         UI_PORT = '8001'
         RELOAD = 'false'
-        OPTIONAL_DEPENDENCIES = 'false'
         BACKEND_LOGS_VISIBLE = 'true'
         ALWAYS_REBUILD = 'true'
     }
@@ -227,13 +235,19 @@ function Import-DotEnv {
     return $values
 }
 
-function Sync-Dependencies([System.Collections.IDictionary]$Settings, [switch]$PruneCache) {
+function Sync-Dependencies {
+    param(
+        [System.Collections.IDictionary]$Settings,
+        [switch]$PruneCache,
+        [ValidateSet('Standard', 'Development')]
+        [string]$InstallationType = 'Standard'
+    )
     if (-not (Test-Path -LiteralPath (Join-Path $ServerDir 'pyproject.toml'))) {
         throw "Missing pyproject.toml in $ServerDir"
     }
     Write-Step 'Installing Python dependencies with uv'
     $uvArgs = @('sync', '--python', $PythonExe)
-    if ([string]$Settings.OPTIONAL_DEPENDENCIES -ieq 'true') { $uvArgs += '--all-extras' }
+    if ($InstallationType -eq 'Development') { $uvArgs += '--all-extras' }
     Push-Location $ServerDir
     try {
         & $UvExe @uvArgs
@@ -334,7 +348,7 @@ function Invoke-Launch {
     Set-LauncherEnvironment
     if (-not (Test-DependenciesReady)) {
         Write-Step 'Required application environments are missing or unusable; installing dependencies.'
-        Sync-Dependencies -Settings $settings
+        Sync-Dependencies -Settings $settings -InstallationType 'Standard'
     }
     else {
         Write-Ok 'Application environments are ready; skipped dependency installation.'
@@ -451,7 +465,12 @@ while ($true) {
     try {
         switch ($selection) {
             '1' { Invoke-Launch; exit 0 }
-            '2' { Ensure-PortableRuntimes; $settings = Import-DotEnv; Sync-Dependencies -Settings $settings -PruneCache }
+            '2' {
+                $installationType = Read-InstallationType
+                Ensure-PortableRuntimes
+                $settings = Import-DotEnv
+                Sync-Dependencies -Settings $settings -PruneCache -InstallationType $installationType
+            }
             '3' { Invoke-DatabaseInitialization }
             '4' { Invoke-TestSuite }
             '5' { Remove-LogFiles }
