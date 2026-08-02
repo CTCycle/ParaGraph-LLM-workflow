@@ -46,6 +46,9 @@ yarn.lock
 Thumbs.db
 
 # Misc
+# Never commit local environment files; .env.example is intentionally tracked.
+.env
+**/.env
 *.env
 *.lock
 *.log

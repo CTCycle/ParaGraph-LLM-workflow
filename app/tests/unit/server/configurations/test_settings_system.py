@@ -75,6 +75,40 @@ def test_environment_loader_returns_path_instance_for_existing_env(
     assert loaded_path == env_path
 
 ###############################################################################
+def test_environment_loader_creates_missing_env_from_example(
+    tmp_path: Path,
+) -> None:
+    env_path = tmp_path / ".env"
+    example_path = tmp_path / ".env.example"
+    _write_env(example_path, ["FASTAPI_HOST=from_example"])
+
+    loader = EnvironmentLoader(env_path)
+
+    loaded_path = loader.ensure_loaded()
+
+    assert loaded_path == env_path
+    assert env_path.read_text(encoding="utf-8") == example_path.read_text(
+        encoding="utf-8"
+    )
+    assert os.getenv("FASTAPI_HOST") == "from_example"
+
+###############################################################################
+def test_environment_loader_preserves_existing_env_over_example(
+    tmp_path: Path,
+) -> None:
+    env_path = tmp_path / ".env"
+    example_path = tmp_path / ".env.example"
+    _write_env(example_path, ["FASTAPI_HOST=from_example"])
+    _write_env(env_path, ["FASTAPI_HOST=from_local"])
+
+    loader = EnvironmentLoader(env_path)
+
+    loader.ensure_loaded()
+
+    assert env_path.read_text(encoding="utf-8") == "FASTAPI_HOST=from_local\n"
+    assert os.getenv("FASTAPI_HOST") == "from_local"
+
+###############################################################################
 def test_server_package_import_has_no_bootstrap_side_effect(monkeypatch) -> None:
     monkeypatch.setenv("PARAGRAPH_CLOUD_MODE", "false")
 
