@@ -53,7 +53,7 @@ npm run dev
 
 - The local launcher is the recommended Windows entry point.
 - First-run startup can be slow because of dependency synchronization, runtime hydration, and frontend build work.
-- If `settings/.env` is missing, the launcher creates it from `settings/.env.example` before loading settings.
+- If `settings/.env` is missing, the launcher and backend environment loader create it from `settings/.env.example` before loading settings. An existing local `.env` is never overwritten.
 - Set `BACKEND_LOGS_VISIBLE=true` to open a dedicated backend log terminal. If the key is absent, the launcher defaults to visible logs; set it to `false` for a hidden detached backend.
 - Set `ALWAYS_REBUILD=false` to skip the frontend build during application startup; it defaults to `true`.
 - The template defaults are backend `127.0.0.1:5002` and frontend `127.0.0.1:8002`; edit `settings/.env` if those ports are unavailable.
