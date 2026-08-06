@@ -49,11 +49,13 @@ function Write-MenuOption {
 }
 
 function Read-InstallationType {
-    $selection = (Read-Host 'Installation type [1=Development, 2=Standard]').Trim()
+    Write-Host '  [1] Development - include Ruff, Pyright, and pytest'
+    Write-Host '  [2] Standard    - install runtime dependencies only'
+    $selection = (Read-Host '  Select installation profile [1-2]').Trim()
     switch ($selection) {
         '1' { return 'Development' }
         '2' { return 'Standard' }
-        default { throw 'Invalid installation type. Enter 1 for Development or 2 for Standard.' }
+        default { throw 'Invalid installation profile. Enter 1 for Development or 2 for Standard.' }
     }
 }
 
@@ -203,6 +205,7 @@ function Ensure-PortableRuntimes {
     if ($LASTEXITCODE -ne 0) { throw 'Node.js failed its version check.' }
     Write-Ok "Node.js ready: $nodeVersionFound"
     Set-LauncherEnvironment
+    Write-Ok 'Portable runtimes ready.'
 }
 
 function Import-DotEnv {
@@ -466,8 +469,8 @@ while ($true) {
         switch ($selection) {
             '1' { Invoke-Launch; exit 0 }
             '2' {
-                $installationType = Read-InstallationType
                 Ensure-PortableRuntimes
+                $installationType = Read-InstallationType
                 $settings = Import-DotEnv
                 Sync-Dependencies -Settings $settings -PruneCache -InstallationType $installationType
             }
