@@ -9,7 +9,7 @@ import pytest
 from server.common import path as common_path
 from server.domain.node_handler_core import SimilaritySearchParameters
 from server.services.workflow import node_registry
-import server.services.workflow.node_handlers.core as core_handlers
+import server.services.workflow.node_handlers.core.embeddings as embeddings_module
 
 ###############################################################################
 def _read_parameter_options_from_doc(parameter_name: str) -> list[str]:
@@ -146,10 +146,10 @@ def test_similarity_search_executor_rejects_unsupported_backend_modes(
         supports_faiss_augmentation=False,
     )
     monkeypatch.setattr(
-        core_handlers, "get_vector_store_adapter", lambda backend: adapter
+        embeddings_module, "get_vector_store_adapter", lambda backend: adapter
     )
     monkeypatch.setattr(
-        core_handlers, "_embed_text_for_text_embedding_node", lambda **_: [0.2, 0.4]
+        embeddings_module, "_embed_text_for_text_embedding_node", lambda **_: [0.2, 0.4]
     )
 
     with pytest.raises(ValueError, match="does not support hybrid mode"):
@@ -184,10 +184,10 @@ def test_similarity_search_executor_validates_store_payload_and_uses_native_sear
         backend="faiss", supports_hybrid_search=False, supports_faiss_augmentation=True
     )
     monkeypatch.setattr(
-        core_handlers, "get_vector_store_adapter", lambda backend: adapter
+        embeddings_module, "get_vector_store_adapter", lambda backend: adapter
     )
     monkeypatch.setattr(
-        core_handlers, "_embed_text_for_text_embedding_node", lambda **_: [0.3, 0.7]
+        embeddings_module, "_embed_text_for_text_embedding_node", lambda **_: [0.3, 0.7]
     )
 
     with pytest.raises(ValueError, match="VectorStoreHandle"):

@@ -6,7 +6,7 @@ from server.domain.node_handler_ingestion import (
     SQLDatabaseParameters,
     SQLFileDatabaseParameters,
 )
-from server.services.workflow.node_handlers.base import NodeHandler
+from server.domain.node_handler import NodeHandler
 from server.services.workflow.node_handlers.ingestion.database_connections import (
     _sql_database_executor,
     _sql_file_database_executor,

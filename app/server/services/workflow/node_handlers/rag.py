@@ -6,7 +6,7 @@ from bs4 import BeautifulSoup
 
 from server.common.utils.values import coerce_text
 from server.domain.node_handler_rag import RagParameters
-from server.services.workflow.node_handlers.base import NodeHandler
+from server.domain.node_handler import NodeHandler
 
 ###############################################################################
 def _items(value: Any) -> list[Any]:

@@ -24,10 +24,7 @@ from server.common.utils.values import (
     coerce_text,
     normalize_provider_name,
 )
-from server.services.workflow.node_handlers.core.huggingface_runtime import (
-    load_huggingface_embedding_modules as _default_load_huggingface_embedding_modules,
-)
-from server.services.workflow.node_handlers.core.resolvers import resolve_core_override
+from server.services.workflow.node_handlers.core.huggingface_runtime import load_huggingface_embedding_modules
 from server.services.workflow.node_handlers.core.storage import (
     _extract_text_from_payload,
 )
@@ -40,28 +37,6 @@ from server.services.workflow.vector_stores import get_vector_store_adapter
 
 
 _HF_EMBEDDING_CACHE: dict[str, tuple[Any, Any, Any]] = {}
-
-###############################################################################
-def _resolve_vector_store_adapter(backend: str):
-    override = resolve_core_override(
-        "get_vector_store_adapter", get_vector_store_adapter
-    )
-    return override(backend)
-
-###############################################################################
-def _resolve_embedding_function():
-    return resolve_core_override(
-        "_embed_text_for_text_embedding_node",
-        _embed_text_for_text_embedding_node,
-    )
-
-###############################################################################
-def _resolve_huggingface_embedding_modules():
-    override = resolve_core_override(
-        "_load_huggingface_embedding_modules",
-        _default_load_huggingface_embedding_modules,
-    )
-    return override()
 
 ###############################################################################
 def _normalize_embedding_vector(vector: list[float]) -> list[float]:
@@ -132,7 +107,7 @@ def _embed_text_with_gemini(*, model_name: str, text: str) -> list[float]:
 def _embed_text_with_huggingface(
     *, model_name: str, text: str, tokenizer_name: str = ""
 ) -> list[float]:
-    torch_module, auto_model, auto_tokenizer = _resolve_huggingface_embedding_modules()
+    torch_module, auto_model, auto_tokenizer = load_huggingface_embedding_modules()
     config = configuration_service.load_configuration()
     access_key = next(
         (
@@ -396,7 +371,7 @@ def _vector_store_executor(
     ]
     if not points:
         raise ValueError("VECTOR_STORE requires at least one vectors input")
-    adapter = _resolve_vector_store_adapter(parsed.provider)
+    adapter = get_vector_store_adapter(parsed.provider)
     resolved_api_key = ""
     resolved_endpoint = parsed.endpoint_url
     if parsed.credential_profile:
@@ -455,7 +430,7 @@ def _vector_store_lifecycle_executor(
     if not isinstance(raw_store, dict):
         raise ValueError("VECTOR_STORE_LIFECYCLE requires a vector store handle")
     store = VectorStoreHandle.model_validate(raw_store)
-    adapter = _resolve_vector_store_adapter(store.backend)
+    adapter = get_vector_store_adapter(store.backend)
     operation = parsed.operation
     if operation == "inspect":
         result = adapter.inspect_collection(store=store)
@@ -506,7 +481,7 @@ def _similarity_search_executor(
 
     embedding_payload = inputs.get("embedding")
     provider, model_name, tokenizer_name = _extract_embedding_source(embedding_payload)
-    query_vector = _resolve_embedding_function()(
+    query_vector = _embed_text_for_text_embedding_node(
         provider=provider,
         model_name=model_name,
         tokenizer_name=tokenizer_name,
@@ -536,7 +511,7 @@ def _similarity_search_executor(
         )
 
     backend = coerce_text(store_payload.get("backend") or "lancedb").strip().lower()
-    adapter = _resolve_vector_store_adapter(backend)
+    adapter = get_vector_store_adapter(backend)
     capabilities = adapter.describe_capabilities()
     if parsed.search_mode == "hybrid" and not bool(
         capabilities.get("supports_hybrid_search")

@@ -158,3 +158,54 @@ def test_ollama_client_chat_uses_chat_endpoint_only(monkeypatch) -> None:
 
     assert result == "ok"
     assert calls == [("POST", "/api/chat")]
+
+###############################################################################
+def test_ollama_embedding_uses_current_endpoint_only(monkeypatch) -> None:
+    service = ProviderService()
+    calls: list[tuple[str, dict[str, object]]] = []
+
+    class FakeResponse:
+
+        @staticmethod
+        def raise_for_status() -> None:
+            return None
+
+        @staticmethod
+        def json() -> dict[str, object]:
+            return {"embeddings": [[0.1, 0.2, 0.3]]}
+
+    def fake_post(url: str, **kwargs: object) -> FakeResponse:
+        calls.append((url, kwargs))
+        return FakeResponse()
+
+    monkeypatch.setattr(provider_service_module.httpx, "post", fake_post)
+    monkeypatch.setattr(
+        service,
+        "_load_configuration",
+        lambda session_name="default": SimpleNamespace(
+            ollama=SimpleNamespace(base_url="http://127.0.0.1:11434")
+        ),
+    )
+
+    assert service.embed_text(provider="ollama", model="nomic-embed-text", text="hello") == [
+        0.1,
+        0.2,
+        0.3,
+    ]
+    assert calls == [
+        (
+            "http://127.0.0.1:11434/api/embed",
+            {"json": {"model": "nomic-embed-text", "input": "hello"}, "timeout": 30.0},
+        )
+    ]
+
+###############################################################################
+def test_embedding_rejects_unsupported_provider_without_fallback() -> None:
+    service = ProviderService()
+
+    try:
+        service.embed_text(provider="gemini", model="test", text="hello")
+    except ValueError as exc:
+        assert "Unsupported embedding provider: gemini" in str(exc)
+    else:
+        raise AssertionError("Expected unsupported providers to fail explicitly")

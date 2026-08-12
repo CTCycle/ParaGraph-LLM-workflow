@@ -1,5 +1,5 @@
 # Processing And Retrieval
-Last updated: 2026-07-17
+Last updated: 2026-08-12
 
 ## Similarity Search Contract
 - `search_mode`
@@ -12,7 +12,7 @@ Last updated: 2026-07-17
 ## Named Variables From JSON
 When a connected node output is a JSON object, or a JSON string that parses to a JSON object, ParaGraph publishes each top-level key as a downstream named variable. Nested keys and array indexes are not published automatically.
 
-If a source node also sets `__output_name`, that alias remains available for backward compatibility. When the alias collides with a top-level JSON key, the alias wins and the original JSON fields remain available under `__json_fields__`.
+Object outputs are published as their top-level JSON fields for downstream bindings. Scalar outputs remain scalar; there is no output-renaming or collision compatibility layer.
 
 Example structured output:
 

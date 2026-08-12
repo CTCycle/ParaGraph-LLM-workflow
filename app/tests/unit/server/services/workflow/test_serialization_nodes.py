@@ -8,7 +8,7 @@ from server.configurations.startup import (
     reset_configuration_runtime_for_tests,
 )
 from server.services.workflow import node_registry
-from server.services.workflow.node_handlers import core as core_node_handlers
+import server.services.workflow.node_handlers.core.storage as storage_module
 
 ###############################################################################
 @pytest.fixture(autouse=True)
@@ -438,7 +438,7 @@ def test_load_text_uses_shared_loader_for_pdf_paths(
         observed["path"] = path
         return ("pdf payload", "application/pdf")
 
-    monkeypatch.setattr(core_node_handlers, "load_file_text", fake_loader)
+    monkeypatch.setattr(storage_module, "load_file_text", fake_loader)
 
     loaded = node_registry.execute(
         "LOAD_TEXT", 1, {"storage_path": str(source_file)}, {}

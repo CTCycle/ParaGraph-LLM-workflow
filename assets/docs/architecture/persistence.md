@@ -1,5 +1,5 @@
 # Persistence
-Last updated: 2026-07-17
+Last updated: 2026-08-12
 
 ## File-Based Persistence
 - Workflow graph definitions are stored as JSON under `app/resources/workflows`.
@@ -11,6 +11,7 @@ Last updated: 2026-07-17
 - The default embedded database is SQLite at `app/resources/database.db`.
 - PostgreSQL can be enabled through values in `settings/.env`.
 - The application database stores internal application records, not workflow graph definitions.
+- `repositories/database/initializer.py` is the only application-schema creation boundary. Startup or explicit initialization must run before repository use; application repositories do not lazily create application tables or migrate legacy structures. Dynamic tables created by database nodes remain explicit user-data operations.
 - SQLAlchemy tables include:
   - `user_sessions`
   - `access_keys`

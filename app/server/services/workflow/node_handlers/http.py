@@ -4,7 +4,7 @@ from typing import Any
 
 from server.domain.node_handler_http import HttpRequestParameters
 from server.services.workflow.http_transport import SecureHttpTransport
-from server.services.workflow.node_handlers.base import NodeHandler
+from server.domain.node_handler import NodeHandler
 
 ###############################################################################
 def _http_request_executor(
