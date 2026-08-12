@@ -23,7 +23,6 @@ from server.common.utils.values import extract_top_level_json_fields
 
 ###############################################################################
 class ExecutionService:
-    OUTPUT_NAME_PARAMETER = "__output_name"
     SKIP_SENTINEL = "__paragraph_skip__"
 
     # -------------------------------------------------------------------------
@@ -561,7 +560,7 @@ class ExecutionService:
         for binding in step.bindings:
             binding_is_controller = binding.binding_type == "controller"
             value = self._resolve_binding_value(
-                binding, binding_is_controller, outputs_by_step, step_lookup
+                binding, binding_is_controller, outputs_by_step
             )
             target_manifest_map, target_values = self._resolve_binding_target(
                 binding_is_controller,
@@ -582,16 +581,11 @@ class ExecutionService:
         binding: Any,
         binding_is_controller: bool,
         outputs_by_step: dict[str, dict[str, Any]],
-        step_lookup: dict[str, Any],
     ) -> Any:
         source_ports = outputs_by_step.get(binding.source_node_id, {})
         value = source_ports.get(binding.source_output, self.SKIP_SENTINEL)
-        source_step = step_lookup.get(binding.source_node_id)
-        output_name = self._resolve_output_name(
-            source_step.parameters if source_step is not None else {}
-        )
         if not binding_is_controller:
-            return self._publish_named_output(value, output_name)
+            return self._publish_named_output(value)
         return value
 
     # -------------------------------------------------------------------------
@@ -645,19 +639,9 @@ class ExecutionService:
         )
 
     # -------------------------------------------------------------------------
-    def _publish_named_output(self, value: Any, output_name: str | None) -> Any:
+    def _publish_named_output(self, value: Any) -> Any:
         json_fields = extract_top_level_json_fields(value)
-        if not json_fields:
-            return {output_name: value} if output_name else value
-        if not output_name:
-            return json_fields
-        if output_name in json_fields:
-            return {
-                **json_fields,
-                "__json_fields__": dict(json_fields),
-                output_name: value,
-            }
-        return {**json_fields, output_name: value}
+        return json_fields if json_fields else value
 
     # -------------------------------------------------------------------------
     def _resolve_binding_target(
@@ -692,14 +676,6 @@ class ExecutionService:
             current.append(value)
             return
         target_values[input_name] = value
-
-    # -------------------------------------------------------------------------
-    def _resolve_output_name(self, parameters: dict[str, Any]) -> str | None:
-        raw_value = parameters.get(self.OUTPUT_NAME_PARAMETER)
-        if not isinstance(raw_value, str):
-            return None
-        normalized = raw_value.strip()
-        return normalized or None
 
     # -------------------------------------------------------------------------
     def _json_safe(self, value: Any) -> Any:

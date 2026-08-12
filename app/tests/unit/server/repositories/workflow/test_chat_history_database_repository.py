@@ -7,6 +7,7 @@ import sqlalchemy
 from server.domain.chat_history import ChatHistoryMessage
 from server.domain.settings import DatabaseSettings
 from server.repositories.database.base import TabularDatabaseRepository
+from server.repositories.schemas import Base
 from server.repositories.workflow import chat_history_database as chat_history_module
 
 ###############################################################################
@@ -64,6 +65,8 @@ def test_database_chat_history_repository_builds_database_once(monkeypatch) -> N
     )
 
     repository = chat_history_module.DatabaseChatHistoryRepository(database_factory)
+
+    Base.metadata.create_all(database_repository.engine)
 
     assert database_factory.build_calls == 1
 

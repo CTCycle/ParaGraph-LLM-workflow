@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from server.services.workflow.node_handlers.base import NodeHandler
+from server.domain.node_handler import NodeHandler
 
 ###############################################################################
 def _text_output_executor(

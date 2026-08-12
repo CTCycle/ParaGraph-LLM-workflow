@@ -196,7 +196,6 @@ class OllamaClient:
         method: str,
         path: str,
         payload: dict[str, Any] | None = None,
-        allow_404: bool = False,
     ) -> httpx.Response:
         try:
             response = httpx.request(
@@ -210,8 +209,6 @@ class OllamaClient:
         except httpx.RequestError as exc:
             raise OllamaError(f"Unable to reach Ollama: {exc}") from exc
 
-        if allow_404 and response.status_code == 404:
-            return response
         if response.is_error:
             raise OllamaError(
                 f"Ollama request failed ({response.status_code}): {response.text}"

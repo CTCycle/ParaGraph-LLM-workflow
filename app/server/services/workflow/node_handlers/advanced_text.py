@@ -9,7 +9,7 @@ from markdown_it import MarkdownIt
 from rapidfuzz import fuzz
 
 from server.domain.node_handler_advanced_text import AdvancedTextParameters
-from server.services.workflow.node_handlers.base import NodeHandler
+from server.domain.node_handler import NodeHandler
 from server.common.utils.values import coerce_text
 
 

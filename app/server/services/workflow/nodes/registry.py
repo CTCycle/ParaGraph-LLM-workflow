@@ -16,7 +16,7 @@ from server.repositories.workflow.node_manifest import (
 )
 from server.services.configuration import configuration_service
 from server.services.workflow.node_handlers import NODE_HANDLERS
-from server.services.workflow.node_handlers.base import NodeHandler
+from server.domain.node_handler import NodeHandler
 from server.services.workflow.nodes.execution_context import (
     reset_execution_context,
     set_execution_context,

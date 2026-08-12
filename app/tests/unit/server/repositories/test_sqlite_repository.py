@@ -4,8 +4,10 @@ from pathlib import Path
 
 import pandas as pd
 import pytest
+from sqlalchemy import inspect
 
 from server.domain.settings import DatabaseSettings
+from server.repositories.database import initializer as initializer_module
 from server.repositories.database import sqlite as sqlite_module
 
 ###############################################################################
@@ -33,6 +35,26 @@ def test_sqlite_repository_uses_resources_root_for_default_path(
     repository = sqlite_module.SQLiteRepository(_build_settings())
 
     assert repository.db_path == str(tmp_path / "database.db")
+
+###############################################################################
+def test_initialize_sqlite_database_creates_application_schema(
+    tmp_path: Path, monkeypatch
+) -> None:
+    monkeypatch.setattr(sqlite_module.common_path, "RESOURCES_ROOT", tmp_path)
+
+    initializer_module.initialize_sqlite_database(_build_settings())
+
+    repository = sqlite_module.SQLiteRepository(_build_settings())
+    assert set(inspect(repository.engine).get_table_names()) == {
+        "access_keys",
+        "chat_history_messages",
+        "configuration_profiles",
+        "execution_events",
+        "execution_runs",
+        "execution_steps",
+        "nodes",
+        "user_sessions",
+    }
 
 ###############################################################################
 def test_sqlite_repository_save_load_and_count_rows(

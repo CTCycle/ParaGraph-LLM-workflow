@@ -230,11 +230,11 @@ def test_execution_service_persists_compact_step_output_payload(
     assert all(set(step.output.keys()) == {"inputs", "ports"} for step in run.steps)
 
 ###############################################################################
-def test_execution_service_uses_named_output_as_prompt_template_variable(
+def test_execution_service_uses_json_field_as_prompt_template_variable(
     job_state_factory,
 ) -> None:
     plan = CompiledExecutionPlan(
-        plan_id="plan-renamed-output",
+        plan_id="plan-json-field-output",
         step_order=["prompt_1", "template_1", "output_1"],
         steps=[
             ExecutionStepPlan(
@@ -244,7 +244,7 @@ def test_execution_service_uses_named_output_as_prompt_template_variable(
                 node_version=1,
                 category="prompt",
                 executor_key="prompt",
-                parameters={"prompt_text": "hello", "__output_name": "greeting"},
+                parameters={"prompt_text": '{"greeting":"hello"}'},
                 bindings=[],
                 cacheable=False,
             ),
@@ -288,9 +288,9 @@ def test_execution_service_uses_named_output_as_prompt_template_variable(
         metadata={},
     )
 
-    job_state_factory("run-renamed-output", "workflow")
+    job_state_factory("run-json-field-output", "workflow")
     result = execution_service.execute_plan_job(
-        plan=plan, workflow_id=None, job_id="run-renamed-output"
+        plan=plan, workflow_id=None, job_id="run-json-field-output"
     )
 
     assert result == {"outputs": {"output_1": {"text": "hello"}}}

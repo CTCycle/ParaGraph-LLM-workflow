@@ -303,7 +303,7 @@ def _load_text_executor(
     parameters: dict[str, Any],
     inputs: dict[str, Any],
     *,
-    text_loader=load_file_text,
+    text_loader=None,
 ) -> dict[str, Any]:
     _ = inputs
     source = _resolve_storage_path(parameters.get("storage_path"), label="storage_path")
@@ -311,7 +311,8 @@ def _load_text_executor(
         raise ValueError(f"Text file not found: {source}")
     if not source.is_file():
         raise ValueError(f"storage_path must point to a file: {source}")
-    text_content, _mime_type = text_loader(source)
+    loader = text_loader or load_file_text
+    text_content, _mime_type = loader(source)
     return {"text": text_content}
 
 

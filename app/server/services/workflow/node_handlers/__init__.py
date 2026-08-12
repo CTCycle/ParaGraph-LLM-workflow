@@ -17,7 +17,7 @@ from server.domain.node_handler_core import (
     ToolCallParameters,
     ToolCollectionParameters,
 )
-from server.services.workflow.node_handlers.base import NodeHandler
+from server.domain.node_handler import NodeHandler
 from server.services.workflow.node_handlers.core.metadata import _metadata_executor
 from server.services.workflow.node_handlers.core.tools import (
     _tool_call_executor,

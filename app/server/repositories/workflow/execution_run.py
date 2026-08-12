@@ -16,7 +16,6 @@ from server.domain.execution import (
 )
 from server.repositories.database.factory import DatabaseRepositoryFactory
 from server.repositories.schemas import (
-    Base,
     ExecutionEventRecord,
     ExecutionRunRecord,
     ExecutionStepRecord,
@@ -41,7 +40,6 @@ class ExecutionRunRepository:
                 self._cached_engine = self._database_factory.build(
                     get_server_settings().database
                 ).engine
-                Base.metadata.create_all(self._cached_engine)
             return self._cached_engine
 
     # -------------------------------------------------------------------------

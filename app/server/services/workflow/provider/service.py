@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import hashlib
 import json
 from threading import Lock
 from typing import Any
@@ -44,17 +43,11 @@ from server.services.workflow.provider.helpers import (
     _model_basename,
     _normalize_provider,
 )
-from server.services.workflow.provider.huggingface_catalog import (
-    HuggingFaceCatalogMixin,
-    HuggingFaceCatalogService,
-)
+from server.services.workflow.provider.huggingface_catalog import HuggingFaceCatalogMixin
 from server.services.workflow.provider.huggingface_downloads import (
     HuggingFaceDownloadMixin,
 )
-from server.services.workflow.provider.ollama import (
-    OllamaLibraryCatalogMixin,
-    OllamaLibraryService,
-)
+from server.services.workflow.provider.ollama import OllamaLibraryCatalogMixin
 
 ###############################################################################
 class ProviderService(
@@ -69,8 +62,6 @@ class ProviderService(
         self._ollama_library_cache: CachedValue | None = None
         self._huggingface_cache: dict[str, CachedValue] = {}
         self._huggingface_filter_tags_cache: dict[str, CachedValue] = {}
-        self.ollama_library = OllamaLibraryService(self)
-        self.huggingface_catalog = HuggingFaceCatalogService(self)
 
     # -------------------------------------------------------------------------
     def reset_for_tests(self) -> None:
@@ -183,7 +174,7 @@ class ProviderService(
         search: str | None = None,
         refresh: bool = False,
     ) -> OllamaLibraryCatalogResponse:
-        return self.ollama_library.list_models(
+        return self._list_ollama_library_models_impl(
             session_name=session_name,
             search=search,
             refresh=refresh,
@@ -196,7 +187,7 @@ class ProviderService(
         model: str,
         session_name: str = DEFAULT_SESSION_NAME,
     ) -> OllamaModelPullResponse:
-        return self.ollama_library.pull_model(model=model, session_name=session_name)
+        return self._pull_ollama_model_impl(model=model, session_name=session_name)
 
     # -------------------------------------------------------------------------
     def list_huggingface_models(
@@ -213,7 +204,7 @@ class ProviderService(
         page_size: int = 20,
         refresh: bool = False,
     ) -> HuggingFaceModelCatalogResponse:
-        return self.huggingface_catalog.list_models(
+        return self._list_huggingface_models_impl(
             session_name=session_name,
             search=search,
             task=task,
@@ -563,54 +554,27 @@ class ProviderService(
         }
 
     # -------------------------------------------------------------------------
-    def _fallback_embedding(
-        self, *, provider: str, model: str, text: str, dimensions: int | None
-    ) -> list[float]:
-        target_dimensions = dimensions or 12
-        digest = hashlib.sha256(f"{provider}:{model}:{text}".encode("utf-8")).digest()
-        values: list[float] = []
-        for index in range(target_dimensions):
-            start = (index * 2) % len(digest)
-            chunk = int.from_bytes(
-                digest[start : start + 2], byteorder="big", signed=False
-            )
-            values.append(round(chunk / 65535.0, 6))
-        return values
-
-    # -------------------------------------------------------------------------
     def _ollama_embed(self, *, model: str, text: str, session_name: str) -> list[float]:
         base_url = self._load_configuration(session_name).ollama.base_url.rstrip("/")
-        payloads = (
-            {"model": model, "input": text},
-            {"model": model, "prompt": text},
-        )
-        last_error: Exception | None = None
-        for path, payload in (
-            ("/api/embed", payloads[0]),
-            ("/api/embeddings", payloads[1]),
-        ):
-            try:
-                response = httpx.post(f"{base_url}{path}", json=payload, timeout=30.0)
-                if response.status_code == 404:
-                    continue
-                response.raise_for_status()
-                data = response.json()
-                if isinstance(data, dict):
-                    embeddings = data.get("embeddings")
-                    if (
-                        isinstance(embeddings, list)
-                        and embeddings
-                        and isinstance(embeddings[0], list)
-                    ):
-                        return [float(item) for item in embeddings[0]]
-                    embedding = data.get("embedding")
-                    if isinstance(embedding, list):
-                        return [float(item) for item in embedding]
-                raise ValueError("Invalid Ollama embeddings response")
-            except Exception as exc:  # noqa: BLE001
-                last_error = exc
-        raise ValueError(str(last_error or "Unable to generate Ollama embeddings"))
-
+        try:
+            response = httpx.post(
+                f"{base_url}/api/embed",
+                json={"model": model, "input": text},
+                timeout=30.0,
+            )
+            response.raise_for_status()
+            data = response.json()
+            if isinstance(data, dict):
+                embeddings = data.get("embeddings")
+                if (
+                    isinstance(embeddings, list)
+                    and embeddings
+                    and isinstance(embeddings[0], list)
+                ):
+                    return [float(item) for item in embeddings[0]]
+            raise ValueError("Invalid Ollama embeddings response")
+        except Exception as exc:  # noqa: BLE001
+            raise ValueError(str(exc)) from exc
     # -------------------------------------------------------------------------
     def _openai_embed(
         self,
@@ -730,12 +694,7 @@ class ProviderService(
                     dimensions=dimensions,
                 )
             else:
-                vector = self._fallback_embedding(
-                    provider=normalized_provider,
-                    model=model,
-                    text=text,
-                    dimensions=dimensions,
-                )
+                raise ValueError(f"Unsupported embedding provider: {normalized_provider}")
         except httpx.HTTPError as exc:
             raise ValueError(
                 f"{normalized_provider} embeddings request failed: {exc}"

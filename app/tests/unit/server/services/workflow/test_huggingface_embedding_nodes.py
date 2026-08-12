@@ -5,13 +5,13 @@ from types import SimpleNamespace
 import pytest
 import torch
 
-from server.services.workflow.node_handlers import core as core_module
+import server.services.workflow.node_handlers.core.embeddings as embeddings_module
 
 ###############################################################################
 def test_huggingface_embedding_uses_eos_token_when_tokenizer_has_no_pad_token(
     monkeypatch,
 ) -> None:
-    core_module._HF_EMBEDDING_CACHE.clear()  # noqa: SLF001
+    embeddings_module._HF_EMBEDDING_CACHE.clear()  # noqa: SLF001
 
     ###############################################################################
     class FakeTokenizer:
@@ -64,17 +64,17 @@ def test_huggingface_embedding_uses_eos_token_when_tokenizer_has_no_pad_token(
             return FakeModel()
 
     monkeypatch.setattr(
-        core_module.configuration_service,
+        embeddings_module.configuration_service,
         "load_configuration",
         lambda: SimpleNamespace(access_keys=[]),
     )
     monkeypatch.setattr(
-        core_module,
-        "_load_huggingface_embedding_modules",
+        embeddings_module,
+        "load_huggingface_embedding_modules",
         lambda: (torch, FakeAutoModel, FakeAutoTokenizer),
     )
 
-    vector = core_module._embed_text_with_huggingface(  # noqa: SLF001
+    vector = embeddings_module._embed_text_with_huggingface(  # noqa: SLF001
         model_name="fake-embedding-model",
         text="hello",
     )
@@ -85,7 +85,7 @@ def test_huggingface_embedding_uses_eos_token_when_tokenizer_has_no_pad_token(
 
 ###############################################################################
 def test_huggingface_embedding_can_use_explicit_tokenizer_repo(monkeypatch) -> None:
-    core_module._HF_EMBEDDING_CACHE.clear()  # noqa: SLF001
+    embeddings_module._HF_EMBEDDING_CACHE.clear()  # noqa: SLF001
     captured: dict[str, str] = {}
 
     ###############################################################################
@@ -131,17 +131,17 @@ def test_huggingface_embedding_can_use_explicit_tokenizer_repo(monkeypatch) -> N
             return FakeModel()
 
     monkeypatch.setattr(
-        core_module.configuration_service,
+        embeddings_module.configuration_service,
         "load_configuration",
         lambda: SimpleNamespace(access_keys=[]),
     )
     monkeypatch.setattr(
-        core_module,
-        "_load_huggingface_embedding_modules",
+        embeddings_module,
+        "load_huggingface_embedding_modules",
         lambda: (torch, FakeAutoModel, FakeAutoTokenizer),
     )
 
-    vector = core_module._embed_text_with_huggingface(  # noqa: SLF001
+    vector = embeddings_module._embed_text_with_huggingface(  # noqa: SLF001
         model_name="sentence-transformers/all-MiniLM-L6-v2",
         tokenizer_name="bert-base-uncased",
         text="hello",

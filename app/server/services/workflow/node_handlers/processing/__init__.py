@@ -9,7 +9,7 @@ from server.domain.node_handler_processing import (
     RegexSplitChunksParameters,
     SentenceWindowChunksParameters,
 )
-from server.services.workflow.node_handlers.base import NodeHandler
+from server.domain.node_handler import NodeHandler
 from server.services.workflow.node_handlers.processing.delimiter import (
     _by_delimiter_chunks_executor,
 )
