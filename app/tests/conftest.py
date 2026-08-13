@@ -29,6 +29,7 @@ from server.services.workflow.provider import provider_service
 def initialized_application_database() -> Iterator[None]:
     initialize_database()
     yield
+
 ###############################################################################
 def clear_job_manager() -> None:
     job_manager.reset_for_tests()

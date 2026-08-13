@@ -575,6 +575,7 @@ class ProviderService(
             raise ValueError("Invalid Ollama embeddings response")
         except Exception as exc:  # noqa: BLE001
             raise ValueError(str(exc)) from exc
+
     # -------------------------------------------------------------------------
     def _openai_embed(
         self,

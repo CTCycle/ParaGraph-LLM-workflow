@@ -164,12 +164,15 @@ def test_ollama_embedding_uses_current_endpoint_only(monkeypatch) -> None:
     service = ProviderService()
     calls: list[tuple[str, dict[str, object]]] = []
 
+    ###############################################################################
     class FakeResponse:
 
+        # -------------------------------------------------------------------------
         @staticmethod
         def raise_for_status() -> None:
             return None
 
+        # -------------------------------------------------------------------------
         @staticmethod
         def json() -> dict[str, object]:
             return {"embeddings": [[0.1, 0.2, 0.3]]}
