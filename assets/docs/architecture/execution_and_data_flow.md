@@ -1,4 +1,5 @@
 # Execution And Data Flow
+Last updated: 2026-08-18
 Last updated: 2026-07-17
 
 ## Layered Backend Flow
@@ -70,12 +71,8 @@ Typical backend flow follows endpoint to service to repository:
   - Bounded engine reuse, credential-safe connection identity, schema inspection, read-only enforcement, parameterized SQL, and transactional CRUD/bulk/upsert persistence.
 - `server/repositories/configuration.py`
   - Session, profile, and access-key persistence in the application database.
-- `server/repositories/database/base.py`
-  - Shared dataframe and SQLAlchemy tabular persistence behavior.
 - `server/repositories/database/sqlite.py`
-  - Embedded SQLite engine adapter.
-- `server/repositories/database/postgres.py`
-  - External PostgreSQL engine adapter.
+  - Embedded SQLite engine, application schema access, and dataframe/tabular persistence behavior.
 - `client/src/pages/WorkflowPage.tsx`
   - Visual workflow editor and execution control surface.
 - `client/src/workflow/components/*`

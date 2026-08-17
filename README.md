@@ -177,7 +177,7 @@ For more detail, see:
 
 ## Data And Files
 
-The app stores its local runtime data under `app/resources`.
+The app stores its local runtime data under `app/resources` by default. Set `PARAGRAPH_RESOURCES_DIR` in `settings/.env` to use another absolute or repository-relative location.
 
 That includes things like:
 

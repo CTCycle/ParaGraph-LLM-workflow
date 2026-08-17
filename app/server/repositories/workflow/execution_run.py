@@ -14,7 +14,7 @@ from server.domain.execution import (
     ExecutionRunState,
     ExecutionStepState,
 )
-from server.repositories.database.factory import DatabaseRepositoryFactory
+from server.repositories.database.sqlite import SQLiteRepository
 from server.repositories.schemas import (
     ExecutionEventRecord,
     ExecutionRunRecord,
@@ -27,9 +27,9 @@ class ExecutionRunRepository:
 
     # -------------------------------------------------------------------------
     def __init__(
-        self, database_factory: DatabaseRepositoryFactory | None = None
+        self, database_repository: SQLiteRepository | None = None
     ) -> None:
-        self._database_factory = database_factory or DatabaseRepositoryFactory()
+        self._database_repository = database_repository
         self._cached_engine = None
         self._engine_lock = threading.Lock()
 
@@ -37,9 +37,10 @@ class ExecutionRunRepository:
     def _engine(self):
         with self._engine_lock:
             if self._cached_engine is None:
-                self._cached_engine = self._database_factory.build(
+                repository = self._database_repository or SQLiteRepository(
                     get_server_settings().database
-                ).engine
+                )
+                self._cached_engine = repository.engine
             return self._cached_engine
 
     # -------------------------------------------------------------------------

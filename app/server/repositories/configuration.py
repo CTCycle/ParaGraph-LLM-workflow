@@ -12,7 +12,7 @@ from server.domain.configuration import (
     DEFAULT_SESSION_NAME,
     PROFILE_NAME_PATTERN,
 )
-from server.repositories.database.factory import DatabaseRepositoryFactory
+from server.repositories.database.sqlite import SQLiteRepository
 from server.repositories.schemas import (
     AccessKey,
     ConfigurationProfile,
@@ -25,14 +25,15 @@ class ConfigurationRepository:
 
     # -------------------------------------------------------------------------
     def __init__(
-        self, database_factory: DatabaseRepositoryFactory | None = None
+        self, database_repository: SQLiteRepository | None = None
     ) -> None:
-        self._database_factory = database_factory or DatabaseRepositoryFactory()
+        self._database_repository = database_repository
 
     # -------------------------------------------------------------------------
     def _database_engine(self):
-        settings = get_server_settings().database
-        return self._database_factory.build(settings).engine
+        if self._database_repository is not None:
+            return self._database_repository.engine
+        return SQLiteRepository(get_server_settings().database).engine
 
     # -------------------------------------------------------------------------
     def _normalize_session_name(self, session_name: str | None) -> str:

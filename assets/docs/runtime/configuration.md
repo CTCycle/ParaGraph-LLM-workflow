@@ -1,5 +1,5 @@
 # Configuration
-Last updated: 2026-07-20
+Last updated: 2026-08-18
 
 ## Shared Configuration Sources
 - Shared environment keys are loaded from `settings/.env`.
@@ -15,13 +15,14 @@ Last updated: 2026-07-20
   - `RELOAD=false`
   - `BACKEND_LOGS_VISIBLE=true`
   - `ALWAYS_REBUILD=true`
+- `PARAGRAPH_RESOURCES_DIR` is blank by default, which keeps shared resource data under `app/resources`.
+- Set `PARAGRAPH_RESOURCES_DIR` to an absolute path or a path relative to the repository root to relocate resource data, including the embedded SQLite database.
 
 ## Runtime Settings
 - Database and runtime behavior split across:
-  - `settings/.env` for all internal application database mode and connection values.
+  - `settings/.env` for the internal SQLite batch-size setting.
   - `settings/configurations.json` for non-database runtime settings such as `global.seed` and `jobs.polling_interval`.
-- The default database mode is embedded SQLite through `DATABASE_EMBEDDED=true`.
-- PostgreSQL is optional when embedded mode is disabled.
+- Internal application persistence always uses embedded SQLite. PostgreSQL settings belong only to user-configured workflow database nodes and are not used for application records.
 - Provider credentials and endpoint overrides are persisted as configuration access key records.
 - Ollama settings remain first-class session fields; DeepSeek, LM Studio, and llama.cpp use access key records with `provider`, optional `api_key`, optional `base_url`, and local default model metadata.
 - Default provider endpoints:
@@ -36,5 +37,5 @@ Last updated: 2026-07-20
 - The Windows launcher starts uvicorn, waits for `/docs`, then starts Vite preview and opens the UI URL.
 
 ## Shared Runtime Data
-- Shared persistence lives under `app/resources`, including workflows, database files, logs, artifacts, and model assets.
+- Shared persistence lives under `PARAGRAPH_RESOURCES_DIR` when configured, or under `app/resources` by default. This includes workflows, database files, logs, artifacts, and model assets.
 - The launcher imports `settings/.env` into the process environment before starting either process. Its fallback values are `FASTAPI_PORT=8000` and `UI_PORT=8001` only when individual keys are absent; the checked-in template overrides them to `5002` and `8002`.

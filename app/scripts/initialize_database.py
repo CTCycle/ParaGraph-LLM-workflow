@@ -15,7 +15,7 @@ if __name__ == "__main__":
     start = time.perf_counter()
     logger.info("Starting database initialization")
     logger.info(
-        "Current database configuration: %s",
+        "Current SQLite configuration: %s",
         json.dumps(asdict(server_settings.database), ensure_ascii=False),
     )
     initialize_database()
