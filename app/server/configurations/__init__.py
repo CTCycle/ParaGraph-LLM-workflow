@@ -1,20 +1,20 @@
 from __future__ import annotations
 
 from server.domain.settings import (
-    DatabaseSettings,
     JobsSettings,
     RuntimeConfigurationSettings,
     ServerSettings,
-    get_database_settings_from_env,
-    load_database_settings_from_env,
+    SQLiteSettings,
+    get_sqlite_settings_from_env,
+    load_sqlite_settings_from_env,
 )
 
 
 __all__ = [
     "RuntimeConfigurationSettings",
-    "DatabaseSettings",
+    "SQLiteSettings",
     "JobsSettings",
     "ServerSettings",
-    "get_database_settings_from_env",
-    "load_database_settings_from_env",
+    "get_sqlite_settings_from_env",
+    "load_sqlite_settings_from_env",
 ]

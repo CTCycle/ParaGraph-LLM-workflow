@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from server.configurations.startup import get_server_settings
 from server.domain.chat_history import ChatHistoryMessage
-from server.repositories.database.factory import DatabaseRepositoryFactory
+from server.repositories.database.sqlite import SQLiteRepository
 from server.repositories.schemas import ChatHistoryMessageRecord
 
 ###############################################################################
@@ -21,10 +21,9 @@ class DatabaseChatHistoryRepository:
 
     # -------------------------------------------------------------------------
     def __init__(
-        self, database_factory: DatabaseRepositoryFactory | None = None
+        self, database_repository: SQLiteRepository | None = None
     ) -> None:
-        self._database_factory = database_factory or DatabaseRepositoryFactory()
-        self._database_repository = self._database_factory.build(
+        self._database_repository = database_repository or SQLiteRepository(
             get_server_settings().database
         )
 

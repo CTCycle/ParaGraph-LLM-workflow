@@ -1,15 +1,16 @@
 # Persistence
-Last updated: 2026-08-12
+Last updated: 2026-08-18
 
 ## File-Based Persistence
-- Workflow graph definitions are stored as JSON under `app/resources/workflows`.
-- Workflow templates are loaded from `app/resources/workflow_templates`.
-- Node definitions live as JSON assets under `app/resources/nodes`.
-- Node plugins and runtime-generated artifacts are stored under `app/resources/nodes` and `app/resources/artifacts`.
+- Workflow graph definitions are stored as JSON under the configured resource root (`app/resources/workflows` by default).
+- Workflow templates are loaded from the configured resource root (`app/resources/workflow_templates` by default).
+- Node definitions live as JSON assets under the configured resource root (`app/resources/nodes` by default).
+- Node plugins and runtime-generated artifacts are stored under the configured resource root (`app/resources/nodes` and `app/resources/artifacts` by default).
 
 ## Application Database
 - The default embedded database is SQLite at `app/resources/database.db`.
-- PostgreSQL can be enabled through values in `settings/.env`.
+- Set `PARAGRAPH_RESOURCES_DIR` in `settings/.env` to relocate the shared resource root; the embedded database then uses `<PARAGRAPH_RESOURCES_DIR>/database.db`.
+- Internal application persistence always uses the embedded SQLite database; `DATABASE_INSERT_BATCH_SIZE` controls its dataframe batch size.
 - The application database stores internal application records, not workflow graph definitions.
 - `repositories/database/initializer.py` is the only application-schema creation boundary. Startup or explicit initialization must run before repository use; application repositories do not lazily create application tables or migrate legacy structures. Dynamic tables created by database nodes remain explicit user-data operations.
 - SQLAlchemy tables include:
@@ -23,9 +24,8 @@ Last updated: 2026-08-12
   - `execution_events`
 
 ## Persistence Layer Responsibilities
-- SQLite and PostgreSQL repositories share tabular persistence through `repositories/database/base.py`.
-- Engine-specific adapters only construct, validate, and connect to their backends.
-- Database workflow nodes use `repositories/workflow/database.py` for inspected external and SQLite connection operations.
+- `repositories/database/sqlite.py` owns the internal SQLite engine and tabular persistence behavior.
+- Database workflow nodes independently use `repositories/workflow/database.py` for inspected external and SQLite connection operations, including intentional PostgreSQL connections.
 
 ## Execution Durability
 - Runs, serialized plans, step state and outputs, pause tokens, final outputs, and ordered event history are stored in the application database.
@@ -36,6 +36,6 @@ Last updated: 2026-08-12
 ## Storage Boundary Rules
 - Workflow definitions remain file-based by design.
 - Runtime event history is durable; live subscriptions are process-local.
-- Database configuration affects internal app records and database-node integrations, but not the source-of-truth workflow graph JSON files.
+- SQLite persistence affects internal app records; database-node integrations remain independent and do not change the source-of-truth workflow graph JSON files.
 - Local FAISS vector indexes use temporary sibling builds, per-index bounded file locks, and atomic directory replacement so failed writes retain the last committed index.
 - LanceDB relies on its versioned table commits and a per-table writer lock; Chroma uses its persistent client and backend-native collection metric metadata.

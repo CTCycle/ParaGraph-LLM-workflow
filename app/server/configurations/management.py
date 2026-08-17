@@ -10,7 +10,7 @@ from server.common import path as common_path
 from server.domain.settings import (
     RuntimeConfigurationSettings,
     ServerSettings,
-    get_database_settings_from_env,
+    get_sqlite_settings_from_env,
 )
 
 ###############################################################################
@@ -58,7 +58,7 @@ class RuntimeConfigurationManager:
 
         self._settings = settings
         self._server_settings = settings.to_server_settings(
-            database=get_database_settings_from_env()
+            database=get_sqlite_settings_from_env()
         )
         return settings
 

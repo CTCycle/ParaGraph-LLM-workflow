@@ -71,7 +71,7 @@ function Show-Menu {
     Write-MenuDivider
     Write-MenuOption -Number '1' -Title 'Launch application' -Description 'Start backend and frontend'
     Write-MenuOption -Number '2' -Title 'Install or update dependencies' -Description 'Sync runtimes and build UI'
-    Write-MenuOption -Number '3' -Title 'Initialize database' -Description 'Seed local catalogs'
+    Write-MenuOption -Number '3' -Title 'Initialize SQLite database' -Description 'Create application schema'
     Write-MenuOption -Number '4' -Title 'Run test suite' -Description 'Execute project checks'
     Write-Host
     Write-Host '  MAINTENANCE' -ForegroundColor DarkCyan
@@ -399,10 +399,10 @@ function Invoke-Launch {
 function Invoke-DatabaseInitialization {
     Ensure-PortableRuntimes
     Set-LauncherEnvironment
-    $arguments = @('run', '--project', (Join-Path $AppDir 'server'), '--python', $PythonExe, 'python', (Join-Path $AppDir 'scripts\initialize_database.py'), '--drop-existing', '--seed-catalogs', '--force-reseed-catalogs')
+    $arguments = @('run', '--project', (Join-Path $AppDir 'server'), '--python', $PythonExe, 'python', (Join-Path $AppDir 'scripts\initialize_database.py'))
     & $UvExe @arguments
     if ($LASTEXITCODE -ne 0) { throw "Database initialization failed with exit code $LASTEXITCODE" }
-    Write-Ok 'Database initialization completed.'
+    Write-Ok 'SQLite database initialization completed.'
 }
 
 function Invoke-TestSuite {

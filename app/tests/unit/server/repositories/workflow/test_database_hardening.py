@@ -3,9 +3,12 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from sqlalchemy import create_engine, text
+from sqlalchemy import Column, Integer, MetaData, String, Table, create_engine, text
+from sqlalchemy.dialects.postgresql import dialect as postgresql_dialect
+from sqlalchemy.dialects.postgresql import insert as postgresql_insert
 
 from server.repositories.workflow.database import (
+    build_database_url,
     engine_registry,
     execute_bulk_create,
     execute_create,
@@ -30,6 +33,42 @@ def _connection(path: Path, *, read_only: bool = False) -> dict[str, object]:
         "credential_ref": None,
         "options": {},
     }
+
+###############################################################################
+def test_postgresql_workflow_connection_contract_keeps_psycopg_driver() -> None:
+    url, connect_args = build_database_url(
+        {
+            "engine": "postgres",
+            "database_name": "workflow_db",
+            "host": "db.example.test",
+            "port": 5432,
+            "username": "workflow_user",
+            "password": "secret",
+            "options": {"sslmode": "require", "connect_timeout_s": 9},
+        }
+    )
+
+    assert url.drivername == "postgresql+psycopg"
+    assert url.database == "workflow_db"
+    assert url.host == "db.example.test"
+    assert connect_args == {"connect_timeout": 9}
+
+
+###############################################################################
+def test_postgresql_upsert_dialect_contract() -> None:
+    table = Table(
+        "items",
+        MetaData(),
+        Column("name", String, primary_key=True),
+        Column("value", Integer),
+    )
+    statement = (
+        postgresql_insert(table)
+        .values(name="one", value=1)
+        .on_conflict_do_update(index_elements=["name"], set_={"value": 2})
+    )
+
+    assert "ON CONFLICT" in str(statement.compile(dialect=postgresql_dialect()))
 
 ###############################################################################
 @pytest.fixture
