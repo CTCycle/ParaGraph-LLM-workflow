@@ -321,6 +321,10 @@ function Test-DependenciesReady {
     return $true
 }
 
+function Test-FrontendBuildReady {
+    return Test-Path -LiteralPath (Join-Path $ClientDir 'dist\index.html')
+}
+
 function Stop-PortListeners([int]$Port) {
     $pids = netstat -ano | ForEach-Object {
         if ($_ -match "^\s*TCP\s+\S+:$Port\s+\S+\s+LISTENING\s+(\d+)\s*$") { [int]$Matches[1] }
@@ -350,13 +354,17 @@ function Invoke-Launch {
     Ensure-PortableRuntimes
     $settings = Import-DotEnv
     Set-LauncherEnvironment
-    $frontendIndex = Join-Path $ClientDir 'dist\index.html'
-    if (-not (Test-Path -LiteralPath $frontendIndex)) {
-        throw 'Frontend build is missing. Run launcher option 2 before launching the application.'
-    }
-    if (-not (Test-DependenciesReady)) {
-        Write-Step 'Required application environments are missing or unusable; installing dependencies.'
-        Sync-Dependencies -InstallationType 'Standard'
+    $dependenciesReady = Test-DependenciesReady
+    $frontendBuildReady = Test-FrontendBuildReady
+    if (-not $dependenciesReady -or -not $frontendBuildReady) {
+        if (-not $dependenciesReady) {
+            Write-Step 'Required application environments are missing or unusable; installing dependencies.'
+            Sync-Dependencies -InstallationType 'Standard'
+        }
+        if (-not $frontendBuildReady) {
+            Write-Step 'Frontend build is missing; rebuilding frontend.'
+        }
+        Build-Frontend
     }
     else {
         Write-Ok 'Application environments are ready; skipped dependency installation.'
