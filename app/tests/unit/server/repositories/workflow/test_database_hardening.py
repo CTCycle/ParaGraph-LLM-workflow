@@ -53,7 +53,6 @@ def test_postgresql_workflow_connection_contract_keeps_psycopg_driver() -> None:
     assert url.host == "db.example.test"
     assert connect_args == {"connect_timeout": 9}
 
-
 ###############################################################################
 def test_postgresql_upsert_dialect_contract() -> None:
     table = Table(

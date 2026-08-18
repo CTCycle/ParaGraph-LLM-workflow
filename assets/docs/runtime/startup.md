@@ -52,10 +52,10 @@ npm run dev
 ## Startup Notes
 
 - The local launcher is the recommended Windows entry point.
-- First-run startup can be slow because of dependency synchronization, runtime hydration, and frontend build work.
+- First-run startup can be slow because of dependency synchronization and runtime hydration.
 - If `settings/.env` is missing, the launcher and backend environment loader create it from `settings/.env.example` before loading settings. An existing local `.env` is never overwritten.
 - Set `BACKEND_LOGS_VISIBLE=true` to open a dedicated backend log terminal. If the key is absent, the launcher defaults to visible logs; set it to `false` for a hidden detached backend.
-- Set `ALWAYS_REBUILD=false` to skip the frontend build during application startup; it defaults to `true`.
+- The frontend build is created or refreshed only by launcher option `2`; option `1` serves the existing build output.
 - Set `PARAGRAPH_RESOURCES_DIR` in `settings/.env` to relocate shared resource data and the embedded SQLite database; leave it blank to use `app/resources`.
 - Application initialization and startup use the embedded SQLite database; PostgreSQL is only selected explicitly by user-facing workflow database nodes.
 - The template defaults are backend `127.0.0.1:5002` and frontend `127.0.0.1:8002`; edit `settings/.env` if those ports are unavailable.

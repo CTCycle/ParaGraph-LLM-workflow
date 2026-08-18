@@ -21,6 +21,7 @@ RESOURCES_ENV_KEY = "PARAGRAPH_RESOURCES_DIR"
 _DEFAULT_RESOURCES_ROOT = APP_ROOT / "resources"
 
 
+###############################################################################
 def resolve_resources_root() -> Path:
     """Resolve the shared resource root from the local environment settings."""
     configured_root = os.getenv(RESOURCES_ENV_KEY)
