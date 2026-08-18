@@ -18,7 +18,7 @@ Last updated: 2026-08-18
 - Set `PARAGRAPH_RESOURCES_DIR` to an absolute path or a path relative to the repository root to relocate resource data, including the embedded SQLite database.
 
 ## Runtime Settings
-- The frontend build is created or refreshed only by launcher option `2`; application launch serves the existing build output.
+- Launcher option `2` creates or refreshes the frontend build. Application launch serves the existing build output and rebuilds it only when the build or required environment is missing or unusable.
 - Database and runtime behavior split across:
   - `settings/.env` for the internal SQLite batch-size setting.
   - `settings/configurations.json` for non-database runtime settings such as `global.seed` and `jobs.polling_interval`.
