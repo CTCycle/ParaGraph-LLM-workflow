@@ -216,7 +216,6 @@ function Import-DotEnv {
         UI_PORT = '8001'
         RELOAD = 'false'
         BACKEND_LOGS_VISIBLE = 'true'
-        ALWAYS_REBUILD = 'true'
     }
     if (-not (Test-Path -LiteralPath $DotEnv)) {
         if (-not (Test-Path -LiteralPath $DotEnvExample)) {
@@ -240,7 +239,6 @@ function Import-DotEnv {
 
 function Sync-Dependencies {
     param(
-        [System.Collections.IDictionary]$Settings,
         [switch]$PruneCache,
         [ValidateSet('Standard', 'Development')]
         [string]$InstallationType = 'Standard'
@@ -271,20 +269,23 @@ function Sync-Dependencies {
             & $NpmCmd install
         }
         if ($LASTEXITCODE -ne 0) { throw "npm dependency installation failed with exit code $LASTEXITCODE" }
-        if ([string]$Settings.ALWAYS_REBUILD -ieq 'true') {
-            Write-Step 'Building frontend'
-            & $NpmCmd run build
-            if ($LASTEXITCODE -ne 0) { throw "Frontend build failed with exit code $LASTEXITCODE" }
-        } else {
-            Write-Info 'Skipping frontend build because ALWAYS_REBUILD=false.'
-        }
     } finally { Pop-Location }
 
     if ($PruneCache -and (Test-Path -LiteralPath $UvCacheDir)) {
         Write-Step 'Pruning uv cache'
         Remove-Item -LiteralPath $UvCacheDir -Recurse -Force
     }
-    Write-Ok 'Dependencies and frontend build are ready.'
+    Write-Ok 'Dependencies are ready.'
+}
+
+function Build-Frontend {
+    Write-Step 'Building frontend'
+    Push-Location $ClientDir
+    try {
+        & $NpmCmd run build
+        if ($LASTEXITCODE -ne 0) { throw "Frontend build failed with exit code $LASTEXITCODE" }
+    } finally { Pop-Location }
+    Write-Ok 'Frontend build is ready.'
 }
 
 function Test-DependenciesReady {
@@ -349,9 +350,13 @@ function Invoke-Launch {
     Ensure-PortableRuntimes
     $settings = Import-DotEnv
     Set-LauncherEnvironment
+    $frontendIndex = Join-Path $ClientDir 'dist\index.html'
+    if (-not (Test-Path -LiteralPath $frontendIndex)) {
+        throw 'Frontend build is missing. Run launcher option 2 before launching the application.'
+    }
     if (-not (Test-DependenciesReady)) {
         Write-Step 'Required application environments are missing or unusable; installing dependencies.'
-        Sync-Dependencies -Settings $settings -InstallationType 'Standard'
+        Sync-Dependencies -InstallationType 'Standard'
     }
     else {
         Write-Ok 'Application environments are ready; skipped dependency installation.'
@@ -471,8 +476,9 @@ while ($true) {
             '2' {
                 Ensure-PortableRuntimes
                 $installationType = Read-InstallationType
-                $settings = Import-DotEnv
-                Sync-Dependencies -Settings $settings -PruneCache -InstallationType $installationType
+                Import-DotEnv | Out-Null
+                Sync-Dependencies -PruneCache -InstallationType $installationType
+                Build-Frontend
             }
             '3' { Invoke-DatabaseInitialization }
             '4' { Invoke-TestSuite }

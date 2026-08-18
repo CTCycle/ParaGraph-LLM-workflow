@@ -16,6 +16,7 @@ def _build_settings() -> SQLiteSettings:
     return SQLiteSettings(insert_batch_size=1000)
 
 
+###############################################################################
 def _build_memory_repository() -> sqlite_module.SQLiteRepository:
     return sqlite_module.SQLiteRepository(
         SQLiteSettings(insert_batch_size=2),
@@ -94,6 +95,7 @@ def test_sqlite_repository_count_rows_raises_for_missing_table(
         repository.count_rows("missing_table")
 
 
+###############################################################################
 def test_sqlite_repository_save_load_and_count_dynamic_table() -> None:
     repository = _build_memory_repository()
     frame = pd.DataFrame(
@@ -111,6 +113,7 @@ def test_sqlite_repository_save_load_and_count_dynamic_table() -> None:
     assert len(loaded) == 2
 
 
+###############################################################################
 def test_sqlite_repository_save_replaces_existing_dynamic_table_rows() -> None:
     repository = _build_memory_repository()
     repository.save_into_database(

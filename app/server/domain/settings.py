@@ -6,7 +6,6 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
-
 ###############################################################################
 def _env_text(key: str) -> str | None:
     value = os.getenv(key)

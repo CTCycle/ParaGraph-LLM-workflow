@@ -14,11 +14,11 @@ Last updated: 2026-08-18
   - `VITE_API_BASE_URL=/api`
   - `RELOAD=false`
   - `BACKEND_LOGS_VISIBLE=true`
-  - `ALWAYS_REBUILD=true`
 - `PARAGRAPH_RESOURCES_DIR` is blank by default, which keeps shared resource data under `app/resources`.
 - Set `PARAGRAPH_RESOURCES_DIR` to an absolute path or a path relative to the repository root to relocate resource data, including the embedded SQLite database.
 
 ## Runtime Settings
+- The frontend build is created or refreshed only by launcher option `2`; application launch serves the existing build output.
 - Database and runtime behavior split across:
   - `settings/.env` for the internal SQLite batch-size setting.
   - `settings/configurations.json` for non-database runtime settings such as `global.seed` and `jobs.polling_interval`.
