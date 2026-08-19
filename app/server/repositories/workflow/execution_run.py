@@ -13,6 +13,7 @@ from server.domain.execution import (
     ExecutionEventEnvelope,
     ExecutionRunState,
     ExecutionStepState,
+    PauseCheckpoint,
 )
 from server.repositories.database.sqlite import SQLiteRepository
 from server.repositories.schemas import (
@@ -100,6 +101,21 @@ class ExecutionRunRepository:
         )
 
     # -------------------------------------------------------------------------
+    @staticmethod
+    def _checkpoint_from_payload(
+        payload: Any, resume_token: str | None
+    ) -> PauseCheckpoint | None:
+        if not isinstance(payload, dict) or not resume_token:
+            return None
+        try:
+            checkpoint = PauseCheckpoint.model_validate(payload)
+        except ValueError:
+            return None
+        if checkpoint.resume_token != resume_token:
+            return None
+        return checkpoint
+
+    # -------------------------------------------------------------------------
     def get_run(self, run_id: str) -> ExecutionRunState | None:
         with Session(self._engine()) as session:
             row = session.get(ExecutionRunRecord, run_id)
@@ -111,6 +127,14 @@ class ExecutionRunRepository:
                     .where(ExecutionStepRecord.run_id == run_id)
                     .order_by(ExecutionStepRecord.position)
                 ).scalars()
+            )
+            checkpoint = self._checkpoint_from_payload(
+                row.pause_payload_json, row.resume_token
+            )
+            pause_payload = (
+                checkpoint.pause_payload
+                if checkpoint is not None
+                else row.pause_payload_json
             )
             return ExecutionRunState(
                 run_id=row.run_id,
@@ -125,8 +149,9 @@ class ExecutionRunRepository:
                 progress=row.progress,
                 outputs=row.outputs_json or {},
                 error=row.error,
-                pause_payload=row.pause_payload_json,
+                pause_payload=pause_payload,
                 resume_token=row.resume_token,
+                pause_checkpoint=checkpoint,
                 cancellation_requested=row.cancellation_requested,
                 steps=[
                     ExecutionStepState(
@@ -147,6 +172,98 @@ class ExecutionRunRepository:
                     for item in steps
                 ],
             )
+
+    # -------------------------------------------------------------------------
+    def pause_run(
+        self,
+        run_id: str,
+        step_id: str,
+        checkpoint: PauseCheckpoint,
+        output: dict[str, Any],
+    ) -> ExecutionRunState | None:
+        """Persist a pause checkpoint and the in-flight step atomically."""
+        with Session(self._engine()) as session, session.begin():
+            run = session.get(ExecutionRunRecord, run_id)
+            if run is None:
+                return None
+            step = session.execute(
+                select(ExecutionStepRecord).where(
+                    ExecutionStepRecord.run_id == run_id,
+                    ExecutionStepRecord.step_id == step_id,
+                )
+            ).scalar_one_or_none()
+            if step is None:
+                raise ValueError(f"Execution step not found: {step_id}")
+            run.status = "paused"
+            run.pause_payload_json = checkpoint.model_dump(mode="json")
+            run.resume_token = checkpoint.resume_token
+            step.status = "paused"
+            step.output_json = output
+            step.pause_payload_json = checkpoint.pause_payload
+            step.resume_token = checkpoint.resume_token
+            run.updated_at = datetime.now(timezone.utc)
+        return self.get_run(run_id)
+
+    # -------------------------------------------------------------------------
+    def resume_paused_run(
+        self,
+        run_id: str,
+        resume_token: str,
+        reviewed_payload: dict[str, Any] | None,
+    ) -> ExecutionRunState | None:
+        """Validate and consume a pause checkpoint in one transaction."""
+        with Session(self._engine()) as session, session.begin():
+            run = session.get(ExecutionRunRecord, run_id)
+            if run is None:
+                return None
+            if run.status != "paused":
+                raise ValueError("Run is not paused or resume token is invalid")
+            checkpoint = self._checkpoint_from_payload(
+                run.pause_payload_json, run.resume_token
+            )
+            if checkpoint is None:
+                raise ValueError("legacy_pause_state_not_resumable")
+            if checkpoint.resume_token != resume_token:
+                raise ValueError("Run is not paused or resume token is invalid")
+
+            payload = reviewed_payload or {}
+            from server.common.utils.values import validate_json_against_schema
+
+            try:
+                validate_json_against_schema(
+                    payload, checkpoint.expected_reviewed_payload_schema
+                )
+            except ValueError as exc:
+                raise ValueError(f"Invalid reviewed payload: {exc}") from exc
+
+            step = session.execute(
+                select(ExecutionStepRecord).where(
+                    ExecutionStepRecord.run_id == run_id,
+                    ExecutionStepRecord.step_id == checkpoint.step_id,
+                    ExecutionStepRecord.node_id == checkpoint.node_id,
+                )
+            ).scalar_one_or_none()
+            if step is None:
+                raise ValueError("legacy_pause_state_not_resumable")
+
+            output = dict(step.output_json or {})
+            ports = dict(output.get("ports") or {})
+            ports.pop("paused", None)
+            ports.pop("pause_payload", None)
+            ports["result"] = payload
+            output["ports"] = ports
+            step.output_json = output
+            step.status = "completed"
+            step.completed_at = datetime.now(timezone.utc)
+            step.pause_payload_json = None
+            step.resume_token = None
+
+            run.status = "queued"
+            run.pause_payload_json = None
+            run.resume_token = None
+            run.cancellation_requested = False
+            run.updated_at = datetime.now(timezone.utc)
+        return self.get_run(run_id)
 
     # -------------------------------------------------------------------------
     def update_run(self, run_id: str, **kwargs: Any) -> ExecutionRunState | None:

@@ -9,7 +9,9 @@ from pydantic import BaseModel, Field
 ExecutionStatus = Literal[
     "queued", "running", "completed", "failed", "cancelled", "paused"
 ]
-ExecutionStepStatus = Literal["queued", "running", "completed", "failed", "skipped"]
+ExecutionStepStatus = Literal[
+    "queued", "running", "paused", "completed", "failed", "skipped"
+]
 RUN_ID_PATTERN = r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"
 ExecutionEventType = Literal[
     "execution.queued",
@@ -60,6 +62,16 @@ class CompiledExecutionPlan(BaseModel):
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 ###############################################################################
+class PauseCheckpoint(BaseModel):
+    node_id: str
+    step_id: str
+    resume_token: str
+    pause_payload: dict[str, Any] = Field(default_factory=dict)
+    expected_reviewed_payload_schema: dict[str, Any] = Field(
+        default_factory=lambda: {"type": "object"}
+    )
+
+###############################################################################
 class ExecutionStepState(BaseModel):
     step_id: str
     node_id: str
@@ -91,6 +103,7 @@ class ExecutionRunState(BaseModel):
     error: str | None = None
     pause_payload: dict[str, Any] | None = None
     resume_token: str | None = None
+    pause_checkpoint: PauseCheckpoint | None = None
     plan: CompiledExecutionPlan | None = None
     cancellation_requested: bool = False
 

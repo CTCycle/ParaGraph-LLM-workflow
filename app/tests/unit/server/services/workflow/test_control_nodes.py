@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 from server.services.workflow.node_handlers.control import (
     _cache_node_executor,
     _human_review_gate_executor,
@@ -12,8 +14,12 @@ from server.domain.execution import (
     ExecutionBinding,
     ExecutionStepPlan,
 )
-from server.repositories.workflow.execution_run import execution_run_repository
+from server.repositories.workflow.execution_run import (
+    ExecutionRunRepository,
+    execution_run_repository,
+)
 from server.services.workflow.execution import execution_service
+from server.services.workflow.nodes import node_registry
 
 ###############################################################################
 def test_if_text_contains_selects_true_and_false_branch() -> None:
@@ -103,3 +109,76 @@ def test_execution_skips_unselected_branch_and_pauses_run(monkeypatch) -> None:
         next(step for step in run.steps if step.step_id == "false_step").status
         == "skipped"
     )
+
+###############################################################################
+def test_human_review_pause_survives_reload_and_injects_reviewed_payload(
+    job_state_factory, wait_for_job, monkeypatch
+) -> None:
+    captured: dict[str, object] = {}
+    original_execute = node_registry.execute
+
+    def spy_execute(*args, **kwargs):
+        if args and args[0] == "JOIN_MERGE_TEXT":
+            captured.update(args[3])
+        return original_execute(*args, **kwargs)
+
+    monkeypatch.setattr(node_registry, "execute", spy_execute)
+    plan = CompiledExecutionPlan(
+        plan_id="review-plan",
+        step_order=["gate", "merge"],
+        steps=[
+            ExecutionStepPlan(
+                step_id="gate",
+                node_id="gate",
+                node_type="HUMAN_REVIEW_GATE",
+                node_version=1,
+                category="control",
+                executor_key="human_review_gate",
+                parameters={},
+            ),
+            ExecutionStepPlan(
+                step_id="merge",
+                node_id="merge",
+                node_type="JOIN_MERGE_TEXT",
+                node_version=1,
+                category="processing",
+                executor_key="join_merge_text",
+                bindings=[
+                    ExecutionBinding(
+                        input_name="value",
+                        source_node_id="gate",
+                        source_output="result",
+                    )
+                ],
+            ),
+        ],
+    )
+    job_state_factory("review-run", "workflow")
+
+    execution_service.execute_plan_job(plan, None, "review-run")
+    paused = execution_run_repository.get_run("review-run")
+    assert paused is not None
+    assert paused.status == "paused"
+    assert paused.resume_token
+    assert paused.pause_checkpoint is not None
+    assert paused.pause_checkpoint.node_id == "gate"
+    assert (
+        next(step for step in paused.steps if step.step_id == "gate").status
+        == "paused"
+    )
+
+    reloaded = ExecutionRunRepository().get_run("review-run")
+    assert reloaded is not None
+    assert reloaded.pause_checkpoint == paused.pause_checkpoint
+
+    token = paused.resume_token
+    assert token is not None
+    execution_service.resume("review-run", token, {"approved": True})
+    wait_for_job("review-run")
+
+    completed = execution_run_repository.get_run("review-run")
+    assert completed is not None
+    assert completed.status == "completed"
+    assert captured["value"] == {"approved": True}
+    with pytest.raises(ValueError, match="not paused or resume token is invalid"):
+        execution_service.resume("review-run", token, {"approved": True})

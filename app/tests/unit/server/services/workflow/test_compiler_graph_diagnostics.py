@@ -61,8 +61,39 @@ def test_non_contributing_node_is_reported() -> None:
         connections=[_connection("used", "output")],
     )
     valid, codes = _codes(definition)
-    assert valid is True
-    assert {"disconnected_node", "node_not_contributing_to_output"} <= codes
+    assert valid is False
+    assert {
+        "disconnected_execution_component",
+        "disconnected_node",
+        "node_not_contributing_to_output",
+    } <= codes
+
+###############################################################################
+def test_disconnected_side_effecting_node_blocks_plan_creation() -> None:
+    definition = WorkflowDefinition(
+        schema_version=2,
+        nodes=[
+            _prompt("prompt"),
+            _text_output(),
+            WorkflowNodeInstance(
+                node_id="save",
+                node_type="SAVE_AS_FILE",
+                node_version=1,
+                parameters={"output_path": "unsafe.txt", "extension": ".txt"},
+            ),
+        ],
+        connections=[_connection("prompt", "output")],
+    )
+
+    compiled = compiler_service.compile(definition, require_access_keys=False)
+
+    assert compiled.valid is False
+    assert compiled.plan is None
+    codes = {item.code for item in compiled.diagnostics}
+    assert {
+        "disconnected_execution_component",
+        "disconnected_side_effecting_node",
+    } <= codes
 
 ###############################################################################
 def test_conditional_branch_connection_is_reported() -> None:

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import secrets
 import uuid
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
 from datetime import datetime, timezone
@@ -13,12 +14,16 @@ from server.domain.execution import (
     CompiledExecutionPlan,
     ExecutionRunState,
     ExecutionStepState,
+    PauseCheckpoint,
     StartExecutionResponse,
 )
 from server.repositories.workflow import execution_run_repository
 from server.services.jobs import job_manager
 from server.services.runtime.events import execution_event_service
 from server.services.workflow.nodes import node_registry
+from server.services.workflow.node_handlers.core.tools import (
+    release_run_tool_resources,
+)
 from server.common.utils.values import extract_top_level_json_fields
 
 ###############################################################################
@@ -134,12 +139,17 @@ class ExecutionService:
                     cache=cache,
                     step_lookup=step_lookup,
                 )
+                if self._is_pause_output(outputs_by_step.get(step.step_id, {})):
+                    self._pause_run(
+                        job_id,
+                        step,
+                        outputs_by_step[step.step_id],
+                        output_state_public,
+                    )
+                    return {"outputs": output_payload}
                 computed_progress = (index / total_steps) * 100.0
                 progress = computed_progress if index < total_steps else 99.0
                 self._complete_step(job_id, step_id, output_state_public, progress)
-                if self._is_pause_output(outputs_by_step.get(step.step_id, {})):
-                    self._pause_run(job_id, outputs_by_step[step.step_id])
-                    return {"outputs": output_payload}
             except Exception as exc:  # noqa: BLE001
                 self._fail_step(job_id, step_id, str(exc))
                 raise
@@ -149,6 +159,7 @@ class ExecutionService:
         execution_run_repository.update_run(
             job_id, status="completed", outputs=output_payload, progress=100.0
         )
+        release_run_tool_resources(job_id)
         execution_event_service.publish(
             run_id=job_id,
             event_type="execution.completed",
@@ -209,6 +220,7 @@ class ExecutionService:
             return False
         if run and run.status not in ("completed", "failed", "cancelled"):
             execution_run_repository.update_run(job_id, status="cancelled")
+            release_run_tool_resources(job_id)
             execution_event_service.publish(
                 run_id=job_id,
                 event_type="execution.cancelled",
@@ -244,26 +256,25 @@ class ExecutionService:
         run = execution_run_repository.get_run(run_id)
         if run is None:
             return None
-        if (
-            run.status != "paused"
-            or not run.resume_token
-            or run.resume_token != resume_token
-        ):
-            raise ValueError("Run is not paused or resume token is invalid")
         if run.plan is None:
             raise ValueError("Persisted execution plan is unavailable")
-        execution_run_repository.update_run(
-            run_id,
-            status="queued",
-            pause_payload=None,
-            resume_token=None,
-            cancellation_requested=False,
+        resumed = execution_run_repository.resume_paused_run(
+            run_id, resume_token, reviewed_payload
         )
+        if resumed is None:
+            return None
         execution_event_service.publish(
             run_id=run_id,
             event_type="execution.resumed",
             request_id=run.request_id,
-            payload={"reviewed_payload": reviewed_payload or {}},
+            payload={
+                "reviewed_payload": reviewed_payload or {},
+                "node_id": (
+                    run.pause_checkpoint.node_id
+                    if run.pause_checkpoint is not None
+                    else None
+                ),
+            },
         )
         job_manager.start_job(
             job_type="workflow",
@@ -521,6 +532,7 @@ class ExecutionService:
             error=message,
         )
         execution_run_repository.update_run(job_id, status="failed", error=message)
+        release_run_tool_resources(job_id)
         execution_event_service.publish(
             run_id=job_id,
             event_type="execution.step.failed",
@@ -624,18 +636,39 @@ class ExecutionService:
         return bool(outputs.get("paused"))
 
     # -------------------------------------------------------------------------
-    def _pause_run(self, job_id: str, outputs: dict[str, Any]) -> None:
-        execution_run_repository.update_run(
+    def _pause_run(
+        self,
+        job_id: str,
+        step: Any,
+        outputs: dict[str, Any],
+        output_state: dict[str, Any],
+    ) -> None:
+        resume_token = secrets.token_urlsafe(32)
+        expected_schema = outputs.get("expected_reviewed_payload_schema")
+        if not isinstance(expected_schema, dict):
+            expected_schema = {"type": "object"}
+        checkpoint = PauseCheckpoint(
+            node_id=step.node_id,
+            step_id=step.step_id,
+            resume_token=resume_token,
+            pause_payload=outputs.get("pause_payload") or {},
+            expected_reviewed_payload_schema=expected_schema,
+        )
+        execution_run_repository.pause_run(
             job_id,
-            status="paused",
-            pause_payload=outputs.get("pause_payload"),
-            resume_token=outputs.get("resume_token"),
+            step.step_id,
+            checkpoint,
+            output_state,
         )
         execution_event_service.publish(
             run_id=job_id,
             event_type="execution.paused",
             request_id=self._request_id_for_run(job_id),
-            payload={"pause_payload": outputs.get("pause_payload") or {}},
+            step_id=step.step_id,
+            payload={
+                "node_id": step.node_id,
+                "pause_payload": outputs.get("pause_payload") or {},
+            },
         )
 
     # -------------------------------------------------------------------------

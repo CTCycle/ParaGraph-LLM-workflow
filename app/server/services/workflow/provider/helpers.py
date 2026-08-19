@@ -183,6 +183,7 @@ PROVIDER_CAPABILITIES = {
         supports_structured_output=True,
         supports_streaming=True,
         supports_tool_calling=False,
+        supports_tool_selection=True,
     ),
     "openai": ProviderMetadata(
         name="openai",
@@ -190,7 +191,8 @@ PROVIDER_CAPABILITIES = {
         supports_embeddings=True,
         supports_structured_output=True,
         supports_streaming=True,
-        supports_tool_calling=True,
+        supports_tool_calling=False,
+        supports_tool_selection=True,
     ),
     "gemini": ProviderMetadata(
         name="gemini",
@@ -198,7 +200,8 @@ PROVIDER_CAPABILITIES = {
         supports_embeddings=True,
         supports_structured_output=True,
         supports_streaming=True,
-        supports_tool_calling=True,
+        supports_tool_calling=False,
+        supports_tool_selection=True,
     ),
     "claude": ProviderMetadata(
         name="claude",
@@ -206,7 +209,8 @@ PROVIDER_CAPABILITIES = {
         supports_embeddings=False,
         supports_structured_output=True,
         supports_streaming=True,
-        supports_tool_calling=True,
+        supports_tool_calling=False,
+        supports_tool_selection=True,
     ),
     "deepseek": ProviderMetadata(
         name="deepseek",
@@ -214,7 +218,8 @@ PROVIDER_CAPABILITIES = {
         supports_embeddings=False,
         supports_structured_output=True,
         supports_streaming=True,
-        supports_tool_calling=True,
+        supports_tool_calling=False,
+        supports_tool_selection=True,
     ),
     "huggingface": ProviderMetadata(
         name="huggingface",
@@ -223,6 +228,7 @@ PROVIDER_CAPABILITIES = {
         supports_structured_output=True,
         supports_streaming=False,
         supports_tool_calling=False,
+        supports_tool_selection=True,
     ),
     "lmstudio": ProviderMetadata(
         name="lmstudio",
@@ -230,7 +236,8 @@ PROVIDER_CAPABILITIES = {
         supports_embeddings=True,
         supports_structured_output=True,
         supports_streaming=True,
-        supports_tool_calling=True,
+        supports_tool_calling=False,
+        supports_tool_selection=True,
     ),
     "llama": ProviderMetadata(
         name="llama",
@@ -238,7 +245,8 @@ PROVIDER_CAPABILITIES = {
         supports_embeddings=True,
         supports_structured_output=True,
         supports_streaming=True,
-        supports_tool_calling=True,
+        supports_tool_calling=False,
+        supports_tool_selection=True,
     ),
 }
 

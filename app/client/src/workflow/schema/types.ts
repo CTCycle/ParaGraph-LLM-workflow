@@ -263,7 +263,7 @@ export interface ExecutionStepState {
     step_id: string
     node_id: string
     node_type: string
-    status: 'queued' | 'running' | 'completed' | 'failed' | 'skipped'
+    status: 'queued' | 'running' | 'paused' | 'completed' | 'failed' | 'skipped'
     started_at?: string | null
     completed_at?: string | null
     output: Record<string, unknown>
@@ -290,6 +290,13 @@ export interface ExecutionRunState {
     error?: string | null
     pause_payload?: Record<string, unknown> | null
     resume_token?: string | null
+    pause_checkpoint?: {
+        node_id: string
+        step_id: string
+        resume_token: string
+        pause_payload: Record<string, unknown>
+        expected_reviewed_payload_schema: Record<string, unknown>
+    } | null
     plan?: CompiledExecutionPlan | null
     cancellation_requested: boolean
 }
@@ -329,6 +336,8 @@ export interface ProviderCapability {
     supports_structured_output: boolean
     supports_streaming: boolean
     supports_tool_calling: boolean
+    supports_tool_selection: boolean
+    supports_native_tool_protocol: boolean
 }
 
 export interface ProviderCatalogResponse {

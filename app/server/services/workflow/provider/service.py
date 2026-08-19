@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from threading import Lock
 from typing import Any
 
@@ -114,6 +113,12 @@ class ProviderService(
                     supports_tool_calling=PROVIDER_CAPABILITIES[
                         name
                     ].supports_tool_calling,
+                    supports_tool_selection=PROVIDER_CAPABILITIES[
+                        name
+                    ].supports_tool_selection,
+                    supports_native_tool_protocol=PROVIDER_CAPABILITIES[
+                        name
+                    ].supports_native_tool_protocol,
                 )
                 for name in ordered
             ]
@@ -469,11 +474,23 @@ class ProviderService(
             raise ValueError(str(exc)) from exc
 
     # -------------------------------------------------------------------------
-    def supports_native_tools(self, provider: str, model: str = "") -> bool:
+    def supports_tool_selection(self, provider: str, model: str = "") -> bool:
         _ = model
         normalized_provider = _normalize_provider(provider)
         metadata = PROVIDER_CAPABILITIES.get(normalized_provider)
-        return bool(metadata and metadata.supports_tool_calling)
+        return bool(metadata and metadata.supports_tool_selection)
+
+    # -------------------------------------------------------------------------
+    def supports_native_tool_protocol(self, provider: str, model: str = "") -> bool:
+        _ = model
+        normalized_provider = _normalize_provider(provider)
+        metadata = PROVIDER_CAPABILITIES.get(normalized_provider)
+        return bool(metadata and metadata.supports_native_tool_protocol)
+
+    # -------------------------------------------------------------------------
+    def supports_native_tools(self, provider: str, model: str = "") -> bool:
+        """Compatibility alias for the explicit native protocol capability."""
+        return self.supports_native_tool_protocol(provider, model)
 
     # -------------------------------------------------------------------------
     def supports_structured_output(self, provider: str, model: str = "") -> bool:
@@ -518,40 +535,13 @@ class ProviderService(
         timeout_s: float | None = None,
         session_name: str = DEFAULT_SESSION_NAME,
     ) -> dict[str, Any]:
-        if not self.supports_native_tools(provider, model):
+        if not self.supports_native_tool_protocol(provider, model):
             raise ValueError(
-                f"Provider '{provider}' does not support native tool calling"
+                f"Provider '{provider}' does not support a native tool protocol"
             )
-        prompt_messages = [
-            *messages,
-            {
-                "role": "system",
-                "content": (
-                    "Select exactly one tool. Return only JSON with keys "
-                    "tool_name and arguments. Available tools: "
-                    f"{tools}. tool_choice={tool_choice}"
-                ),
-            },
-        ]
-        text = self.chat(
-            provider=provider,
-            model=model,
-            messages=prompt_messages,
-            response_format="json",
-            options=options,
-            timeout_s=timeout_s,
-            session_name=session_name,
+        raise NotImplementedError(
+            "Native tool protocol adapters are not implemented for this provider"
         )
-        data = json.loads(text)
-        if not isinstance(data, dict):
-            raise ValueError("tool calling response must be a JSON object")
-        return {
-            "tool_name": data.get("tool_name"),
-            "arguments": data.get("arguments")
-            if isinstance(data.get("arguments"), dict)
-            else {},
-            "raw_model_response": data,
-        }
 
     # -------------------------------------------------------------------------
     def _ollama_embed(self, *, model: str, text: str, session_name: str) -> list[float]:

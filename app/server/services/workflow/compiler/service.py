@@ -777,6 +777,7 @@ class CompilerService:
             for node in definition.nodes
         }
         connected_node_ids: set[str] = set()
+        undirected_adjacency: dict[str, set[str]] = defaultdict(set)
         reverse_adjacency: dict[str, set[str]] = defaultdict(set)
 
         for connection in definition.connections:
@@ -786,6 +787,8 @@ class CompilerService:
             ):
                 continue
             connected_node_ids.update((connection.from_node, connection.to_node))
+            undirected_adjacency[connection.from_node].add(connection.to_node)
+            undirected_adjacency[connection.to_node].add(connection.from_node)
             reverse_adjacency[connection.to_node].add(connection.from_node)
 
             source_node = node_by_id[connection.from_node]
@@ -821,6 +824,36 @@ class CompilerService:
                 )
             )
 
+        components: list[list[str]] = []
+        unvisited = set(node_by_id)
+        while unvisited:
+            root = min(unvisited)
+            queue = deque([root])
+            unvisited.remove(root)
+            component: list[str] = []
+            while queue:
+                current = queue.popleft()
+                component.append(current)
+                for neighbor in sorted(undirected_adjacency[current]):
+                    if neighbor in unvisited:
+                        unvisited.remove(neighbor)
+                        queue.append(neighbor)
+            components.append(sorted(component))
+
+        if len(definition.nodes) > 1 and len(components) > 1:
+            for component in components:
+                identifiers = ", ".join(component)
+                diagnostics.append(
+                    CompilerDiagnostic(
+                        code="disconnected_execution_component",
+                        message=(
+                            "Workflow contains an independent executable component "
+                            f"with nodes: {identifiers}"
+                        ),
+                        node_id=component[0],
+                    )
+                )
+
         contributing_node_ids = set(terminal_node_ids)
         queue = deque(sorted(terminal_node_ids))
         while queue:
@@ -837,14 +870,16 @@ class CompilerService:
                 continue
             if node.node_id not in connected_node_ids:
                 code = (
-                    "disconnected_side_effect"
+                    "disconnected_side_effecting_node"
                     if manifest.runtime.side_effecting
                     else "disconnected_node"
                 )
                 diagnostics.append(
                     CompilerDiagnostic(
                         code=code,
-                        level="warning",
+                        level="error"
+                        if manifest.runtime.side_effecting
+                        else "warning",
                         message=f"Node '{node.node_id}' is disconnected",
                         node_id=node.node_id,
                     )
