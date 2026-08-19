@@ -15,7 +15,6 @@ from server.repositories.database import sqlite as sqlite_module
 def _build_settings() -> SQLiteSettings:
     return SQLiteSettings(insert_batch_size=1000)
 
-
 ###############################################################################
 def _build_memory_repository() -> sqlite_module.SQLiteRepository:
     return sqlite_module.SQLiteRepository(
@@ -94,7 +93,6 @@ def test_sqlite_repository_count_rows_raises_for_missing_table(
     with pytest.raises(ValueError, match="does not exist"):
         repository.count_rows("missing_table")
 
-
 ###############################################################################
 def test_sqlite_repository_save_load_and_count_dynamic_table() -> None:
     repository = _build_memory_repository()
@@ -111,7 +109,6 @@ def test_sqlite_repository_save_load_and_count_dynamic_table() -> None:
     assert repository.count_rows("dynamic_datasets") == 2
     assert list(loaded.columns) == ["name", "row_count", "score", "enabled"]
     assert len(loaded) == 2
-
 
 ###############################################################################
 def test_sqlite_repository_save_replaces_existing_dynamic_table_rows() -> None:

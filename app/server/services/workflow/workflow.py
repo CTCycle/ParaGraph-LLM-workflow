@@ -14,6 +14,8 @@ from server.services.workflow.compiler.service import compiler_service
 
 ###############################################################################
 class WorkflowCompilationError(ValueError):
+
+    # -------------------------------------------------------------------------
     def __init__(self, diagnostics: list[CompilerDiagnostic]) -> None:
         self.diagnostics = diagnostics
         message = "; ".join(item.message for item in diagnostics)
