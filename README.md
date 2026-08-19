@@ -10,6 +10,8 @@ ParaGraph is a local application for planning, running, and observing LLM workfl
 
 It is meant for people who want to assemble a workflow step by step instead of writing everything from scratch. You can connect building blocks, define how information should move through them, run the workflow, and watch what happens as it executes.
 
+ParaGraph is a desktop application delivered through web technologies. Use it in a desktop or laptop browser window at least 1024 CSS pixels wide. Windows tablets are supported when they behave like a normal desktop environment and can comfortably display the desktop interface. Narrower windows show a minimum-window-size notice instead of switching to a mobile layout.
+
 The app is organized around a simple idea:
 
 - build a workflow

@@ -11,6 +11,20 @@ const NAV_ITEMS = [
 export default function MainLayout() {
     return (
         <div className="main-layout">
+            <div
+                className="desktop-viewport-gate"
+                role="alert"
+                aria-label="Desktop window requirement"
+            >
+                <div className="desktop-viewport-gate-card">
+                    <strong>Desktop window required</strong>
+                    <p>
+                        ParaGraph requires a desktop browser window at least 1024 pixels wide. Widen or maximize the
+                        window to continue.
+                    </p>
+                </div>
+            </div>
+
             <header className="topbar">
                 <div className="topbar-brand">ParaGraph</div>
                 <nav className="topbar-nav" aria-label="Main navigation">

@@ -319,19 +319,55 @@ test('Workflow canvas renders imported links and clears them through the UI', as
     await expect(page.locator('.react-flow__edge-path')).toHaveCount(0)
 })
 
-test('Workflow mobile layout keeps actions and canvas usable', async ({ page }) => {
+test('Desktop routes retain their desktop layout at supported widths', async ({ page }) => {
     await setupMockBackend(page)
-    await page.setViewportSize({ width: 390, height: 844 })
+
+    const routeLayouts = [
+        { route: '/', selector: '.workflow-layout' },
+        { route: '/nodes', selector: '.nodes-catalog-column' },
+        { route: '/models', selector: '.models-grid' },
+        { route: '/config', selector: '.config-page-layout' },
+    ]
+
+    for (const width of [1280, 1024]) {
+        await page.setViewportSize({ width, height: 768 })
+
+        for (const { route, selector } of routeLayouts) {
+            await page.goto(route)
+            await expect(page.locator('.topbar')).toBeVisible()
+            await expect(page.getByRole('alert', { name: 'Desktop window requirement' })).toBeHidden()
+            await expect(page.locator('.topbar')).toHaveCSS('height', '56px')
+            await expect(page.locator('.topbar-nav')).toHaveCSS('display', 'flex')
+
+            if (route === '/') {
+                const showNodeTreeButton = page.getByRole('button', { name: 'Show node tree' })
+                if (await showNodeTreeButton.isVisible()) {
+                    await showNodeTreeButton.click()
+                }
+                await expect(page.locator('.workflow-library-shell')).toBeVisible()
+            }
+
+            const gridColumns = await page.locator(selector).evaluate((element) => getComputedStyle(element).gridTemplateColumns)
+            expect(gridColumns.trim().split(/\s+/)).toHaveLength(2)
+
+            const documentWidth = await page.evaluate(() => Math.max(document.body.scrollWidth, document.documentElement.scrollWidth))
+            expect(documentWidth).toBeLessThanOrEqual(width)
+        }
+    }
+})
+
+test('Desktop viewport guard blocks widths below the supported minimum', async ({ page }) => {
+    await setupMockBackend(page)
+    await page.setViewportSize({ width: 1023, height: 768 })
     await page.goto('/')
 
-    const runButton = page.getByRole('button', { name: 'Run Workflow' })
-    await expect(runButton).toBeVisible()
-    await expect(runButton).toBeInViewport()
+    const viewportGuard = page.getByRole('alert', { name: 'Desktop window requirement' })
+    await expect(viewportGuard).toBeVisible()
+    await expect(viewportGuard).toContainText('at least 1024 pixels wide')
 
-    const canvasPanelBounds = await page.locator('.workflow-canvas-panel').boundingBox()
-    expect(canvasPanelBounds).not.toBeNull()
-    expect((canvasPanelBounds as { height: number }).height).toBeGreaterThan(320)
-    await expect(page.locator('.workflow-canvas-panel')).toBeInViewport()
+    await page.setViewportSize({ width: 1024, height: 768 })
+    await expect(viewportGuard).toBeHidden()
+    await expect(page.locator('.workflow-layout')).toBeVisible()
 })
 
 test('Workflow status area renders long compile diagnostics without truncating content', async ({ page }) => {
