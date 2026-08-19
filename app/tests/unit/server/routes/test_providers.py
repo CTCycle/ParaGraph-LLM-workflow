@@ -145,7 +145,9 @@ def test_provider_catalog_includes_new_providers(client: TestClient) -> None:
     providers = {item["provider"]: item for item in response.json()["providers"]}
     assert providers["claude"]["supports_chat"] is True
     assert providers["claude"]["supports_embeddings"] is False
-    assert providers["deepseek"]["supports_tool_calling"] is True
+    assert providers["deepseek"]["supports_tool_selection"] is True
+    assert providers["deepseek"]["supports_native_tool_protocol"] is False
+    assert providers["deepseek"]["supports_tool_calling"] is False
     assert providers["deepseek"]["supports_embeddings"] is False
     assert providers["lmstudio"]["supports_embeddings"] is True
     assert providers["llama"]["supports_embeddings"] is True

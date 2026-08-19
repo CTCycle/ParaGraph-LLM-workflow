@@ -157,6 +157,8 @@ class ProviderCapability(BaseModel):
     supports_structured_output: bool = False
     supports_streaming: bool = False
     supports_tool_calling: bool = False
+    supports_tool_selection: bool = False
+    supports_native_tool_protocol: bool = False
 
 ###############################################################################
 class ProviderCatalogResponse(BaseModel):

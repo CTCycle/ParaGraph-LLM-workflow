@@ -17,12 +17,12 @@ Last updated: 2026-07-17
 - The executor does not currently provide a graph-wide transaction handle across separate nodes; workflows must not assume cross-node atomicity.
 
 ## Tool Collection
-- `TOOL_COLLECTION` creates a typed `TOOL_COLLECTION_HANDLE`.
+- `TOOL_COLLECTION` creates a typed `TOOL_COLLECTION_HANDLE` with serializable tool metadata and an opaque run-scoped collection identity.
 - Sources can include inline Python functions, JSON Schema tool definitions, signature text, or local `.py` files.
 - Callable signatures are converted into JSON Schema parameter definitions.
 
 ## Tool Call
 - `TOOL_CALL` is provider-neutral.
 - It accepts a `MODEL_HANDLE` from `MODEL_PROVIDER` and a `TOOL_COLLECTION_HANDLE`.
-- It uses native tool calling when a provider advertises support and falls back to structured JSON selection otherwise.
-- The node is intended to work across Ollama, Hugging Face, OpenAI, Gemini, and future providers that implement the provider service interface.
+- Current providers use prompt-emulated structured selection. The runtime reports `prompt_emulated`; native tool protocol support remains a separate capability and is not claimed until a provider adapter returns structured tool-call IDs and arguments.
+- Schema-only tool definitions can be selected for inspection but cannot be executed. Python callables are resolved by run and collection identity, and async callables are awaited before an execution result is marked as executed.

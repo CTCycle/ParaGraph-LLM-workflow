@@ -229,6 +229,42 @@ def test_compile_returns_plan_for_prompt_graph(client: TestClient) -> None:
     assert payload["plan"]["steps"][0]["node_type"] == "PROMPT"
 
 ###############################################################################
+def test_workflow_create_rejects_definition_that_fails_compilation(
+    client: TestClient,
+) -> None:
+    definition = build_simple_definition("Persist me")
+    definition["nodes"].append(
+        {
+            "node_id": "detached",
+            "node_type": "PROMPT",
+            "node_version": 1,
+            "parameters": {"prompt_text": "Do not run"},
+        }
+    )
+
+    response = client.post(
+        "/workflows",
+        json={
+            "name": "Invalid workflow",
+            "definition": definition,
+            "visual_graph": {
+                "schema_version": 2,
+                "nodes": [],
+                "groups": [],
+                "comments": [],
+            },
+        },
+    )
+
+    assert response.status_code == 422
+    detail = response.json()["detail"]
+    assert any(
+        item["code"] == "disconnected_execution_component"
+        for item in detail["diagnostics"]
+    )
+    assert client.get("/workflows").json()["workflows"] == []
+
+###############################################################################
 def test_compile_rejects_cycles(client: TestClient) -> None:
     response = client.post(
         "/executions/compile",

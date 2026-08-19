@@ -24,6 +24,8 @@ class ProviderMetadata:
     supports_structured_output: bool
     supports_streaming: bool
     supports_tool_calling: bool
+    supports_tool_selection: bool = False
+    supports_native_tool_protocol: bool = False
 
 ###############################################################################
 @dataclass(frozen=True)

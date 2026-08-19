@@ -29,6 +29,7 @@ Last updated: 2026-08-18
 
 ## Execution Durability
 - Runs, serialized plans, step state and outputs, pause tokens, final outputs, and ordered event history are stored in the application database.
+- Paused runs store a durable checkpoint containing the gate node, step, reviewed-payload schema, pause payload, and one-time resume token. Resume consumes the checkpoint atomically with the reviewed `result` output.
 - Event sequences are monotonic per run and survive backend restart.
 - Only active WebSocket subscriber queues and thread-job control flags remain process-local.
 - `ExecutionRunRepository.cleanup_retention(days)` is the explicit bounded cleanup boundary. No background deletion service runs automatically.

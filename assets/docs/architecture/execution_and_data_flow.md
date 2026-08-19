@@ -1,6 +1,5 @@
 # Execution And Data Flow
-Last updated: 2026-08-18
-Last updated: 2026-07-17
+Last updated: 2026-08-19
 
 ## Layered Backend Flow
 Typical backend flow follows endpoint to service to repository:
@@ -94,7 +93,10 @@ Typical backend flow follows endpoint to service to repository:
 
 ## Compiler Diagnostics
 - Compiler errors block plan creation; warnings are returned with an otherwise valid plan.
-- Graph warnings cover missing terminal outputs, disconnected nodes, disconnected side effects, nodes that do not contribute to terminal outputs, and connections from conditional branch outputs.
+- Active nodes in independent graph components are compilation errors. A detached side-effecting node is also an error; a pure singleton workflow remains valid.
+- Graph warnings cover missing terminal outputs, pure disconnected nodes, nodes that do not contribute to terminal outputs, and connections from conditional branch outputs.
 - Workflow node instances accept optional `timeout_ms` and `retries` values, which are copied into execution steps.
 - Non-positive timeouts, negative retry counts, and retries on side-effecting nodes without an idempotency contract block compilation.
 - Conditional branch warnings describe the current missing-value activation model. Explicit activation tokens and catch or iteration regions require separate execution-engine support.
+- Human-review pauses persist a run-scoped checkpoint and resume token; a successful resume consumes the token and injects the reviewed object into the gate's `result` output.
+- Tool collections expose serializable metadata plus an opaque runtime collection identity. Executable callables are scoped to the current run, async callables are awaited, and provider tool selection currently reports `prompt_emulated` until a native protocol adapter exists.

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, field_validator
 
@@ -179,6 +179,10 @@ class ToolDefinition(BaseModel):
     source_ref: str = ""
     entrypoint: str = ""
     callable_name: str = ""
+    runtime_tool_id: str = ""
+    execution_state: Literal["schema_only", "executable", "unavailable"] = (
+        "unavailable"
+    )
 
     # -------------------------------------------------------------------------
     @field_validator("name")
@@ -194,6 +198,7 @@ class ToolCollectionHandle(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     tools: list[ToolDefinition]
+    runtime_collection_id: str | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 ###############################################################################

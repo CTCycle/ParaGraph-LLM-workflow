@@ -13,6 +13,7 @@ from server.services.workflow import (
     workflow_service,
     workflow_template_service,
 )
+from server.services.workflow.workflow import WorkflowCompilationError
 
 
 router = APIRouter(prefix="/workflows", tags=["workflows"])
@@ -25,7 +26,16 @@ def list_workflows() -> WorkflowListResponse:
 ###############################################################################
 @router.post("", response_model=WorkflowDocument, status_code=status.HTTP_201_CREATED)
 def create_workflow(request: CreateWorkflowRequest) -> WorkflowDocument:
-    return workflow_service.create_workflow(request)
+    try:
+        return workflow_service.create_workflow(request)
+    except WorkflowCompilationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail={
+                "message": str(exc),
+                "diagnostics": [item.model_dump(mode="json") for item in exc.diagnostics],
+            },
+        ) from exc
 
 ###############################################################################
 @router.get("/templates", response_model=WorkflowTemplateListResponse)
@@ -53,7 +63,16 @@ def get_workflow(workflow_id: str) -> WorkflowDocument:
 def update_workflow(
     workflow_id: str, request: UpdateWorkflowRequest
 ) -> WorkflowDocument:
-    payload = workflow_service.update_workflow(workflow_id, request)
+    try:
+        payload = workflow_service.update_workflow(workflow_id, request)
+    except WorkflowCompilationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail={
+                "message": str(exc),
+                "diagnostics": [item.model_dump(mode="json") for item in exc.diagnostics],
+            },
+        ) from exc
     if payload is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
