@@ -1,5 +1,5 @@
 # Experience
-Last updated: 2026-07-17
+Last updated: 2026-08-20
 
 ## User Experience Rules
 - Prefer clear system status communication through inline notices, banners, modals, and status text.
@@ -7,14 +7,12 @@ Last updated: 2026-07-17
 - Provide explicit loading and empty states in list and canvas contexts.
 - Surface recoverable errors with actionable copy and retry affordances.
 
-## Responsiveness
-- At `max-width: 1120px`:
-  - The workflow toolbar stacks vertically.
-  - The workflow grid collapses to a single column.
-- At `max-width: 760px`:
-  - The top bar becomes horizontally scrollable.
-  - Workflow action buttons switch to a compact grid.
-  - The bottom editor panel is hidden to preserve viewport space.
+## Desktop viewport
+- ParaGraph is a desktop application delivered through web technologies.
+- The supported minimum viewport width is `1024px` CSS pixels.
+- At supported widths, preserve the desktop navigation, workflow node-tree/canvas split, dense catalog views, and two-column Models and Configurations layouts.
+- When the viewport is narrower than `1024px`, show a full-window notice asking the user to widen or maximize the browser window.
+- Do not provide mobile navigation, touch-first interactions, or compact small-screen layouts.
 
 ## Accessibility
 - Global `:focus-visible` outlines and shadow rings are implemented for keyboard navigation.

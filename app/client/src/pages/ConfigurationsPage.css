@@ -85,6 +85,7 @@
     color: #e7f1ff;
     cursor: pointer;
     font-size: 0.84rem;
+    white-space: nowrap;
     transition: background-color 140ms ease, border-color 140ms ease;
 }
 
@@ -256,25 +257,4 @@
 
 .config-modal-actions button:not(:disabled):hover {
     border-color: rgba(108, 160, 233, 0.9);
-}
-
-@media (max-width: 1160px) {
-    .config-page-layout {
-        grid-template-columns: 1fr;
-    }
-}
-
-@media (max-width: 760px) {
-    .config-page {
-        padding: var(--space-4);
-    }
-
-    .config-panel-header {
-        flex-direction: column;
-    }
-
-    .config-panel-actions {
-        width: 100%;
-        justify-content: flex-end;
-    }
 }

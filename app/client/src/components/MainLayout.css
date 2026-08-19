@@ -1,6 +1,7 @@
 .main-layout {
     min-height: 100vh;
     height: 100vh;
+    min-width: var(--desktop-min-width);
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -67,38 +68,41 @@
     background: var(--color-bg-app);
 }
 
-@media (max-width: 760px) {
-    .topbar {
-        height: auto;
-        min-height: var(--topbar-height);
-        gap: var(--space-2);
-        padding: 0 var(--space-2);
-        align-items: flex-start;
-        flex-wrap: wrap;
-    }
+.desktop-viewport-gate {
+    display: none;
+}
 
-    .topbar-nav {
-        flex: 1 1 100%;
-        min-width: 0;
+@media (max-width: 1023px) {
+    .desktop-viewport-gate {
+        position: fixed;
+        inset: 0;
+        z-index: 100;
         display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: var(--space-1);
-        padding-left: 0;
-        padding-bottom: var(--space-2);
+        place-items: center;
+        padding: var(--space-5);
+        background: var(--color-bg-app);
+        pointer-events: auto;
     }
 
-    .topbar-link {
-        min-height: 32px;
-        justify-content: center;
-        padding: 0 var(--space-2);
-        font-size: 0.8rem;
-        border-radius: var(--radius-sm);
-        border: 1px solid transparent;
-        border-bottom-width: 1px;
+    .desktop-viewport-gate-card {
+        width: min(520px, calc(100vw - 48px));
+        border: 1px solid rgba(73, 95, 128, 0.92);
+        border-radius: var(--radius-lg);
+        background: var(--color-bg-surface);
+        padding: var(--space-5);
+        color: var(--color-text-primary);
+        text-align: center;
+        box-shadow: 0 20px 48px rgba(0, 0, 0, 0.42);
     }
 
-    .topbar-link.active {
-        border-color: rgba(59, 130, 246, 0.72);
-        background: rgba(59, 130, 246, 0.14);
+    .desktop-viewport-gate-card strong {
+        display: block;
+        font-size: 1.1rem;
+    }
+
+    .desktop-viewport-gate-card p {
+        margin: var(--space-2) 0 0;
+        color: var(--color-text-muted);
+        line-height: 1.5;
     }
 }
