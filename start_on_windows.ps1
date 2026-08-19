@@ -71,15 +71,16 @@ function Show-Menu {
     Write-MenuDivider
     Write-MenuOption -Number '1' -Title 'Launch application' -Description 'Start backend and frontend'
     Write-MenuOption -Number '2' -Title 'Install or update dependencies' -Description 'Sync runtimes and build UI'
-    Write-MenuOption -Number '3' -Title 'Initialize SQLite database' -Description 'Create application schema'
-    Write-MenuOption -Number '4' -Title 'Run test suite' -Description 'Execute project checks'
+    Write-MenuOption -Number '3' -Title 'Rebuild frontend' -Description 'Build the frontend only'
+    Write-MenuOption -Number '4' -Title 'Initialize SQLite database' -Description 'Create application schema'
+    Write-MenuOption -Number '5' -Title 'Run test suite' -Description 'Execute project checks'
     Write-Host
     Write-Host '  MAINTENANCE' -ForegroundColor DarkCyan
     Write-MenuDivider
-    Write-MenuOption -Number '5' -Title 'Remove logs' -Description 'Delete local log files'
-    Write-MenuOption -Number '6' -Title 'Clear cache' -Description 'Remove Python and uv caches'
-    Write-MenuOption -Number '7' -Title 'Uninstall application' -Description 'Remove local runtimes and dependencies' -Destructive
-    Write-MenuOption -Number '8' -Title 'Exit' -Description 'Close this launcher'
+    Write-MenuOption -Number '6' -Title 'Remove logs' -Description 'Delete local log files'
+    Write-MenuOption -Number '7' -Title 'Clear cache' -Description 'Remove Python and uv caches'
+    Write-MenuOption -Number '8' -Title 'Uninstall application' -Description 'Remove local runtimes and dependencies' -Destructive
+    Write-MenuOption -Number '9' -Title 'Exit' -Description 'Close this launcher'
     Write-MenuDivider
     Write-Host '  Enter a number to continue. Local data and settings are preserved by maintenance actions.' -ForegroundColor DarkGray
     Write-Host
@@ -186,25 +187,7 @@ function Ensure-PortableRuntimes {
     if ($LASTEXITCODE -ne 0) { throw 'uv failed its version check.' }
     Write-Ok $uvVersion
 
-    Write-Step 'Installing Node.js (portable)'
-    if (-not (Test-Path -LiteralPath $NodeExe)) {
-        $nodeZipName = "node-v$NodeVersion-win-x64.zip"
-        $nodeZip = Join-Path $NodeDir $nodeZipName
-        $nodeUrl = "https://nodejs.org/dist/v$NodeVersion/$nodeZipName"
-        Write-Info "Downloading $nodeUrl"
-        Invoke-DownloadAndExtract -Uri $nodeUrl -ArchivePath $nodeZip -DestinationPath $NodeDir
-    }
-    $nestedNodeDir = Join-Path $NodeDir "node-v$NodeVersion-win-x64"
-    if (Test-Path -LiteralPath (Join-Path $nestedNodeDir 'node.exe')) {
-        Get-ChildItem -LiteralPath $nestedNodeDir -Force | Move-Item -Destination $NodeDir -Force
-        Remove-Item -LiteralPath $nestedNodeDir -Recurse -Force
-    }
-    if (-not (Test-Path -LiteralPath $NodeExe)) { throw "node.exe not found at $NodeExe" }
-    if (-not (Test-Path -LiteralPath $NpmCmd)) { throw "npm.cmd not found at $NpmCmd" }
-    $nodeVersionFound = & $NodeExe --version
-    if ($LASTEXITCODE -ne 0) { throw 'Node.js failed its version check.' }
-    Write-Ok "Node.js ready: $nodeVersionFound"
-    Set-LauncherEnvironment
+    Ensure-NodeRuntime
     Write-Ok 'Portable runtimes ready.'
 }
 
@@ -286,6 +269,36 @@ function Build-Frontend {
         if ($LASTEXITCODE -ne 0) { throw "Frontend build failed with exit code $LASTEXITCODE" }
     } finally { Pop-Location }
     Write-Ok 'Frontend build is ready.'
+}
+
+function Ensure-NodeRuntime {
+    New-Item -ItemType Directory -Path $NodeDir -Force | Out-Null
+
+    Write-Step 'Installing Node.js (portable)'
+    if (-not (Test-Path -LiteralPath $NodeExe)) {
+        $nodeZipName = "node-v$NodeVersion-win-x64.zip"
+        $nodeZip = Join-Path $NodeDir $nodeZipName
+        $nodeUrl = "https://nodejs.org/dist/v$NodeVersion/$nodeZipName"
+        Write-Info "Downloading $nodeUrl"
+        Invoke-DownloadAndExtract -Uri $nodeUrl -ArchivePath $nodeZip -DestinationPath $NodeDir
+    }
+    $nestedNodeDir = Join-Path $NodeDir "node-v$NodeVersion-win-x64"
+    if (Test-Path -LiteralPath (Join-Path $nestedNodeDir 'node.exe')) {
+        Get-ChildItem -LiteralPath $nestedNodeDir -Force | Move-Item -Destination $NodeDir -Force
+        Remove-Item -LiteralPath $nestedNodeDir -Recurse -Force
+    }
+    if (-not (Test-Path -LiteralPath $NodeExe)) { throw "node.exe not found at $NodeExe" }
+    if (-not (Test-Path -LiteralPath $NpmCmd)) { throw "npm.cmd not found at $NpmCmd" }
+    $nodeVersionFound = & $NodeExe --version
+    if ($LASTEXITCODE -ne 0) { throw 'Node.js failed its version check.' }
+    Write-Ok "Node.js ready: $nodeVersionFound"
+    Set-LauncherEnvironment
+}
+
+function Invoke-FrontendRebuild {
+    Ensure-NodeRuntime
+    Import-DotEnv | Out-Null
+    Build-Frontend
 }
 
 function Test-DependenciesReady {
@@ -471,13 +484,13 @@ function Wait-ForMenu {
 
 while ($true) {
     Show-Menu
-    $selection = Read-Host '  Select an option (1-8)'
-    if ($selection -notmatch '^[1-8]$') {
-        Write-Warn 'Select a number from 1 through 8.'
+    $selection = Read-Host '  Select an option (1-9)'
+    if ($selection -notmatch '^[1-9]$') {
+        Write-Warn 'Select a number from 1 through 9.'
         Wait-ForMenu
         continue
     }
-    if ($selection -eq '8') { break }
+    if ($selection -eq '9') { break }
     try {
         switch ($selection) {
             '1' { Invoke-Launch; exit 0 }
@@ -488,11 +501,12 @@ while ($true) {
                 Sync-Dependencies -PruneCache -InstallationType $installationType
                 Build-Frontend
             }
-            '3' { Invoke-DatabaseInitialization }
-            '4' { Invoke-TestSuite }
-            '5' { Remove-LogFiles }
-            '6' { Clear-ApplicationCache }
-            '7' { Uninstall-Application }
+            '3' { Invoke-FrontendRebuild }
+            '4' { Invoke-DatabaseInitialization }
+            '5' { Invoke-TestSuite }
+            '6' { Remove-LogFiles }
+            '7' { Clear-ApplicationCache }
+            '8' { Uninstall-Application }
         }
     } catch {
         Write-Fatal $_.Exception.Message
