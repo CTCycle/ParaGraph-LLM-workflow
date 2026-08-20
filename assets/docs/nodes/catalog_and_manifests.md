@@ -1,5 +1,5 @@
 # Catalog And Manifests
-Last updated: 2026-07-17
+Last updated: 2026-08-20
 
 ## Purpose
 This branch documents the ParaGraph node system, the node catalog, and the contracts that allow nodes to participate in workflow compilation and execution.
@@ -51,3 +51,13 @@ output must be present.
 - Workflow and visual graph schema versions are explicit and currently fixed at version 2.
 - Prefer adding new versions instead of changing node version semantics in place.
 - Keep manifest descriptions explicit so the Nodes page remains understandable to end users.
+
+## Persistence Ownership
+- The configured filesystem resource root is the sole source of truth for node
+  manifests, including imported custom manifests and built-in assets.
+- `server/repositories/workflow/node_manifest.py` owns manifest file writes,
+  reloads, and rollback deletion. The application database does not mirror
+  manifests in a `nodes` table.
+- Changes to manifest persistence must preserve the write-then-reload
+  validation boundary so a failed import cannot leave an invalid manifest on
+  disk.

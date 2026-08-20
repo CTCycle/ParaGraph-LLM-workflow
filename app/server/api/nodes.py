@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from fastapi import APIRouter, File, HTTPException, UploadFile, status
 
-from server.domain.node_catalog import NodeCatalogResponse, NodeManifest
-from server.domain.nodes import (
+from server.contracts.node_catalog import NodeCatalogResponse, NodeManifest
+from server.contracts.nodes import (
     DatabaseConnectionCheckRequest,
     DatabaseConnectionCheckResponse,
     DatabaseSchemaRequest,

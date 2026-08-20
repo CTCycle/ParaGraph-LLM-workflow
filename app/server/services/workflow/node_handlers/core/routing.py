@@ -7,7 +7,7 @@ from typing import Any
 from transformers import AutoTokenizer
 
 from server.common.utils.values import coerce_text
-from server.domain.node_handler_core import TokenizerParameters
+from server.contracts.node_handler_core import TokenizerParameters
 
 ###############################################################################
 @lru_cache(maxsize=32)

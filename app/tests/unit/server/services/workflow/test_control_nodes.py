@@ -9,7 +9,7 @@ from server.services.workflow.node_handlers.control import (
     _reduce_chunks_executor,
     _trace_debug_viewer_executor,
 )
-from server.domain.execution import (
+from server.contracts.execution import (
     CompiledExecutionPlan,
     ExecutionBinding,
     ExecutionStepPlan,

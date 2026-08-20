@@ -20,7 +20,7 @@ from server.common.security import (
     ensure_path_within_root,
     is_cloud_deployment,
 )
-from server.domain.workflow_payloads import (
+from server.contracts.workflow_payloads import (
     RetrievalHit,
     VectorCollectionInfo,
     VectorMutationResult,

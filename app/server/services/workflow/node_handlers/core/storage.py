@@ -7,7 +7,7 @@ from typing import Any
 
 from server.common import path as common_path
 from server.common.security import ensure_path_within_root, is_cloud_deployment
-from server.domain.node_handler_core import (
+from server.contracts.node_handler_core import (
     SaveAsFileParameters,
     SaveAsFolderParameters,
 )

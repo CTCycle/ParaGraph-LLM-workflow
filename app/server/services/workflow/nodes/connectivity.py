@@ -3,8 +3,8 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
-from server.domain.node_handler_core import VectorStoreParameters
-from server.domain.nodes import (
+from server.contracts.node_handler_core import VectorStoreParameters
+from server.contracts.nodes import (
     DatabaseConnectionCheckRequest,
     DatabaseConnectionCheckResponse,
     DatabaseSchemaRequest,

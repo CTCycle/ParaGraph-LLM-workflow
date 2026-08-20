@@ -36,7 +36,7 @@ jobs:
         run: uv --project app/server run ruff check app/server app/tests
 
       - name: Compile Backend
-        run: uv --project app/server run python -m compileall app/server/app.py app/server/api app/server/common app/server/configurations app/server/domain app/server/repositories app/server/services
+        run: uv --project app/server run python -m compileall app/server/app.py app/server/api app/server/common app/server/configurations app/server/contracts app/server/repositories app/server/services
 
       - name: Run Backend Tests
         run: uv --project app/server run pytest app/tests/unit/server app/tests/e2e/server/test_execution_lifecycle.py

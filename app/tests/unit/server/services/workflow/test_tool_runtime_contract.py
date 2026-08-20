@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import pytest
 
-from server.domain.node_catalog import ProviderModelDefinition
-from server.domain.workflow_payloads import ToolCallSelection, ToolCollectionHandle
+from server.contracts.node_catalog import ProviderModelDefinition
+from server.contracts.workflow_payloads import ToolCallSelection, ToolCollectionHandle
 from server.services.workflow.node_handlers.core import tools as tools_module
 from server.services.workflow.nodes import node_registry
 from server.services.workflow.provider import provider_service

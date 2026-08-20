@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from fastapi.testclient import TestClient
 
-from server.domain.configuration import (
+from server.contracts.configuration import (
     AccessKeyConfiguration,
     AppConfigurationPayload,
     ConfigurationProfileListResponse,

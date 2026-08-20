@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from server.common import path as common_path
-from server.domain.workflow_templates import (
+from server.contracts.workflow_templates import (
     WorkflowTemplateListResponse,
     WorkflowTemplateManifest,
 )

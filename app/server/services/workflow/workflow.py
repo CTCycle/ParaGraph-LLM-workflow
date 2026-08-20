@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from server.repositories.workflow import workflow_repository
-from server.domain.workflow_model import (
+from server.contracts.workflow_model import (
     CompilerDiagnostic,
     CreateWorkflowRequest,
     UpdateWorkflowRequest,

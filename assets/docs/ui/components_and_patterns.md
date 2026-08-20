@@ -1,5 +1,5 @@
 # Components And Patterns
-Last updated: 2026-06-02
+Last updated: 2026-08-20
 
 ## Navigation
 - The app uses a top bar with active-route underline and hover background treatment.
@@ -20,8 +20,14 @@ Last updated: 2026-06-02
 - `/nodes` maps to the node library and templates.
 - `/models` maps to model catalogs.
 - `/config` maps to runtime and access configuration.
+- `/database-schema/:nodeId` is the workflow database-node schema inspection
+  surface and returns to `/` through the route state supplied by the editor.
 
 ## Shared Composition
 - `MainLayout` wraps page routes.
 - Each page follows a consistent header and content-panel structure.
 - The workflow page is the deepest interaction surface and acts as the main operational template for the rest of the app.
+- `WorkflowPage.tsx` remains the editor coordinator. Workflow persistence is
+  isolated in `workflow/hooks/workflowPersistence.ts`; additional extraction
+  should keep graph behavior, execution controls, and presentation components
+  independently testable.

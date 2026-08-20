@@ -4,7 +4,7 @@ from pathlib import Path
 
 from sqlalchemy import create_engine
 
-from server.domain.settings import SQLiteSettings
+from server.configurations.settings import SQLiteSettings
 from server.repositories.configuration import ConfigurationRepository
 
 ###############################################################################

@@ -5,7 +5,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Path, Request, status
 
-from server.domain.execution import (
+from server.contracts.execution import (
     ExecutionActionResponse,
     EventHistoryResponse,
     ExecutionRunState,
@@ -14,7 +14,7 @@ from server.domain.execution import (
     StartExecutionRequest,
     StartExecutionResponse,
 )
-from server.domain.workflow_model import (
+from server.contracts.workflow_model import (
     CompileWorkflowRequest,
     CompileWorkflowResponse,
 )

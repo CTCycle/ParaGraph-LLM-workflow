@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 from uuid import NAMESPACE_URL, uuid5
 
-from server.domain.node_handler_ingestion import (
+from server.contracts.node_handler_ingestion import (
     DocumentTextExtractorParameters,
     LOAD_DOCUMENTS_SUPPORTED_EXTENSIONS,
     LoadDocumentsParameters,

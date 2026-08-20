@@ -5,7 +5,7 @@ import shutil
 from pathlib import Path
 
 from server.common import path as common_path
-from server.domain.chat_history import ChatHistoryMessage
+from server.contracts.chat_history import ChatHistoryMessage
 
 ###############################################################################
 def _safe_segment(value: str) -> str:

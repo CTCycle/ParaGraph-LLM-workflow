@@ -3,12 +3,12 @@ from __future__ import annotations
 from collections import defaultdict, deque
 from uuid import uuid4
 
-from server.domain.execution import (
+from server.contracts.execution import (
     CompiledExecutionPlan,
     ExecutionBinding,
     ExecutionStepPlan,
 )
-from server.domain.workflow_model import (
+from server.contracts.workflow_model import (
     CompilerDiagnostic,
     CompileWorkflowResponse,
     WorkflowConnection,

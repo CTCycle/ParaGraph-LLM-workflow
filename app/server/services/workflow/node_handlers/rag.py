@@ -5,8 +5,8 @@ from typing import Any
 from bs4 import BeautifulSoup
 
 from server.common.utils.values import coerce_text
-from server.domain.node_handler_rag import RagParameters
-from server.domain.node_handler import NodeHandler
+from server.contracts.node_handler_rag import RagParameters
+from server.services.workflow.nodes.handler import NodeHandler
 
 ###############################################################################
 def _items(value: Any) -> list[Any]:

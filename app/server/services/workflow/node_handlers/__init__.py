@@ -12,12 +12,12 @@ from server.services.workflow.node_handlers.processing import (
 )
 from server.services.workflow.node_handlers.rag import RAG_HANDLERS
 from server.services.workflow.node_handlers.structured import STRUCTURED_HANDLERS
-from server.domain.node_handler_core import (
+from server.contracts.node_handler_core import (
     MetadataParameters,
     ToolCallParameters,
     ToolCollectionParameters,
 )
-from server.domain.node_handler import NodeHandler
+from server.services.workflow.nodes.handler import NodeHandler
 from server.services.workflow.node_handlers.core.metadata import _metadata_executor
 from server.services.workflow.node_handlers.core.tools import (
     _tool_call_executor,

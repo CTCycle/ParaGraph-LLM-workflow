@@ -5,8 +5,8 @@ from collections.abc import Callable
 from fastapi.testclient import TestClient
 import pytest
 
-from server.domain.configuration import AccessKeyConfiguration
-from server.domain.node_catalog import ProviderModelDefinition
+from server.contracts.configuration import AccessKeyConfiguration
+from server.contracts.node_catalog import ProviderModelDefinition
 from server.services.workflow import provider_service
 
 ###############################################################################

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import threading
 
-from server.domain.chat_history import ChatHistoryMessage
+from server.contracts.chat_history import ChatHistoryMessage
 
 ###############################################################################
 class InMemoryChatHistoryRepository:

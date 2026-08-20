@@ -7,7 +7,7 @@ from sqlalchemy import create_engine, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
-from server.domain.node_handler_ingestion import (
+from server.contracts.node_handler_ingestion import (
     DatabaseConnectionParameters,
     SQLDatabaseParameters,
     SQLFileDatabaseParameters,

@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from server.domain.node_handler_core import VectorStoreParameters
+from server.contracts.node_handler_core import VectorStoreParameters
 from server.services.workflow.vector_stores import (
     MilvusVectorStoreAdapter,
     PineconeVectorStoreAdapter,

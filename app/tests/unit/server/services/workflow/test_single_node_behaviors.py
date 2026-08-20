@@ -6,7 +6,7 @@ from pathlib import Path
 
 from starlette.datastructures import UploadFile
 
-from server.domain.workflow_model import WorkflowDefinition
+from server.contracts.workflow_model import WorkflowDefinition
 from server.services.workflow.browser_uploads import BrowserUploadService
 from server.services.workflow.compiler import compiler_service
 from server.services.workflow.execution import execution_service

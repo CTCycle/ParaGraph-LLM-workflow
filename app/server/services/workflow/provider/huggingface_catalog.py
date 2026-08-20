@@ -11,8 +11,8 @@ from huggingface_hub import HfApi
 import httpx
 
 from server.common.utils.logger import logger
-from server.domain.node_catalog import HuggingFaceModelDefinition
-from server.domain.provider import CachedValue, ModelMetadata
+from server.contracts.node_catalog import HuggingFaceModelDefinition
+from server.services.workflow.provider.models import CachedValue, ModelMetadata
 from server.services.workflow.provider.constants import (
     HUGGINGFACE_CACHE_TTL_SECONDS,
     HUGGINGFACE_FALLBACK_LIBRARIES,
@@ -39,8 +39,8 @@ from server.services.workflow.provider.helpers import (
     _resolve_visibility,
     _safe_int,
 )
-from server.domain.configuration import DEFAULT_SESSION_NAME
-from server.domain.node_catalog import (
+from server.contracts.configuration import DEFAULT_SESSION_NAME
+from server.contracts.node_catalog import (
     HuggingFaceModelCatalogResponse,
     HuggingFaceSortBy,
     ModelVisibilityFilter,

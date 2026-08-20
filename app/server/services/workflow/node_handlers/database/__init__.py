@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from server.domain.node_handler_database import (
+from server.contracts.node_handler_database import (
     CrudCreateParameters,
     CrudDeleteParameters,
     CrudReadParameters,
@@ -8,7 +8,7 @@ from server.domain.node_handler_database import (
     CrudUpsertParameters,
     CustomSqlQueryParameters,
 )
-from server.domain.node_handler import NodeHandler
+from server.services.workflow.nodes.handler import NodeHandler
 from server.services.workflow.node_handlers.database.operations import (
     _crud_create_executor,
     _crud_delete_executor,

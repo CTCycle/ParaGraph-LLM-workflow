@@ -7,9 +7,15 @@ import pytest
 import sqlalchemy
 from sqlalchemy import inspect
 
-from server.domain.settings import SQLiteSettings
+from server.configurations.settings import SQLiteSettings
 from server.repositories.database import initializer as initializer_module
 from server.repositories.database import sqlite as sqlite_module
+from server.repositories.schemas import (
+    Base,
+    ExecutionEventRecord,
+    ExecutionRunRecord,
+    ExecutionStepRecord,
+)
 
 ###############################################################################
 def _build_settings() -> SQLiteSettings:
@@ -49,9 +55,66 @@ def test_initialize_sqlite_database_creates_application_schema(
         "execution_events",
         "execution_runs",
         "execution_steps",
-        "nodes",
         "user_sessions",
     }
+
+
+###############################################################################
+def test_sqlite_repository_enables_foreign_keys() -> None:
+    repository = _build_memory_repository()
+
+    with repository.engine.connect() as connection:
+        assert connection.exec_driver_sql("PRAGMA foreign_keys").scalar_one() == 1
+
+
+###############################################################################
+def test_sqlite_repository_cascades_execution_children() -> None:
+    repository = _build_memory_repository()
+    Base.metadata.create_all(repository.engine)
+
+    with repository.session() as db_session:
+        db_session.add(
+            ExecutionRunRecord(
+                run_id="run-1",
+                plan_id="plan-1",
+                plan_json={},
+                status="completed",
+                progress=1.0,
+                outputs_json={},
+                cancellation_requested=False,
+            )
+        )
+        db_session.commit()
+
+        db_session.add_all(
+            [
+                ExecutionStepRecord(
+                    run_id="run-1",
+                    step_id="step-1",
+                    node_id="node-1",
+                    node_type="test",
+                    position=0,
+                    status="completed",
+                    attempt_count=1,
+                    output_json={},
+                ),
+                ExecutionEventRecord(
+                    run_id="run-1",
+                    sequence=1,
+                    event_type="execution.completed",
+                    payload_json={},
+                ),
+            ]
+        )
+        db_session.commit()
+
+        run = db_session.get(ExecutionRunRecord, "run-1")
+        assert run is not None
+        db_session.delete(run)
+        db_session.commit()
+
+        assert db_session.query(ExecutionStepRecord).count() == 0
+        assert db_session.query(ExecutionEventRecord).count() == 0
 
 ###############################################################################
 def test_sqlite_repository_save_load_and_count_rows(

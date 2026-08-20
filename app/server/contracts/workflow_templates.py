@@ -4,8 +4,8 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from server.domain.node_catalog import NodeManifest
-from server.domain.workflow_model import VisualGraph, WorkflowDefinition
+from server.contracts.node_catalog import NodeManifest
+from server.contracts.workflow_model import VisualGraph, WorkflowDefinition
 
 ###############################################################################
 class WorkflowTemplateManifest(BaseModel):

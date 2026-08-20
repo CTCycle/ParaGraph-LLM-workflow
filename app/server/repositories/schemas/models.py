@@ -36,12 +36,6 @@ class UserSession(Base):
         DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow
     )
 
-    nodes: Mapped[list[NodeConfiguration]] = relationship(
-        "NodeConfiguration",
-        back_populates="session",
-        cascade="all, delete-orphan",
-        passive_deletes=True,
-    )
     access_keys: Mapped[list[AccessKey]] = relationship(
         "AccessKey",
         back_populates="session",
@@ -53,36 +47,6 @@ class UserSession(Base):
         back_populates="session",
         cascade="all, delete-orphan",
         passive_deletes=True,
-    )
-
-###############################################################################
-class NodeConfiguration(Base):
-    __tablename__ = "nodes"
-
-    node_configuration_id: Mapped[int] = mapped_column(
-        primary_key=True, autoincrement=True
-    )
-    session_id: Mapped[int] = mapped_column(
-        ForeignKey("user_sessions.session_id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
-    node_key: Mapped[str] = mapped_column(nullable=False)
-    node_type: Mapped[str] = mapped_column(nullable=False)
-    node_version: Mapped[int] = mapped_column(nullable=False)
-    configuration_json: Mapped[Any] = mapped_column(JSONSequence, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=utcnow
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow
-    )
-
-    session: Mapped[UserSession] = relationship("UserSession", back_populates="nodes")
-
-    __table_args__ = (
-        UniqueConstraint("session_id", "node_key", name="uq_nodes_session_node_key"),
-        Index("ix_nodes_session_type", "session_id", "node_type"),
     )
 
 ###############################################################################

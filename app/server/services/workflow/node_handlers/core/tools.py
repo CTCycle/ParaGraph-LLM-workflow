@@ -12,9 +12,9 @@ from uuid import uuid4
 
 from pydantic import ValidationError
 
-from server.domain.node_catalog import ProviderModelDefinition
-from server.domain.node_handler_core import ToolCallParameters, ToolCollectionParameters
-from server.domain.workflow_payloads import (
+from server.contracts.node_catalog import ProviderModelDefinition
+from server.contracts.node_handler_core import ToolCallParameters, ToolCollectionParameters
+from server.contracts.workflow_payloads import (
     ToolCallResult,
     ToolCallSelection,
     ToolCollectionHandle,

@@ -9,7 +9,7 @@ from fastapi.testclient import TestClient
 
 from server.common import path as common_path
 from server.app import app
-from server.domain.jobs import JobState
+from server.services.jobs import JobState
 from server.repositories.database.initializer import initialize_database
 from server.repositories.workflow import (
     database_chat_history_repository,

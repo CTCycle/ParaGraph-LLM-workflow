@@ -27,7 +27,8 @@ from sqlalchemy.orm import Session, sessionmaker
 from server.common import path as common_path
 from server.common.constants import DATABASE_FILENAME
 from server.common.utils.logger import logger
-from server.domain.settings import SQLiteSettings
+from server.configurations.settings import SQLiteSettings
+from server.repositories.database.sqlite_policy import configure_sqlite_engine
 from server.repositories.schemas import Base
 
 ###############################################################################
@@ -56,8 +57,12 @@ class SQLiteRepository:
         resolved_db_path = Path(db_path) if db_path is not None else default_db_path
         resolved_db_path.parent.mkdir(parents=True, exist_ok=True)
         self.db_path = str(resolved_db_path)
-        self.engine = engine if engine is not None else sqlalchemy.create_engine(
-            f"sqlite:///{self.db_path}", echo=False, future=True
+        self.engine = configure_sqlite_engine(
+            engine
+            if engine is not None
+            else sqlalchemy.create_engine(
+                f"sqlite:///{self.db_path}", echo=False, future=True
+            )
         )
         self.session = sessionmaker(bind=self.engine, future=True)
         self.insert_batch_size = settings.insert_batch_size

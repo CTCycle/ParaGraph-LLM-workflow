@@ -18,7 +18,7 @@ import httpx
 
 from server.common import path as common_path
 from server.common.security import ensure_path_within_root
-from server.domain.node_handler_http import HttpRequestParameters
+from server.contracts.node_handler_http import HttpRequestParameters
 from server.services.configuration import configuration_service
 
 

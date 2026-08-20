@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from server.domain.node_handler import NodeHandler
-from server.domain.node_handler_core import (
+from server.services.workflow.nodes.handler import NodeHandler
+from server.contracts.node_handler_core import (
     ChatParameters,
     EmbeddingParameters,
     InMemoryChatHistoryParameters,

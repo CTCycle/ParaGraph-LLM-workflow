@@ -4,12 +4,12 @@ from typing import Any
 
 from pydantic import ValidationError
 
-from server.domain.node_handler_structured import (
+from server.contracts.node_handler_structured import (
     OutputParserParameters,
     StructuredInputParameters,
     StructuredOutputParameters,
 )
-from server.domain.node_handler import NodeHandler
+from server.services.workflow.nodes.handler import NodeHandler
 from server.common.utils.values import parse_json_if_possible
 from server.services.workflow.structured_models import (
     infer_model_from_json,

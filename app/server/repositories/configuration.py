@@ -8,7 +8,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from server.configurations.startup import get_server_settings
-from server.domain.configuration import (
+from server.contracts.configuration import (
     DEFAULT_SESSION_NAME,
     PROFILE_NAME_PATTERN,
 )
@@ -16,7 +16,6 @@ from server.repositories.database.sqlite import SQLiteRepository
 from server.repositories.schemas import (
     AccessKey,
     ConfigurationProfile,
-    NodeConfiguration,
     UserSession,
 )
 
@@ -299,44 +298,5 @@ class ConfigurationRepository:
                 existing.configuration_json = configuration_json
 
             db_session.commit()
-
-    # -------------------------------------------------------------------------
-    def save_node_configuration(
-        self,
-        *,
-        node_key: str,
-        node_type: str,
-        node_version: int,
-        configuration_json: dict[str, Any],
-        session_name: str | None = None,
-    ) -> None:
-        normalized_session_name = self._normalize_session_name(session_name)
-        with Session(self._database_engine()) as db_session:
-            session_row, _ = self._get_or_create_session(
-                db_session, normalized_session_name
-            )
-            existing = db_session.execute(
-                select(NodeConfiguration).where(
-                    NodeConfiguration.session_id == session_row.session_id,
-                    NodeConfiguration.node_key == node_key,
-                )
-            ).scalar_one_or_none()
-            if existing is None:
-                db_session.add(
-                    NodeConfiguration(
-                        session_id=session_row.session_id,
-                        node_key=node_key,
-                        node_type=node_type,
-                        node_version=node_version,
-                        configuration_json=configuration_json,
-                    )
-                )
-            else:
-                existing.node_type = node_type
-                existing.node_version = node_version
-                existing.configuration_json = configuration_json
-
-            db_session.commit()
-
 
 configuration_repository = ConfigurationRepository()

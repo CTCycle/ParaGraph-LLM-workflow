@@ -10,7 +10,7 @@ from typing import Any
 
 from server.common.security import redact_sensitive_payload
 from server.configurations.startup import get_server_settings
-from server.domain.execution import (
+from server.contracts.execution import (
     CompiledExecutionPlan,
     ExecutionRunState,
     ExecutionStepState,
@@ -24,7 +24,10 @@ from server.services.workflow.nodes import node_registry
 from server.services.workflow.node_handlers.core.tools import (
     release_run_tool_resources,
 )
-from server.common.utils.values import extract_top_level_json_fields
+from server.common.utils.values import (
+    extract_top_level_json_fields,
+    validate_json_against_schema,
+)
 
 ###############################################################################
 class ExecutionService:
@@ -247,6 +250,45 @@ class ExecutionService:
         return execution_run_repository.get_run(run_id)
 
     # -------------------------------------------------------------------------
+    @staticmethod
+    def _validate_reviewed_payload(
+        payload: dict[str, Any], checkpoint: PauseCheckpoint
+    ) -> None:
+        try:
+            validate_json_against_schema(
+                payload, checkpoint.expected_reviewed_payload_schema
+            )
+        except ValueError as exc:
+            raise ValueError(f"Invalid reviewed payload: {exc}") from exc
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def _build_resumed_output(
+        run: ExecutionRunState,
+        checkpoint: PauseCheckpoint,
+        reviewed_payload: dict[str, Any],
+    ) -> dict[str, Any]:
+        step = next(
+            (
+                item
+                for item in run.steps
+                if item.step_id == checkpoint.step_id
+                and item.node_id == checkpoint.node_id
+            ),
+            None,
+        )
+        if step is None:
+            raise ValueError("legacy_pause_state_not_resumable")
+
+        output = dict(step.output or {})
+        ports = dict(output.get("ports") or {})
+        ports.pop("paused", None)
+        ports.pop("pause_payload", None)
+        ports["result"] = reviewed_payload
+        output["ports"] = ports
+        return output
+
+    # -------------------------------------------------------------------------
     def resume(
         self,
         run_id: str,
@@ -258,8 +300,17 @@ class ExecutionService:
             return None
         if run.plan is None:
             raise ValueError("Persisted execution plan is unavailable")
-        resumed = execution_run_repository.resume_paused_run(
-            run_id, resume_token, reviewed_payload
+        if run.status != "paused" or run.resume_token != resume_token:
+            raise ValueError("Run is not paused or resume token is invalid")
+        checkpoint = run.pause_checkpoint
+        if checkpoint is None:
+            raise ValueError("legacy_pause_state_not_resumable")
+
+        payload = reviewed_payload or {}
+        self._validate_reviewed_payload(payload, checkpoint)
+        resumed_output = self._build_resumed_output(run, checkpoint, payload)
+        resumed = execution_run_repository.consume_pause_checkpoint(
+            run_id, resume_token, resumed_output
         )
         if resumed is None:
             return None

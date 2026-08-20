@@ -8,7 +8,7 @@ from sqlalchemy import Integer, String, create_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 from server.common import path as common_path
-from server.domain.node_catalog import (
+from server.contracts.node_catalog import (
     HuggingFaceModelCatalogResponse,
     HuggingFaceModelDefinition,
     HuggingFaceModelDownloadCancelResponse,

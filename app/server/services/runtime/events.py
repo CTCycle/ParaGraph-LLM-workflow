@@ -5,7 +5,7 @@ from collections import defaultdict
 from queue import Queue
 from typing import Any
 
-from server.domain.execution import ExecutionEventEnvelope, EventHistoryResponse
+from server.contracts.execution import ExecutionEventEnvelope, EventHistoryResponse
 from server.repositories.workflow.execution_run import execution_run_repository
 
 ###############################################################################
@@ -15,6 +15,7 @@ class EventService:
     # -------------------------------------------------------------------------
     def __init__(self) -> None:
         self._lock = threading.Lock()
+        self._publish_lock = threading.Lock()
         self._subscribers: dict[str, list[Queue[ExecutionEventEnvelope]]] = defaultdict(
             list
         )
@@ -29,13 +30,14 @@ class EventService:
         step_id: str | None = None,
         request_id: str | None = None,
     ) -> ExecutionEventEnvelope:
-        event = execution_run_repository.append_event(
-            run_id=run_id,
-            event_type=event_type,
-            payload=payload,
-            step_id=step_id,
-            request_id=request_id,
-        )
+        with self._publish_lock:
+            event = execution_run_repository.append_event(
+                run_id=run_id,
+                event_type=event_type,
+                payload=payload,
+                step_id=step_id,
+                request_id=request_id,
+            )
         with self._lock:
             subscribers = list(self._subscribers.get(run_id, []))
         for queue in subscribers:
