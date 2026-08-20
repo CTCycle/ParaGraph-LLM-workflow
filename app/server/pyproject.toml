@@ -8,6 +8,7 @@ version = "1.0.0"
 requires-python = ">=3.14"
 
 dependencies = [
+    "alembic==1.19.0",
     "fastapi==0.136.3",
     "uvicorn[standard]==0.48.0",
     "pydantic==2.13.4",
@@ -54,4 +55,8 @@ packages = ["server"]
 
 [tool.ruff]
 extend = "../../ruff.toml"
+
+[tool.alembic]
+script_location = "%(here)s/migrations"
+prepend_sys_path = ["%(here)s/.."]
 
