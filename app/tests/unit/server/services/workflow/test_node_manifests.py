@@ -5,7 +5,7 @@ from dataclasses import replace
 import pytest
 from pydantic import ValidationError
 
-from server.domain.node_catalog import NodeManifest
+from server.contracts.node_catalog import NodeManifest
 from server.services.workflow.node_handlers import NODE_HANDLERS
 from server.services.workflow.nodes.registry import node_registry
 

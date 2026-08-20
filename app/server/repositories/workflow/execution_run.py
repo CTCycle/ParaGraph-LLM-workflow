@@ -8,7 +8,7 @@ from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from server.configurations.startup import get_server_settings
-from server.domain.execution import (
+from server.contracts.execution import (
     CompiledExecutionPlan,
     ExecutionEventEnvelope,
     ExecutionRunState,
@@ -205,13 +205,13 @@ class ExecutionRunRepository:
         return self.get_run(run_id)
 
     # -------------------------------------------------------------------------
-    def resume_paused_run(
+    def consume_pause_checkpoint(
         self,
         run_id: str,
         resume_token: str,
-        reviewed_payload: dict[str, Any] | None,
+        resumed_output: dict[str, Any],
     ) -> ExecutionRunState | None:
-        """Validate and consume a pause checkpoint in one transaction."""
+        """Atomically verify and consume a pause checkpoint."""
         with Session(self._engine()) as session, session.begin():
             run = session.get(ExecutionRunRecord, run_id)
             if run is None:
@@ -226,16 +226,6 @@ class ExecutionRunRepository:
             if checkpoint.resume_token != resume_token:
                 raise ValueError("Run is not paused or resume token is invalid")
 
-            payload = reviewed_payload or {}
-            from server.common.utils.values import validate_json_against_schema
-
-            try:
-                validate_json_against_schema(
-                    payload, checkpoint.expected_reviewed_payload_schema
-                )
-            except ValueError as exc:
-                raise ValueError(f"Invalid reviewed payload: {exc}") from exc
-
             step = session.execute(
                 select(ExecutionStepRecord).where(
                     ExecutionStepRecord.run_id == run_id,
@@ -246,13 +236,7 @@ class ExecutionRunRepository:
             if step is None:
                 raise ValueError("legacy_pause_state_not_resumable")
 
-            output = dict(step.output_json or {})
-            ports = dict(output.get("ports") or {})
-            ports.pop("paused", None)
-            ports.pop("pause_payload", None)
-            ports["result"] = payload
-            output["ports"] = ports
-            step.output_json = output
+            step.output_json = resumed_output
             step.status = "completed"
             step.completed_at = datetime.now(timezone.utc)
             step.pause_payload_json = None

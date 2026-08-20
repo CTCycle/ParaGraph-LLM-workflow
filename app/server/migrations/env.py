@@ -7,7 +7,8 @@ from alembic.util.exc import CommandError
 from sqlalchemy import create_engine, pool
 from sqlalchemy.engine import Connection
 
-from server.domain.settings import get_sqlite_settings_from_env
+from server.configurations.settings import get_sqlite_settings_from_env
+from server.repositories.database.sqlite_policy import configure_sqlite_engine
 from server.repositories.database.sqlite import SQLiteRepository
 from server.repositories.schemas import Base
 
@@ -104,11 +105,13 @@ def run_migrations_online() -> None:
     connect_args: dict[str, Any] = {}
     if database_url.startswith("sqlite"):
         connect_args = {"autocommit": False, "timeout": 30.0}
-    engine = create_engine(
-        database_url,
-        future=True,
-        poolclass=pool.NullPool,
-        connect_args=connect_args,
+    engine = configure_sqlite_engine(
+        create_engine(
+            database_url,
+            future=True,
+            poolclass=pool.NullPool,
+            connect_args=connect_args,
+        )
     )
     try:
         with engine.connect() as connection:

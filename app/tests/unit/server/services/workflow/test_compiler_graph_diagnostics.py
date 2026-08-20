@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from server.domain.workflow_model import (
+from server.contracts.workflow_model import (
     WorkflowConnection,
     WorkflowDefinition,
     WorkflowNodeInstance,

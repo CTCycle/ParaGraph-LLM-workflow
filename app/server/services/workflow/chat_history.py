@@ -4,7 +4,7 @@ import json
 from datetime import datetime, timezone
 from typing import Protocol
 
-from server.domain.chat_history import (
+from server.contracts.chat_history import (
     ChatHistoryHandle,
     ChatHistoryMessage,
     DEFAULT_CHAT_HISTORY_STORAGE_BACKEND,

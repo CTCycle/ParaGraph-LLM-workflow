@@ -4,8 +4,8 @@ from datetime import datetime, timezone
 
 import sqlalchemy
 
-from server.domain.chat_history import ChatHistoryMessage
-from server.domain.settings import SQLiteSettings
+from server.contracts.chat_history import ChatHistoryMessage
+from server.configurations.settings import SQLiteSettings
 from server.repositories.database.sqlite import SQLiteRepository
 from server.repositories.schemas import Base
 from server.repositories.workflow import chat_history_database as chat_history_module

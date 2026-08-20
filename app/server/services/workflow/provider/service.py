@@ -4,8 +4,8 @@ from threading import Lock
 from typing import Any
 
 import httpx
-from server.domain.configuration import DEFAULT_SESSION_NAME
-from server.domain.node_catalog import (
+from server.contracts.configuration import DEFAULT_SESSION_NAME
+from server.contracts.node_catalog import (
     HuggingFaceModelCatalogResponse,
     HuggingFaceSortBy,
     ModelVisibilityFilter,
@@ -17,7 +17,7 @@ from server.domain.node_catalog import (
     ProviderModelCatalogResponse,
     ProviderModelDefinition,
 )
-from server.domain.provider import (
+from server.services.workflow.provider.models import (
     CachedValue,
     ModelMetadata,
 )

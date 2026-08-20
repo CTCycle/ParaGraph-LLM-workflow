@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from server.domain.node_handler_processing import (
+from server.contracts.node_handler_processing import (
     ByDelimiterChunksParameters,
     ByStructureChunksParameters,
     FixedSizeChunksParameters,
@@ -9,7 +9,7 @@ from server.domain.node_handler_processing import (
     RegexSplitChunksParameters,
     SentenceWindowChunksParameters,
 )
-from server.domain.node_handler import NodeHandler
+from server.services.workflow.nodes.handler import NodeHandler
 from server.services.workflow.node_handlers.processing.delimiter import (
     _by_delimiter_chunks_executor,
 )

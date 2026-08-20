@@ -5,8 +5,8 @@ import json
 import re
 from typing import Any
 
-from server.domain.node_handler_control import ControlParameters
-from server.domain.node_handler import NodeHandler
+from server.contracts.node_handler_control import ControlParameters
+from server.services.workflow.nodes.handler import NodeHandler
 from server.common.utils.values import coerce_text
 
 

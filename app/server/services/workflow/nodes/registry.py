@@ -8,15 +8,14 @@ from typing import Any
 from pydantic import ValidationError
 
 from server.common import path as common_path
-from server.domain.node_catalog import NodeCatalogResponse, NodeManifest
-from server.domain.workflow_payloads import validate_data_type
+from server.contracts.node_catalog import NodeCatalogResponse, NodeManifest
+from server.contracts.workflow_payloads import validate_data_type
 from server.repositories.workflow.node_manifest import (
     NodeManifestRepository,
     node_manifest_repository,
 )
-from server.services.configuration import configuration_service
 from server.services.workflow.node_handlers import NODE_HANDLERS
-from server.domain.node_handler import NodeHandler
+from server.services.workflow.nodes.handler import NodeHandler
 from server.services.workflow.nodes.execution_context import (
     reset_execution_context,
     set_execution_context,
@@ -242,12 +241,11 @@ class NodeRegistry:
                 raise ValueError(
                     f"Imported node manifest could not be reloaded: {manifest.id} v{manifest.version}"
                 )
-            configuration_service.save_node_manifest(created)
         except Exception as exc:
             self._manifest_repository.delete_manifest(path)
             self.reload()
             raise ValueError(
-                f"Failed to persist imported node manifest in database: {exc}"
+                f"Failed to persist imported node manifest: {exc}"
             ) from exc
 
         return created

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from server.domain.workflow_model import WorkflowDefinition
+from server.contracts.workflow_model import WorkflowDefinition
 from server.services.workflow.compiler import compiler_service
 
 ###############################################################################

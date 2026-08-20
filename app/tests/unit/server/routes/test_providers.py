@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from fastapi.testclient import TestClient
 
-from server.domain.provider import ModelMetadata
+from server.services.workflow.provider.models import ModelMetadata
 from server.services.workflow import provider_service
 from server.services.workflow.provider import ProviderApiError
 

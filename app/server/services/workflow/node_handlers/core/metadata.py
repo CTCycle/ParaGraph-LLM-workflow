@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from server.domain.node_handler_core import MetadataParameters
+from server.contracts.node_handler_core import MetadataParameters
 
 ###############################################################################
 def _metadata_for_record(

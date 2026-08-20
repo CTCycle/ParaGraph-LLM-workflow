@@ -2,13 +2,13 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, status
 
-from server.domain.workflow_model import (
+from server.contracts.workflow_model import (
     CreateWorkflowRequest,
     UpdateWorkflowRequest,
     WorkflowDocument,
     WorkflowListResponse,
 )
-from server.domain.workflow_templates import WorkflowTemplateListResponse
+from server.contracts.workflow_templates import WorkflowTemplateListResponse
 from server.services.workflow import (
     workflow_service,
     workflow_template_service,

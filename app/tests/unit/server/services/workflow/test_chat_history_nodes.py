@@ -6,8 +6,8 @@ from typing import Any
 
 import pytest
 
-from server.domain.chat_history import ChatHistoryHandle
-from server.domain.node_catalog import ProviderModelDefinition
+from server.contracts.chat_history import ChatHistoryHandle
+from server.contracts.node_catalog import ProviderModelDefinition
 from server.repositories.workflow import (
     database_chat_history_repository,
     file_chat_history_repository,

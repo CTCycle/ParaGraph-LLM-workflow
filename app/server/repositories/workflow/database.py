@@ -29,8 +29,8 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from server.common.utils.values import coerce_int
-from server.domain.node_handler_ingestion import normalize_database_engine
-from server.domain.workflow_payloads import DatabaseConnectionHandle
+from server.contracts.node_handler_ingestion import normalize_database_engine
+from server.contracts.workflow_payloads import DatabaseConnectionHandle
 
 _IDENTIFIER = re.compile(r"^[A-Za-z_][A-Za-z0-9_$]*$")
 _READ_ONLY_SQL = re.compile(r"^\s*(select|with|explain|pragma)\b", re.IGNORECASE)

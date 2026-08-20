@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from server.domain.configuration import (
+from server.contracts.configuration import (
     AppConfigurationPayload,
     ConfigurationProfileListResponse,
     MASKED_API_KEY_VALUE,
@@ -8,7 +8,6 @@ from server.domain.configuration import (
     ProviderStatusResponse,
     is_masked_api_key,
 )
-from server.domain.node_catalog import NodeManifest
 from server.repositories.configuration import (
     ConfigurationRepository,
     configuration_repository,
@@ -228,18 +227,6 @@ class ConfigurationService:
                 base_url=resolved_base_url or "",
                 model_count=0,
             )
-
-    # -------------------------------------------------------------------------
-    def save_node_manifest(
-        self, manifest: NodeManifest, session_name: str | None = None
-    ) -> None:
-        self._repository.save_node_configuration(
-            session_name=session_name,
-            node_key=f"{manifest.id}:{manifest.version}",
-            node_type=manifest.id,
-            node_version=manifest.version,
-            configuration_json=manifest.model_dump(mode="json"),
-        )
 
     # -------------------------------------------------------------------------
     def _mask_configuration_secrets(

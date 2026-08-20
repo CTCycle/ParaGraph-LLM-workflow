@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from server.domain.node_handler_ingestion import (
+from server.contracts.node_handler_ingestion import (
     DocumentTextExtractorParameters,
     LoadDocumentsParameters,
     SQLDatabaseParameters,
     SQLFileDatabaseParameters,
 )
-from server.domain.node_handler import NodeHandler
+from server.services.workflow.nodes.handler import NodeHandler
 from server.services.workflow.node_handlers.ingestion.database_connections import (
     _sql_database_executor,
     _sql_file_database_executor,

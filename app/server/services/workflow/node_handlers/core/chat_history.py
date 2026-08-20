@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, cast
 
-from server.domain.chat_history import (
+from server.contracts.chat_history import (
     ChatHistoryHandle,
     ChatHistoryStorageBackend,
     DEFAULT_CHAT_HISTORY_STORAGE_BACKEND,

@@ -6,7 +6,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from server.configurations.startup import get_server_settings
-from server.domain.chat_history import ChatHistoryMessage
+from server.contracts.chat_history import ChatHistoryMessage
 from server.repositories.database.sqlite import SQLiteRepository
 from server.repositories.schemas import ChatHistoryMessageRecord
 

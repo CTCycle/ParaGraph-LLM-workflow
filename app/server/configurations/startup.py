@@ -6,7 +6,7 @@ from typing import Any
 
 from server.configurations.environment import EnvironmentLoader
 from server.configurations.management import RuntimeConfigurationManager
-from server.domain.settings import (
+from server.configurations.settings import (
     RuntimeConfigurationSettings,
     ServerSettings,
 )

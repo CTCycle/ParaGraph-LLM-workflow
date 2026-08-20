@@ -4,7 +4,7 @@ import re
 import unicodedata
 from typing import Any
 
-from server.domain.node_handler import NodeHandler
+from server.services.workflow.nodes.handler import NodeHandler
 from server.common.utils.values import coerce_text
 
 ###############################################################################

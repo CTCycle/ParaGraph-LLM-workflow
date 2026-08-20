@@ -11,7 +11,7 @@ from alembic import command
 from sqlalchemy import inspect, text
 
 from server.common import path as common_path
-from server.domain.settings import SQLiteSettings
+from server.configurations.settings import SQLiteSettings
 from server.repositories.database import migration
 from server.repositories.database.initializer import initialize_sqlite_database
 from server.repositories.schemas import Base, UserSession
@@ -26,6 +26,36 @@ def _engine(database_path: Path) -> sa.Engine:
         f"sqlite:///{database_path.as_posix()}",
         connect_args={"autocommit": False},
     )
+
+
+def _add_legacy_node_table(engine: sa.Engine) -> None:
+    metadata = sa.MetaData()
+    sa.Table(
+        "user_sessions",
+        metadata,
+        sa.Column("session_id", sa.Integer(), primary_key=True),
+    )
+    nodes = sa.Table(
+        "nodes",
+        metadata,
+        sa.Column("node_configuration_id", sa.Integer(), primary_key=True),
+        sa.Column(
+            "session_id",
+            sa.Integer(),
+            sa.ForeignKey("user_sessions.session_id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+        sa.Column("node_key", sa.String(), nullable=False),
+        sa.Column("node_type", sa.String(), nullable=False),
+        sa.Column("node_version", sa.Integer(), nullable=False),
+        sa.Column("configuration_json", sa.JSON(), nullable=False),
+        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
+        sa.UniqueConstraint("session_id", "node_key", name="uq_nodes_session_node_key"),
+    )
+    sa.Index("ix_nodes_session_id", nodes.c.session_id)
+    sa.Index("ix_nodes_session_type", nodes.c.session_id, nodes.c.node_type)
+    metadata.create_all(engine)
 
 
 def _version(database_path: Path) -> str | None:
@@ -55,10 +85,18 @@ def test_empty_database_is_created_and_migrated_to_head(tmp_path: Path) -> None:
             "execution_events",
             "execution_runs",
             "execution_steps",
-            "nodes",
             "user_sessions",
         }
-        assert _version(database_path) == migration.BASELINE_REVISION
+        assert _version(database_path) == "0002_remove_node_configuration_mirror"
+    finally:
+        engine.dispose()
+
+
+def test_migration_engine_enables_foreign_keys(tmp_path: Path) -> None:
+    engine = migration._migration_engine(tmp_path / "foreign-keys.db")
+    try:
+        with engine.connect() as connection:
+            assert connection.exec_driver_sql("PRAGMA foreign_keys").scalar_one() == 1
     finally:
         engine.dispose()
 
@@ -68,6 +106,7 @@ def test_legacy_schema_is_adopted_without_losing_data(tmp_path: Path) -> None:
     engine = _engine(database_path)
     # Test fixture only: emulate the schema created by the pre-Alembic release.
     Base.metadata.create_all(engine)
+    _add_legacy_node_table(engine)
     with sa.orm.Session(engine) as session:
         session.add(
             UserSession(
@@ -84,7 +123,8 @@ def test_legacy_schema_is_adopted_without_losing_data(tmp_path: Path) -> None:
 
     engine = _engine(database_path)
     try:
-        assert _version(database_path) == migration.BASELINE_REVISION
+        assert _version(database_path) == "0002_remove_node_configuration_mirror"
+        assert "nodes" not in inspect(engine).get_table_names()
         with engine.connect() as connection:
             assert connection.execute(
                 text("select session_name from user_sessions")
@@ -169,8 +209,8 @@ def _add_marker_revision(migration_root: Path, *, failing: bool = False) -> None
         '''"""Add a marker column for migration integration tests."""\n\n'''
         "from alembic import op\n"
         "import sqlalchemy as sa\n\n"
-        "revision = '0002_marker'\n"
-        "down_revision = '0001_initial'\n"
+        "revision = '0003_marker'\n"
+        "down_revision = '0002_remove_node_configuration_mirror'\n"
         "branch_labels = None\n"
         "depends_on = None\n\n"
         "def upgrade():\n"
@@ -185,8 +225,8 @@ def _add_marker_revision(migration_root: Path, *, failing: bool = False) -> None
             '''"""Fail after issuing DDL to verify rollback."""\n\n'''
             "from alembic import op\n"
             "import sqlalchemy as sa\n\n"
-            "revision = '0003_failure'\n"
-            "down_revision = '0002_marker'\n"
+            "revision = '0004_failure'\n"
+            "down_revision = '0003_marker'\n"
             "branch_labels = None\n"
             "depends_on = None\n\n"
             "def upgrade():\n"
@@ -238,7 +278,7 @@ def test_outdated_database_is_upgraded_to_head(tmp_path: Path, monkeypatch: pyte
 
     engine = _engine(database_path)
     try:
-        assert _version(database_path) == "0002_marker"
+        assert _version(database_path) == "0003_marker"
         assert "migration_marker" in {
             column["name"] for column in inspect(engine).get_columns("user_sessions")
         }
@@ -255,7 +295,7 @@ def test_failed_migration_rolls_back_ddl_and_revision(tmp_path: Path, monkeypatc
     _add_marker_revision(migration_root, failing=True)
     database_path = tmp_path / "rollback.db"
 
-    _apply_revision(database_path, "0002_marker")
+    _apply_revision(database_path, "0003_marker")
 
     with pytest.raises(migration.DatabaseMigrationError, match="failed"):
         migration.run_database_migrations(database_path)
@@ -264,7 +304,7 @@ def test_failed_migration_rolls_back_ddl_and_revision(tmp_path: Path, monkeypatc
     try:
         columns = {column["name"] for column in inspect(engine).get_columns("user_sessions")}
         assert "failure_marker" not in columns
-        assert _version(database_path) == "0002_marker"
+        assert _version(database_path) == "0003_marker"
     finally:
         engine.dispose()
 
@@ -284,7 +324,7 @@ def test_concurrent_initialization_is_serialized(tmp_path: Path) -> None:
         for future in futures:
             future.result()
 
-    assert _version(database_path) == migration.BASELINE_REVISION
+    assert _version(database_path) == "0002_remove_node_configuration_mirror"
 
 
 def test_migration_lock_timeout_is_reported_as_typed_error(

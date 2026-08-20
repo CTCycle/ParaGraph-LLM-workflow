@@ -5,7 +5,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field, model_validator
 
-from server.domain.execution import CompiledExecutionPlan
+from server.contracts.execution import CompiledExecutionPlan
 
 ###############################################################################
 class WorkflowNodeInstance(BaseModel):

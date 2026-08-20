@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 from urllib.parse import unquote
 
-from server.domain.provider import ModelMetadata, ProviderMetadata
+from server.services.workflow.provider.models import ModelMetadata, ProviderMetadata
 from server.services.workflow.provider.constants import HUGGINGFACE_REPO_ID_PATTERN
 from server.services.workflow.provider.errors import ProviderApiError
 

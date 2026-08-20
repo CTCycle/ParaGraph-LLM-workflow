@@ -6,7 +6,7 @@ from pathlib import Path
 import httpx
 import pytest
 
-from server.domain.node_handler_http import HttpRequestParameters
+from server.contracts.node_handler_http import HttpRequestParameters
 from server.services.workflow.http_transport import HttpTransportError, SecureHttpTransport
 from server.common import path as common_path
 

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Iterator
+from collections.abc import Collection, Iterator
 from contextlib import contextmanager
 import hashlib
 import json
@@ -21,6 +21,7 @@ from sqlalchemy.dialects.sqlite import dialect as sqlite_dialect
 from server.common import path as common_path
 from server.common.constants import DATABASE_FILENAME
 from server.common.utils.logger import logger
+from server.repositories.database.sqlite_policy import configure_sqlite_engine
 from server.repositories.schemas import Base
 
 
@@ -31,6 +32,7 @@ SQLITE_TIMEOUT_SECONDS = 30.0
 # Frozen normalized signature of the pre-Alembic application schema.
 _BASELINE_SCHEMA_FINGERPRINT = "06a4979ba57eb0a4039c77ddc36442f0770427220f4ea83a7119ace43b044557"
 _APPLICATION_TABLE_NAMES = frozenset(Base.metadata.tables)
+_LEGACY_APPLICATION_TABLE_NAMES = _APPLICATION_TABLE_NAMES | {"nodes"}
 
 
 class DatabaseMigrationError(RuntimeError):
@@ -99,10 +101,13 @@ def _metadata_signature(metadata: MetaData) -> dict[str, Any]:
     return {"tables": tables}
 
 
-def _inspected_signature(connection: Connection) -> dict[str, Any]:
+def _inspected_signature(
+    connection: Connection,
+    table_names: Collection[str] = _APPLICATION_TABLE_NAMES,
+) -> dict[str, Any]:
     inspector = inspect(connection)
     tables: list[dict[str, Any]] = []
-    for table_name in sorted(_APPLICATION_TABLE_NAMES):
+    for table_name in sorted(table_names):
         columns = inspector.get_columns(table_name)
         indexes = sorted(
             (
@@ -162,8 +167,11 @@ def metadata_schema_fingerprint() -> str:
     return _fingerprint(_metadata_signature(Base.metadata))
 
 
-def _database_schema_fingerprint(connection: Connection) -> str:
-    return _fingerprint(_inspected_signature(connection))
+def _database_schema_fingerprint(
+    connection: Connection,
+    table_names: Collection[str] = _APPLICATION_TABLE_NAMES,
+) -> str:
+    return _fingerprint(_inspected_signature(connection, table_names))
 
 
 def _sqlite_url(database_path: Path) -> URL:
@@ -171,14 +179,16 @@ def _sqlite_url(database_path: Path) -> URL:
 
 
 def _migration_engine(database_path: Path) -> Engine:
-    return create_engine(
-        _sqlite_url(database_path),
-        future=True,
-        poolclass=NullPool,
-        connect_args={
-            "autocommit": False,
-            "timeout": SQLITE_TIMEOUT_SECONDS,
-        },
+    return configure_sqlite_engine(
+        create_engine(
+            _sqlite_url(database_path),
+            future=True,
+            poolclass=NullPool,
+            connect_args={
+                "autocommit": False,
+                "timeout": SQLITE_TIMEOUT_SECONDS,
+            },
+        )
     )
 
 
@@ -253,6 +263,15 @@ def _require_complete_application_schema(connection: Connection) -> None:
 
 def _legacy_schema_state(connection: Connection) -> str:
     application_tables = _application_tables(connection)
+    legacy_application_tables = set(inspect(connection).get_table_names()).intersection(
+        _LEGACY_APPLICATION_TABLE_NAMES
+    )
+    if legacy_application_tables == _LEGACY_APPLICATION_TABLE_NAMES:
+        observed = _database_schema_fingerprint(
+            connection, _LEGACY_APPLICATION_TABLE_NAMES
+        )
+        if observed == _BASELINE_SCHEMA_FINGERPRINT:
+            return "baseline"
     if not application_tables:
         return "empty"
     if application_tables != _APPLICATION_TABLE_NAMES:

@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Final
 
 from server.common import path as common_path
-from server.domain.node_catalog import HuggingFaceSortBy
+from server.contracts.node_catalog import HuggingFaceSortBy
 
 
 OLLAMA_LIBRARY_URL: Final[str] = "https://ollama.com/library"

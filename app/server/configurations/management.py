@@ -7,7 +7,7 @@ from typing import Any
 from pydantic import ValidationError
 
 from server.common import path as common_path
-from server.domain.settings import (
+from server.configurations.settings import (
     RuntimeConfigurationSettings,
     ServerSettings,
     get_sqlite_settings_from_env,

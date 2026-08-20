@@ -5,9 +5,9 @@ from typing import Any
 
 from pydantic import ValidationError
 
-from server.domain.chat_history import ChatHistoryHandle
-from server.domain.node_catalog import ProviderModelDefinition
-from server.domain.node_handler_core import ModelProviderParameters
+from server.contracts.chat_history import ChatHistoryHandle
+from server.contracts.node_catalog import ProviderModelDefinition
+from server.contracts.node_handler_core import ModelProviderParameters
 from server.services.configuration import configuration_service
 from server.services.workflow.chat_history import chat_history_service
 from server.common.utils.values import (

@@ -7,7 +7,7 @@ from typing import Any
 import pytest
 
 from server.common import path as common_path
-from server.domain.node_handler_core import SimilaritySearchParameters
+from server.contracts.node_handler_core import SimilaritySearchParameters
 from server.services.workflow import node_registry
 import server.services.workflow.node_handlers.core.embeddings as embeddings_module
 

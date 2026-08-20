@@ -1,5 +1,5 @@
 # System Overview
-Last updated: 2026-07-20
+Last updated: 2026-08-20
 
 ## System Summary
 ParaGraph is a local-first workflow platform composed of:
@@ -30,7 +30,8 @@ The repository contains source code plus generated and runtime-heavy folders. Th
 |  |  |- app.py
 |  |  |- api/                      (FastAPI routers)
 |  |  |- configurations/           (env and runtime config loading)
-|  |  |- domain/                   (Pydantic and domain models)
+|  |  |- contracts/                (portable API, workflow, and node contracts)
+|  |  |- configurations/           (env and runtime config loading)
 |  |  |- services/                 (business logic)
 |  |  |- repositories/
 |  |  |  |- database/              (shared tabular persistence and engine adapters)
@@ -43,6 +44,12 @@ The repository contains source code plus generated and runtime-heavy folders. Th
 |- start_on_windows.ps1            (Windows launcher and maintenance menu)
 `- README.md
 ```
+
+Backend contract and runtime ownership is intentionally split. `server/contracts`
+contains portable validation and data models; configuration settings live in
+`server/configurations`; runtime-only node handlers, provider metadata, and job
+state live under `server/services`. Contracts do not import API, service,
+repository, or SQLAlchemy implementation modules.
 
 ## Application Entry Points
 - Backend app factory: `app/server/app.py` exposes `create_app` and `app`.

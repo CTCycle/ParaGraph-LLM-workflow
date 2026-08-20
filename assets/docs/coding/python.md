@@ -1,5 +1,5 @@
 # Python
-Last updated: 2026-06-02
+Last updated: 2026-08-20
 
 ## Runtime Baseline
 - Target Python version is `>=3.14` as defined in `pyproject.toml`.
@@ -35,6 +35,18 @@ Last updated: 2026-06-02
 - Use classes when they meaningfully group state or behavior.
 - Keep modules under roughly 1000 lines where feasible.
 - Avoid broad stylistic rewrites unrelated to the task.
+
+## Layer Boundaries
+- Keep portable request, response, workflow, and node contracts in
+  `server/contracts`. Contracts may depend on standard-library and validation
+  primitives, but must not import API routers, services, repositories, or
+  SQLAlchemy models.
+- Keep environment-backed settings in `server/configurations` and runtime
+  objects such as job state, node handlers, and provider metadata under the
+  owning service package.
+- Repositories own durable state transitions, not business validation or
+  payload transformation. For example, execution services validate reviewed
+  resume payloads before the repository atomically consumes a pause checkpoint.
 
 ## Documentation Expectation
 - When Python behavior changes architecture, runtime behavior, or public contracts, update the relevant files under `assets/docs` in the same change set.

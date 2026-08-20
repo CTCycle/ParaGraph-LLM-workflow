@@ -4,8 +4,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, field_validator
 
-from server.domain.chat_history import ChatHistoryHandle
-from server.domain.node_catalog import NodeDataType, ProviderModelDefinition
+from server.contracts.chat_history import ChatHistoryHandle
+from server.contracts.node_catalog import NodeDataType, ProviderModelDefinition
 
 ###############################################################################
 class ImagePayload(BaseModel):

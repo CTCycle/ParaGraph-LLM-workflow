@@ -1,15 +1,30 @@
 from __future__ import annotations
 
-from server.domain.execution import (
+from concurrent.futures import ThreadPoolExecutor
+
+from server.contracts.execution import (
     CompiledExecutionPlan,
     ExecutionBinding,
+    ExecutionRunState,
     ExecutionStepPlan,
 )
+from server.repositories.workflow.execution_run import execution_run_repository
 from server.services.runtime.events import execution_event_service
 from server.services.workflow.execution import execution_service
 
 ###############################################################################
+def _create_event_run(run_id: str) -> None:
+    plan = CompiledExecutionPlan(plan_id=f"plan-{run_id}")
+    execution_run_repository.create_run(
+        ExecutionRunState(run_id=run_id, plan_id=plan.plan_id, plan=plan)
+    )
+
+
+###############################################################################
 def test_execution_event_sequence_is_monotonic_for_each_run() -> None:
+    _create_event_run("run-a")
+    _create_event_run("run-b")
+
     first = execution_event_service.publish(
         run_id="run-a",
         event_type="execution.queued",
@@ -32,6 +47,27 @@ def test_execution_event_sequence_is_monotonic_for_each_run() -> None:
     assert [
         event.sequence for event in execution_event_service.get_history("run-a").events
     ] == [1, 2]
+
+
+###############################################################################
+def test_concurrent_event_publishers_receive_unique_sequences() -> None:
+    _create_event_run("run-concurrent")
+
+    def publish(index: int):
+        return execution_event_service.publish(
+            run_id="run-concurrent",
+            event_type="execution.step.progress",
+            payload={"index": index},
+        )
+
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        events = list(executor.map(publish, range(32)))
+
+    assert sorted(event.sequence for event in events) == list(range(1, 33))
+    assert [
+        event.sequence
+        for event in execution_event_service.get_history("run-concurrent").events
+    ] == list(range(1, 33))
 
 ###############################################################################
 def test_execution_service_emits_expected_event_order_for_prompt_to_output_plan(

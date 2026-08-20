@@ -7,14 +7,14 @@ from uuid import NAMESPACE_URL, uuid5
 import httpx
 from pydantic import ValidationError
 
-from server.domain.node_handler_core import (
+from server.contracts.node_handler_core import (
     EmbeddingParameters,
     RerankParameters,
     SimilaritySearchParameters,
     VectorStoreLifecycleParameters,
     VectorStoreParameters,
 )
-from server.domain.workflow_payloads import (
+from server.contracts.workflow_payloads import (
     RetrievalResults,
     VectorPoint,
     VectorStoreHandle,

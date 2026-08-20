@@ -1,5 +1,5 @@
 # Execution And Data Flow
-Last updated: 2026-08-19
+Last updated: 2026-08-20
 
 ## Layered Backend Flow
 Typical backend flow follows endpoint to service to repository:
@@ -20,12 +20,17 @@ Typical backend flow follows endpoint to service to repository:
 ## Responsibilities Of Key Modules
 - `server/api/*`
   - HTTP and WebSocket boundary, request validation, and HTTP status mapping.
-- `server/domain/*`
-  - Request and response models, workflow schema, and execution and event models.
+- `server/contracts/*`
+  - Portable request and response models, workflow schema, node catalog
+    contracts, and execution payloads. This layer does not depend on API,
+    service, repository, or SQLAlchemy implementation modules.
+- `server/configurations/settings.py`
+  - Environment-backed settings and runtime configuration models.
 - `server/services/workflow/compiler/service.py`
   - Graph validation, diagnostics, and topological planning.
 - `server/services/workflow/execution.py`
-  - Step orchestration, cache behavior, output shaping, and event publishing.
+  - Step orchestration, cache behavior, output shaping, pause/resume payload
+    validation, and event publishing.
 - `server/services/workflow/structured_models.py`
   - Structured JSON model inference, schema generation, Pydantic-source parsing, and validation payload formatting.
 - `server/services/workflow/provider/service.py`
@@ -68,12 +73,19 @@ Typical backend flow follows endpoint to service to repository:
   - Filesystem node manifest loading, import persistence, test storage overrides, and rollback deletion.
 - `server/repositories/workflow/database.py`
   - Bounded engine reuse, credential-safe connection identity, schema inspection, read-only enforcement, parameterized SQL, and transactional CRUD/bulk/upsert persistence.
+- `server/repositories/workflow/execution_run.py`
+  - Atomic run/step/event state changes, including one-time pause-checkpoint
+    consumption. Reviewed payload validation and output shaping stay in the
+    execution service.
 - `server/repositories/configuration.py`
   - Session, profile, and access-key persistence in the application database.
 - `server/repositories/database/sqlite.py`
   - Embedded SQLite engine, application schema access, and dataframe/tabular persistence behavior.
 - `client/src/pages/WorkflowPage.tsx`
-  - Visual workflow editor and execution control surface.
+  - Visual workflow editor and execution control surface. Workflow localStorage
+    parsing and persistence are isolated in
+    `client/src/workflow/hooks/workflowPersistence.ts` while the remaining
+    page decomposition proceeds incrementally.
 - `client/src/workflow/components/*`
   - Workflow-local presentation components reused by the editor.
 - `client/src/workflow/schema/*`
@@ -99,4 +111,7 @@ Typical backend flow follows endpoint to service to repository:
 - Non-positive timeouts, negative retry counts, and retries on side-effecting nodes without an idempotency contract block compilation.
 - Conditional branch warnings describe the current missing-value activation model. Explicit activation tokens and catch or iteration regions require separate execution-engine support.
 - Human-review pauses persist a run-scoped checkpoint and resume token; a successful resume consumes the token and injects the reviewed object into the gate's `result` output.
+- Durable event sequence allocation is serialized at the publish boundary so
+  concurrent publishers cannot create duplicate or out-of-order sequence
+  history for one run.
 - Tool collections expose serializable metadata plus an opaque runtime collection identity. Executable callables are scoped to the current run, async callables are awaited, and provider tool selection currently reports `prompt_emulated` until a native protocol adapter exists.

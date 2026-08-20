@@ -8,7 +8,6 @@ from server.repositories.schemas.models import (
     ExecutionEventRecord,
     ExecutionRunRecord,
     ExecutionStepRecord,
-    NodeConfiguration,
     UserSession,
 )
 from server.repositories.schemas.types import JSONSequence
@@ -22,6 +21,5 @@ __all__ = [
     "ExecutionRunRecord",
     "ExecutionStepRecord",
     "JSONSequence",
-    "NodeConfiguration",
     "UserSession",
 ]

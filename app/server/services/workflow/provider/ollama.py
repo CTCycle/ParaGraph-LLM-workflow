@@ -6,7 +6,7 @@ import time
 from bs4 import BeautifulSoup
 import httpx
 
-from server.domain.provider import CachedValue, OllamaLibraryCachePayload
+from server.services.workflow.provider.models import CachedValue, OllamaLibraryCachePayload
 from server.services.llm.providers import OllamaError
 from server.services.workflow.provider.constants import (
     OLLAMA_LIBRARY_CACHE_TTL_SECONDS,

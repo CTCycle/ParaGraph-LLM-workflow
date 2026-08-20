@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from server.domain.node_handler_database import (
+from server.contracts.node_handler_database import (
     CrudCreateParameters,
     CrudDeleteParameters,
     CrudReadParameters,

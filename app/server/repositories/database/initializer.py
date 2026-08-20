@@ -4,7 +4,7 @@ from pathlib import Path
 
 from server.common.utils.logger import logger
 from server.configurations.startup import get_server_settings
-from server.domain.settings import SQLiteSettings
+from server.configurations.settings import SQLiteSettings
 from server.repositories.database.migration import run_database_migrations
 
 ###############################################################################
