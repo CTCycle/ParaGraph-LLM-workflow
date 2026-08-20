@@ -18,7 +18,14 @@ $script:NodeExe = Join-Path $NodeDir 'node.exe'
 $script:NpmCmd = Join-Path $NodeDir 'npm.cmd'
 $script:VenvDir = Join-Path $ServerDir '.venv'
 $script:VenvPython = Join-Path $VenvDir 'Scripts\python.exe'
-$script:UvCacheDir = Join-Path $RuntimesDir '.uv-cache'
+$script:CacheDir = Join-Path $RepoRoot 'assets\cache'
+$script:UvCacheDir = Join-Path $CacheDir 'uv'
+$script:PythonCacheDir = Join-Path $CacheDir 'pycache'
+$script:NpmCacheDir = Join-Path $CacheDir 'npm'
+$script:RuffCacheDir = Join-Path $CacheDir 'ruff'
+$script:CoverageFile = Join-Path $CacheDir 'coverage\.coverage'
+$script:PlaywrightBrowsersDir = Join-Path $CacheDir 'playwright\browsers'
+$script:FrontendBuildDir = Join-Path $CacheDir 'frontend-dist'
 $script:DotEnv = Join-Path $SettingsDir '.env'
 $script:DotEnvExample = Join-Path $SettingsDir '.env.example'
 $script:PythonVersion = '3.14.2'
@@ -78,7 +85,7 @@ function Show-Menu {
     Write-Host '  MAINTENANCE' -ForegroundColor DarkCyan
     Write-MenuDivider
     Write-MenuOption -Number '6' -Title 'Remove logs' -Description 'Delete local log files'
-    Write-MenuOption -Number '7' -Title 'Clear cache' -Description 'Remove Python and uv caches'
+    Write-MenuOption -Number '7' -Title 'Clear cache' -Description 'Remove centralized developer caches and artifacts'
     Write-MenuOption -Number '8' -Title 'Uninstall application' -Description 'Remove local runtimes and dependencies' -Destructive
     Write-MenuOption -Number '9' -Title 'Exit' -Description 'Close this launcher'
     Write-MenuDivider
@@ -94,9 +101,15 @@ function Clear-PythonEnvironment {
 }
 
 function Set-LauncherEnvironment {
+    New-Item -ItemType Directory -Path $CacheDir, $UvCacheDir, $PythonCacheDir, $NpmCacheDir, $RuffCacheDir, (Split-Path -Parent $CoverageFile), $PlaywrightBrowsersDir -Force | Out-Null
     $env:UV_CACHE_DIR = $UvCacheDir
     $env:UV_PROJECT_ENVIRONMENT = $VenvDir
     $env:UV_LINK_MODE = 'copy'
+    $env:PYTHONPYCACHEPREFIX = $PythonCacheDir
+    $env:RUFF_CACHE_DIR = $RuffCacheDir
+    $env:COVERAGE_FILE = $CoverageFile
+    $env:npm_config_cache = $NpmCacheDir
+    $env:PLAYWRIGHT_BROWSERS_PATH = $PlaywrightBrowsersDir
     $env:PATH = "$NodeDir;$($env:PATH)"
     Clear-PythonEnvironment
 }
@@ -335,7 +348,7 @@ function Test-DependenciesReady {
 }
 
 function Test-FrontendBuildReady {
-    return Test-Path -LiteralPath (Join-Path $ClientDir 'dist\index.html')
+    return Test-Path -LiteralPath (Join-Path $FrontendBuildDir 'index.html')
 }
 
 function Stop-PortListeners([int]$Port) {
@@ -451,10 +464,17 @@ function Remove-PythonCaches {
         Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
 }
 
+function Clear-DeveloperCache {
+    if (-not (Test-Path -LiteralPath $CacheDir)) { return }
+    Get-ChildItem -LiteralPath $CacheDir -Force -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -notin @('.gitkeep', 'README.md') } |
+        Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+}
+
 function Clear-ApplicationCache {
     Remove-PythonCaches
-    if (Test-Path -LiteralPath $UvCacheDir) { Remove-Item -LiteralPath $UvCacheDir -Recurse -Force }
-    Write-Ok 'Python and uv caches removed.'
+    Clear-DeveloperCache
+    Write-Ok 'Centralized developer caches and artifacts removed.'
 }
 
 function Remove-RepoItem([string]$RelativePath) {
@@ -473,6 +493,7 @@ function Uninstall-Application {
         'app\server\uv.lock', 'uv.lock'
     )) { Remove-RepoItem -RelativePath $relativePath }
     Remove-PythonCaches
+    Clear-DeveloperCache
     Write-Ok 'Application runtimes, dependencies, caches, and lockfiles removed. Settings and user data were preserved.'
 }
 

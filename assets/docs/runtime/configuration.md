@@ -1,5 +1,5 @@
 # Configuration
-Last updated: 2026-08-18
+Last updated: 2026-08-20
 
 ## Shared Configuration Sources
 - Shared environment keys are loaded from `settings/.env`.
@@ -39,3 +39,4 @@ Last updated: 2026-08-18
 ## Shared Runtime Data
 - Shared persistence lives under `PARAGRAPH_RESOURCES_DIR` when configured, or under `app/resources` by default. This includes workflows, database files, logs, artifacts, and model assets.
 - The launcher imports `settings/.env` into the process environment before starting either process. Its fallback values are `FASTAPI_PORT=8000` and `UI_PORT=8001` only when individual keys are absent; the checked-in template overrides them to `5002` and `8002`.
+- Developer-only caches and generated test/build artifacts are kept under `assets/cache`. This is separate from application runtime data and user resources.

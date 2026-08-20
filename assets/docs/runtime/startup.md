@@ -1,5 +1,5 @@
 # Startup
-Last updated: 2026-08-19
+Last updated: 2026-08-20
 
 ## Local Launcher
 PowerShell:
@@ -18,7 +18,7 @@ The interactive menu provides these options:
 - `4` Initialize the application database and reseed catalogs.
 - `5` Run the project test suite.
 - `6` Remove application log files.
-- `7` Clear Python and uv caches.
+- `7` Clear centralized developer caches and generated test/build artifacts under `assets/cache`.
 - `8` Uninstall local runtimes, dependencies, caches, and lockfiles while preserving settings and user data.
 - `9` Exit without changing the workspace.
 

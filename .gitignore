@@ -10,8 +10,18 @@ app/client/dist/
 app/client/dist-ssr/
 app/client/logs/
 app/client/*.local
+app/client/debug.log
+app/client/.eslintcache
+app/client/test-results/
+app/client/playwright-report/
+app/client/coverage/
 runtimes/**
 assets/QA/**
+
+# Centralized developer caches and generated test/build artifacts
+/assets/cache/*
+!/assets/cache/.gitkeep
+!/assets/cache/README.md
 
 # Python
 __pycache__/
