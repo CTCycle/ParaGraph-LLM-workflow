@@ -12,6 +12,11 @@ jobs:
     runs-on: ubuntu-latest
     env:
       PYTHONPATH: app
+      PYTHONPYCACHEPREFIX: ${{ github.workspace }}/assets/cache/pycache
+      RUFF_CACHE_DIR: ${{ github.workspace }}/assets/cache/ruff
+      COVERAGE_FILE: ${{ github.workspace }}/assets/cache/coverage/.coverage
+      UV_CACHE_DIR: ${{ github.workspace }}/assets/cache/uv
+      PYTEST_ADDOPTS: --basetemp=${{ github.workspace }}/assets/cache/pytest-tmp
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -42,6 +47,13 @@ jobs:
       FASTAPI_HOST: 127.0.0.1
       FASTAPI_PORT: 8000
       PYTHONPATH: app
+      PYTHONPYCACHEPREFIX: ${{ github.workspace }}/assets/cache/pycache
+      RUFF_CACHE_DIR: ${{ github.workspace }}/assets/cache/ruff
+      COVERAGE_FILE: ${{ github.workspace }}/assets/cache/coverage/.coverage
+      UV_CACHE_DIR: ${{ github.workspace }}/assets/cache/uv
+      PYTEST_ADDOPTS: --basetemp=${{ github.workspace }}/assets/cache/pytest-tmp
+      npm_config_cache: ${{ github.workspace }}/assets/cache/npm
+      PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/assets/cache/playwright/browsers
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -101,8 +113,8 @@ jobs:
         with:
           name: paragraph-playwright-results
           path: |
-            app/client/test-results
-            app/client/playwright-report
+            assets/cache/playwright/test-results
+            assets/cache/playwright/report
             ${{ runner.temp }}/paragraph-backend.log
 
       - name: Stop live backend
