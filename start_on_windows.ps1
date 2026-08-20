@@ -51,7 +51,7 @@ function Write-MenuOption {
     $numberColor = if ($Destructive) { 'DarkYellow' } else { 'Cyan' }
     $titleColor = if ($Destructive) { 'Yellow' } else { 'White' }
     Write-Host ("  [{0}]" -f $Number) -ForegroundColor $numberColor -NoNewline
-    Write-Host (" {0}" -f $Title.PadRight(30)) -ForegroundColor $titleColor -NoNewline
+    Write-Host (" {0} " -f $Title.PadRight(30)) -ForegroundColor $titleColor -NoNewline
     Write-Host $Description -ForegroundColor DarkGray
 }
 
@@ -77,9 +77,9 @@ function Show-Menu {
     Write-Host '  WORKSPACE ACTIONS' -ForegroundColor DarkCyan
     Write-MenuDivider
     Write-MenuOption -Number '1' -Title 'Launch application' -Description 'Start backend and frontend'
-    Write-MenuOption -Number '2' -Title 'Install or update dependencies' -Description 'Sync runtimes and build UI'
+    Write-MenuOption -Number '2' -Title 'Install or update dependencies' -Description 'Sync runtimes, migrate DB, and build UI'
     Write-MenuOption -Number '3' -Title 'Rebuild frontend' -Description 'Build the frontend only'
-    Write-MenuOption -Number '4' -Title 'Initialize SQLite database' -Description 'Create application schema'
+    Write-MenuOption -Number '4' -Title 'Initialize or upgrade SQLite database' -Description 'Apply Alembic migrations'
     Write-MenuOption -Number '5' -Title 'Run test suite' -Description 'Execute project checks'
     Write-Host
     Write-Host '  MAINTENANCE' -ForegroundColor DarkCyan
@@ -438,10 +438,13 @@ function Invoke-Launch {
 function Invoke-DatabaseInitialization {
     Ensure-PortableRuntimes
     Set-LauncherEnvironment
-    $arguments = @('run', '--project', (Join-Path $AppDir 'server'), '--python', $PythonExe, 'python', (Join-Path $AppDir 'scripts\initialize_database.py'))
-    & $UvExe @arguments
-    if ($LASTEXITCODE -ne 0) { throw "Database initialization failed with exit code $LASTEXITCODE" }
-    Write-Ok 'SQLite database initialization completed.'
+    $arguments = @('run', '--project', (Join-Path $AppDir 'server'), '--python', $PythonExe, 'python', '-m', 'scripts.initialize_database')
+    Push-Location $AppDir
+    try {
+        & $UvExe @arguments
+        if ($LASTEXITCODE -ne 0) { throw "Database initialization failed with exit code $LASTEXITCODE" }
+    } finally { Pop-Location }
+    Write-Ok 'SQLite database migration check completed.'
 }
 
 function Invoke-TestSuite {
@@ -520,6 +523,7 @@ while ($true) {
                 $installationType = Read-InstallationType
                 Import-DotEnv | Out-Null
                 Sync-Dependencies -PruneCache -InstallationType $installationType
+                Invoke-DatabaseInitialization
                 Build-Frontend
             }
             '3' { Invoke-FrontendRebuild }
