@@ -1,0 +1,46 @@
+{
+  "id": "CHAT_INPUT",
+  "version": 1,
+  "name": "Chat",
+  "category": "input",
+  "description": "Submit a transient message to a workflow and retain the final terminal result in the connected chat history.",
+  "inputs": [],
+  "outputs": [
+    {
+      "name": "text",
+      "data_type": "TEXT",
+      "required": true
+    }
+  ],
+  "controllers": [
+    {
+      "name": "history",
+      "data_type": "CHAT_HISTORY_HANDLE",
+      "required": true,
+      "accepts_multiple": false,
+      "scope": "both",
+      "description": "Connected memory controller scoped to this Chat node for the duration of the workflow execution."
+    }
+  ],
+  "parameters": [
+    {
+      "name": "message",
+      "data_type": "TEXT",
+      "default": "",
+      "constraints": {},
+      "ui_control": "chat-input",
+      "description": "Transient user message. Chat submissions are not serialized into the saved workflow."
+    }
+  ],
+  "ui": {
+    "default_width": 380,
+    "accent_color": "#d98b4a",
+    "collapsed_by_default": false
+  },
+  "runtime": {
+    "executor_key": "chat_input",
+    "cacheable": false,
+    "deterministic": false,
+    "side_effecting": true
+  }
+}

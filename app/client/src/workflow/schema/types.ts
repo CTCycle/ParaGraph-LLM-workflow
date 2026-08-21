@@ -13,6 +13,27 @@ export type NodeCategory =
     | 'vector_storage'
     | 'database'
     | 'control'
+
+export type ChatHistoryNodeType = 'CHAT_HISTORY_MEMORY' | 'CHAT_HISTORY_PERSISTED'
+export type ChatHistoryStorageBackend = 'file' | 'database'
+
+export interface ChatHistoryMessage {
+    role: 'system' | 'user' | 'assistant'
+    content: string
+    timestamp: string
+}
+
+export interface ChatHistoryHandle {
+    node_type: ChatHistoryNodeType
+    node_id: string
+    workflow_id: string
+    execution_session_id: string
+    max_messages: number
+    separator: string
+    keep_prompt_type: boolean
+    storage_backend?: ChatHistoryStorageBackend | null
+    execution_owned?: boolean
+}
 export type NodeDataType =
     | 'TEXT'
     | 'IMAGE'

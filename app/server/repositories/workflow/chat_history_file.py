@@ -95,6 +95,18 @@ class FileChatHistoryRepository:
         )
 
     # -------------------------------------------------------------------------
+    def clear_messages(
+        self, workflow_id: str, execution_session_id: str, node_id: str
+    ) -> None:
+        path = self._file_path(workflow_id, execution_session_id, node_id)
+        path.unlink(missing_ok=True)
+        for parent in (path.parent, path.parent.parent):
+            try:
+                parent.rmdir()
+            except OSError:
+                break
+
+    # -------------------------------------------------------------------------
     def clear_session(self, workflow_id: str, execution_session_id: str) -> None:
         session_path = (
             self._root

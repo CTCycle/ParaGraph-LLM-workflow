@@ -265,7 +265,7 @@ def _execute_model_node(
             if not isinstance(schema, dict):
                 raise ValueError("Structured response schema is required")
             validate_json_against_schema(parsed, schema)
-        if history_handle is not None:
+        if history_handle is not None and not history_handle.execution_owned:
             chat_history_service.append_exchange(
                 history_handle,
                 system_prompt=system_prompt,
@@ -280,7 +280,7 @@ def _execute_model_node(
             "valid": not validation_errors,
             "errors": validation_errors,
         }
-    if history_handle is not None:
+    if history_handle is not None and not history_handle.execution_owned:
         chat_history_service.append_exchange(
             history_handle,
             system_prompt=system_prompt,

@@ -1,5 +1,5 @@
 # Catalog And Manifests
-Last updated: 2026-08-20
+Last updated: 2026-08-21
 
 ## Purpose
 This branch documents the ParaGraph node system, the node catalog, and the contracts that allow nodes to participate in workflow compilation and execution.
@@ -28,6 +28,17 @@ The frontend and backend organize nodes by category, including:
 - `control`
 
 Category labels and ordering are defined in `app/client/src/workflow/schema/nodeCategory.ts`.
+
+## Chat Nodes
+`app/resources/nodes/chat_input_v1.json` defines the `CHAT_INPUT` node. It has
+one transient `text` output and a required `history` controller connection to
+`CHAT_HISTORY_MEMORY` or `CHAT_HISTORY_PERSISTED`. The editor keeps the message
+in the Chat node controls only long enough to submit the current run; it is not
+written into the saved workflow definition.
+
+The compiler requires every Chat node to reach exactly one `output` node through
+data connections. Multiple Chat nodes therefore have separate terminal-output
+associations and separate history scopes.
 
 ## Node Manifest Model
 A node manifest includes:

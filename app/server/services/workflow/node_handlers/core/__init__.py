@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from server.services.workflow.nodes.handler import NodeHandler
 from server.contracts.node_handler_core import (
+    ChatInputParameters,
     ChatParameters,
     EmbeddingParameters,
     InMemoryChatHistoryParameters,
@@ -22,6 +23,7 @@ from server.contracts.node_handler_core import (
 from server.services.workflow.node_handlers.core.chat_history import (
     execute_chat_history_memory,
     execute_chat_history_persisted,
+    execute_chat_input,
 )
 from server.services.workflow.node_handlers.core.embeddings import (
     _embedding_executor,
@@ -96,6 +98,10 @@ CORE_HANDLERS = {
     "chat_history_persisted": NodeHandler(
         executor=execute_chat_history_persisted,
         parameter_model=PersistedChatHistoryParameters,
+    ),
+    "chat_input": NodeHandler(
+        executor=execute_chat_input,
+        parameter_model=ChatInputParameters,
     ),
 }
 

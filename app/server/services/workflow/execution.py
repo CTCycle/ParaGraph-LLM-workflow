@@ -10,6 +10,7 @@ from typing import Any
 
 from server.common.security import redact_sensitive_payload
 from server.configurations.startup import get_server_settings
+from server.contracts.chat_history import ChatHistoryHandle
 from server.contracts.execution import (
     CompiledExecutionPlan,
     ExecutionRunState,
@@ -159,6 +160,23 @@ class ExecutionService:
 
         if self._cancelled(job_id):
             return {}
+        try:
+            self._persist_chat_history(
+                plan,
+                outputs_by_step=outputs_by_step,
+                output_payload=output_payload,
+            )
+        except Exception as exc:  # noqa: BLE001
+            message = f"CHAT_HISTORY_PERSISTENCE_FAILED: {exc}"
+            execution_run_repository.update_run(job_id, status="failed", error=message)
+            release_run_tool_resources(job_id)
+            execution_event_service.publish(
+                run_id=job_id,
+                event_type="execution.failed",
+                request_id=self._request_id_for_run(job_id),
+                payload={"error": message},
+            )
+            raise RuntimeError(message) from exc
         execution_run_repository.update_run(
             job_id, status="completed", outputs=output_payload, progress=100.0
         )
@@ -170,6 +188,60 @@ class ExecutionService:
             payload={"outputs": output_payload},
         )
         return {"outputs": output_payload}
+
+    # -------------------------------------------------------------------------
+    def _persist_chat_history(
+        self,
+        plan: CompiledExecutionPlan,
+        *,
+        outputs_by_step: dict[str, dict[str, Any]],
+        output_payload: dict[str, dict[str, Any]],
+    ) -> None:
+        raw_mapping = plan.metadata.get("chat_terminal_outputs")
+        if not isinstance(raw_mapping, dict):
+            return
+
+        from server.services.workflow.chat_history import chat_history_service
+
+        steps_by_node_id = {step.node_id: step for step in plan.steps}
+        for raw_chat_node_id, raw_terminal_node_id in raw_mapping.items():
+            chat_node_id = str(raw_chat_node_id)
+            terminal_node_id = str(raw_terminal_node_id)
+            chat_step = steps_by_node_id.get(chat_node_id)
+            if chat_step is None or chat_step.node_type != "CHAT_INPUT":
+                continue
+
+            raw_handle = outputs_by_step.get(chat_step.step_id, {}).get("history")
+            if raw_handle is None:
+                raise ValueError(
+                    f"Chat node '{chat_node_id}' did not produce a history handle"
+                )
+            handle = ChatHistoryHandle.model_validate(raw_handle)
+            terminal_output = output_payload.get(terminal_node_id)
+            assistant_output = self._format_chat_terminal_output(terminal_output)
+            chat_history_service.append_chat_result(
+                handle,
+                user_message=str(chat_step.parameters.get("message") or ""),
+                assistant_output=assistant_output,
+            )
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def _format_chat_terminal_output(value: Any) -> str:
+        if value is None:
+            return ""
+        if isinstance(value, str):
+            return value
+        if isinstance(value, dict):
+            if isinstance(value.get("text"), str):
+                return value["text"]
+            if "json" in value:
+                from server.services.workflow.chat_history import chat_history_service
+
+                return chat_history_service.serialize_structured_output(value["json"])
+        from server.services.workflow.chat_history import chat_history_service
+
+        return chat_history_service.serialize_structured_output(value)
 
     # -------------------------------------------------------------------------
     def _initialize_run(

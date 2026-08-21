@@ -1,5 +1,5 @@
 # Backend API
-Last updated: 2026-07-17
+Last updated: 2026-08-21
 
 ## Root
 - `GET /`
@@ -49,6 +49,19 @@ Last updated: 2026-07-17
 - `PUT /configurations/profiles/{profile_name}`
 - `POST /configurations/ollama/ping`
 - `POST /configurations/providers/ping`
+
+## Chat History
+- `GET /chat-history`
+  - Reads one history scope using `workflow_id`, `execution_session_id`,
+    `node_id`, and `node_type` query parameters.
+- `POST /chat-history/reset`
+  - Clears only the selected Chat history scope. The request body is a
+    `ChatHistoryHandle`.
+
+Chat history scopes are keyed by workflow, execution session, and Chat node.
+The `execution_owned` flag is carried by runtime handles so the execution
+service can distinguish Chat history from standalone memory-node history; it
+does not change the reset endpoint's scope selection.
 
 ## Boundary Rules
 - HTTP and WebSocket handlers live under `app/server/api`.

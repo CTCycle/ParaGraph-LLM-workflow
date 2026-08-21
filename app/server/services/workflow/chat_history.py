@@ -44,6 +44,11 @@ class ChatHistoryRepository(Protocol):
         messages: list[ChatHistoryMessage],
     ) -> None: ...
 
+    # -------------------------------------------------------------------------
+    def clear_messages(
+        self, workflow_id: str, execution_session_id: str, node_id: str
+    ) -> None: ...
+
 ###############################################################################
 class ChatHistoryService:
 
@@ -101,6 +106,15 @@ class ChatHistoryService:
         return handle.separator.join(message.content for message in messages)
 
     # -------------------------------------------------------------------------
+    def clear_messages(self, handle: ChatHistoryHandle) -> None:
+        repository = self._repository_for_handle(handle)
+        repository.clear_messages(
+            handle.workflow_id,
+            handle.execution_session_id,
+            handle.node_id,
+        )
+
+    # -------------------------------------------------------------------------
     def append_exchange(
         self,
         handle: ChatHistoryHandle,
@@ -129,6 +143,45 @@ class ChatHistoryService:
                 ChatHistoryMessage(
                     role="assistant",
                     content=assistant_output.strip(),
+                    timestamp=timestamp,
+                )
+            )
+        if not new_messages:
+            return
+        merged = repository.append_messages(
+            handle.workflow_id,
+            handle.execution_session_id,
+            handle.node_id,
+            new_messages,
+        )
+        trimmed = self._trim_to_limit(merged, handle.max_messages)
+        if len(trimmed) != len(merged):
+            self._overwrite_from_trimmed(handle, trimmed)
+
+    # -------------------------------------------------------------------------
+    def append_chat_result(
+        self,
+        handle: ChatHistoryHandle,
+        *,
+        user_message: str,
+        assistant_output: str,
+    ) -> None:
+        repository = self._repository_for_handle(handle)
+        timestamp = datetime.now(timezone.utc)
+        new_messages: list[ChatHistoryMessage] = []
+        normalized_user_message = user_message.strip()
+        normalized_assistant_output = assistant_output.strip()
+        if normalized_user_message:
+            new_messages.append(
+                ChatHistoryMessage(
+                    role="user", content=normalized_user_message, timestamp=timestamp
+                )
+            )
+        if normalized_assistant_output:
+            new_messages.append(
+                ChatHistoryMessage(
+                    role="assistant",
+                    content=normalized_assistant_output,
                     timestamp=timestamp,
                 )
             )

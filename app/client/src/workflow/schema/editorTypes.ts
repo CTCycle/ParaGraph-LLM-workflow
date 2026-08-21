@@ -1,4 +1,8 @@
-import type { NodeManifest, ProviderModelDefinition } from './types'
+import type {
+    ChatHistoryMessage,
+    NodeManifest,
+    ProviderModelDefinition,
+} from './types'
 
 export type WorkflowNodeData = {
     manifest: NodeManifest
@@ -14,6 +18,11 @@ export type WorkflowNodeData = {
     runtimeOutput: Record<string, unknown> | null
     runtimeStepOutput: Record<string, unknown> | null
     providerModels: ProviderModelDefinition[]
+    chatHistory: ChatHistoryMessage[]
+    chatHistoryLoading: boolean
+    chatHistoryError: string | null
+    chatRunning: boolean
+    chatHistoryConnected: boolean
     onParameterChange: (parameterName: string, value: unknown) => void
     onSaveNodeBrowseSelection: (selection: SaveNodeBrowserSelection | null) => void
     onStatusChange: (message: string) => void
@@ -22,6 +31,9 @@ export type WorkflowNodeData = {
     onToggleItemsExpanded: () => void
     onToggleGlobal: () => void
     onSelectItem: (itemKey: string | null) => void
+    onOpenTextEditor: (parameterName: string) => void
+    onChatSubmit: (message: string) => void
+    onChatReset: () => void
 }
 
 export type SaveNodeBrowserSelection =
