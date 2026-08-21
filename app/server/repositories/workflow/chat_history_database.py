@@ -119,6 +119,21 @@ class DatabaseChatHistoryRepository:
             db_session.commit()
 
     # -------------------------------------------------------------------------
+    def clear_messages(
+        self, workflow_id: str, execution_session_id: str, node_id: str
+    ) -> None:
+        with Session(self._database_repository.engine) as db_session:
+            db_session.execute(
+                delete(ChatHistoryMessageRecord).where(
+                    ChatHistoryMessageRecord.workflow_id == workflow_id,
+                    ChatHistoryMessageRecord.execution_session_id
+                    == execution_session_id,
+                    ChatHistoryMessageRecord.node_id == node_id,
+                )
+            )
+            db_session.commit()
+
+    # -------------------------------------------------------------------------
     def reset_for_tests(self) -> None:
         with Session(self._database_repository.engine) as db_session:
             db_session.execute(delete(ChatHistoryMessageRecord))

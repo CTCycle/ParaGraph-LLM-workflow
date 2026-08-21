@@ -1,5 +1,5 @@
 # Workflow Editor
-Last updated: 2026-07-20
+Last updated: 2026-08-21
 
 ## Editor Basics
 - Drag nodes from the left node tree to the canvas.
@@ -15,3 +15,23 @@ Last updated: 2026-07-20
 - Fix compile diagnostics before relying on runtime execution results.
 - Diagnostics are retained in the editor after compilation and are classified as blocking errors or non-blocking warnings. Warnings may describe disconnected nodes, missing terminal outputs, disconnected side effects, or conditional branch connections.
 - A running workflow can be cancelled from the toolbar. After a reload, the editor can continue monitoring a persisted active run; paused review steps can be resumed when their resume token is available.
+
+## Chat Node
+- Add a `Chat` node and connect one `Chat History Memory` or `Chat History
+  Persisted` controller to its `history` port.
+- Connect the Chat text output through the workflow to exactly one terminal
+  output node. Compilation rejects zero or multiple reachable terminal outputs.
+- Submit messages from the Chat node itself. Each submission runs the existing
+  graph once with a transient message; the message is not serialized into the
+  workflow JSON. On success, the selected Chat scope receives the user message
+  and final terminal output. Failed, cancelled, or paused runs leave the Chat
+  history unchanged.
+- Multiple Chat nodes are isolated by their node IDs. `Reset` clears only the
+  selected Chat scope. `Reset Run ID` starts a new execution session without
+  changing the graph.
+
+## Text Editing
+- Textarea parameters show a compact inline preview with an `Edit` button.
+- `Apply` writes the modal draft to the node; `Cancel`, the close button, or
+  `Escape` discards the draft. JSON and list parameters keep their specialized
+  inline editors.

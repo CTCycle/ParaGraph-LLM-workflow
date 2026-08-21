@@ -45,6 +45,7 @@ describe('workflow persistence', () => {
             is_grid_visible: false,
             search: 'text',
             selected_manifest_key: 'core.text@1',
+            execution_session_id: 'session-1',
             active_run: { run_id: 'run-1', poll_interval: 1500 },
         }
 
@@ -73,6 +74,7 @@ describe('workflow persistence', () => {
             is_grid_visible: true,
             search: '',
             selected_manifest_key: null,
+            execution_session_id: '',
             active_run: null,
         })
     })

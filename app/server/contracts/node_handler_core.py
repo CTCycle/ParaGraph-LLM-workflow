@@ -152,6 +152,10 @@ class PersistedChatHistoryParameters(InMemoryChatHistoryParameters):
     storage_backend: Literal["file", "database"] = "file"
 
 ###############################################################################
+class ChatInputParameters(BaseModel):
+    message: str = ""
+
+###############################################################################
 class StructuredParameters(ChatParameters):
     response_schema: dict[str, Any]
     model_mode: Literal["schema", "auto", "pydantic_source"] = "schema"

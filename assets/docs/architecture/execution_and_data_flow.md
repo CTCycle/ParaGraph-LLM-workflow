@@ -1,5 +1,5 @@
 # Execution And Data Flow
-Last updated: 2026-08-20
+Last updated: 2026-08-21
 
 ## Layered Backend Flow
 Typical backend flow follows endpoint to service to repository:
@@ -30,7 +30,7 @@ Typical backend flow follows endpoint to service to repository:
   - Graph validation, diagnostics, and topological planning.
 - `server/services/workflow/execution.py`
   - Step orchestration, cache behavior, output shaping, pause/resume payload
-    validation, and event publishing.
+    validation, Chat result persistence, and event publishing.
 - `server/services/workflow/structured_models.py`
   - Structured JSON model inference, schema generation, Pydantic-source parsing, and validation payload formatting.
 - `server/services/workflow/provider/service.py`
@@ -115,3 +115,16 @@ Typical backend flow follows endpoint to service to repository:
   concurrent publishers cannot create duplicate or out-of-order sequence
   history for one run.
 - Tool collections expose serializable metadata plus an opaque runtime collection identity. Executable callables are scoped to the current run, async callables are awaited, and provider tool selection currently reports `prompt_emulated` until a native protocol adapter exists.
+
+## Chat Execution Ownership
+- `CHAT_INPUT` receives a history handle from a connected memory node and scopes
+  that handle to the Chat node ID for the current execution session.
+- LLM nodes can read an execution-owned handle when building their prompt, but
+  they do not append an exchange to that handle. After all steps complete
+  successfully, `execution.py` appends the transient user message and the one
+  reachable terminal output as the user/assistant pair.
+- Failed, cancelled, and paused runs do not append Chat history. Standalone
+  memory-node connections retain their existing immediate LLM append behavior.
+- The compiler emits a blocking diagnostic when a Chat node reaches zero or
+  more than one terminal output. The compiled plan records the single terminal
+  node used for successful history persistence.

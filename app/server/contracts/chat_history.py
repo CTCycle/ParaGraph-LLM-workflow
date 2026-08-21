@@ -34,3 +34,10 @@ class ChatHistoryHandle(BaseModel):
     separator: str
     keep_prompt_type: bool
     storage_backend: ChatHistoryStorageBackend | None = None
+    execution_owned: bool = False
+
+###############################################################################
+class ChatHistoryResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    messages: list[ChatHistoryMessage] = Field(default_factory=list)

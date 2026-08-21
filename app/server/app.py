@@ -11,6 +11,7 @@ from fastapi.staticfiles import StaticFiles
 
 from server.common import path as common_path
 from server.common.constants import FASTAPI_DESCRIPTION, FASTAPI_TITLE, FASTAPI_VERSION
+from server.api.chat_history import router as chat_history_router
 from server.api.configurations import router as configurations_router
 from server.api.executions import router as executions_router
 from server.api.nodes import router as nodes_router
@@ -87,6 +88,7 @@ def create_app() -> FastAPI:
     app.include_router(nodes_router)
     app.include_router(providers_router)
     app.include_router(configurations_router)
+    app.include_router(chat_history_router)
     app.include_router(ws_router)
 
     if _client_build_available():

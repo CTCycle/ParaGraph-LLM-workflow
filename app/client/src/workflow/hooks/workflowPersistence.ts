@@ -37,6 +37,7 @@ export type PersistedWorkflowState = {
     is_grid_visible: boolean
     search: string
     selected_manifest_key: string | null
+    execution_session_id: string
     active_run: PersistedActiveExecution | null
 }
 
@@ -149,6 +150,10 @@ export function readPersistedWorkflowState(): PersistedWorkflowState | null {
             search: typeof parsed.search === 'string' ? parsed.search : '',
             selected_manifest_key:
                 typeof parsed.selected_manifest_key === 'string' ? parsed.selected_manifest_key : null,
+            execution_session_id:
+                typeof parsed.execution_session_id === 'string'
+                    ? parsed.execution_session_id.trim()
+                    : '',
             active_run: activeRun,
         }
     } catch {

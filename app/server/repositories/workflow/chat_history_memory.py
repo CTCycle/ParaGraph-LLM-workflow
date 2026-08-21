@@ -47,6 +47,14 @@ class InMemoryChatHistoryRepository:
             self._store[key] = [item.model_copy(deep=True) for item in messages]
 
     # -------------------------------------------------------------------------
+    def clear_messages(
+        self, workflow_id: str, execution_session_id: str, node_id: str
+    ) -> None:
+        key = (workflow_id, execution_session_id, node_id)
+        with self._lock:
+            self._store.pop(key, None)
+
+    # -------------------------------------------------------------------------
     def clear_session(self, workflow_id: str, execution_session_id: str) -> None:
         with self._lock:
             keys_to_remove = [

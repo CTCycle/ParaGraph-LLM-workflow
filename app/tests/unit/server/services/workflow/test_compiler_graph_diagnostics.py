@@ -26,6 +26,24 @@ def _text_output(node_id: str = "output") -> WorkflowNodeInstance:
     )
 
 ###############################################################################
+def _chat(node_id: str = "chat") -> WorkflowNodeInstance:
+    return WorkflowNodeInstance(
+        node_id=node_id,
+        node_type="CHAT_INPUT",
+        node_version=1,
+        parameters={"message": "hello"},
+    )
+
+###############################################################################
+def _memory(node_id: str = "memory") -> WorkflowNodeInstance:
+    return WorkflowNodeInstance(
+        node_id=node_id,
+        node_type="CHAT_HISTORY_MEMORY",
+        node_version=1,
+        parameters={"max_messages": 10, "separator": "\n", "keep_prompt_type": True},
+    )
+
+###############################################################################
 def _connection(
     source: str,
     target: str,
@@ -170,3 +188,70 @@ def test_timeout_and_retries_are_copied_to_execution_plan() -> None:
     )
     assert prompt_step.timeout_ms == 2500
     assert prompt_step.retries == 2
+
+###############################################################################
+def test_chat_requires_one_reachable_terminal_output_and_records_it() -> None:
+    definition = WorkflowDefinition(
+        schema_version=2,
+        nodes=[_memory(), _chat(), _text_output()],
+        connections=[
+            WorkflowConnection(
+                from_node="memory",
+                to_node="chat",
+                connection_type="controller",
+                from_controller="history",
+                to_controller="history",
+            ),
+            _connection("chat", "output"),
+        ],
+    )
+
+    compiled = compiler_service.compile(definition, require_access_keys=False)
+
+    assert compiled.valid is True
+    assert compiled.plan is not None
+    assert compiled.plan.metadata["chat_terminal_outputs"] == {"chat": "output"}
+
+###############################################################################
+def test_chat_without_terminal_output_is_a_blocking_diagnostic() -> None:
+    definition = WorkflowDefinition(
+        schema_version=2,
+        nodes=[_memory(), _chat()],
+        connections=[
+            WorkflowConnection(
+                from_node="memory",
+                to_node="chat",
+                connection_type="controller",
+                from_controller="history",
+                to_controller="history",
+            )
+        ],
+    )
+
+    valid, codes = _codes(definition)
+
+    assert valid is False
+    assert "chat_terminal_output_count" in codes
+
+###############################################################################
+def test_chat_with_multiple_reachable_terminal_outputs_is_a_blocking_diagnostic() -> None:
+    definition = WorkflowDefinition(
+        schema_version=2,
+        nodes=[_memory(), _chat(), _text_output("output-one"), _text_output("output-two")],
+        connections=[
+            WorkflowConnection(
+                from_node="memory",
+                to_node="chat",
+                connection_type="controller",
+                from_controller="history",
+                to_controller="history",
+            ),
+            _connection("chat", "output-one"),
+            _connection("chat", "output-two"),
+        ],
+    )
+
+    valid, codes = _codes(definition)
+
+    assert valid is False
+    assert "chat_terminal_output_count" in codes

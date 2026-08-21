@@ -21,6 +21,7 @@ from server.services.workflow.vector_stores import get_vector_store_adapter
 
 MODEL_NODE_TYPES = {"LLM_CHAT", "LLM_STRUCTURED"}
 STRUCTURED_NODE_TYPES = {"LLM_STRUCTURED"}
+CHAT_NODE_TYPES = {"CHAT_INPUT"}
 GLOBAL_CONTROLLER_KINDS: dict[str, str] = {
     "MODEL_HANDLE": "model_provider",
     "DATABASE_CONNECTION": "database_provider",
@@ -82,6 +83,9 @@ class CompilerService:
         diagnostics, validated_parameters = self._collect_diagnostics(
             effective_definition,
             require_access_keys=require_access_keys,
+        )
+        chat_terminal_outputs = self._collect_chat_terminal_outputs(
+            effective_definition, diagnostics
         )
         if any(diagnostic.level == "error" for diagnostic in diagnostics):
             return CompileWorkflowResponse(
@@ -147,6 +151,8 @@ class CompilerService:
         }
         if skipped_node_ids:
             plan_metadata["skipped_node_ids"] = skipped_node_ids
+        if chat_terminal_outputs:
+            plan_metadata["chat_terminal_outputs"] = chat_terminal_outputs
 
         return CompileWorkflowResponse(
             valid=True,
@@ -158,6 +164,62 @@ class CompilerService:
                 metadata=plan_metadata,
             ),
         )
+
+    # -------------------------------------------------------------------------
+    def _collect_chat_terminal_outputs(
+        self,
+        definition: WorkflowDefinition,
+        diagnostics: list[CompilerDiagnostic],
+    ) -> dict[str, str]:
+        node_by_id = {node.node_id: node for node in definition.nodes}
+        terminal_node_ids = {
+            node.node_id
+            for node in definition.nodes
+            if (
+                (manifest := node_registry.get(node.node_type, node.node_version))
+                is not None
+                and manifest.category == "output"
+            )
+        }
+        adjacency: dict[str, list[str]] = defaultdict(list)
+        for connection in definition.connections:
+            if connection.connection_type != "data":
+                continue
+            if connection.from_node in node_by_id and connection.to_node in node_by_id:
+                adjacency[connection.from_node].append(connection.to_node)
+
+        terminal_outputs: dict[str, str] = {}
+        for chat_node in definition.nodes:
+            if chat_node.node_type not in CHAT_NODE_TYPES:
+                continue
+            reachable: set[str] = set()
+            queue = deque([chat_node.node_id])
+            while queue:
+                current = queue.popleft()
+                for target in adjacency.get(current, []):
+                    if target in reachable:
+                        continue
+                    reachable.add(target)
+                    queue.append(target)
+
+            reachable_terminals = sorted(reachable.intersection(terminal_node_ids))
+            if len(reachable_terminals) != 1:
+                count_label = "none" if not reachable_terminals else str(len(reachable_terminals))
+                diagnostics.append(
+                    CompilerDiagnostic(
+                        code="chat_terminal_output_count",
+                        level="error",
+                        message=(
+                            f"Chat node '{chat_node.node_id}' must reach exactly one "
+                            f"terminal output; found {count_label}."
+                        ),
+                        node_id=chat_node.node_id,
+                    )
+                )
+                continue
+            terminal_outputs[chat_node.node_id] = reachable_terminals[0]
+
+        return terminal_outputs
 
     # -------------------------------------------------------------------------
     def _inject_global_controller_connections(
