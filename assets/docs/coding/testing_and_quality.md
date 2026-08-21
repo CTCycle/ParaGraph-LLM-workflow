@@ -5,9 +5,9 @@ Last updated: 2026-08-20
 - Lint and format with Ruff or the project-approved equivalent.
 - Keep typing compatible with Pylance expectations.
 - Test backend behavior with pytest, including `tests/unit` and relevant `tests/e2e` coverage.
-- Developer caches and generated test/build artifacts are centralized under `assets/cache`, including pytest, Ruff, Python bytecode, coverage, uv, npm, Vite, Vitest, Playwright, and the frontend build output.
+- Runtime caches are centralized under `runtimes/cache`, including uv, npm, and Python bytecode. Pytest, Ruff, coverage, Vite, Vitest, Playwright, and the frontend build output are centralized under `app/tests/cache`.
 - On Windows, run focused pytest commands from `app/` with the repository-local cache and base temp directories:
-  `.\server\.venv\Scripts\python.exe -m pytest <test-path> -q --basetemp=..\assets\cache\pytest-tmp`
+  `.\server\.venv\Scripts\python.exe -m pytest <test-path> -q --basetemp=tests\cache\pytest-tmp`
 - If pytest still ends with `WinError 5` during temp cleanup, preserve the exact traceback under `assets/QA/` and use a direct harness only as supplemental evidence.
 
 ## Frontend Tooling

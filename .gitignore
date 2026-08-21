@@ -16,12 +16,16 @@ app/client/test-results/
 app/client/playwright-report/
 app/client/coverage/
 runtimes/**
+!runtimes/cache/
+!runtimes/cache/.gitkeep
 assets/QA/**
 
-# Centralized developer caches and generated test/build artifacts
-/assets/cache/*
-!/assets/cache/.gitkeep
-!/assets/cache/README.md
+# Legacy cache location retained only so old local artifacts stay ignored while option 7 migrates/removes them.
+/assets/cache/
+
+# Test and tool caches plus generated test/build artifacts
+/app/tests/cache/*
+!/app/tests/cache/.gitkeep
 
 # Python
 __pycache__/

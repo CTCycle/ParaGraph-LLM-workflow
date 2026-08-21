@@ -7,8 +7,9 @@ set "APP_DIR=%PROJECT_ROOT%\app"
 set "SERVER_DIR=%APP_DIR%\server"
 set "CLIENT_DIR=%APP_DIR%\client"
 set "TESTS_DIR=%APP_DIR%\tests"
-set "CACHE_DIR=%PROJECT_ROOT%\assets\cache"
-set "FRONTEND_BUILD_DIR=%CACHE_DIR%\frontend-dist"
+set "RUNTIME_CACHE_DIR=%PROJECT_ROOT%\runtimes\cache"
+set "TEST_CACHE_DIR=%TESTS_DIR%\cache"
+set "FRONTEND_BUILD_DIR=%TEST_CACHE_DIR%\frontend-dist"
 set "SETTINGS_ENV=%PROJECT_ROOT%\settings\.env"
 set "VENV_PYTHON=%SERVER_DIR%\.venv\Scripts\python.exe"
 set "RUNTIME_NPM=%PROJECT_ROOT%\runtimes\nodejs\npm.cmd"
@@ -80,12 +81,12 @@ if exist "%RUNTIME_NPM%" (
 set "UVICORN_APP=server.app:app"
 set "BACKEND_WORKDIR=%SERVER_DIR%"
 set "PYTHONPATH=%APP_DIR%"
-set "PYTHONPYCACHEPREFIX=%CACHE_DIR%\pycache"
-set "RUFF_CACHE_DIR=%CACHE_DIR%\ruff"
-set "COVERAGE_FILE=%CACHE_DIR%\coverage\.coverage"
-set "UV_CACHE_DIR=%CACHE_DIR%\uv"
-set "npm_config_cache=%CACHE_DIR%\npm"
-set "PLAYWRIGHT_BROWSERS_PATH=%CACHE_DIR%\playwright\browsers"
+set "PYTHONPYCACHEPREFIX=%RUNTIME_CACHE_DIR%\pycache"
+set "RUFF_CACHE_DIR=%TEST_CACHE_DIR%\ruff"
+set "COVERAGE_FILE=%TEST_CACHE_DIR%\coverage\.coverage"
+set "UV_CACHE_DIR=%RUNTIME_CACHE_DIR%\uv"
+set "npm_config_cache=%RUNTIME_CACHE_DIR%\npm"
+set "PLAYWRIGHT_BROWSERS_PATH=%TEST_CACHE_DIR%\playwright\browsers"
 
 echo.
 echo ============================================================
@@ -172,7 +173,7 @@ if /i "%STANDARD_TEST_SKIP_LIVE_SERVERS%"=="false" if "%HAS_E2E%"=="1" (
 )
 
 echo [STEP] Running Python tests...
-"%PYTHON_CMD%" -m pytest "%PYTEST_TARGET%" -v --tb=short --basetemp="%CACHE_DIR%\pytest-tmp" %*
+"%PYTHON_CMD%" -m pytest "%PYTEST_TARGET%" -v --tb=short --basetemp="%TEST_CACHE_DIR%\pytest-tmp" %*
 set "PYTEST_RC=%ERRORLEVEL%"
 if "%PYTEST_RC%"=="0" (
   set "PYTEST_PHASE=PASS"
