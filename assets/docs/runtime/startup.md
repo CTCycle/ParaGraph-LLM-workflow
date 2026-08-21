@@ -18,7 +18,7 @@ The interactive menu provides these options:
 - `4` Initialize or upgrade the application database with Alembic.
 - `5` Run the project test suite.
 - `6` Remove application log files.
-- `7` Clear centralized developer caches and generated test/build artifacts under `assets/cache`.
+- `7` Clear runtime caches under `runtimes/cache` and test/tool caches plus generated test/build artifacts under `app/tests/cache`.
 - `8` Uninstall local runtimes, dependencies, caches, and lockfiles while preserving settings and user data.
 - `9` Exit without changing the workspace.
 

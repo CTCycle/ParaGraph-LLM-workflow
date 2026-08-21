@@ -12,11 +12,11 @@ jobs:
     runs-on: ubuntu-latest
     env:
       PYTHONPATH: app
-      PYTHONPYCACHEPREFIX: ${{ github.workspace }}/assets/cache/pycache
-      RUFF_CACHE_DIR: ${{ github.workspace }}/assets/cache/ruff
-      COVERAGE_FILE: ${{ github.workspace }}/assets/cache/coverage/.coverage
-      UV_CACHE_DIR: ${{ github.workspace }}/assets/cache/uv
-      PYTEST_ADDOPTS: --basetemp=${{ github.workspace }}/assets/cache/pytest-tmp
+      PYTHONPYCACHEPREFIX: ${{ github.workspace }}/runtimes/cache/pycache
+      RUFF_CACHE_DIR: ${{ github.workspace }}/app/tests/cache/ruff
+      COVERAGE_FILE: ${{ github.workspace }}/app/tests/cache/coverage/.coverage
+      UV_CACHE_DIR: ${{ github.workspace }}/runtimes/cache/uv
+      PYTEST_ADDOPTS: --basetemp=${{ github.workspace }}/app/tests/cache/pytest-tmp
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -29,17 +29,17 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v4
 
-      - name: Sync Test Dependencies
-        run: uv --project app/server sync --extra test
+      - name: Install Test Dependencies
+        run: uv pip install --system -e "app/server[test]"
 
       - name: Lint Backend
-        run: uv --project app/server run ruff check app/server app/tests
+        run: ruff check --isolated app/server app/tests
 
       - name: Compile Backend
-        run: uv --project app/server run python -m compileall app/server/app.py app/server/api app/server/common app/server/configurations app/server/contracts app/server/repositories app/server/services
+        run: python -m compileall app/server/app.py app/server/api app/server/common app/server/configurations app/server/contracts app/server/repositories app/server/services
 
       - name: Run Backend Tests
-        run: uv --project app/server run pytest app/tests/unit/server app/tests/e2e/server/test_execution_lifecycle.py
+        run: python -m pytest app/tests/unit/server app/tests/e2e/server/test_execution_lifecycle.py
 
   frontend-validation:
     runs-on: ubuntu-latest
@@ -47,13 +47,13 @@ jobs:
       FASTAPI_HOST: 127.0.0.1
       FASTAPI_PORT: 8000
       PYTHONPATH: app
-      PYTHONPYCACHEPREFIX: ${{ github.workspace }}/assets/cache/pycache
-      RUFF_CACHE_DIR: ${{ github.workspace }}/assets/cache/ruff
-      COVERAGE_FILE: ${{ github.workspace }}/assets/cache/coverage/.coverage
-      UV_CACHE_DIR: ${{ github.workspace }}/assets/cache/uv
-      PYTEST_ADDOPTS: --basetemp=${{ github.workspace }}/assets/cache/pytest-tmp
-      npm_config_cache: ${{ github.workspace }}/assets/cache/npm
-      PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/assets/cache/playwright/browsers
+      PYTHONPYCACHEPREFIX: ${{ github.workspace }}/runtimes/cache/pycache
+      RUFF_CACHE_DIR: ${{ github.workspace }}/app/tests/cache/ruff
+      COVERAGE_FILE: ${{ github.workspace }}/app/tests/cache/coverage/.coverage
+      UV_CACHE_DIR: ${{ github.workspace }}/runtimes/cache/uv
+      PYTEST_ADDOPTS: --basetemp=${{ github.workspace }}/app/tests/cache/pytest-tmp
+      npm_config_cache: ${{ github.workspace }}/runtimes/cache/npm
+      PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/app/tests/cache/playwright/browsers
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -74,8 +74,8 @@ jobs:
       - name: Start backend for live E2E
         shell: bash
         run: |
-          uv --project app/server sync --extra test
-          (cd app/server && uv run uvicorn server.app:app --host 127.0.0.1 --port 8000 --log-level warning > "$RUNNER_TEMP/paragraph-backend.log" 2>&1 & echo $! > "$RUNNER_TEMP/paragraph-backend.pid")
+          uv pip install --system -e "app/server[test]"
+          (cd app/server && python -m uvicorn server.app:app --host 127.0.0.1 --port 8000 --log-level warning > "$RUNNER_TEMP/paragraph-backend.log" 2>&1 & echo $! > "$RUNNER_TEMP/paragraph-backend.pid")
           for i in {1..60}; do
             if curl --fail --silent --max-time 2 http://127.0.0.1:8000/docs >/dev/null; then exit 0; fi
             sleep 1
@@ -113,8 +113,8 @@ jobs:
         with:
           name: paragraph-playwright-results
           path: |
-            assets/cache/playwright/test-results
-            assets/cache/playwright/report
+            app/tests/cache/playwright/test-results
+            app/tests/cache/playwright/report
             ${{ runner.temp }}/paragraph-backend.log
 
       - name: Stop live backend

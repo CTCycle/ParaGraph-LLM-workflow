@@ -6,6 +6,7 @@ $script:RepoRoot = $PSScriptRoot
 $script:AppDir = Join-Path $RepoRoot 'app'
 $script:ServerDir = Join-Path $AppDir 'server'
 $script:ClientDir = Join-Path $AppDir 'client'
+$script:TestsDir = Join-Path $AppDir 'tests'
 $script:SettingsDir = Join-Path $RepoRoot 'settings'
 $script:RuntimesDir = Join-Path $RepoRoot 'runtimes'
 $script:PythonDir = Join-Path $RuntimesDir 'python'
@@ -18,18 +19,28 @@ $script:NodeExe = Join-Path $NodeDir 'node.exe'
 $script:NpmCmd = Join-Path $NodeDir 'npm.cmd'
 $script:VenvDir = Join-Path $ServerDir '.venv'
 $script:VenvPython = Join-Path $VenvDir 'Scripts\python.exe'
-$script:CacheDir = Join-Path $RepoRoot 'assets\cache'
-$script:UvCacheDir = Join-Path $CacheDir 'uv'
-$script:PythonCacheDir = Join-Path $CacheDir 'pycache'
-$script:NpmCacheDir = Join-Path $CacheDir 'npm'
-$script:RuffCacheDir = Join-Path $CacheDir 'ruff'
-$script:CoverageFile = Join-Path $CacheDir 'coverage\.coverage'
-$script:PlaywrightBrowsersDir = Join-Path $CacheDir 'playwright\browsers'
-$script:FrontendBuildDir = Join-Path $CacheDir 'frontend-dist'
+$script:RuntimeCacheDir = Join-Path $RuntimesDir 'cache'
+$script:TestCacheDir = Join-Path $TestsDir 'cache'
+$script:LegacyCacheDir = Join-Path $RepoRoot 'assets\cache'
+$script:UvCacheDir = Join-Path $RuntimeCacheDir 'uv'
+$script:PythonCacheDir = Join-Path $RuntimeCacheDir 'pycache'
+$script:NpmCacheDir = Join-Path $RuntimeCacheDir 'npm'
+$script:PytestCacheDir = Join-Path $TestCacheDir 'pytest'
+$script:PytestTempDir = Join-Path $TestCacheDir 'pytest-tmp'
+$script:RuffCacheDir = Join-Path $TestCacheDir 'ruff'
+$script:CoverageDir = Join-Path $TestCacheDir 'coverage'
+$script:CoverageFile = Join-Path $CoverageDir '.coverage'
+$script:PlaywrightDir = Join-Path $TestCacheDir 'playwright'
+$script:PlaywrightBrowsersDir = Join-Path $PlaywrightDir 'browsers'
+$script:ViteCacheDir = Join-Path $TestCacheDir 'vite'
+$script:VitestCacheDir = Join-Path $TestCacheDir 'vitest'
+$script:FrontendBuildDir = Join-Path $TestCacheDir 'frontend-dist'
 $script:DotEnv = Join-Path $SettingsDir '.env'
 $script:DotEnvExample = Join-Path $SettingsDir '.env.example'
 $script:PythonVersion = '3.14.2'
 $script:NodeVersion = '22.12.0'
+$script:SkippedCacheCount = 0
+$script:FirstSkippedCachePath = $null
 
 function Write-Step([string]$Message) { Write-Host "[STEP] $Message" -ForegroundColor Cyan }
 function Write-Ok([string]$Message) { Write-Host "[OK] $Message" -ForegroundColor Green }
@@ -85,7 +96,7 @@ function Show-Menu {
     Write-Host '  MAINTENANCE' -ForegroundColor DarkCyan
     Write-MenuDivider
     Write-MenuOption -Number '6' -Title 'Remove logs' -Description 'Delete local log files'
-    Write-MenuOption -Number '7' -Title 'Clear cache' -Description 'Remove centralized developer caches and artifacts'
+    Write-MenuOption -Number '7' -Title 'Clear cache' -Description 'Remove runtime and test/tool caches and artifacts'
     Write-MenuOption -Number '8' -Title 'Uninstall application' -Description 'Remove local runtimes and dependencies' -Destructive
     Write-MenuOption -Number '9' -Title 'Exit' -Description 'Close this launcher'
     Write-MenuDivider
@@ -101,7 +112,21 @@ function Clear-PythonEnvironment {
 }
 
 function Set-LauncherEnvironment {
-    New-Item -ItemType Directory -Path $CacheDir, $UvCacheDir, $PythonCacheDir, $NpmCacheDir, $RuffCacheDir, (Split-Path -Parent $CoverageFile), $PlaywrightBrowsersDir -Force | Out-Null
+    New-Item -ItemType Directory -Path @(
+        $RuntimeCacheDir,
+        $UvCacheDir,
+        $PythonCacheDir,
+        $NpmCacheDir,
+        $TestCacheDir,
+        $PytestCacheDir,
+        $PytestTempDir,
+        $RuffCacheDir,
+        $CoverageDir,
+        $PlaywrightBrowsersDir,
+        $ViteCacheDir,
+        $VitestCacheDir,
+        $FrontendBuildDir
+    ) -Force | Out-Null
     $env:UV_CACHE_DIR = $UvCacheDir
     $env:UV_PROJECT_ENVIRONMENT = $VenvDir
     $env:UV_LINK_MODE = 'copy'
@@ -267,9 +292,11 @@ function Sync-Dependencies {
         if ($LASTEXITCODE -ne 0) { throw "npm dependency installation failed with exit code $LASTEXITCODE" }
     } finally { Pop-Location }
 
-    if ($PruneCache -and (Test-Path -LiteralPath $UvCacheDir)) {
+    if ($PruneCache) {
         Write-Step 'Pruning uv cache'
-        Remove-Item -LiteralPath $UvCacheDir -Recurse -Force
+        if (-not (Clear-CacheDirectory -Path $UvCacheDir)) {
+            Write-Warn "Some uv cache entries could not be removed: $UvCacheDir"
+        }
     }
     Write-Ok 'Dependencies are ready.'
 }
@@ -462,22 +489,100 @@ function Remove-LogFiles {
     Write-Ok 'Log files removed.'
 }
 
+function Register-SkippedCachePath([string]$Path) {
+    $script:SkippedCacheCount++
+    if ([string]::IsNullOrEmpty($script:FirstSkippedCachePath)) {
+        $script:FirstSkippedCachePath = $Path
+    }
+}
+
+function Remove-PathBestEffort {
+    param([Parameter(Mandatory = $true)][string]$Path)
+
+    if (-not (Test-Path -LiteralPath $Path -ErrorAction SilentlyContinue)) { return $true }
+    $item = Get-Item -LiteralPath $Path -Force -ErrorAction SilentlyContinue
+    if ($null -eq $item) {
+        Register-SkippedCachePath -Path $Path
+        return $false
+    }
+
+    $allRemoved = $true
+    if ($item.PSIsContainer) {
+        try {
+            $children = @(Get-ChildItem -LiteralPath $Path -Force -ErrorAction Stop)
+        } catch {
+            Register-SkippedCachePath -Path $Path
+            return $false
+        }
+        foreach ($child in $children) {
+            if (-not (Remove-PathBestEffort -Path $child.FullName)) { $allRemoved = $false }
+        }
+    }
+
+    try {
+        Remove-Item -LiteralPath $Path -Recurse -Force -Confirm:$false -ErrorAction Stop
+    } catch {
+        Register-SkippedCachePath -Path $Path
+        return $false
+    }
+    return $allRemoved
+}
+
+function Clear-CacheDirectory {
+    param(
+        [Parameter(Mandatory = $true)][string]$Path,
+        [string[]]$PreserveNames = @('.gitkeep')
+    )
+
+    if (-not (Test-Path -LiteralPath $Path -ErrorAction SilentlyContinue)) { return $true }
+    try {
+        $children = @(Get-ChildItem -LiteralPath $Path -Force -ErrorAction Stop)
+    } catch {
+        Register-SkippedCachePath -Path $Path
+        return $false
+    }
+
+    $allRemoved = $true
+    foreach ($child in $children) {
+        if ($child.Name -in $PreserveNames) { continue }
+        if (-not (Remove-PathBestEffort -Path $child.FullName)) { $allRemoved = $false }
+    }
+    return $allRemoved
+}
+
 function Remove-PythonCaches {
-    Get-ChildItem -LiteralPath $RepoRoot -Directory -Filter '__pycache__' -Recurse -Force -ErrorAction SilentlyContinue |
-        Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+    $allRemoved = $true
+    foreach ($root in @($ServerDir, $TestsDir)) {
+        if (-not (Test-Path -LiteralPath $root -ErrorAction SilentlyContinue)) { continue }
+        $cacheDirectories = @(Get-ChildItem -LiteralPath $root -Directory -Filter '__pycache__' -Recurse -Force -ErrorAction SilentlyContinue)
+        foreach ($cacheDirectory in $cacheDirectories) {
+            if (-not (Remove-PathBestEffort -Path $cacheDirectory.FullName)) { $allRemoved = $false }
+        }
+    }
+    return $allRemoved
 }
 
 function Clear-DeveloperCache {
-    if (-not (Test-Path -LiteralPath $CacheDir)) { return }
-    Get-ChildItem -LiteralPath $CacheDir -Force -ErrorAction SilentlyContinue |
-        Where-Object { $_.Name -notin @('.gitkeep', 'README.md') } |
-        Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+    $allRemoved = $true
+    foreach ($cacheRoot in @($RuntimeCacheDir, $TestCacheDir)) {
+        if (-not (Clear-CacheDirectory -Path $cacheRoot)) { $allRemoved = $false }
+    }
+    if (Test-Path -LiteralPath $LegacyCacheDir -ErrorAction SilentlyContinue) {
+        if (-not (Remove-PathBestEffort -Path $LegacyCacheDir)) { $allRemoved = $false }
+    }
+    return $allRemoved
 }
 
 function Clear-ApplicationCache {
-    Remove-PythonCaches
-    Clear-DeveloperCache
-    Write-Ok 'Centralized developer caches and artifacts removed.'
+    $script:SkippedCacheCount = 0
+    $script:FirstSkippedCachePath = $null
+    $allRemoved = Remove-PythonCaches
+    if (-not (Clear-DeveloperCache)) { $allRemoved = $false }
+    if ($allRemoved) {
+        Write-Ok 'Runtime and test/tool caches were removed.'
+    } else {
+        Write-Warn ("Runtime and test/tool caches were cleared where permitted; {0} locked or protected entries were skipped. First skipped path: {1}" -f $script:SkippedCacheCount, $script:FirstSkippedCachePath)
+    }
 }
 
 function Remove-RepoItem([string]$RelativePath) {
@@ -486,18 +591,30 @@ function Remove-RepoItem([string]$RelativePath) {
     if (-not $target.StartsWith($rootWithSeparator, [StringComparison]::OrdinalIgnoreCase)) {
         throw "Refusing to remove a path outside the repository: $target"
     }
-    if (Test-Path -LiteralPath $target) { Remove-Item -LiteralPath $target -Recurse -Force }
+    if (Test-Path -LiteralPath $target -ErrorAction SilentlyContinue) {
+        return Remove-PathBestEffort -Path $target
+    }
+    return $true
 }
 
 function Uninstall-Application {
+    $script:SkippedCacheCount = 0
+    $script:FirstSkippedCachePath = $null
+    $allRemoved = $true
     foreach ($relativePath in @(
         'runtimes', 'app\server\.venv', '.venv', 'app\client\node_modules',
         'app\client\.angular', 'app\client\dist', 'app\client\package-lock.json',
         'app\server\uv.lock', 'uv.lock'
-    )) { Remove-RepoItem -RelativePath $relativePath }
-    Remove-PythonCaches
-    Clear-DeveloperCache
-    Write-Ok 'Application runtimes, dependencies, caches, and lockfiles removed. Settings and user data were preserved.'
+    )) {
+        if (-not (Remove-RepoItem -RelativePath $relativePath)) { $allRemoved = $false }
+    }
+    if (-not (Remove-PythonCaches)) { $allRemoved = $false }
+    if (-not (Clear-DeveloperCache)) { $allRemoved = $false }
+    if ($allRemoved) {
+        Write-Ok 'Application runtimes, dependencies, caches, and lockfiles removed. Settings and user data were preserved.'
+    } else {
+        Write-Warn ("Application runtimes, dependencies, caches, and lockfiles were removed where permitted; {0} locked or protected entries were skipped. First skipped path: {1}" -f $script:SkippedCacheCount, $script:FirstSkippedCachePath)
+    }
 }
 
 function Wait-ForMenu {
