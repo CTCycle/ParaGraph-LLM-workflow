@@ -3,6 +3,9 @@ import { useEffect, useMemo, useState } from 'react'
 import { useErrorMessage } from '../app/hooks/useErrorMessage'
 import { usePageMetadata } from '../app/hooks/usePageMetadata'
 import { useModalState } from '../app/hooks/useModalState'
+import { GUIDANCE_CONTENT_VERSIONS } from '../guidance/guidanceContent'
+import { useGuidance } from '../guidance/GuidanceContext'
+import FeatureTip from '../guidance/FeatureTip'
 import {
     fetchConfigurations,
     listConfigurationProfiles,
@@ -207,6 +210,7 @@ export default function ConfigurationsPage() {
         description:
             'Configure Ollama defaults and provider access keys for ParaGraph workflow execution in your current session.',
     })
+    const { shouldShow, markSeen, markDismissed } = useGuidance()
     const [selectedCloudProvider, setSelectedCloudProvider] = useState<CloudProvider>('openai')
     const [selectedLocalProvider, setSelectedLocalProvider] = useState<LocalProvider>('lmstudio')
     const [cloudCredentials, setCloudCredentials] =
@@ -236,6 +240,7 @@ export default function ConfigurationsPage() {
     const [selectedProfileName, setSelectedProfileName] = useState('')
     const [saveProfileName, setSaveProfileName] = useState('')
     const [saveProfileError, setSaveProfileError] = useState<string | null>(null)
+    const [isSetupTipVisible, setIsSetupTipVisible] = useState(false)
 
     const currentCloudCredentials = useMemo(
         () => cloudCredentials[selectedCloudProvider],
@@ -273,6 +278,14 @@ export default function ConfigurationsPage() {
     useEffect(() => {
         void loadCurrentConfiguration()
     }, [])
+
+    useEffect(() => {
+        if (isLoading || statusMessage !== 'Configuration loaded' || !shouldShow('config-setup', GUIDANCE_CONTENT_VERSIONS['config-setup'])) {
+            return
+        }
+        setIsSetupTipVisible(true)
+        markSeen('config-setup', GUIDANCE_CONTENT_VERSIONS['config-setup'])
+    }, [isLoading, markSeen, shouldShow, statusMessage])
 
     function buildPayload(): AppConfigurationPayload {
         const accessKeys: AccessKeyConfiguration[] = CLOUD_PROVIDER_OPTIONS.map((option) => ({
@@ -444,6 +457,22 @@ export default function ConfigurationsPage() {
             <header className="config-page-header">
                 <h1>Runtime and Access Settings</h1>
                 <p className="config-page-lede">Manage local Ollama defaults and cloud credentials used by this ParaGraph session.</p>
+                {isSetupTipVisible && (
+                    <FeatureTip
+                        title="Set up a provider before running"
+                        onDismiss={() => {
+                            setIsSetupTipVisible(false)
+                            markDismissed('config-setup', GUIDANCE_CONTENT_VERSIONS['config-setup'])
+                        }}
+                        actions={(
+                            <a href="/" className="guidance-primary-button">
+                                Open workflow
+                            </a>
+                        )}
+                    >
+                        <p>Choose a local endpoint or cloud key, check its status, then select the provider and model in the workflow. Save a profile if you switch setups.</p>
+                    </FeatureTip>
+                )}
             </header>
 
             <div className="config-page-layout">

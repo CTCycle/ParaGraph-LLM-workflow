@@ -10,6 +10,7 @@ import { createNodeManifest } from '../test/fixtures'
 const navigateMock = vi.fn()
 
 vi.mock('react-router-dom', () => ({
+    useLocation: () => ({ hash: '' }),
     useNavigate: () => navigateMock,
 }))
 

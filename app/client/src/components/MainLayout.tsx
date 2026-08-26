@@ -1,4 +1,9 @@
-import { NavLink, Outlet } from 'react-router-dom'
+import { HelpCircle } from 'lucide-react'
+import { useState } from 'react'
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
+
+import { useGuidance } from '../guidance/GuidanceContext'
+import TipsAndTricksDialog from '../guidance/TipsAndTricksDialog'
 import './MainLayout.css'
 
 const NAV_ITEMS = [
@@ -9,6 +14,19 @@ const NAV_ITEMS = [
 ]
 
 export default function MainLayout() {
+    const location = useLocation()
+    const navigate = useNavigate()
+    const { requestTour } = useGuidance()
+    const [isTipsOpen, setIsTipsOpen] = useState(false)
+
+    function replayEditorTour(): void {
+        setIsTipsOpen(false)
+        requestTour('editor')
+        if (location.pathname !== '/') {
+            navigate('/')
+        }
+    }
+
     return (
         <div className="main-layout">
             <div
@@ -39,11 +57,36 @@ export default function MainLayout() {
                         </NavLink>
                     ))}
                 </nav>
+                <button
+                    type="button"
+                    className="guidance-topbar-button"
+                    aria-expanded={isTipsOpen}
+                    aria-controls="tips-and-tricks-dialog"
+                    aria-haspopup="dialog"
+                    onClick={() => setIsTipsOpen(true)}
+                >
+                    <HelpCircle size={15} aria-hidden="true" />
+                    Help
+                </button>
             </header>
 
             <main className="main-layout-content">
                 <Outlet />
             </main>
+
+            <TipsAndTricksDialog
+                isOpen={isTipsOpen}
+                onClose={() => setIsTipsOpen(false)}
+                onReplayTour={replayEditorTour}
+                onBrowseTemplates={() => {
+                    setIsTipsOpen(false)
+                    navigate('/nodes#workflow-templates')
+                }}
+                onOpenConfigurations={() => {
+                    setIsTipsOpen(false)
+                    navigate('/config')
+                }}
+            />
         </div>
     )
 }

@@ -1,5 +1,6 @@
 import { useState, type FormEvent, type KeyboardEvent } from 'react'
 
+import HelpPopover from '../../guidance/HelpPopover'
 import type { ChatHistoryMessage } from '../schema/types'
 
 type ChatNodeControlsProps = {
@@ -47,11 +48,19 @@ export function ChatNodeControls({
 
     return (
         <div className="workflow-chat-controls nodrag nopan">
+            <div className="workflow-chat-heading">
+                <span>Conversation</span>
+                <HelpPopover title="About Chat history" triggerLabel="Conversation help">
+                    <p>Each send runs the current workflow once.</p>
+                    <p>Connect the same history controller to LLM Chat when earlier turns should reach the model.</p>
+                    <p>Successful terminal output becomes the assistant reply. Reset clears only this Chat scope.</p>
+                </HelpPopover>
+            </div>
             <div className="workflow-chat-history" aria-live="polite">
                 {historyLoading && <span className="workflow-chat-history-empty">Loading conversation...</span>}
                 {!historyLoading && history.length === 0 && (
                     <span className="workflow-chat-history-empty">
-                        {historyConnected ? 'No messages yet.' : 'Connect a chat history node to start.'}
+                        {historyConnected ? 'No messages yet.' : 'Connect a Chat History node to Chat’s history port to enable messages.'}
                     </span>
                 )}
                 {!historyLoading && history.map((message, index) => (
