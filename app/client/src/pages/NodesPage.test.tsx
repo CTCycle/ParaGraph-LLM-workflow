@@ -44,7 +44,8 @@ describe('NodesPage', () => {
         })
 
         render(<NodesPage />)
-        await screen.findByText('Prompt')
+        await screen.findByRole('button', { name: 'Add Prompt to canvas' })
+        expect(screen.getByText('1 node matches the current filters.')).toBeInTheDocument()
 
         await userEvent.click(screen.getByRole('button', { name: 'Open custom node JSON import' }))
         const dialog = screen.getByRole('dialog', { name: 'Custom node JSON import' })

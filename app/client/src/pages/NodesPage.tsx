@@ -83,6 +83,10 @@ function buildNodeExplanation(node: NodeManifest): string {
     return description || 'No description provided.'
 }
 
+function formatNodeMatchSummary(count: number): string {
+    return `${count} node${count === 1 ? '' : 's'} ${count === 1 ? 'matches' : 'match'} the current filters.`
+}
+
 function buildNodeDetails(node: NodeManifest): NodePreviewDetailItem[] {
     const parameterNames = node.parameters.map((parameter) => parameter.name)
 
@@ -244,7 +248,7 @@ export default function NodesPage() {
                                 <SectionHeading
                                     className="nodes-section-heading"
                                     title="Node preview"
-                                    description={`${filteredCatalog.length} nodes match the current filters.`}
+                                    description={formatNodeMatchSummary(filteredCatalog.length)}
                                 />
                                 <div className="nodes-preview-header-controls">
                                     <input
