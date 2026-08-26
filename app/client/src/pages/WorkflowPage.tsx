@@ -43,6 +43,9 @@ import { fetchProviderModels } from '../app/services/providersApi'
 import { cancelExecution, pollExecution, startExecution, subscribeExecutionEvents } from '../app/services/executionsApi'
 import { fetchChatHistory, resetChatHistory } from '../app/services/chatHistoryApi'
 import { usePageMetadata } from '../app/hooks/usePageMetadata'
+import { EDITOR_TOUR_STEPS, GUIDANCE_CONTENT_VERSIONS } from '../guidance/guidanceContent'
+import { useGuidance } from '../guidance/GuidanceContext'
+import GuidedTour from '../guidance/GuidedTour'
 import { useNodeCatalog } from '../workflow/hooks/useNodeCatalog'
 import type { WorkflowTextEditorBinding } from '../workflow/hooks/useWorkflowTextEditorDraft'
 import { ChatNodeControls } from '../workflow/components/ChatNodeControls'
@@ -2279,6 +2282,7 @@ function WorkflowEditor() {
     const { catalog, loading, error, reload } = useNodeCatalog()
     const location = useLocation()
     const navigate = useNavigate()
+    const { requestedTour, clearRequestedTour, shouldShow, markSeen, markDismissed } = useGuidance()
     const [providerModels, setProviderModels] = useState<ProviderModelDefinition[]>([])
     const [statusText, setStatusText] = useState('Ready')
     const [executionErrorModal, setExecutionErrorModal] = useState<WorkflowExecutionErrorModal | null>(null)
@@ -2299,6 +2303,8 @@ function WorkflowEditor() {
     const [isGridVisible, setIsGridVisible] = useState(true)
     const [isConnecting, setIsConnecting] = useState(false)
     const [textEditorTarget, setTextEditorTarget] = useState<{ nodeId: string; parameterName: string } | null>(null)
+    const [isEditorTourOpen, setIsEditorTourOpen] = useState(false)
+    const [isOnboardingVisible, setIsOnboardingVisible] = useState(false)
     const stopEventsRef = useRef<(() => void) | null>(null)
     const pollingAbortRef = useRef<AbortController | null>(null)
     const activePlanRef = useRef<CompiledExecutionPlan | null>(null)
@@ -2307,6 +2313,8 @@ function WorkflowEditor() {
     const chatResetRef = useRef<(nodeId: string) => Promise<void>>(async () => undefined)
     const saveNodeBrowseSelectionsRef = useRef<Record<string, SaveNodeBrowserSelection>>({})
     const hasHydratedWorkflowRef = useRef(false)
+    const canOfferOnboardingRef = useRef(false)
+    const workflowHasStartedRef = useRef(false)
     const draggedManifestKeyRef = useRef<string | null>(null)
     const copiedNodeRef = useRef<CopiedNodeSnapshot | null>(null)
     const pasteCountRef = useRef(0)
@@ -2605,6 +2613,7 @@ function WorkflowEditor() {
         hasHydratedWorkflowRef.current = true
         const persisted = readPersistedWorkflowState()
         if (!persisted) {
+            canOfferOnboardingRef.current = true
             return
         }
 
@@ -2661,6 +2670,8 @@ function WorkflowEditor() {
                     },
                 ]
             })
+        canOfferOnboardingRef.current = restoredNodes.length === 0 && restoredEdges.length === 0
+        workflowHasStartedRef.current = !canOfferOnboardingRef.current
         saveNodeBrowseSelectionsRef.current = {}
         setNodes(enforceSingleGlobalSelection(restoredNodes))
         setEdges(restoredEdges)
@@ -2677,6 +2688,44 @@ function WorkflowEditor() {
             setStatusText('Restored workflow state')
         }
     }, [catalog, providerModels, setEdges, setNodes])
+
+    useEffect(() => {
+        if (!hasHydratedWorkflowRef.current) {
+            return
+        }
+        if (nodes.length > 0 || edges.length > 0) {
+            workflowHasStartedRef.current = true
+            setIsOnboardingVisible(false)
+        }
+    }, [edges.length, nodes.length])
+
+    useEffect(() => {
+        if (
+            loading ||
+            error ||
+            !hasHydratedWorkflowRef.current ||
+            !canOfferOnboardingRef.current ||
+            workflowHasStartedRef.current ||
+            nodes.length > 0 ||
+            isEditorTourOpen ||
+            requestedTour !== null ||
+            !shouldShow('editor-onboarding', GUIDANCE_CONTENT_VERSIONS['editor-onboarding'])
+        ) {
+            return
+        }
+        setIsOnboardingVisible(true)
+        markSeen('editor-onboarding', GUIDANCE_CONTENT_VERSIONS['editor-onboarding'])
+    }, [error, isEditorTourOpen, loading, markSeen, nodes.length, requestedTour, shouldShow])
+
+    useEffect(() => {
+        if (requestedTour !== 'editor' || loading || !hasHydratedWorkflowRef.current) {
+            return
+        }
+        setIsLibraryVisible(true)
+        setIsOnboardingVisible(false)
+        setIsEditorTourOpen(true)
+        clearRequestedTour()
+    }, [clearRequestedTour, loading, requestedTour])
 
     useEffect(() => {
         if (!hasHydratedWorkflowRef.current) {
@@ -4085,6 +4134,7 @@ function WorkflowEditor() {
                     <button
                         type="button"
                         className="workflow-run"
+                        data-guidance-target="run-workflow"
                         onClick={() => void runWorkflow()}
                         disabled={isRunning || !hasRunnableNodes || isExecutionErrorModalOpen}
                     >
@@ -4148,7 +4198,7 @@ function WorkflowEditor() {
 
             <div className="workflow-layout" data-library-hidden={!isLibraryVisible || undefined}>
                 {isLibraryVisible && (
-                    <aside className="workflow-library-shell" aria-label="Node tree viewer">
+                    <aside className="workflow-library-shell" aria-label="Node tree viewer" data-guidance-target="node-library">
                         <div className="workflow-tree-header">
                             <div>
                                 <h2>Node tree</h2>
@@ -4250,7 +4300,7 @@ function WorkflowEditor() {
                 )}
 
                 <div className="workflow-canvas-column">
-                    <div className={`workflow-canvas-panel ${isConnecting ? 'workflow-canvas-panel-connecting' : ''}`} ref={canvasPanelRef} onDragOver={handleCanvasDragOver} onDrop={handleCanvasDrop}>
+                    <div className={`workflow-canvas-panel ${isConnecting ? 'workflow-canvas-panel-connecting' : ''}`} ref={canvasPanelRef} data-guidance-target="workflow-canvas" onDragOver={handleCanvasDragOver} onDrop={handleCanvasDrop}>
                     {!isLibraryVisible && (
                         <button
                             type="button"
@@ -4259,6 +4309,54 @@ function WorkflowEditor() {
                         >
                             Show node tree
                         </button>
+                    )}
+                    {isOnboardingVisible && (
+                        <aside className="workflow-guidance-onboarding" role="note" aria-label="Workflow getting started">
+                            <div className="workflow-guidance-onboarding-header">
+                                <div>
+                                    <span className="guidance-eyebrow">Getting started</span>
+                                    <h2>Build a workflow in three moves</h2>
+                                </div>
+                                <button
+                                    type="button"
+                                    className="guidance-icon-button"
+                                    aria-label="Dismiss workflow getting started"
+                                    onClick={() => {
+                                        setIsOnboardingVisible(false)
+                                        markDismissed('editor-onboarding', GUIDANCE_CONTENT_VERSIONS['editor-onboarding'])
+                                    }}
+                                >
+                                    ×
+                                </button>
+                            </div>
+                            <p>Choose a node or template, drop it on the canvas, then connect compatible ports.</p>
+                            <div className="workflow-guidance-onboarding-actions">
+                                <button
+                                    type="button"
+                                    className="guidance-primary-button"
+                                    onClick={() => {
+                                        setIsOnboardingVisible(false)
+                                        setIsLibraryVisible(true)
+                                        setIsEditorTourOpen(true)
+                                    }}
+                                >
+                                    Show me
+                                </button>
+                                <button type="button" className="guidance-secondary-button" onClick={() => navigate('/nodes#workflow-templates')}>
+                                    Browse templates
+                                </button>
+                                <button
+                                    type="button"
+                                    className="guidance-secondary-button"
+                                    onClick={() => {
+                                        setIsOnboardingVisible(false)
+                                        markDismissed('editor-onboarding', GUIDANCE_CONTENT_VERSIONS['editor-onboarding'])
+                                    }}
+                                >
+                                    Not now
+                                </button>
+                            </div>
+                        </aside>
                     )}
                     <ReactFlow
                         nodes={nodes}
@@ -4460,6 +4558,12 @@ function WorkflowEditor() {
                     title={textEditorBinding?.parameterName ? `Edit ${formatParameterLabel(textEditorBinding.parameterName)}` : 'Edit text'}
                     onApply={applyTextEditorValue}
                     onCancel={() => setTextEditorTarget(null)}
+                />
+                <GuidedTour
+                    isOpen={isEditorTourOpen}
+                    tourId="editor"
+                    steps={EDITOR_TOUR_STEPS}
+                    onRequestClose={() => setIsEditorTourOpen(false)}
                 />
             </div>
             </div>
