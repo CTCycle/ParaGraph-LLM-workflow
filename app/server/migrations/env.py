@@ -18,6 +18,7 @@ target_metadata = Base.metadata
 _VERSION_TABLE = "alembic_version"
 
 
+###############################################################################
 def _include_object(
     object_: Any,
     name: str | None,
@@ -44,6 +45,7 @@ def _include_object(
     return table_name in target_metadata.tables
 
 
+###############################################################################
 def _database_url() -> str:
     try:
         configured_url = config.get_main_option("sqlalchemy.url")
@@ -59,6 +61,7 @@ def _database_url() -> str:
         repository.engine.dispose()
 
 
+###############################################################################
 def _migration_options(connection: Connection) -> dict[str, Any]:
     return {
         "connection": connection,
@@ -72,12 +75,14 @@ def _migration_options(connection: Connection) -> dict[str, Any]:
     }
 
 
+###############################################################################
 def _run_migrations(connection: Connection) -> None:
     context.configure(**_migration_options(connection))
     with context.begin_transaction():
         context.run_migrations()
 
 
+###############################################################################
 def run_migrations_offline() -> None:
     context.configure(
         url=_database_url(),
@@ -95,6 +100,7 @@ def run_migrations_offline() -> None:
         context.run_migrations()
 
 
+###############################################################################
 def run_migrations_online() -> None:
     supplied_connection = config.attributes.get("connection")
     if supplied_connection is not None:

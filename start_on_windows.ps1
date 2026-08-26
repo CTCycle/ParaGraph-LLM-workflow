@@ -8,6 +8,7 @@ $script:ServerDir = Join-Path $AppDir 'server'
 $script:ClientDir = Join-Path $AppDir 'client'
 $script:TestsDir = Join-Path $AppDir 'tests'
 $script:SettingsDir = Join-Path $RepoRoot 'settings'
+$script:DefaultResourcesDir = Join-Path $AppDir 'resources'
 $script:RuntimesDir = Join-Path $RepoRoot 'runtimes'
 $script:PythonDir = Join-Path $RuntimesDir 'python'
 $script:PythonExe = Join-Path $PythonDir 'python.exe'
@@ -42,6 +43,8 @@ $script:NodeVersion = '22.12.0'
 $script:SkippedCacheCount = 0
 $script:FirstSkippedCachePath = $null
 
+#region Console and menu helpers
+
 function Write-Step([string]$Message) { Write-Host "[STEP] $Message" -ForegroundColor Cyan }
 function Write-Ok([string]$Message) { Write-Host "[OK] $Message" -ForegroundColor Green }
 function Write-Info([string]$Message) { Write-Host "[INFO] $Message" -ForegroundColor DarkCyan }
@@ -49,7 +52,7 @@ function Write-Warn([string]$Message) { Write-Host "[WARN] $Message" -Foreground
 function Write-Fatal([string]$Message) { Write-Host "[FATAL] $Message" -ForegroundColor Red }
 
 function Write-MenuDivider {
-    Write-Host ('-' * 57) -ForegroundColor DarkGray
+    Write-Host ('-' * 70) -ForegroundColor DarkGray
 }
 
 function Write-MenuOption {
@@ -61,8 +64,8 @@ function Write-MenuOption {
     )
     $numberColor = if ($Destructive) { 'DarkYellow' } else { 'Cyan' }
     $titleColor = if ($Destructive) { 'Yellow' } else { 'White' }
-    Write-Host ("  [{0}]" -f $Number) -ForegroundColor $numberColor -NoNewline
-    Write-Host (" {0} " -f $Title.PadRight(30)) -ForegroundColor $titleColor -NoNewline
+    Write-Host (("  [{0}]" -f $Number).PadRight(7)) -ForegroundColor $numberColor -NoNewline
+    Write-Host (" {0} " -f $Title.PadRight(34)) -ForegroundColor $titleColor -NoNewline
     Write-Host $Description -ForegroundColor DarkGray
 }
 
@@ -85,24 +88,40 @@ function Show-Menu {
     Write-Host '  Local workspace control center' -ForegroundColor DarkGray
     Write-Host
     Write-MenuDivider
-    Write-Host '  WORKSPACE ACTIONS' -ForegroundColor DarkCyan
+    Write-Host '  APPLICATION' -ForegroundColor DarkCyan
     Write-MenuDivider
-    Write-MenuOption -Number '1' -Title 'Launch application' -Description 'Start backend and frontend'
-    Write-MenuOption -Number '2' -Title 'Install or update dependencies' -Description 'Sync runtimes, migrate DB, and build UI'
-    Write-MenuOption -Number '3' -Title 'Rebuild frontend' -Description 'Build the frontend only'
-    Write-MenuOption -Number '4' -Title 'Initialize or upgrade SQLite database' -Description 'Apply Alembic migrations'
-    Write-MenuOption -Number '5' -Title 'Run test suite' -Description 'Execute project checks'
+    Write-MenuOption -Number '1' -Title 'Launch Application' -Description 'Start the backend and frontend'
     Write-Host
-    Write-Host '  MAINTENANCE' -ForegroundColor DarkCyan
+    Write-Host '  SETUP AND DEVELOPMENT' -ForegroundColor DarkCyan
     Write-MenuDivider
-    Write-MenuOption -Number '6' -Title 'Remove logs' -Description 'Delete local log files'
-    Write-MenuOption -Number '7' -Title 'Clear cache' -Description 'Remove runtime and test/tool caches and artifacts'
-    Write-MenuOption -Number '8' -Title 'Uninstall application' -Description 'Remove local runtimes and dependencies' -Destructive
-    Write-MenuOption -Number '9' -Title 'Exit' -Description 'Close this launcher'
+    Write-MenuOption -Number '2' -Title 'Install or Update Dependencies' -Description 'Sync runtimes, database, and UI build'
+    Write-MenuOption -Number '3' -Title 'Rebuild Frontend' -Description 'Build the frontend only'
+    Write-MenuOption -Number '4' -Title 'Initialize or Upgrade Database' -Description 'Apply SQLite/Alembic migrations'
+    Write-MenuOption -Number '5' -Title 'Run Test Suite' -Description 'Execute project checks'
+    Write-Host
+    Write-Host '  SOURCE CONTROL' -ForegroundColor DarkCyan
     Write-MenuDivider
-    Write-Host '  Enter a number to continue. Local data and settings are preserved by maintenance actions.' -ForegroundColor DarkGray
+    Write-MenuOption -Number '6' -Title 'Update from Main' -Description 'Pull latest code from origin/main'
+    Write-MenuOption -Number '7' -Title 'Check for Updates' -Description 'Report origin/main status only'
+    Write-Host
+    Write-Host '  MAINTENANCE AND DATA' -ForegroundColor DarkCyan
+    Write-MenuDivider
+    Write-MenuOption -Number '8' -Title 'Remove Log Files' -Description 'Delete local application logs'
+    Write-MenuOption -Number '9' -Title 'Clear Runtime Cache' -Description 'Remove runtime and test/tool caches'
+    Write-MenuOption -Number '10' -Title 'Remove All Data' -Description 'Delete user data and database' -Destructive
+    Write-Host
+    Write-Host '  APPLICATION REMOVAL' -ForegroundColor DarkCyan
+    Write-MenuDivider
+    Write-MenuOption -Number '11' -Title 'Uninstall Application' -Description 'Remove local runtimes and packages' -Destructive
+    Write-MenuOption -Number '12' -Title 'Exit' -Description 'Close this launcher'
+    Write-MenuDivider
+    Write-Host '  Enter a number to continue. Remove All Data requires explicit confirmation.' -ForegroundColor DarkGray
     Write-Host
 }
+
+#endregion
+
+#region Environment and dependency setup
 
 function Clear-PythonEnvironment {
     foreach ($name in 'PYTHONHOME', 'PYTHONPATH', 'PYTHONNOUSERSITE') {
@@ -403,6 +422,10 @@ function Get-ListenerPid([int]$Port) {
     return $null
 }
 
+#endregion
+
+#region Application lifecycle and verification
+
 function Invoke-Launch {
     Ensure-PortableRuntimes
     $settings = Import-DotEnv
@@ -482,11 +505,77 @@ function Invoke-TestSuite {
     Write-Ok 'Test suite completed.'
 }
 
+#endregion
+
+#region Maintenance and data management
+
 function Remove-LogFiles {
     $logDir = Join-Path $AppDir 'resources\logs'
     if (-not (Test-Path -LiteralPath $logDir)) { Write-Info "Log directory not found: $logDir"; return }
     Get-ChildItem -LiteralPath $logDir -Filter '*.log' -File -ErrorAction SilentlyContinue | Remove-Item -Force
     Write-Ok 'Log files removed.'
+}
+
+function Resolve-ResourcesRoot {
+    param([Parameter(Mandatory = $true)][System.Collections.IDictionary]$Settings)
+
+    $configuredRoot = [string]$Settings['PARAGRAPH_RESOURCES_DIR']
+    if ([string]::IsNullOrWhiteSpace($configuredRoot)) {
+        return [IO.Path]::GetFullPath($DefaultResourcesDir)
+    }
+
+    $expandedRoot = [Environment]::ExpandEnvironmentVariables($configuredRoot.Trim())
+    if (-not [IO.Path]::IsPathRooted($expandedRoot)) {
+        $expandedRoot = Join-Path $RepoRoot $expandedRoot
+    }
+    return [IO.Path]::GetFullPath($expandedRoot)
+}
+
+function Confirm-DataRemoval {
+    $confirmation = (Read-Host '  Type REMOVE to delete all user data').Trim()
+    return $confirmation -ieq 'REMOVE'
+}
+
+function Remove-AllData {
+    $settings = Import-DotEnv
+    $resourceRoot = Resolve-ResourcesRoot -Settings $settings
+    Write-Warn "This removes user data under $resourceRoot and the application database."
+    Write-Info 'Built-in node definitions, workflow templates, settings, and application source files will be preserved.'
+    if (-not (Confirm-DataRemoval)) {
+        Write-Info 'Remove All Data cancelled.'
+        return
+    }
+
+    $script:SkippedCacheCount = 0
+    $script:FirstSkippedCachePath = $null
+    $allRemoved = $true
+
+    foreach ($relativePath in @(
+        'artifacts', 'chat_history', 'checkpoints', 'logs', 'models', 'tokenizers', 'workflows'
+    )) {
+        $dataPath = Join-Path $resourceRoot $relativePath
+        if (-not (Clear-CacheDirectory -Path $dataPath -PreserveNames @('.gitkeep'))) {
+            $allRemoved = $false
+        }
+    }
+
+    $customNodesPath = Join-Path $resourceRoot 'nodes\custom_nodes'
+    if (-not (Clear-CacheDirectory -Path $customNodesPath -PreserveNames @('.gitkeep', 'README.md'))) {
+        $allRemoved = $false
+    }
+
+    if (Test-Path -LiteralPath $resourceRoot -PathType Container -ErrorAction SilentlyContinue) {
+        $databaseFiles = @(Get-ChildItem -LiteralPath $resourceRoot -File -Force -Filter 'database.db*' -ErrorAction SilentlyContinue)
+        foreach ($databaseFile in $databaseFiles) {
+            if (-not (Remove-PathBestEffort -Path $databaseFile.FullName)) { $allRemoved = $false }
+        }
+    }
+
+    if ($allRemoved) {
+        Write-Ok 'All user data and database files were removed. Application files and settings were preserved.'
+    } else {
+        Write-Warn ("User data was removed where permitted; {0} locked or protected entries were skipped. First skipped path: {1}" -f $script:SkippedCacheCount, $script:FirstSkippedCachePath)
+    }
 }
 
 function Register-SkippedCachePath([string]$Path) {
@@ -617,6 +706,63 @@ function Uninstall-Application {
     }
 }
 
+#endregion
+
+#region Source control
+
+function Get-CurrentGitBranch {
+    $branch = (& git branch --show-current 2>$null | Out-String).Trim()
+    if ($LASTEXITCODE -ne 0) { throw 'Unable to determine the current Git branch.' }
+    return $branch
+}
+
+function Get-CurrentGitRevision {
+    $revision = (& git rev-parse HEAD 2>$null | Out-String).Trim()
+    if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($revision)) {
+        throw 'Unable to determine the current Git revision.'
+    }
+    return $revision
+}
+
+function Update-Application {
+    $branch = Get-CurrentGitBranch
+    if ($branch -ne 'main') {
+        throw "Update from main requires the main branch to be checked out. Current branch: $branch"
+    }
+
+    $status = (& git status --porcelain 2>$null | Out-String).Trim()
+    if (-not [string]::IsNullOrWhiteSpace($status)) {
+        throw 'Update requires a clean Git working tree. Commit or safely preserve local changes before retrying.'
+    }
+
+    Write-Step 'Updating application from origin/main with git pull'
+    & git pull origin main
+    if ($LASTEXITCODE -ne 0) { throw "Git pull failed with exit code $LASTEXITCODE" }
+    Write-Ok 'Application update completed.'
+}
+
+function Check-ForUpdates {
+    $localRevision = Get-CurrentGitRevision
+    $remoteLine = (& git ls-remote origin refs/heads/main 2>$null | Select-Object -First 1)
+    if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace([string]$remoteLine)) {
+        throw 'Unable to check origin/main for updates.'
+    }
+
+    $remoteRevision = ([string]$remoteLine -split '\s+')[0]
+    if ($localRevision -eq $remoteRevision) {
+        Write-Ok "Application is up to date with origin/main ($($localRevision.Substring(0, 7)))."
+        return
+    }
+
+    $branch = Get-CurrentGitBranch
+    Write-Warn "A different origin/main revision is available (local $($localRevision.Substring(0, 7)), remote $($remoteRevision.Substring(0, 7)))."
+    Write-Info "Current branch: $branch. No files were downloaded or changed."
+}
+
+#endregion
+
+#region Menu loop
+
 function Wait-ForMenu {
     Write-Host
     Write-Host 'Press any key to return to menu...'
@@ -625,13 +771,13 @@ function Wait-ForMenu {
 
 while ($true) {
     Show-Menu
-    $selection = Read-Host '  Select an option (1-9)'
-    if ($selection -notmatch '^[1-9]$') {
-        Write-Warn 'Select a number from 1 through 9.'
+    $selection = Read-Host '  Select an option (1-12)'
+    if ($selection -notmatch '^(?:[1-9]|1[0-2])$') {
+        Write-Warn 'Select a number from 1 through 12.'
         Wait-ForMenu
         continue
     }
-    if ($selection -eq '9') { break }
+    if ($selection -eq '12') { break }
     try {
         switch ($selection) {
             '1' { Invoke-Launch; exit 0 }
@@ -646,9 +792,12 @@ while ($true) {
             '3' { Invoke-FrontendRebuild }
             '4' { Invoke-DatabaseInitialization }
             '5' { Invoke-TestSuite }
-            '6' { Remove-LogFiles }
-            '7' { Clear-ApplicationCache }
-            '8' { Uninstall-Application }
+            '6' { Update-Application }
+            '7' { Check-ForUpdates }
+            '8' { Remove-LogFiles }
+            '9' { Clear-ApplicationCache }
+            '10' { Remove-AllData }
+            '11' { Uninstall-Application }
         }
     } catch {
         Write-Fatal $_.Exception.Message

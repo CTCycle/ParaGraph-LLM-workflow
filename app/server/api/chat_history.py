@@ -40,7 +40,6 @@ def get_chat_history(
     )
     return ChatHistoryResponse(messages=chat_history_service.load_messages(handle))
 
-
 ###############################################################################
 @router.post("/reset", response_model=ChatHistoryResponse)
 def reset_chat_history(handle: ChatHistoryHandle) -> ChatHistoryResponse:

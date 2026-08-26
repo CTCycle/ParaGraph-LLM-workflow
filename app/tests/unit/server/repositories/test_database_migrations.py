@@ -17,10 +17,12 @@ from server.repositories.database.initializer import initialize_sqlite_database
 from server.repositories.schemas import Base, UserSession
 
 
+###############################################################################
 def _settings() -> SQLiteSettings:
     return SQLiteSettings(insert_batch_size=1000)
 
 
+###############################################################################
 def _engine(database_path: Path) -> sa.Engine:
     return sa.create_engine(
         f"sqlite:///{database_path.as_posix()}",
@@ -28,6 +30,7 @@ def _engine(database_path: Path) -> sa.Engine:
     )
 
 
+###############################################################################
 def _add_legacy_node_table(engine: sa.Engine) -> None:
     metadata = sa.MetaData()
     sa.Table(
@@ -58,6 +61,7 @@ def _add_legacy_node_table(engine: sa.Engine) -> None:
     metadata.create_all(engine)
 
 
+###############################################################################
 def _version(database_path: Path) -> str | None:
     engine = _engine(database_path)
     try:
@@ -69,6 +73,7 @@ def _version(database_path: Path) -> str | None:
         engine.dispose()
 
 
+###############################################################################
 def test_empty_database_is_created_and_migrated_to_head(tmp_path: Path) -> None:
     database_path = tmp_path / "database.db"
 
@@ -92,6 +97,7 @@ def test_empty_database_is_created_and_migrated_to_head(tmp_path: Path) -> None:
         engine.dispose()
 
 
+###############################################################################
 def test_migration_engine_enables_foreign_keys(tmp_path: Path) -> None:
     engine = migration._migration_engine(tmp_path / "foreign-keys.db")
     try:
@@ -101,6 +107,7 @@ def test_migration_engine_enables_foreign_keys(tmp_path: Path) -> None:
         engine.dispose()
 
 
+###############################################################################
 def test_legacy_schema_is_adopted_without_losing_data(tmp_path: Path) -> None:
     database_path = tmp_path / "legacy.db"
     engine = _engine(database_path)
@@ -133,6 +140,7 @@ def test_legacy_schema_is_adopted_without_losing_data(tmp_path: Path) -> None:
         engine.dispose()
 
 
+###############################################################################
 def test_partial_unversioned_schema_fails_closed(tmp_path: Path) -> None:
     database_path = tmp_path / "partial.db"
     engine = _engine(database_path)
@@ -150,6 +158,7 @@ def test_partial_unversioned_schema_fails_closed(tmp_path: Path) -> None:
         engine.dispose()
 
 
+###############################################################################
 def test_unknown_revision_fails_closed(tmp_path: Path) -> None:
     database_path = tmp_path / "unknown-revision.db"
     initialize_sqlite_database(_settings(), db_path=database_path)
@@ -164,6 +173,7 @@ def test_unknown_revision_fails_closed(tmp_path: Path) -> None:
         initialize_sqlite_database(_settings(), db_path=database_path)
 
 
+###############################################################################
 def test_versioned_partial_schema_fails_closed(tmp_path: Path) -> None:
     database_path = tmp_path / "versioned-partial.db"
     initialize_sqlite_database(_settings(), db_path=database_path)
@@ -176,6 +186,7 @@ def test_versioned_partial_schema_fails_closed(tmp_path: Path) -> None:
         initialize_sqlite_database(_settings(), db_path=database_path)
 
 
+###############################################################################
 def test_multiple_database_heads_fail_closed(tmp_path: Path) -> None:
     database_path = tmp_path / "multiple-heads.db"
     initialize_sqlite_database(_settings(), db_path=database_path)
@@ -190,6 +201,7 @@ def test_multiple_database_heads_fail_closed(tmp_path: Path) -> None:
         initialize_sqlite_database(_settings(), db_path=database_path)
 
 
+###############################################################################
 def _configure_revision_tree(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     source_root = common_path.SERVER_ROOT / "migrations"
     migration_root = tmp_path / "migrations"
@@ -204,6 +216,7 @@ def _configure_revision_tree(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) ->
     return migration_root
 
 
+###############################################################################
 def _add_marker_revision(migration_root: Path, *, failing: bool = False) -> None:
     (migration_root / "versions" / "0002_marker.py").write_text(
         '''"""Add a marker column for migration integration tests."""\n\n'''
@@ -238,6 +251,7 @@ def _add_marker_revision(migration_root: Path, *, failing: bool = False) -> None
         )
 
 
+###############################################################################
 def _apply_revision(
     database_path: Path, revision: str, *, downgrade: bool = False
 ) -> None:
@@ -254,6 +268,7 @@ def _apply_revision(
         engine.dispose()
 
 
+###############################################################################
 def test_outdated_database_is_upgraded_to_head(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     migration_root = _configure_revision_tree(tmp_path / "project", monkeypatch)
     _add_marker_revision(migration_root)
@@ -290,6 +305,7 @@ def test_outdated_database_is_upgraded_to_head(tmp_path: Path, monkeypatch: pyte
         engine.dispose()
 
 
+###############################################################################
 def test_failed_migration_rolls_back_ddl_and_revision(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     migration_root = _configure_revision_tree(tmp_path / "project", monkeypatch)
     _add_marker_revision(migration_root, failing=True)
@@ -309,6 +325,7 @@ def test_failed_migration_rolls_back_ddl_and_revision(tmp_path: Path, monkeypatc
         engine.dispose()
 
 
+###############################################################################
 def test_concurrent_initialization_is_serialized(tmp_path: Path) -> None:
     database_path = tmp_path / "concurrent.db"
 
@@ -327,6 +344,7 @@ def test_concurrent_initialization_is_serialized(tmp_path: Path) -> None:
     assert _version(database_path) == "0002_remove_node_configuration_mirror"
 
 
+###############################################################################
 def test_migration_lock_timeout_is_reported_as_typed_error(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

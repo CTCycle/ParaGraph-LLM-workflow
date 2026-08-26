@@ -17,6 +17,7 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
+###############################################################################
 def upgrade() -> None:
     op.create_table(
         "user_sessions",
@@ -199,6 +200,7 @@ def upgrade() -> None:
     op.create_index("ix_execution_events_run_id", "execution_events", ["run_id"], unique=False)
 
 
+###############################################################################
 def downgrade() -> None:
     op.drop_index("ix_execution_events_run_id", table_name="execution_events")
     op.drop_table("execution_events")
