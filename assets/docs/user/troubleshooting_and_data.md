@@ -1,5 +1,5 @@
 # Troubleshooting And Data
-Last updated: 2026-08-20
+Last updated: 2026-08-21
 
 ## Troubleshooting
 - If startup fails, rerun `start_on_windows.ps1` and check the console output.
@@ -8,6 +8,7 @@ Last updated: 2026-08-20
 - If APIs are unreachable, verify host and port values in `settings/.env`.
 - If model operations fail, verify provider credentials and network reachability.
 - If compile fails, inspect diagnostics and fix missing inputs, controller mismatches, or type mismatches.
+- To reset local user data, use launcher option 10 (`Remove All Data`), confirm with `REMOVE`, and restart the application so a fresh database can be initialized.
 
 ## Data Location
 Runtime data is stored under `app/resources` by default. Set `PARAGRAPH_RESOURCES_DIR` in `settings/.env` to use another absolute or repository-relative location. Stored data includes:
@@ -18,3 +19,5 @@ Runtime data is stored under `app/resources` by default. Set `PARAGRAPH_RESOURCE
 - Node assets and plugins
 - Downloaded model artifacts
 - Browser upload artifacts
+
+Launcher option 10 removes the database, database sidecars, logs, workflows, chat history, downloaded models and tokenizers, checkpoints, runtime artifacts, and imported custom-node contents. Built-in node definitions, workflow templates, settings, and application source files are preserved.

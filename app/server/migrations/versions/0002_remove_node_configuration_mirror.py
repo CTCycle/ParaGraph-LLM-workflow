@@ -17,12 +17,14 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
+###############################################################################
 def upgrade() -> None:
     op.drop_index("ix_nodes_session_type", table_name="nodes")
     op.drop_index("ix_nodes_session_id", table_name="nodes")
     op.drop_table("nodes")
 
 
+###############################################################################
 def downgrade() -> None:
     op.create_table(
         "nodes",

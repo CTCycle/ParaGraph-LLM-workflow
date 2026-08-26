@@ -10,6 +10,7 @@ Executor = Callable[[dict[str, Any], dict[str, Any]], dict[str, Any]]
 PortValidator = Callable[[Any], Any]
 
 
+###############################################################################
 @dataclass(frozen=True)
 class NodeHandler:
     executor: Executor

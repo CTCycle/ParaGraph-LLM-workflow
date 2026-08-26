@@ -13,6 +13,7 @@ FORBIDDEN_IMPORT_PREFIXES = (
 )
 
 
+###############################################################################
 def test_contract_modules_remain_transport_and_persistence_neutral() -> None:
     contract_root = Path(__file__).resolve().parents[3] / "server" / "contracts"
 

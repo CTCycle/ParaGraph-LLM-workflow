@@ -35,18 +35,22 @@ _APPLICATION_TABLE_NAMES = frozenset(Base.metadata.tables)
 _LEGACY_APPLICATION_TABLE_NAMES = _APPLICATION_TABLE_NAMES | {"nodes"}
 
 
+###############################################################################
 class DatabaseMigrationError(RuntimeError):
     """Raised when the internal application schema cannot be synchronized."""
 
 
+###############################################################################
 def default_database_path() -> Path:
     return common_path.RESOURCES_ROOT / DATABASE_FILENAME
 
 
+###############################################################################
 def _normalize_type(type_: Any) -> str:
     return str(type_.compile(dialect=sqlite_dialect())).upper()
 
 
+###############################################################################
 def _metadata_signature(metadata: MetaData) -> dict[str, Any]:
     tables: list[dict[str, Any]] = []
     for table in sorted(metadata.tables.values(), key=lambda item: item.name):
@@ -101,6 +105,7 @@ def _metadata_signature(metadata: MetaData) -> dict[str, Any]:
     return {"tables": tables}
 
 
+###############################################################################
 def _inspected_signature(
     connection: Connection,
     table_names: Collection[str] = _APPLICATION_TABLE_NAMES,
@@ -158,15 +163,18 @@ def _inspected_signature(
     return {"tables": tables}
 
 
+###############################################################################
 def _fingerprint(signature: dict[str, Any]) -> str:
     payload = json.dumps(signature, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
+###############################################################################
 def metadata_schema_fingerprint() -> str:
     return _fingerprint(_metadata_signature(Base.metadata))
 
 
+###############################################################################
 def _database_schema_fingerprint(
     connection: Connection,
     table_names: Collection[str] = _APPLICATION_TABLE_NAMES,
@@ -174,10 +182,12 @@ def _database_schema_fingerprint(
     return _fingerprint(_inspected_signature(connection, table_names))
 
 
+###############################################################################
 def _sqlite_url(database_path: Path) -> URL:
     return URL.create("sqlite", database=str(database_path))
 
 
+###############################################################################
 def _migration_engine(database_path: Path) -> Engine:
     return configure_sqlite_engine(
         create_engine(
@@ -192,6 +202,7 @@ def _migration_engine(database_path: Path) -> Engine:
     )
 
 
+###############################################################################
 def _alembic_config(database_path: Path) -> Config:
     config = Config(toml_file=str(common_path.SERVER_ROOT / "pyproject.toml"))
     config.set_main_option(
@@ -204,6 +215,7 @@ def _alembic_config(database_path: Path) -> Config:
     return config
 
 
+###############################################################################
 @contextmanager
 def _migration_lock(database_path: Path) -> Iterator[None]:
     lock_path = database_path.with_name(f"{database_path.name}.migration.lock")
@@ -221,6 +233,7 @@ def _migration_lock(database_path: Path) -> Iterator[None]:
         ) from exc
 
 
+###############################################################################
 def _script_directory(config: Config) -> tuple[ScriptDirectory, str]:
     try:
         script = ScriptDirectory.from_config(config)
@@ -235,6 +248,7 @@ def _script_directory(config: Config) -> tuple[ScriptDirectory, str]:
     return script, heads[0]
 
 
+###############################################################################
 def _current_revisions(connection: Connection) -> tuple[str, ...]:
     version_table_exists = inspect(connection).has_table(MIGRATION_VERSION_TABLE)
     if not version_table_exists:
@@ -244,12 +258,14 @@ def _current_revisions(connection: Connection) -> tuple[str, ...]:
     return tuple(MigrationContext.configure(connection).get_current_heads())
 
 
+###############################################################################
 def _application_tables(connection: Connection) -> set[str]:
     return set(inspect(connection).get_table_names()).intersection(
         _APPLICATION_TABLE_NAMES
     )
 
 
+###############################################################################
 def _require_complete_application_schema(connection: Connection) -> None:
     application_tables = _application_tables(connection)
     if application_tables == _APPLICATION_TABLE_NAMES:
@@ -261,6 +277,7 @@ def _require_complete_application_schema(connection: Connection) -> None:
     )
 
 
+###############################################################################
 def _legacy_schema_state(connection: Connection) -> str:
     application_tables = _application_tables(connection)
     legacy_application_tables = set(inspect(connection).get_table_names()).intersection(
@@ -290,6 +307,7 @@ def _legacy_schema_state(connection: Connection) -> str:
     )
 
 
+###############################################################################
 def _validate_current_revision(
     script: ScriptDirectory, current: str, head: str
 ) -> list[str]:
@@ -308,6 +326,7 @@ def _validate_current_revision(
     return [revision.revision for revision in reversed(pending)]
 
 
+###############################################################################
 def _upgrade_to_head(
     config: Config, connection: Connection, script: ScriptDirectory, head: str
 ) -> None:
@@ -334,6 +353,7 @@ def _upgrade_to_head(
     command.upgrade(config, head)
 
 
+###############################################################################
 def _synchronize_locked(database_path: Path) -> None:
     engine: Engine | None = None
     try:
@@ -376,6 +396,7 @@ def _synchronize_locked(database_path: Path) -> None:
             engine.dispose()
 
 
+###############################################################################
 def run_database_migrations(database_path: Path | None = None) -> None:
     resolved_path = (database_path or default_database_path()).expanduser().resolve()
     resolved_path.parent.mkdir(parents=True, exist_ok=True)

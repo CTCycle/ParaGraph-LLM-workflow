@@ -4,18 +4,21 @@ from dataclasses import dataclass
 from typing import Any
 
 
+###############################################################################
 @dataclass(frozen=True)
 class CachedValue:
     value: Any
     expires_at: float
 
 
+###############################################################################
 @dataclass(frozen=True)
 class OllamaLibraryCachePayload:
     models: tuple[tuple[str, str | None], ...]
     refreshed_at: str
 
 
+###############################################################################
 @dataclass(frozen=True)
 class ProviderMetadata:
     name: str
@@ -28,6 +31,7 @@ class ProviderMetadata:
     supports_native_tool_protocol: bool = False
 
 
+###############################################################################
 @dataclass(frozen=True)
 class ModelMetadata:
     provider: str
@@ -39,6 +43,7 @@ class ModelMetadata:
     supports_structured_output: bool = True
 
 
+###############################################################################
 @dataclass(frozen=True)
 class HuggingFaceDownloadManifest:
     repo_id: str
@@ -46,6 +51,7 @@ class HuggingFaceDownloadManifest:
     session_name: str
 
 
+###############################################################################
 @dataclass(frozen=True)
 class HuggingFaceDownloadProgress:
     status: str
@@ -55,12 +61,14 @@ class HuggingFaceDownloadProgress:
     message: str | None = None
 
 
+###############################################################################
 @dataclass(frozen=True)
 class HuggingFaceCatalogFilters:
     tasks: tuple[str, ...]
     libraries: tuple[str, ...]
 
 
+###############################################################################
 @dataclass(frozen=True)
 class HuggingFaceCatalogCachePayload:
     cache_key: str

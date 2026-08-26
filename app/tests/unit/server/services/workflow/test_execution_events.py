@@ -19,7 +19,6 @@ def _create_event_run(run_id: str) -> None:
         ExecutionRunState(run_id=run_id, plan_id=plan.plan_id, plan=plan)
     )
 
-
 ###############################################################################
 def test_execution_event_sequence_is_monotonic_for_each_run() -> None:
     _create_event_run("run-a")
@@ -47,7 +46,6 @@ def test_execution_event_sequence_is_monotonic_for_each_run() -> None:
     assert [
         event.sequence for event in execution_event_service.get_history("run-a").events
     ] == [1, 2]
-
 
 ###############################################################################
 def test_concurrent_event_publishers_receive_unique_sequences() -> None:

@@ -58,14 +58,12 @@ def test_initialize_sqlite_database_creates_application_schema(
         "user_sessions",
     }
 
-
 ###############################################################################
 def test_sqlite_repository_enables_foreign_keys() -> None:
     repository = _build_memory_repository()
 
     with repository.engine.connect() as connection:
         assert connection.exec_driver_sql("PRAGMA foreign_keys").scalar_one() == 1
-
 
 ###############################################################################
 def test_sqlite_repository_cascades_execution_children() -> None:
