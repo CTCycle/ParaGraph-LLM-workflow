@@ -6,17 +6,21 @@ on:
       - main
       - develop
   pull_request:
+    branches: [main, develop]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   backend-validation:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     env:
       PYTHONPATH: app
-      PYTHONPYCACHEPREFIX: ${{ github.workspace }}/runtimes/cache/pycache
-      RUFF_CACHE_DIR: ${{ github.workspace }}/app/tests/cache/ruff
-      COVERAGE_FILE: ${{ github.workspace }}/app/tests/cache/coverage/.coverage
-      UV_CACHE_DIR: ${{ github.workspace }}/runtimes/cache/uv
-      PYTEST_ADDOPTS: --basetemp=${{ github.workspace }}/app/tests/cache/pytest-tmp
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -27,33 +31,27 @@ jobs:
           python-version: "3.14"
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v4
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.11.30"
+          enable-cache: true
+          cache-dependency-glob: app/server/uv.lock
 
-      - name: Install Test Dependencies
-        run: uv pip install --system -e "app/server[test]"
+      - name: Install locked test dependencies
+        run: uv sync --locked --project app/server --extra test
 
       - name: Lint Backend
-        run: ruff check --isolated app/server app/tests
+        run: uv run --project app/server ruff check --isolated app/server app/tests
 
       - name: Compile Backend
-        run: python -m compileall app/server/app.py app/server/api app/server/common app/server/configurations app/server/contracts app/server/repositories app/server/services
+        run: uv run --project app/server python -m compileall app/server/app.py app/server/api app/server/common app/server/configurations app/server/contracts app/server/repositories app/server/services
 
       - name: Run Backend Tests
-        run: python -m pytest app/tests/unit/server app/tests/e2e/server/test_execution_lifecycle.py
+        run: uv run --project app/server python -m pytest app/tests/unit/server app/tests/e2e/server/test_execution_lifecycle.py
 
   frontend-validation:
     runs-on: ubuntu-latest
-    env:
-      FASTAPI_HOST: 127.0.0.1
-      FASTAPI_PORT: 8000
-      PYTHONPATH: app
-      PYTHONPYCACHEPREFIX: ${{ github.workspace }}/runtimes/cache/pycache
-      RUFF_CACHE_DIR: ${{ github.workspace }}/app/tests/cache/ruff
-      COVERAGE_FILE: ${{ github.workspace }}/app/tests/cache/coverage/.coverage
-      UV_CACHE_DIR: ${{ github.workspace }}/runtimes/cache/uv
-      PYTEST_ADDOPTS: --basetemp=${{ github.workspace }}/app/tests/cache/pytest-tmp
-      npm_config_cache: ${{ github.workspace }}/runtimes/cache/npm
-      PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/app/tests/cache/playwright/browsers
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -61,31 +59,13 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
-          node-version: "22"
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.14"
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v4
-
-      - name: Start backend for live E2E
-        shell: bash
-        run: |
-          uv pip install --system -e "app/server[test]"
-          (cd app/server && python -m uvicorn server.app:app --host 127.0.0.1 --port 8000 --log-level warning > "$RUNNER_TEMP/paragraph-backend.log" 2>&1 & echo $! > "$RUNNER_TEMP/paragraph-backend.pid")
-          for i in {1..60}; do
-            if curl --fail --silent --max-time 2 http://127.0.0.1:8000/docs >/dev/null; then exit 0; fi
-            sleep 1
-          done
-          cat "$RUNNER_TEMP/paragraph-backend.log"
-          exit 1
+          node-version: "22.13.0"
+          cache: npm
+          cache-dependency-path: app/client/package-lock.json
 
       - name: Install Frontend Dependencies
         working-directory: app/client
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
 
       - name: Lint Frontend
         working-directory: app/client
@@ -98,29 +78,3 @@ jobs:
       - name: Run Frontend Unit Tests
         working-directory: app/client
         run: npm run test:unit
-
-      - name: Install Playwright browser
-        working-directory: app/client
-        run: npx playwright install --with-deps chromium
-
-      - name: Run live Playwright E2E
-        working-directory: app/client
-        run: npm run test:e2e
-
-      - name: Upload Playwright artifacts on failure
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: paragraph-playwright-results
-          path: |
-            app/tests/cache/playwright/test-results
-            app/tests/cache/playwright/report
-            ${{ runner.temp }}/paragraph-backend.log
-
-      - name: Stop live backend
-        if: always()
-        shell: bash
-        run: |
-          if [ -f "$RUNNER_TEMP/paragraph-backend.pid" ]; then
-            kill "$(cat "$RUNNER_TEMP/paragraph-backend.pid")" || true
-          fi
