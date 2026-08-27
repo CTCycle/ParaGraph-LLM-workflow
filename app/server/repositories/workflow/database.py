@@ -530,24 +530,25 @@ def execute_upsert(
 ) -> dict[str, Any]:
     _require_writable(connection, "upsert")
     engine = build_engine_from_connection(connection)
+    dialect_name = engine.dialect.name
+    if dialect_name not in {"sqlite", "postgresql"}:
+        raise ValueError(f"UPSERT_UNSUPPORTED: {dialect_name}")
     table = _load_table(engine, table_name, schema)
     _validate_columns(
         table, set(conflict_columns) | set(insert_values) | set(update_values), "upsert"
     )
-    if engine.dialect.name == "sqlite":
+    if dialect_name == "sqlite":
         statement = (
             sqlite_insert(table)
             .values(**insert_values)
             .on_conflict_do_update(index_elements=conflict_columns, set_=update_values)
         )
-    elif engine.dialect.name == "postgresql":
+    else:
         statement = (
             postgresql_insert(table)
             .values(**insert_values)
             .on_conflict_do_update(index_elements=conflict_columns, set_=update_values)
         )
-    else:
-        raise ValueError(f"UPSERT_UNSUPPORTED: {engine.dialect.name}")
     try:
         with engine.begin() as conn:
             result = conn.execute(statement)

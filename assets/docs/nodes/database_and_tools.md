@@ -10,7 +10,13 @@ Last updated: 2026-08-27
 - Reads use bounded limit/offset pagination with deterministic primary-key ordering by default and return total-count and `has_more` metadata.
 - Result envelopes consistently expose operation, rows, row count, affected rows, generated identifiers, pagination, and error fields.
 - Bulk create, update, and delete repository operations are bounded at 1,000 items and transactionally roll back as a unit on failure.
-- Upsert supports explicit conflict columns on SQLite and PostgreSQL. Update and delete support optional version-column checks for optimistic concurrency.
+- Upsert supports explicit conflict columns on SQLite and PostgreSQL. MySQL fails closed with `UPSERT_UNSUPPORTED: mysql`; it is never silently treated as an insert or update. Update and delete support optional version-column checks for optimistic concurrency.
+
+### Canonical query and SQL contracts
+
+- The audit labels `DATABASE_QUERY` and `DATABASE_EXECUTE_SQL` map to the existing canonical manifest IDs `CRUD_READ` and `CUSTOM_SQL_QUERY`. Both use the typed `DATABASE_CONNECTION` controller and the normal node handler registry.
+- No duplicate aliases are added: retaining one manifest, controller, parameter model, and executor for each operation keeps the catalog, compiler, and runtime contract aligned.
+- `CRUD_READ` uses SQLAlchemy-bound equality filters and bounded pagination. `CUSTOM_SQL_QUERY` accepts named `:parameter` bindings, executes one statement inside an explicit transaction, and uses `read_only` to require query-only execution when enabled.
 
 ## Transaction Boundary
 - Each individual CRUD/custom-SQL operation runs in an explicit database transaction.
