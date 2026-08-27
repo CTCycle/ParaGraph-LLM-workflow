@@ -94,6 +94,7 @@
     "cacheable": false,
     "deterministic": false,
     "side_effecting": true,
+    "destructive": true,
     "idempotent": true
   }
 }

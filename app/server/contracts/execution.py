@@ -52,6 +52,9 @@ class ExecutionStepPlan(BaseModel):
     timeout_ms: int | None = None
     retries: int = 0
     cacheable: bool = False
+    side_effecting: bool = False
+    destructive: bool = False
+    idempotent: bool = False
 
 ###############################################################################
 class CompiledExecutionPlan(BaseModel):

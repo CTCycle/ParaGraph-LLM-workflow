@@ -516,7 +516,7 @@ class VectorCollectionParameters(BaseModel):
 
 ###############################################################################
 class ToolCollectionParameters(BaseModel):
-    model_config = ConfigDict(populate_by_name=True)
+    model_config = ConfigDict(populate_by_name=True, extra="forbid")
 
     source_type: Literal["inline_python", "json_schema", "signature", "python_file"]
     inline_code: str = ""
@@ -526,6 +526,14 @@ class ToolCollectionParameters(BaseModel):
     entrypoint: str = ""
     tool_name: str = ""
     description: str = ""
+
+
+class ToolSchemaCollectionParameters(ToolCollectionParameters):
+    source_type: Literal["json_schema", "signature"]
+
+
+class PythonToolCollectionParameters(ToolCollectionParameters):
+    source_type: Literal["inline_python", "python_file"]
 
 ###############################################################################
 class ToolCallParameters(BaseModel):

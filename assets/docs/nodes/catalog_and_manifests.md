@@ -1,5 +1,5 @@
 # Catalog And Manifests
-Last updated: 2026-08-21
+Last updated: 2026-08-27
 
 ## Purpose
 This branch documents the ParaGraph node system, the node catalog, and the contracts that allow nodes to participate in workflow compilation and execution.
@@ -47,7 +47,7 @@ A node manifest includes:
 - Interface definitions such as `inputs`, `outputs`, and optional `controllers`
 - Parameter definitions with types, defaults, and constraints
 - UI metadata such as width, accent, icon, and collapsed state
-- Runtime metadata such as executor key, cacheability, determinism, side effects, and optional plugin metadata
+- Runtime metadata such as executor key, cacheability, determinism, side effects, destructive effects, idempotency, and optional plugin metadata
 
 Runtime validation happens through backend node registry logic before nodes are admitted into execution plans.
 

@@ -5,7 +5,12 @@ from pathlib import Path
 from sqlalchemy import Integer, String, create_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
 
+from server.contracts.configuration import AccessKeyConfiguration
+from server.services.configuration import configuration_service
 from server.services.workflow import node_registry
+from server.services.workflow.node_handlers.ingestion import (
+    database_connections as database_connections_module,
+)
 
 ###############################################################################
 def test_load_documents_emits_loaded_records_with_text(
@@ -148,7 +153,7 @@ def test_sql_database_requires_required_fields_before_connect_attempt() -> None:
                 "db_port": 5432,
                 "db_name": "",
                 "db_user": "postgres",
-                "db_password": "change_me",
+                "credential_profile": "local",
                 "db_ssl": False,
                 "db_ssl_ca": "",
                 "db_connect_timeout": 30,
@@ -162,3 +167,49 @@ def test_sql_database_requires_required_fields_before_connect_attempt() -> None:
         raise AssertionError(
             "Expected SQL_DATABASE validation failure for missing required fields"
         )
+
+
+def test_sql_database_emits_only_an_opaque_credential_reference(monkeypatch) -> None:
+    captured: dict[str, object] = {}
+    monkeypatch.setattr(
+        configuration_service,
+        "resolve_access_key",
+        lambda *, profile_name, provider: AccessKeyConfiguration(
+            provider=provider,
+            api_key="database-secret",
+        ),
+    )
+    monkeypatch.setattr(
+        database_connections_module,
+        "register_database_credential",
+        lambda password: "db-credential-ref",
+    )
+
+    def capture_connection(parameters: dict[str, object]) -> dict[str, object]:
+        captured.update(parameters)
+        return {"connection": parameters}
+
+    monkeypatch.setattr(
+        database_connections_module,
+        "_validate_and_build_database_connection",
+        capture_connection,
+    )
+
+    result = database_connections_module._sql_database_executor(
+        {
+            "db_engine": "postgres",
+            "db_host": "db.example.test",
+            "db_port": 5432,
+            "db_name": "workflow",
+            "db_user": "workflow_user",
+            "credential_profile": "production",
+            "db_ssl": False,
+            "db_ssl_ca": "",
+            "db_connect_timeout": 30,
+        },
+        {},
+    )
+
+    assert result["connection"]["credential_ref"] == "db-credential-ref"
+    assert "password" not in captured
+    assert "database-secret" not in str(result)

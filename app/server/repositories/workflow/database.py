@@ -48,12 +48,20 @@ def register_database_credential(password: str) -> str:
 
 ###############################################################################
 def _resolve_password(payload: dict[str, Any]) -> str:
-    direct = str(payload.get("password") or "")
-    if direct:
-        return direct
+    if "password" in payload:
+        raise ValueError(
+            "Database connections must use an opaque credential_ref"
+        )
     reference = str(payload.get("credential_ref") or "")
+    if not reference:
+        raise ValueError(
+            "Server database connections require an opaque credential_ref"
+        )
     with _credential_lock:
-        return _credential_passwords.get(reference, "")
+        password = _credential_passwords.get(reference)
+    if password is None:
+        raise ValueError("Database credential reference is unavailable")
+    return password
 
 ###############################################################################
 def _resolve_local_path(path_value: str) -> Path:

@@ -1,0 +1,43 @@
+{
+  "id": "HTTP_GET",
+  "version": 1,
+  "name": "HTTP GET",
+  "category": "web",
+  "description": "Execute a bounded SSRF-protected GET request through the shared secure transport.",
+  "inputs": [
+    {"name": "url", "data_type": "TEXT", "required": false, "description": "Optional URL override."}
+  ],
+  "outputs": [
+    {"name": "response", "data_type": "JSON", "required": true},
+    {"name": "json", "data_type": "JSON", "required": false},
+    {"name": "text", "data_type": "TEXT", "required": false}
+  ],
+  "parameters": [
+    {"name": "url", "data_type": "TEXT", "default": "", "ui_control": "text"},
+    {"name": "headers", "data_type": "JSON", "default": {}, "ui_control": "json"},
+    {"name": "query", "data_type": "JSON", "default": {}, "ui_control": "json"},
+    {"name": "response_mode", "data_type": "TEXT", "default": "auto", "constraints": {"options": ["auto", "json", "text", "binary", "file"]}, "ui_control": "select"},
+    {"name": "download_path", "data_type": "TEXT", "default": "", "ui_control": "file"},
+    {"name": "accepted_statuses", "data_type": "JSON", "default": ["200-299"], "ui_control": "json"},
+    {"name": "credential_profile", "data_type": "TEXT", "default": "", "ui_control": "text"},
+    {"name": "credential_provider", "data_type": "TEXT", "default": "http", "ui_control": "text"},
+    {"name": "auth_mode", "data_type": "TEXT", "default": "none", "constraints": {"options": ["none", "bearer", "api_key", "basic"]}, "ui_control": "select"},
+    {"name": "api_key_header", "data_type": "TEXT", "default": "X-API-Key", "ui_control": "text"},
+    {"name": "username", "data_type": "TEXT", "default": "", "ui_control": "text"},
+    {"name": "connect_timeout", "data_type": "JSON", "default": 10.0, "constraints": {"min": 0.1, "max": 120}, "ui_control": "number"},
+    {"name": "read_timeout", "data_type": "JSON", "default": 30.0, "constraints": {"min": 0.1, "max": 600}, "ui_control": "number"},
+    {"name": "pool_timeout", "data_type": "JSON", "default": 10.0, "constraints": {"min": 0.1, "max": 120}, "ui_control": "number"},
+    {"name": "overall_timeout", "data_type": "JSON", "default": 60.0, "constraints": {"min": 0.1, "max": 1800}, "ui_control": "number"},
+    {"name": "max_response_bytes", "data_type": "JSON", "default": 2000000, "constraints": {"min": 1, "max": 50000000}, "ui_control": "number"},
+    {"name": "max_download_bytes", "data_type": "JSON", "default": 100000000, "constraints": {"min": 1, "max": 1000000000}, "ui_control": "number"},
+    {"name": "max_redirects", "data_type": "JSON", "default": 0, "constraints": {"min": 0, "max": 10}, "ui_control": "number"},
+    {"name": "allow_https_downgrade", "data_type": "BOOLEAN", "default": false, "ui_control": "checkbox"},
+    {"name": "max_attempts", "data_type": "JSON", "default": 1, "constraints": {"min": 1, "max": 10}, "ui_control": "number"},
+    {"name": "backoff_seconds", "data_type": "JSON", "default": 0.25, "constraints": {"min": 0, "max": 60}, "ui_control": "number"},
+    {"name": "max_retry_delay", "data_type": "JSON", "default": 60.0, "constraints": {"min": 0, "max": 600}, "ui_control": "number"},
+    {"name": "retry_statuses", "data_type": "JSON", "default": [429, 502, 503, 504], "ui_control": "json"},
+    {"name": "idempotency_key", "data_type": "TEXT", "default": "", "ui_control": "text"}
+  ],
+  "ui": {"default_width": 360, "accent_color": "#59c6ff", "collapsed_by_default": false},
+  "runtime": {"executor_key": "http_get", "cacheable": false, "deterministic": false, "side_effecting": false, "idempotent": true}
+}

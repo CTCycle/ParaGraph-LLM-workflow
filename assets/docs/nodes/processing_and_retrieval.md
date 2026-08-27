@@ -1,5 +1,5 @@
 # Processing And Retrieval
-Last updated: 2026-08-12
+Last updated: 2026-08-27
 
 ## Similarity Search Contract
 - `search_mode`
@@ -89,8 +89,10 @@ Representative newer manifests include:
   - `UNIT_NUMBER_NORMALIZER`
 
 ## Web API Nodes
-- `HTTP_REQUEST` is the single versioned HTTP node and supports GET, POST, PUT,
-  PATCH, DELETE, HEAD, and OPTIONS through one shared transport contract.
+- `HTTP_GET`, `HTTP_POST`, `HTTP_PUT`, `HTTP_PATCH`, and `HTTP_DELETE` provide
+  explicit method contracts through the shared secure transport.
+- `HTTP_REQUEST` remains the advanced multi-method node for HEAD, OPTIONS, or
+  workflows that need a dynamic method value.
 - Only `http` and `https` schemes are allowed.
 - Hostnames are resolved before requests and loopback, private, link-local, multicast, and unspecified addresses are blocked by default.
 - Redirects are disabled by default, revalidated on every hop, and HTTPS

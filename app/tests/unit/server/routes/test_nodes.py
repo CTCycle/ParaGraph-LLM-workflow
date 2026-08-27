@@ -5,6 +5,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import Integer, String, create_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
+from server.contracts.configuration import AccessKeyConfiguration
 from server.services.workflow.nodes import connectivity as node_connectivity_module
 
 ###############################################################################
@@ -88,6 +89,63 @@ def test_check_vector_store_connection_calls_adapter_validate(
     assert calls["index_name"] == "docs"
     assert calls["endpoint_url"] == "https://qdrant.local"
     assert calls["api_key"] == ""
+
+
+def test_check_vector_store_connection_resolves_saved_credential(
+    client: TestClient, monkeypatch
+) -> None:
+    calls: dict[str, object] = {}
+
+    ###############################################################################
+    class FakeAdapter:
+
+        # -------------------------------------------------------------------------
+        def validate_connection(self, **kwargs):
+            calls.update(kwargs)
+
+    monkeypatch.setattr(
+        node_connectivity_module,
+        "get_vector_store_adapter",
+        lambda provider: FakeAdapter(),
+    )
+    monkeypatch.setattr(
+        node_connectivity_module.configuration_service,
+        "resolve_access_key",
+        lambda *, profile_name, provider: AccessKeyConfiguration(
+            provider=provider,
+            api_key="pinecone-secret",
+            base_url="https://configured-vector.example",
+        ),
+    )
+
+    response = client.post(
+        "/nodes/check-vector-store-connection",
+        json={
+            "node_type": "VECTOR_STORE",
+            "node_version": 2,
+            "parameters": {
+                "provider": "pinecone",
+                "index_name": "docs",
+                "storage_path": "",
+                "endpoint_url": "",
+                "credential_profile": "production",
+                "collection_name": "",
+                "database_name": "",
+                "namespace": "",
+                "provider_config": {},
+                "write_mode": "overwrite",
+                "distance_metric": "cosine",
+            },
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "ok": True,
+        "message": "Vector store connection successful.",
+    }
+    assert calls["api_key"] == "pinecone-secret"
+    assert calls["endpoint_url"] == "https://configured-vector.example"
 
 ###############################################################################
 @pytest.mark.parametrize("provider", ["lancedb", "chroma", "faiss"])

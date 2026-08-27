@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 SUPPORTED_DOCUMENT_EXTENSIONS = {
@@ -81,12 +81,14 @@ class DocumentTextExtractorParameters(BaseModel):
 
 ###############################################################################
 class DatabaseConnectionParameters(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     engine: str = "sqlite"
     database_name: str = ""
     host: str = ""
     port: int | None = 5432
     username: str = ""
-    password: str = ""
+    credential_ref: str = ""
     file_path: str = ""
     options: dict[str, Any] = Field(default_factory=dict)
     connect_timeout_s: float = Field(default=5.0, ge=1.0, le=60.0)
@@ -126,16 +128,20 @@ class DatabaseConnectionParameters(BaseModel):
             raise ValueError(f"{self.engine} connections require username")
         if self.port is None:
             raise ValueError(f"{self.engine} connections require port")
+        if not self.credential_ref.strip():
+            raise ValueError(f"{self.engine} connections require credential_ref")
         return self
 
 ###############################################################################
 class SQLDatabaseParameters(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     db_engine: str = "postgres"
     db_host: str = "127.0.0.1"
     db_port: int = Field(default=5432, ge=1, le=65535)
     db_name: str = ""
     db_user: str = "postgres"
-    db_password: str = "change_me"
+    credential_profile: str = ""
     db_ssl: bool = False
     db_ssl_ca: str = ""
     db_connect_timeout: float = Field(default=30.0, ge=1.0, le=120.0)
@@ -157,6 +163,15 @@ class SQLDatabaseParameters(BaseModel):
         if not normalized:
             raise ValueError(f"{info.field_name} must not be empty")
         return normalized
+
+    # -------------------------------------------------------------------------
+    @model_validator(mode="after")
+    def validate_credential_profile(self) -> "SQLDatabaseParameters":
+        if not self.credential_profile.strip():
+            raise ValueError(
+                "server SQL connections require credential_profile"
+            )
+        return self
 
 ###############################################################################
 class SQLFileDatabaseParameters(BaseModel):

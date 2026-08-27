@@ -352,13 +352,13 @@ def _resolve_runtime_secret(config: dict[str, Any]) -> str:
         return ""
     from server.services.configuration import configuration_service
 
-    profile = configuration_service.load_configuration_profile(
-        session_name=None, profile_name=profile_name
-    )
-    access_key = next(
-        (item for item in profile.access_keys if item.provider == provider), None
-    )
-    return access_key.api_key or "" if access_key else ""
+    try:
+        access_key = configuration_service.resolve_access_key(
+            profile_name=profile_name, provider=provider
+        )
+    except (KeyError, ValueError):
+        return ""
+    return access_key.api_key or ""
 
 ###############################################################################
 def reset_vector_secret_registry() -> None:

@@ -463,6 +463,14 @@ class ExecutionService:
     def _execute_step_with_policy(self, **kwargs: Any) -> dict[str, Any]:
         step = kwargs["step"]
         job_id = kwargs["job_id"]
+        if (
+            step.retries > 0
+            and getattr(step, "side_effecting", False)
+            and not getattr(step, "idempotent", False)
+        ):
+            raise ValueError(
+                f"Step '{step.step_id}' is side-effecting and has no idempotency contract"
+            )
         attempts = step.retries + 1
         for attempt in range(1, attempts + 1):
             self._start_step(job_id, step, attempt)

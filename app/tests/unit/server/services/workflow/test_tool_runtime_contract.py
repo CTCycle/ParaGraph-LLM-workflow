@@ -133,6 +133,54 @@ def test_schema_only_tool_cannot_be_executed(monkeypatch) -> None:
     finally:
         tools_module.release_run_tool_resources(run_id)
 
+
+def test_schema_tool_collection_is_deterministic_and_has_no_runtime_registry() -> None:
+    parameters = {
+        "source_type": "json_schema",
+        "schema_json": {
+            "name": "lookup",
+            "description": "Find an item",
+            "parameters": {
+                "type": "object",
+                "properties": {"value": {"type": "string"}},
+                "required": ["value"],
+            },
+        },
+    }
+
+    first = ToolCollectionHandle.model_validate(
+        node_registry.execute("TOOL_SCHEMA_COLLECTION", 1, parameters, {})["tools"]
+    )
+    second = ToolCollectionHandle.model_validate(
+        node_registry.execute("TOOL_SCHEMA_COLLECTION", 1, parameters, {})["tools"]
+    )
+
+    assert first == second
+    assert first.runtime_collection_id is None
+    assert first.metadata == {"execution_capability": "schema_only"}
+    assert first.tools[0].runtime_tool_id.startswith("schema_tool_")
+    assert "uuid" not in first.tools[0].runtime_tool_id
+
+
+def test_python_tool_collection_is_explicitly_executable() -> None:
+    result = node_registry.execute(
+        "PYTHON_TOOL_COLLECTION",
+        1,
+        {
+            "source_type": "inline_python",
+            "inline_code": "def lookup(value: str):\n    return value\n",
+        },
+        {},
+        context={"run_id": "python-tool-contract"},
+    )
+    handle = ToolCollectionHandle.model_validate(result["tools"])
+    try:
+        assert handle.runtime_collection_id
+        assert handle.metadata == {"execution_capability": "executable"}
+        assert handle.tools[0].execution_state == "executable"
+    finally:
+        tools_module.release_run_tool_resources("python-tool-contract")
+
 ###############################################################################
 def test_provider_tool_capabilities_distinguish_selection_from_native_protocol() -> None:
     assert provider_service.supports_tool_selection("openai") is True
