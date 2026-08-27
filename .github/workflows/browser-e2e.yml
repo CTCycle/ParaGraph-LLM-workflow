@@ -1,0 +1,88 @@
+name: Browser E2E
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 3 * * 1-5"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: paragraph-browser-e2e-${{ github.workflow }}
+  cancel-in-progress: true
+
+jobs:
+  browser:
+    name: Full-stack Playwright E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Set up UV
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.11.30"
+          enable-cache: true
+          cache-dependency-glob: app/server/uv.lock
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.13.0"
+          cache: npm
+          cache-dependency-path: app/client/package-lock.json
+
+      - name: Install locked backend dependencies
+        run: uv sync --locked --project app/server --extra test
+
+      - name: Install locked frontend dependencies
+        working-directory: app/client
+        run: npm ci --no-audit --no-fund
+
+      - name: Start backend
+        shell: bash
+        run: |
+          mkdir -p .ci-logs
+          (cd app/server && uv run python -m uvicorn server.app:app --host 127.0.0.1 --port 8000 --log-level warning > "$RUNNER_TEMP/paragraph-backend.log" 2>&1 & echo $! > "$RUNNER_TEMP/paragraph-backend.pid")
+          for i in {1..60}; do
+            if curl --fail --silent --max-time 2 http://127.0.0.1:8000/docs >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat "$RUNNER_TEMP/paragraph-backend.log"
+          exit 1
+
+      - name: Install Playwright browser
+        working-directory: app/client
+        run: npx playwright install --with-deps chromium
+
+      - name: Run Playwright E2E
+        working-directory: app/client
+        run: npm run test:e2e
+
+      - name: Stop backend
+        if: always()
+        shell: bash
+        run: |
+          if [ -f "$RUNNER_TEMP/paragraph-backend.pid" ]; then
+            kill "$(cat "$RUNNER_TEMP/paragraph-backend.pid")" || true
+          fi
+
+      - name: Upload browser diagnostics on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: paragraph-browser-diagnostics-${{ github.run_id }}
+          retention-days: 3
+          if-no-files-found: ignore
+          path: |
+            app/client/playwright-report/
+            app/client/test-results/
+            ${{ runner.temp }}/paragraph-backend.log

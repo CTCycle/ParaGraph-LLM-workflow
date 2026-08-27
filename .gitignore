@@ -72,3 +72,7 @@ Thumbs.db
 *.exe
 *.gz
 !.gitkeep
+
+# Commit dependency lockfiles for reproducible CI installs.
+!app/server/uv.lock
+!app/client/package-lock.json
