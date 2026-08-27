@@ -5,7 +5,11 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, field_validator
 
 from server.contracts.chat_history import ChatHistoryHandle
-from server.contracts.node_catalog import NodeDataType, ProviderModelDefinition
+from server.contracts.node_catalog import (
+    NodeDataType,
+    ProviderModelDefinition,
+    VectorScoreSemantics,
+)
 
 ###############################################################################
 class ImagePayload(BaseModel):
@@ -94,6 +98,7 @@ class VectorStoreHandle(BaseModel):
     embedding_model: str
     embedding_revision: str = ""
     normalized: bool = False
+    namespace: str = ""
     collection_name: str = ""
     indexed_metadata_fields: list[str] = Field(default_factory=list)
     keyword_index_status: str = "unsupported"
@@ -142,6 +147,7 @@ class RetrievalHit(BaseModel):
     text: str
     source_uri: str
     score: float
+    score_semantics: VectorScoreSemantics = "normalized_similarity"
     retrieval_score: float | None = None
     rerank_score: float | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pymilvus import MilvusClient
 
+from server.contracts.node_catalog import VectorStoreCapabilities
 from server.services.workflow.vector_stores.base import (
     Any,
     RetrievalHit,
@@ -19,14 +20,30 @@ from server.services.workflow.vector_stores.base import (
     _resolve_runtime_secret,
     _sanitize_metadata_entry,
     _score_from_metric,
+    _score_semantics_for_metric,
     _store_attr,
+    validate_vector_request_capabilities,
 )
 
 ###############################################################################
 class MilvusVectorStoreAdapter(VectorStoreAdapter):
     backend = "milvus"
-    supported_operations = frozenset({"insert", "upsert", "search", "close"})
-    supports_faiss_augmentation = False
+    capabilities = VectorStoreCapabilities(
+        backend="milvus",
+        supported_metrics=["cosine", "l2", "dot"],
+        supported_search_modes=["vector"],
+        supported_search_engines=["native"],
+        supports_metadata_filtering=True,
+        supported_filter_operators=["eq", "in", "gt", "gte", "lt", "lte"],
+        supports_filter_groups=True,
+        supports_minimum_should_match=False,
+        supported_operations=["insert", "upsert", "search", "close"],
+        score_semantics_by_metric={
+            "cosine": "normalized_similarity",
+            "l2": "normalized_similarity",
+            "dot": "native_similarity",
+        },
+    )
 
     # -------------------------------------------------------------------------
     def _build_client(self, *, endpoint_url: str, api_key: str, database_name: str):
@@ -42,6 +59,9 @@ class MilvusVectorStoreAdapter(VectorStoreAdapter):
     def _milvus_filter(self, filter_spec: dict[str, Any] | None) -> str:
         if not filter_spec:
             return ""
+        validate_vector_request_capabilities(
+            self.describe_capabilities(), filter_spec=filter_spec
+        )
         must = [
             _milvus_clause_expression(item)
             for item in filter_spec.get("must", [])
@@ -83,7 +103,8 @@ class MilvusVectorStoreAdapter(VectorStoreAdapter):
         database_name: str = "",
         provider_config: dict[str, Any] | None = None,
     ) -> None:
-        _ = storage_directory, namespace
+        self.validate_connection_capabilities(namespace=namespace)
+        _ = storage_directory
         config, endpoint, token = _extract_provider_config(
             provider_config=provider_config,
             endpoint_url=endpoint_url,
@@ -117,7 +138,12 @@ class MilvusVectorStoreAdapter(VectorStoreAdapter):
         points: list[VectorPoint | dict[str, Any]],
         **_: Any,
     ) -> VectorStoreHandle:
-        _ = storage_directory, namespace
+        self.validate_write_capabilities(
+            metric=metric,
+            namespace=namespace,
+            create_keyword_index=bool(_.get("create_keyword_index", False)),
+        )
+        _ = storage_directory
         if not points:
             raise VectorStoreError(
                 "Vector store write requires at least one vector point"
@@ -185,6 +211,7 @@ class MilvusVectorStoreAdapter(VectorStoreAdapter):
             dimension=dimension,
             embedding_provider=str(_point_attr(points[0], "embedding_provider") or ""),
             embedding_model=str(_point_attr(points[0], "embedding_model") or ""),
+            namespace=namespace,
             metadata={
                 "endpoint_url": endpoint,
                 "database_name": database,
@@ -212,11 +239,13 @@ class MilvusVectorStoreAdapter(VectorStoreAdapter):
         keyword_weight: float = 0.5,
         **_: Any,
     ) -> list[RetrievalHit]:
-        _ = ann_search_depth, keyword_query, vector_weight, keyword_weight
-        if search_mode != "vector":
-            raise VectorStoreError(
-                "Hybrid search is not currently supported for Milvus in this runtime"
-            )
+        self.validate_search_capabilities(
+            store=store,
+            search_mode=search_mode,
+            search_engine=str(_.get("search_engine") or "native"),
+            filter_spec=filter_spec,
+            keyword_query=keyword_query,
+        )
 
         metadata = (
             _store_attr(store, "metadata")
@@ -282,7 +311,13 @@ class MilvusVectorStoreAdapter(VectorStoreAdapter):
             if filter_spec and not _matches_filter(entry_for_filter, filter_spec):
                 continue
             raw_score = float(hit.get("distance", hit.get("score", 0.0)) or 0.0)
-            score = _score_from_metric(metric, raw_score)
+            normalized_metric = _coerce_metric(metric)
+            raw_semantics = (
+                "distance" if normalized_metric == "l2" else "similarity"
+            )
+            score = _score_from_metric(
+                normalized_metric, raw_score, raw_semantics=raw_semantics
+            )
             if score < score_threshold:
                 continue
             hits.append(
@@ -293,6 +328,7 @@ class MilvusVectorStoreAdapter(VectorStoreAdapter):
                     text=str(entity.get("text", "")),
                     source_uri=str(entity.get("source_uri", "")),
                     score=score,
+                    score_semantics=_score_semantics_for_metric(normalized_metric),
                     metadata=(entity.get("metadata", {}) if include_metadata else {}),
                 )
             )

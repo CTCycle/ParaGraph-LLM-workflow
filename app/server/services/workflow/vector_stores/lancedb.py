@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import lancedb
 
+from server.contracts.node_catalog import VectorStoreCapabilities
 from server.services.workflow.vector_stores.base import (
     Any,
     RetrievalHit,
@@ -12,6 +13,7 @@ from server.services.workflow.vector_stores.base import (
     VectorStoreConflictError,
     VectorStoreError,
     VectorStoreHandle,
+    _coerce_metric,
     _matches_filter,
     _materialize_lancedb_rows,
     _normalize_index_name,
@@ -19,6 +21,7 @@ from server.services.workflow.vector_stores.base import (
     _resolve_vectorstore_root,
     _sanitize_metadata_entry,
     _score_from_metric,
+    _score_semantics_for_metric,
     _store_attr,
     _store_lock,
 )
@@ -26,9 +29,42 @@ from server.services.workflow.vector_stores.base import (
 ###############################################################################
 class LanceDbVectorStoreAdapter(VectorStoreAdapter):
     backend = "lancedb"
-    supports_faiss_augmentation = False
-    supported_operations = frozenset(
-        {"insert", "upsert", "update", "delete_ids", "delete_document", "delete_filter", "inspect", "delete_collection", "reload", "close"}
+    capabilities = VectorStoreCapabilities(
+        backend="lancedb",
+        supported_metrics=["cosine", "l2", "dot"],
+        supported_search_modes=["vector"],
+        supported_search_engines=["native"],
+        supports_metadata_filtering=True,
+        supported_filter_operators=[
+            "eq",
+            "in",
+            "exists",
+            "contains",
+            "gt",
+            "gte",
+            "lt",
+            "lte",
+        ],
+        supports_filter_groups=True,
+        supports_minimum_should_match=True,
+        supported_operations=[
+            "insert",
+            "upsert",
+            "update",
+            "delete_ids",
+            "delete_document",
+            "delete_filter",
+            "inspect",
+            "delete_collection",
+            "reload",
+            "search",
+            "close",
+        ],
+        score_semantics_by_metric={
+            "cosine": "normalized_similarity",
+            "l2": "normalized_similarity",
+            "dot": "native_similarity",
+        },
     )
 
     # -------------------------------------------------------------------------
@@ -54,8 +90,12 @@ class LanceDbVectorStoreAdapter(VectorStoreAdapter):
         lock_timeout: float = 10.0,
         **_: Any,
     ) -> VectorStoreHandle:
+        self.validate_write_capabilities(
+            metric=metric,
+            namespace=namespace,
+            create_keyword_index=bool(_.get("create_keyword_index", False)),
+        )
         _ = (
-            namespace,
             endpoint_url,
             api_key,
             collection_name,
@@ -79,7 +119,7 @@ class LanceDbVectorStoreAdapter(VectorStoreAdapter):
         if write_mode_normalized not in {"overwrite", "append"}:
             raise VectorStoreError("write_mode must be either 'overwrite' or 'append'")
 
-        metric_normalized = metric.lower().strip()
+        metric_normalized = _coerce_metric(metric)
         if metric_normalized not in {"l2", "cosine", "dot"}:
             raise VectorStoreError(f"Unsupported LanceDB metric: {metric}")
 
@@ -210,11 +250,13 @@ class LanceDbVectorStoreAdapter(VectorStoreAdapter):
         keyword_weight: float = 0.5,
         **_: Any,
     ) -> list[RetrievalHit]:
-        _ = keyword_query, vector_weight, keyword_weight
-        if search_mode != "vector":
-            raise VectorStoreError(
-                f"Search mode '{search_mode}' is not supported by backend '{self.backend}'"
-            )
+        self.validate_search_capabilities(
+            store=store,
+            search_mode=search_mode,
+            search_engine=str(_.get("search_engine") or "native"),
+            filter_spec=filter_spec,
+            keyword_query=keyword_query,
+        )
         store_metadata = (
             _store_attr(store, "metadata")
             if isinstance(_store_attr(store, "metadata"), dict)
@@ -248,9 +290,8 @@ class LanceDbVectorStoreAdapter(VectorStoreAdapter):
             if not isinstance(entry, dict) or not _matches_filter(entry, filter_spec):
                 continue
             raw_score = float(entry.get("_distance", 0.0))
-            score = _score_from_metric(
-                str(_store_attr(store, "metric") or "cosine"), raw_score
-            )
+            metric = str(_store_attr(store, "metric") or "cosine")
+            score = _score_from_metric(metric, raw_score, raw_semantics="distance")
             if score < score_threshold:
                 continue
             results.append(
@@ -261,6 +302,7 @@ class LanceDbVectorStoreAdapter(VectorStoreAdapter):
                     text=str(entry.get("text", "")),
                     source_uri=str(entry.get("source_uri", "")),
                     score=score,
+                    score_semantics=_score_semantics_for_metric(metric),
                     metadata=entry.get("metadata", {}) if include_metadata else {},
                 )
             )

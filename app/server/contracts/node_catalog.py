@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 NodeCategory = Literal[
@@ -54,6 +54,26 @@ ModelVisibilityFilter = Literal["all", "public", "private", "gated"]
 HuggingFaceSortBy = Literal["relevance", "downloads", "likes", "updated"]
 HuggingFaceDownloadJobStatus = Literal[
     "pending", "running", "completed", "failed", "cancelled"
+]
+VectorMetric = Literal["cosine", "l2", "dot"]
+VectorSearchMode = Literal["vector", "keyword", "hybrid"]
+VectorSearchEngine = Literal["native", "faiss_augmented"]
+VectorFilterOperator = Literal[
+    "eq", "in", "exists", "contains", "gt", "gte", "lt", "lte"
+]
+VectorScoreSemantics = Literal["normalized_similarity", "native_similarity"]
+VectorStoreOperation = Literal[
+    "insert",
+    "upsert",
+    "update",
+    "delete_ids",
+    "delete_document",
+    "delete_filter",
+    "inspect",
+    "delete_collection",
+    "reload",
+    "search",
+    "close",
 ]
 
 ###############################################################################
@@ -148,8 +168,70 @@ class NodeManifest(BaseModel):
         return self
 
 ###############################################################################
+class VectorStoreCapabilities(BaseModel):
+    """Authoritative backend capability contract shared by catalog and runtime."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    backend: str = Field(min_length=1)
+    supported_metrics: list[VectorMetric] = Field(default_factory=list)
+    supported_search_modes: list[VectorSearchMode] = Field(
+        default_factory=lambda: ["vector"]
+    )
+    supported_search_engines: list[VectorSearchEngine] = Field(
+        default_factory=lambda: ["native"]
+    )
+    supports_namespaces: bool = False
+    supports_metadata_filtering: bool = True
+    supported_filter_operators: list[VectorFilterOperator] = Field(
+        default_factory=list
+    )
+    supports_filter_groups: bool = True
+    supports_minimum_should_match: bool = False
+    supports_keyword_index: bool = False
+    supported_operations: list[VectorStoreOperation] = Field(default_factory=list)
+    score_semantics_by_metric: dict[VectorMetric, VectorScoreSemantics] = Field(
+        default_factory=dict
+    )
+
+    # -------------------------------------------------------------------------
+    @model_validator(mode="after")
+    def validate_contract(self) -> VectorStoreCapabilities:
+        for field_name in (
+            "supported_metrics",
+            "supported_search_modes",
+            "supported_search_engines",
+            "supported_filter_operators",
+            "supported_operations",
+        ):
+            values = getattr(self, field_name)
+            if len(values) != len(set(values)):
+                raise ValueError(f"{field_name} must not contain duplicates")
+        supported_metrics = set(self.supported_metrics)
+        missing_score_contracts = supported_metrics.difference(
+            self.score_semantics_by_metric
+        )
+        if missing_score_contracts:
+            raise ValueError(
+                "score_semantics_by_metric must define every supported metric: "
+                + ", ".join(sorted(missing_score_contracts))
+            )
+        if not self.supports_metadata_filtering and self.supported_filter_operators:
+            raise ValueError(
+                "unsupported metadata filtering cannot advertise filter operators"
+            )
+        if not self.supports_filter_groups and self.supports_minimum_should_match:
+            raise ValueError(
+                "minimum_should_match requires grouped filter support"
+            )
+        return self
+
+###############################################################################
 class NodeCatalogResponse(BaseModel):
     nodes: list[NodeManifest] = Field(default_factory=list)
+    vector_store_capabilities: list[VectorStoreCapabilities] = Field(
+        default_factory=list
+    )
 
 ###############################################################################
 class ProviderCapability(BaseModel):

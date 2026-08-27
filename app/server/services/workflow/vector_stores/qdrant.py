@@ -3,6 +3,7 @@ from __future__ import annotations
 import qdrant_client.models as qdrant_models
 from qdrant_client import QdrantClient
 
+from server.contracts.node_catalog import VectorStoreCapabilities
 from server.services.workflow.vector_stores.base import (
     Any,
     RetrievalHit,
@@ -21,14 +22,30 @@ from server.services.workflow.vector_stores.base import (
     _resolve_vectorstore_root,
     _sanitize_metadata_entry,
     _score_from_metric,
+    _score_semantics_for_metric,
     _store_attr,
+    validate_vector_request_capabilities,
 )
 
 ###############################################################################
 class QdrantVectorStoreAdapter(VectorStoreAdapter):
     backend = "qdrant"
-    supported_operations = frozenset({"insert", "upsert", "search", "close"})
-    supports_faiss_augmentation = False
+    capabilities = VectorStoreCapabilities(
+        backend="qdrant",
+        supported_metrics=["cosine", "l2", "dot"],
+        supported_search_modes=["vector"],
+        supported_search_engines=["native"],
+        supports_metadata_filtering=True,
+        supported_filter_operators=["eq", "in", "gt", "gte", "lt", "lte"],
+        supports_filter_groups=True,
+        supports_minimum_should_match=False,
+        supported_operations=["insert", "upsert", "search", "close"],
+        score_semantics_by_metric={
+            "cosine": "normalized_similarity",
+            "l2": "normalized_similarity",
+            "dot": "native_similarity",
+        },
+    )
 
     # -------------------------------------------------------------------------
     def _build_client(self, *, storage_directory: str, endpoint_url: str, api_key: str):
@@ -51,7 +68,8 @@ class QdrantVectorStoreAdapter(VectorStoreAdapter):
         database_name: str = "",
         provider_config: dict[str, Any] | None = None,
     ) -> None:
-        _ = namespace, database_name
+        self.validate_connection_capabilities(namespace=namespace)
+        _ = database_name
         _normalize_index_name(collection_name or index_name)
         config, endpoint, token = _extract_provider_config(
             provider_config=provider_config,
@@ -84,7 +102,12 @@ class QdrantVectorStoreAdapter(VectorStoreAdapter):
         points: list[VectorPoint | dict[str, Any]],
         **_: Any,
     ) -> VectorStoreHandle:
-        _ = namespace, database_name
+        self.validate_write_capabilities(
+            metric=metric,
+            namespace=namespace,
+            create_keyword_index=bool(_.get("create_keyword_index", False)),
+        )
+        _ = database_name
         if not points:
             raise VectorStoreError(
                 "Vector store write requires at least one vector point"
@@ -158,6 +181,7 @@ class QdrantVectorStoreAdapter(VectorStoreAdapter):
             dimension=dimension,
             embedding_provider=str(_point_attr(points[0], "embedding_provider") or ""),
             embedding_model=str(_point_attr(points[0], "embedding_model") or ""),
+            namespace=namespace,
             metadata={
                 "endpoint_url": endpoint,
                 "storage_directory": storage_directory,
@@ -172,6 +196,9 @@ class QdrantVectorStoreAdapter(VectorStoreAdapter):
     def _map_filter(self, filter_spec: dict[str, Any] | None, qm: Any) -> Any:
         if not filter_spec:
             return None
+        validate_vector_request_capabilities(
+            self.describe_capabilities(), filter_spec=filter_spec
+        )
         must = [
             _qdrant_condition(clause, qm)
             for clause in filter_spec.get("must", [])
@@ -213,11 +240,13 @@ class QdrantVectorStoreAdapter(VectorStoreAdapter):
         keyword_weight: float = 0.5,
         **_: Any,
     ) -> list[RetrievalHit]:
-        _ = keyword_query, vector_weight, keyword_weight
-        if search_mode != "vector":
-            raise VectorStoreError(
-                "Hybrid search is not currently supported for Qdrant in this runtime"
-            )
+        self.validate_search_capabilities(
+            store=store,
+            search_mode=search_mode,
+            search_engine=str(_.get("search_engine") or "native"),
+            filter_spec=filter_spec,
+            keyword_query=keyword_query,
+        )
 
         metadata = (
             _store_attr(store, "metadata")
@@ -280,7 +309,14 @@ class QdrantVectorStoreAdapter(VectorStoreAdapter):
             if filter_spec and not _matches_filter(entry_for_filter, filter_spec):
                 continue
             raw_score = float(getattr(point, "score", 0.0) or 0.0)
-            score = _score_from_metric(metric, raw_score)
+            raw_semantics = {
+                "cosine": "cosine_similarity",
+                "l2": "distance",
+                "dot": "similarity",
+            }.get(_coerce_metric(metric), "similarity")
+            score = _score_from_metric(
+                metric, raw_score, raw_semantics=raw_semantics
+            )
             if score < score_threshold:
                 continue
             results.append(
@@ -291,6 +327,7 @@ class QdrantVectorStoreAdapter(VectorStoreAdapter):
                     text=str(payload.get("text", "")),
                     source_uri=str(payload.get("source_uri", "")),
                     score=score,
+                    score_semantics=_score_semantics_for_metric(metric),
                     metadata=(payload.get("metadata", {}) if include_metadata else {}),
                 )
             )

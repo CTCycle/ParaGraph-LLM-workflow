@@ -17,6 +17,9 @@ from server.contracts.workflow_model import (
 from server.services.workflow.nodes import node_registry
 from server.services.workflow.provider import provider_service
 from server.services.workflow.vector_stores import get_vector_store_adapter
+from server.services.workflow.vector_stores.base import (
+    validate_vector_request_capabilities,
+)
 
 
 MODEL_NODE_TYPES = {"LLM_CHAT", "LLM_STRUCTURED"}
@@ -471,6 +474,32 @@ class CompilerService:
                     )
                 )
 
+            if node.node_type == "VECTOR_STORE":
+                parameters = validated_parameters_by_node.get(
+                    node.node_id, node.parameters
+                )
+                backend = str(parameters.get("provider") or "lancedb").strip().lower()
+                try:
+                    capabilities = get_vector_store_adapter(
+                        backend
+                    ).describe_capabilities()
+                    validate_vector_request_capabilities(
+                        capabilities,
+                        metric=str(parameters.get("distance_metric") or "cosine"),
+                        namespace=str(parameters.get("namespace") or ""),
+                        create_keyword_index=bool(
+                            parameters.get("create_keyword_index", False)
+                        ),
+                    )
+                except ValueError as exc:
+                    diagnostics.append(
+                        CompilerDiagnostic(
+                            code="unsupported_vector_capability",
+                            message=str(exc),
+                            node_id=node.node_id,
+                        )
+                    )
+
         for connection in definition.connections:
             source_name = (
                 connection.from_output
@@ -799,32 +828,69 @@ class CompilerService:
                             .strip()
                             .lower()
                         )
+                        filter_spec = parameters.get("metadata_filter")
+                        if not isinstance(filter_spec, dict):
+                            filter_spec = None
+                        keyword_query = str(
+                            parameters.get("keyword_query") or ""
+                        ).strip() or None
                         try:
                             capabilities = get_vector_store_adapter(
                                 backend
                             ).describe_capabilities()
-                        except ValueError:
-                            capabilities = {}
-                        if search_mode == "hybrid" and not bool(
-                            capabilities.get("supports_hybrid_search", False)
-                        ):
+                        except ValueError as exc:
                             diagnostics.append(
                                 CompilerDiagnostic(
-                                    code="unsupported_similarity_mode",
-                                    message=f"Backend '{backend}' does not support SIMILARITY_SEARCH search_mode='hybrid'.",
+                                    code="unsupported_vector_backend",
+                                    message=str(exc),
                                     node_id=node.node_id,
                                 )
                             )
-                        if search_engine == "faiss_augmented" and not bool(
-                            capabilities.get("supports_faiss_augmentation", False)
-                        ):
-                            diagnostics.append(
-                                CompilerDiagnostic(
-                                    code="unsupported_similarity_engine",
-                                    message=f"Backend '{backend}' does not support SIMILARITY_SEARCH search_engine='faiss_augmented'.",
-                                    node_id=node.node_id,
+                            continue
+
+                        capability_checks = (
+                            (
+                                "unsupported_similarity_metric",
+                                {"metric": similarity_metric},
+                            ),
+                            (
+                                "unsupported_similarity_mode",
+                                {"search_mode": search_mode},
+                            ),
+                            (
+                                "unsupported_similarity_engine",
+                                {"search_engine": search_engine},
+                            ),
+                            (
+                                "unsupported_similarity_namespace",
+                                {
+                                    "namespace": str(
+                                        source_parameters.get("namespace") or ""
+                                    )
+                                },
+                            ),
+                            (
+                                "unsupported_similarity_filter",
+                                {
+                                    "filter_spec": filter_spec,
+                                    "keyword_query": keyword_query,
+                                    "search_mode": search_mode,
+                                },
+                            ),
+                        )
+                        for diagnostic_code, check_kwargs in capability_checks:
+                            try:
+                                validate_vector_request_capabilities(
+                                    capabilities, **check_kwargs
                                 )
-                            )
+                            except ValueError as exc:
+                                diagnostics.append(
+                                    CompilerDiagnostic(
+                                        code=diagnostic_code,
+                                        message=str(exc),
+                                        node_id=node.node_id,
+                                    )
+                                )
 
         try:
             self._topological_order(definition)

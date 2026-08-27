@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { createNodeManifest } from '../../test/fixtures'
 import * as workflowApi from '../../app/services/nodesApi'
 import { useNodeCatalog } from './useNodeCatalog'
-import type { NodeManifest } from '../schema/types'
+import type { NodeManifest, VectorStoreCapabilities } from '../schema/types'
 
 import chatHistoryMemoryManifestJson from '../../../../resources/nodes/chat_history_memory_v1.json'
 import chatHistoryPersistedManifestJson from '../../../../resources/nodes/chat_history_persisted_v1.json'
@@ -18,7 +18,29 @@ describe('useNodeCatalog', () => {
         const fetchNodeCatalogMock = vi.mocked(workflowApi.fetchNodeCatalog)
         fetchNodeCatalogMock
             .mockRejectedValueOnce(new Error('catalog temporarily unavailable'))
-            .mockResolvedValueOnce({ nodes: [createNodeManifest()] })
+            .mockResolvedValueOnce({
+                nodes: [createNodeManifest()],
+                vector_store_capabilities: [
+                    {
+                        backend: 'faiss',
+                        supported_metrics: ['cosine', 'l2', 'dot'],
+                        supported_search_modes: ['vector'],
+                        supported_search_engines: ['native', 'faiss_augmented'],
+                        supports_namespaces: false,
+                        supports_metadata_filtering: true,
+                        supported_filter_operators: ['eq'],
+                        supports_filter_groups: true,
+                        supports_minimum_should_match: true,
+                        supports_keyword_index: false,
+                        supported_operations: ['search'],
+                        score_semantics_by_metric: {
+                            cosine: 'normalized_similarity',
+                            l2: 'normalized_similarity',
+                            dot: 'native_similarity',
+                        },
+                    },
+                ] as VectorStoreCapabilities[],
+            })
 
         const { result } = renderHook(() => useNodeCatalog())
 
@@ -36,6 +58,7 @@ describe('useNodeCatalog', () => {
         expect(result.current.error).toBeNull()
         expect(result.current.catalog).toHaveLength(1)
         expect(result.current.catalog[0].id).toBe('PROMPT')
+        expect(result.current.vectorStoreCapabilities[0].backend).toBe('faiss')
         expect(fetchNodeCatalogMock).toHaveBeenCalledTimes(2)
     })
 

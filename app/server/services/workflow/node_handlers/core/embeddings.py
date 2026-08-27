@@ -34,6 +34,9 @@ from server.services.workflow.node_handlers.ingestion import (
 )
 from server.services.workflow.provider import provider_service
 from server.services.workflow.vector_stores import get_vector_store_adapter
+from server.services.workflow.vector_stores.base import (
+    validate_vector_request_capabilities,
+)
 
 
 _HF_EMBEDDING_CACHE: dict[str, tuple[Any, Any, Any]] = {}
@@ -505,28 +508,28 @@ def _similarity_search_executor(
     backend = coerce_text(store_payload.get("backend") or "lancedb").strip().lower()
     adapter = get_vector_store_adapter(backend)
     capabilities = adapter.describe_capabilities()
-    if parsed.search_mode == "hybrid" and not bool(
-        capabilities.get("supports_hybrid_search")
-    ):
-        raise ValueError(
-            f"SIMILARITY_SEARCH backend '{backend}' does not support hybrid mode"
-        )
-    if parsed.search_engine == "faiss_augmented" and not bool(
-        capabilities.get("supports_faiss_augmentation")
-    ):
-        raise ValueError(
-            f"SIMILARITY_SEARCH backend '{backend}' does not support faiss_augmented engine"
-        )
-
     raw_filter_spec = (
         parsed.metadata_filter if isinstance(parsed.metadata_filter, dict) else None
     )
-    if raw_filter_spec and not bool(
-        capabilities.get("supports_metadata_filtering", True)
-    ):
-        raise ValueError(
-            f"SIMILARITY_SEARCH backend '{backend}' does not support metadata filtering"
+    store_namespace = coerce_text(store_payload.get("namespace") or "").strip()
+    if not store_namespace and isinstance(store_payload.get("metadata"), dict):
+        store_namespace = coerce_text(
+            store_payload["metadata"].get("namespace") or ""
+        ).strip()
+    try:
+        validate_vector_request_capabilities(
+            capabilities,
+            metric=store_metric,
+            namespace=store_namespace,
+            search_mode=parsed.search_mode,
+            search_engine=parsed.search_engine,
+            filter_spec=raw_filter_spec,
+            keyword_query=coerce_text(parsed.keyword_query).strip() or None,
         )
+    except ValueError as exc:
+        raise ValueError(
+            f"SIMILARITY_SEARCH backend '{backend}' capability contract rejected the request: {exc}"
+        ) from exc
 
     effective_search_engine = parsed.search_engine
     if effective_search_engine == "faiss_augmented":

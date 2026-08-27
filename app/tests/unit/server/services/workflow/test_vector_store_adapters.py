@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 
 from server.contracts.node_handler_core import VectorStoreParameters
+from server.contracts.node_catalog import VectorStoreCapabilities
 from server.services.workflow.vector_stores import (
     MilvusVectorStoreAdapter,
     PineconeVectorStoreAdapter,
@@ -15,6 +16,7 @@ from server.services.workflow.vector_stores import (
 )
 from server.services.workflow.vector_stores.base import (
     VectorStoreConflictError,
+    _score_from_metric,
     _redacted_provider_config,
     _resolve_runtime_secret,
     reset_vector_secret_registry,
@@ -76,7 +78,7 @@ def test_qdrant_search_rejects_hybrid_mode() -> None:
             search_mode="hybrid",
         )
     except VectorStoreError as exc:
-        assert "Hybrid search" in str(exc)
+        assert "hybrid mode" in str(exc)
     else:
         raise AssertionError("Expected VectorStoreError")
 
@@ -180,7 +182,7 @@ def test_vector_store_parameters_require_endpoint_for_remote_providers(
 
 ###############################################################################
 @pytest.mark.parametrize(
-    ("backend", "supports_faiss_augmentation"),
+    ("backend", "supports_faiss_augmented"),
     [
         ("faiss", True),
         ("lancedb", False),
@@ -192,13 +194,41 @@ def test_vector_store_parameters_require_endpoint_for_remote_providers(
     ],
 )
 def test_vector_store_capabilities_matrix(
-    backend: str, supports_faiss_augmentation: bool
+    backend: str, supports_faiss_augmented: bool
 ) -> None:
     capabilities = get_vector_store_adapter(backend).describe_capabilities()
-    assert capabilities["backend"] == backend
-    assert capabilities["supports_metadata_filtering"] is True
-    assert capabilities["supports_hybrid_search"] is False
-    assert capabilities["supports_faiss_augmentation"] is supports_faiss_augmentation
+    assert isinstance(capabilities, VectorStoreCapabilities)
+    assert capabilities.backend == backend
+    assert capabilities.supports_metadata_filtering is True
+    assert capabilities.supported_search_modes == ["vector"]
+    assert ("faiss_augmented" in capabilities.supported_search_engines) is supports_faiss_augmented
+
+###############################################################################
+def test_vector_capabilities_fail_closed_for_unsupported_filters_and_namespaces() -> None:
+    pinecone = get_vector_store_adapter("pinecone")
+
+    with pytest.raises(VectorStoreError, match="minimum_should_match"):
+        pinecone._map_filter(
+            {
+                "should": [
+                    {"field": "language", "op": "eq", "value": "en"},
+                    {"field": "tenant", "op": "eq", "value": "default"},
+                ],
+                "minimum_should_match": 2,
+            }
+        )
+
+    with pytest.raises(VectorStoreError, match="does not support namespaces"):
+        get_vector_store_adapter("qdrant").validate_connection(
+            index_name="docs", namespace="tenant-a", endpoint_url="https://qdrant"
+        )
+
+###############################################################################
+def test_score_contract_is_explicit_for_distance_and_dot_metrics() -> None:
+    assert _score_from_metric("cosine", -1.0, raw_semantics="cosine_similarity") == 0.0
+    assert _score_from_metric("cosine", 0.25, raw_semantics="distance") == 0.75
+    assert _score_from_metric("l2", 3.0, raw_semantics="distance") == 0.25
+    assert _score_from_metric("dot", 3.0, raw_semantics="similarity") == 3.0
 
 ###############################################################################
 def test_faiss_lifecycle_is_owned_reloadable_and_explicit(tmp_path: Path) -> None:
@@ -223,6 +253,35 @@ def test_faiss_lifecycle_is_owned_reloadable_and_explicit(tmp_path: Path) -> Non
     assert adapter.reload(store=store).metadata["count"] == 1
     removed = adapter.delete_collection(store=store)
     assert removed.affected_ids == ["three"]
+
+###############################################################################
+def test_faiss_search_returns_explicit_score_semantics(tmp_path: Path) -> None:
+    adapter = get_vector_store_adapter("faiss")
+    store = adapter.write_points(
+        index_name="docs",
+        storage_directory=str(tmp_path),
+        metric="cosine",
+        write_mode="overwrite",
+        id_conflict_policy="upsert",
+        index_type="flat",
+        points=[
+            _point("one", "doc-a", [1.0, 0.0]),
+            _point("two", "doc-a", [0.0, 1.0]),
+        ],
+    )
+
+    hits = adapter.search(
+        store=store,
+        query_vector=[1.0, 0.0],
+        top_k=2,
+        score_threshold=0.0,
+        filter_spec=None,
+        include_metadata=True,
+    )
+
+    assert hits[0].id == "one"
+    assert hits[0].score == 1.0
+    assert hits[0].score_semantics == "normalized_similarity"
 
 ###############################################################################
 def test_faiss_duplicate_and_compatibility_policies_are_stable(tmp_path: Path) -> None:

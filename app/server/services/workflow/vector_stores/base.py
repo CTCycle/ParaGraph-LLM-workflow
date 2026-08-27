@@ -20,6 +20,7 @@ from server.common.security import (
     ensure_path_within_root,
     is_cloud_deployment,
 )
+from server.contracts.node_catalog import VectorStoreCapabilities
 from server.contracts.workflow_payloads import (
     RetrievalHit,
     VectorCollectionInfo,
@@ -267,45 +268,108 @@ def _matches_filter(item: dict[str, Any], filter_spec: dict[str, Any] | None) ->
     if not filter_spec:
         return True
 
+    _validate_filter_shape(filter_spec)
     must = filter_spec.get("must", [])
     should = filter_spec.get("should", [])
     must_not = filter_spec.get("must_not", [])
-    minimum_should_match = int(
-        filter_spec.get("minimum_should_match", 1 if should else 0)
+    minimum_should_match = filter_spec.get(
+        "minimum_should_match", 1 if should else 0
     )
 
-    if (
-        not isinstance(must, list)
-        or not isinstance(should, list)
-        or not isinstance(must_not, list)
-    ):
-        raise VectorStoreError("Filter groups must be arrays")
-
     if any(
-        _matches_clause(item, clause) for clause in must_not if isinstance(clause, dict)
+        _matches_clause(item, clause) for clause in must_not
     ):
         return False
-    if any(
-        not _matches_clause(item, clause) for clause in must if isinstance(clause, dict)
-    ):
+    if any(not _matches_clause(item, clause) for clause in must):
         return False
 
     if should:
-        matched = sum(
-            1
-            for clause in should
-            if isinstance(clause, dict) and _matches_clause(item, clause)
-        )
+        matched = sum(1 for clause in should if _matches_clause(item, clause))
         if matched < minimum_should_match:
             return False
     return True
 
 ###############################################################################
-def _score_from_metric(metric: str, raw_score: float) -> float:
-    normalized = metric.lower().strip()
+def _validate_filter_shape(filter_spec: dict[str, Any]) -> None:
+    if not isinstance(filter_spec, dict):
+        raise VectorStoreError("metadata filter must be an object")
+    allowed_keys = {"must", "should", "must_not", "minimum_should_match"}
+    unknown_keys = sorted(set(filter_spec).difference(allowed_keys))
+    if unknown_keys:
+        raise VectorStoreError(
+            "Unsupported metadata filter keys: " + ", ".join(unknown_keys)
+        )
+
+    for group_name in ("must", "should", "must_not"):
+        group = filter_spec.get(group_name, [])
+        if not isinstance(group, list):
+            raise VectorStoreError("Filter groups must be arrays")
+        for clause in group:
+            if not isinstance(clause, dict):
+                raise VectorStoreError("Filter clauses must be objects")
+            unknown_clause_keys = sorted(
+                set(clause).difference({"field", "op", "value"})
+            )
+            if unknown_clause_keys:
+                raise VectorStoreError(
+                    "Unsupported filter clause keys: "
+                    + ", ".join(unknown_clause_keys)
+                )
+            field_name = str(clause.get("field") or "").strip()
+            if not field_name:
+                raise VectorStoreError("Filter clauses require a field")
+            operator = str(clause.get("op") or "eq").strip().lower()
+            if operator not in {
+                "eq",
+                "in",
+                "exists",
+                "contains",
+                "gt",
+                "gte",
+                "lt",
+                "lte",
+            }:
+                raise VectorStoreError(f"Unsupported filter operator: {operator}")
+            if operator == "in" and not isinstance(clause.get("value"), list):
+                raise VectorStoreError("The 'in' filter operator requires a list value")
+
+    if "minimum_should_match" in filter_spec:
+        minimum_should_match = filter_spec["minimum_should_match"]
+        if (
+            isinstance(minimum_should_match, bool)
+            or not isinstance(minimum_should_match, int)
+            or minimum_should_match < 0
+        ):
+            raise VectorStoreError("minimum_should_match must be a non-negative integer")
+        should_count = len(filter_spec.get("should", []))
+        if minimum_should_match > should_count:
+            raise VectorStoreError(
+                "minimum_should_match cannot exceed the number of should clauses"
+            )
+        if not should_count and minimum_should_match:
+            raise VectorStoreError(
+                "minimum_should_match requires at least one should clause"
+            )
+
+###############################################################################
+def _score_from_metric(
+    metric: str, raw_score: float, *, raw_semantics: str = "similarity"
+) -> float:
+    normalized = _coerce_metric(metric)
+    value = float(raw_score)
+    if normalized == "cosine":
+        if raw_semantics == "distance":
+            return max(0.0, min(1.0, 1.0 - value))
+        if raw_semantics == "cosine_similarity":
+            return max(0.0, min(1.0, (value + 1.0) / 2.0))
+        return max(0.0, min(1.0, value))
     if normalized == "l2":
-        return 1.0 / (1.0 + max(raw_score, 0.0))
-    return raw_score
+        return 1.0 / (1.0 + max(value, 0.0))
+    if normalized == "dot":
+        if raw_semantics == "distance":
+            return 1.0 - value
+        return value
+    raise VectorStoreError(f"Unsupported vector metric: {metric}")
 
 ###############################################################################
 def _coerce_metric(metric: str) -> str:
@@ -313,6 +377,104 @@ def _coerce_metric(metric: str) -> str:
     if normalized == "euclidean":
         return "l2"
     return normalized
+
+###############################################################################
+def _score_semantics_for_metric(metric: str) -> str:
+    return (
+        "native_similarity"
+        if _coerce_metric(metric) == "dot"
+        else "normalized_similarity"
+    )
+
+###############################################################################
+def _validate_vector_capabilities_filter(
+    capabilities: VectorStoreCapabilities,
+    filter_spec: dict[str, Any] | None,
+) -> None:
+    if not filter_spec:
+        return
+    _validate_filter_shape(filter_spec)
+    if not capabilities.supports_metadata_filtering:
+        raise VectorStoreError(
+            f"Backend '{capabilities.backend}' does not support metadata filtering"
+        )
+    groups = {
+        group_name: filter_spec.get(group_name, [])
+        for group_name in ("must", "should", "must_not")
+    }
+    if not capabilities.supports_filter_groups and any(groups.values()):
+        raise VectorStoreError(
+            f"Backend '{capabilities.backend}' does not support grouped metadata filters"
+        )
+    supported_operators = set(capabilities.supported_filter_operators)
+    for group in groups.values():
+        for clause in group:
+            operator = str(clause.get("op") or "eq").strip().lower()
+            if operator not in supported_operators:
+                raise VectorStoreError(
+                    f"Backend '{capabilities.backend}' does not support metadata filter operator '{operator}'"
+                )
+    if (
+        "minimum_should_match" in filter_spec
+        and not capabilities.supports_minimum_should_match
+    ):
+        raise VectorStoreError(
+            f"Backend '{capabilities.backend}' does not support minimum_should_match"
+        )
+
+###############################################################################
+def validate_vector_request_capabilities(
+    capabilities: VectorStoreCapabilities,
+    *,
+    metric: str | None = None,
+    namespace: str = "",
+    search_mode: str | None = None,
+    search_engine: str | None = None,
+    filter_spec: dict[str, Any] | None = None,
+    keyword_query: str | None = None,
+    create_keyword_index: bool = False,
+) -> None:
+    if metric is not None:
+        normalized_metric = _coerce_metric(metric)
+        if normalized_metric not in capabilities.supported_metrics:
+            raise VectorStoreError(
+                f"Backend '{capabilities.backend}' does not support metric '{normalized_metric}'"
+            )
+    if namespace.strip() and not capabilities.supports_namespaces:
+        raise VectorStoreError(
+            f"Backend '{capabilities.backend}' does not support namespaces"
+        )
+    if (
+        search_mode is not None
+        and search_mode not in capabilities.supported_search_modes
+    ):
+        mode_label = (
+            "hybrid mode" if search_mode == "hybrid" else f"search mode '{search_mode}'"
+        )
+        raise VectorStoreError(
+            f"Backend '{capabilities.backend}' does not support {mode_label}"
+        )
+    if (
+        search_engine is not None
+        and search_engine not in capabilities.supported_search_engines
+    ):
+        engine_label = (
+            "faiss_augmented engine"
+            if search_engine == "faiss_augmented"
+            else f"search engine '{search_engine}'"
+        )
+        raise VectorStoreError(
+            f"Backend '{capabilities.backend}' does not support {engine_label}"
+        )
+    if keyword_query and search_mode not in {"keyword", "hybrid"}:
+        raise VectorStoreError(
+            "keyword_query is only valid for keyword or hybrid search"
+        )
+    if create_keyword_index and not capabilities.supports_keyword_index:
+        raise VectorStoreError(
+            f"Backend '{capabilities.backend}' does not support keyword indexes"
+        )
+    _validate_vector_capabilities_filter(capabilities, filter_spec)
 
 ###############################################################################
 def _extract_provider_config(
@@ -498,11 +660,27 @@ def _materialize_lancedb_rows(payload: Any) -> list[dict[str, Any]]:
 ###############################################################################
 class VectorStoreAdapter:
     backend = "faiss"
-    supports_hybrid_search = False
-    supports_metadata_filtering = True
-    supports_faiss_augmentation = True
-    supported_operations = frozenset(
-        {
+    capabilities = VectorStoreCapabilities(
+        backend="faiss",
+        supported_metrics=["cosine", "l2", "dot"],
+        supported_search_modes=["vector"],
+        supported_search_engines=["native", "faiss_augmented"],
+        supports_namespaces=False,
+        supports_metadata_filtering=True,
+        supported_filter_operators=[
+            "eq",
+            "in",
+            "exists",
+            "contains",
+            "gt",
+            "gte",
+            "lt",
+            "lte",
+        ],
+        supports_filter_groups=True,
+        supports_minimum_should_match=True,
+        supports_keyword_index=False,
+        supported_operations=[
             "insert",
             "upsert",
             "update",
@@ -512,8 +690,14 @@ class VectorStoreAdapter:
             "inspect",
             "delete_collection",
             "reload",
+            "search",
             "close",
-        }
+        ],
+        score_semantics_by_metric={
+            "cosine": "normalized_similarity",
+            "l2": "normalized_similarity",
+            "dot": "native_similarity",
+        },
     )
 
     # -------------------------------------------------------------------------
@@ -530,25 +714,62 @@ class VectorStoreAdapter:
         provider_config: dict[str, Any] | None = None,
     ) -> None:
         _ = (
-            namespace,
             endpoint_url,
             api_key,
             collection_name,
             database_name,
             provider_config,
         )
+        self.validate_connection_capabilities(namespace=namespace)
         _normalize_index_name(index_name)
         _resolve_vectorstore_root(storage_directory)
 
     # -------------------------------------------------------------------------
-    def describe_capabilities(self) -> dict[str, Any]:
-        return {
-            "backend": self.backend,
-            "supports_hybrid_search": bool(self.supports_hybrid_search),
-            "supports_metadata_filtering": bool(self.supports_metadata_filtering),
-            "supports_faiss_augmentation": bool(self.supports_faiss_augmentation),
-            "supported_operations": sorted(self.supported_operations),
-        }
+    def describe_capabilities(self) -> VectorStoreCapabilities:
+        return self.capabilities.model_copy(deep=True)
+
+    # -------------------------------------------------------------------------
+    def validate_connection_capabilities(self, *, namespace: str = "") -> None:
+        validate_vector_request_capabilities(
+            self.describe_capabilities(), namespace=namespace
+        )
+
+    # -------------------------------------------------------------------------
+    def validate_write_capabilities(
+        self, *, metric: str, namespace: str = "", create_keyword_index: bool = False
+    ) -> None:
+        validate_vector_request_capabilities(
+            self.describe_capabilities(),
+            metric=metric,
+            namespace=namespace,
+            create_keyword_index=create_keyword_index,
+        )
+
+    # -------------------------------------------------------------------------
+    def validate_search_capabilities(
+        self,
+        *,
+        store: VectorStoreHandle | dict[str, Any],
+        search_mode: str,
+        search_engine: str,
+        filter_spec: dict[str, Any] | None,
+        keyword_query: str | None,
+    ) -> None:
+        store_metric = str(_store_attr(store, "metric") or "cosine")
+        store_namespace = str(_store_attr(store, "namespace") or "").strip()
+        if not store_namespace:
+            metadata = _store_attr(store, "metadata")
+            if isinstance(metadata, dict):
+                store_namespace = str(metadata.get("namespace") or "").strip()
+        validate_vector_request_capabilities(
+            self.describe_capabilities(),
+            metric=store_metric,
+            namespace=store_namespace,
+            search_mode=search_mode,
+            search_engine=search_engine,
+            filter_spec=filter_spec,
+            keyword_query=keyword_query,
+        )
 
     # -------------------------------------------------------------------------
     def write_points(
@@ -572,8 +793,12 @@ class VectorStoreAdapter:
         lock_timeout: float = 10.0,
         **_: Any,
     ) -> VectorStoreHandle:
+        self.validate_write_capabilities(
+            metric=metric,
+            namespace=namespace,
+            create_keyword_index=bool(_.get("create_keyword_index", False)),
+        )
         _ = (
-            namespace,
             endpoint_url,
             api_key,
             collection_name,
@@ -714,6 +939,7 @@ class VectorStoreAdapter:
             embedding_model=str(_point_attr(points[0], "embedding_model") or ""),
             embedding_revision=manifest["embedding_revision"],
             normalized=normalized,
+            namespace=namespace,
             metadata={
                 "index_type": manifest["index_type"],
                 "count": manifest["count"],
@@ -825,6 +1051,7 @@ class VectorStoreAdapter:
             embedding_model=str(manifest.get("embedding_model", "")),
             embedding_revision=str(manifest.get("embedding_revision", "")),
             normalized=bool(manifest.get("normalized", False)),
+            namespace=str(_store_attr(store, "namespace") or ""),
             metadata={
                 "index_type": str(manifest.get("index_type", "flat")),
                 "count": len(metadata),
@@ -987,11 +1214,14 @@ class VectorStoreAdapter:
         keyword_weight: float = 0.5,
         **_: Any,
     ) -> list[RetrievalHit]:
-        _ = keyword_query, vector_weight, keyword_weight
-        if search_mode != "vector":
-            raise VectorStoreError(
-                f"Search mode '{search_mode}' is not supported by backend '{self.backend}'"
-            )
+        search_engine = str(_.get("search_engine") or "native")
+        self.validate_search_capabilities(
+            store=store,
+            search_mode=search_mode,
+            search_engine=search_engine,
+            filter_spec=filter_spec,
+            keyword_query=keyword_query,
+        )
         manifest, metadata, vectors, index = _load_store(store)
         if len(query_vector) != int(manifest.get("dimension", 0)):
             raise VectorStoreError(
@@ -1053,7 +1283,12 @@ class VectorStoreAdapter:
         results: list[RetrievalHit] = []
         for item_index, raw_score in ranked:
             entry = metadata[item_index]
-            score = _score_from_metric(metric, raw_score)
+            raw_semantics = "cosine_similarity" if metric == "cosine" else "distance"
+            if metric == "dot":
+                raw_semantics = "similarity"
+            score = _score_from_metric(
+                metric, raw_score, raw_semantics=raw_semantics
+            )
             if score < score_threshold:
                 continue
             results.append(
@@ -1064,6 +1299,7 @@ class VectorStoreAdapter:
                     text=str(entry.get("text", "")),
                     source_uri=str(entry.get("source_uri", "")),
                     score=score,
+                    score_semantics=_score_semantics_for_metric(metric),
                     metadata=entry.get("metadata", {}) if include_metadata else {},
                 )
             )

@@ -98,6 +98,21 @@ def test_nodes_catalog_exposes_registry(client: TestClient) -> None:
     assert "text_segmentation" in categories
     assert "prompt" in categories
     assert "retrieval" in categories
+    capabilities = {
+        item["backend"]: item for item in payload["vector_store_capabilities"]
+    }
+    assert set(capabilities) == {
+        "chroma",
+        "faiss",
+        "lancedb",
+        "milvus",
+        "pinecone",
+        "qdrant",
+        "weaviate",
+    }
+    assert capabilities["pinecone"]["supports_namespaces"] is True
+    assert capabilities["pinecone"]["supports_minimum_should_match"] is False
+    assert capabilities["weaviate"]["supported_metrics"] == ["cosine"]
 
 ###############################################################################
 def test_nodes_import_persists_manifest(client: TestClient, tmp_path: Path) -> None:

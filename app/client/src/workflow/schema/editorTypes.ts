@@ -2,6 +2,7 @@ import type {
     ChatHistoryMessage,
     NodeManifest,
     ProviderModelDefinition,
+    VectorStoreCapabilities,
 } from './types'
 
 export type WorkflowNodeData = {
@@ -18,6 +19,7 @@ export type WorkflowNodeData = {
     runtimeOutput: Record<string, unknown> | null
     runtimeStepOutput: Record<string, unknown> | null
     providerModels: ProviderModelDefinition[]
+    vectorStoreCapabilities: VectorStoreCapabilities[]
     chatHistory: ChatHistoryMessage[]
     chatHistoryLoading: boolean
     chatHistoryError: string | null
