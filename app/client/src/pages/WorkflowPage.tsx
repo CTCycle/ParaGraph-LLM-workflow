@@ -69,6 +69,7 @@ import {
     WorkflowOpenIntent,
     WorkflowShareBundle,
     WorkflowTemplate,
+    VectorStoreCapabilities,
 } from '../workflow/schema/types'
 import { WorkflowParameterPathActions } from '../workflow/components/WorkflowParameterPathActions'
 import {
@@ -1556,6 +1557,7 @@ function getParameterOptions(
     manifest: NodeManifest,
     parameters: Record<string, unknown>,
     providerModels: ProviderModelDefinition[],
+    vectorStoreCapabilities: VectorStoreCapabilities[] = [],
 ): Array<{ value: string; label: string }> {
     if (parameter.name === 'model_name') {
         return getDynamicModelOptions(manifest, parameters, providerModels).map((item) => ({
@@ -1574,8 +1576,27 @@ function getParameterOptions(
     if (!Array.isArray(options)) {
         return []
     }
-    return options
-        .filter((option): option is string => typeof option === 'string')
+    const filteredOptions =
+        manifest.id === 'VECTOR_STORE' && parameter.name === 'provider'
+            ? options.filter(
+                (option): option is string =>
+                    typeof option === 'string'
+                    && (
+                        vectorStoreCapabilities.length === 0
+                        || vectorStoreCapabilities.some((item) => item.backend === option)
+                    ),
+            )
+            : manifest.id === 'VECTOR_STORE' && parameter.name === 'distance_metric'
+                ? options.filter((option): option is string => {
+                    if (typeof option !== 'string') {
+                        return false
+                    }
+                    const backend = coerceTextPayload(parameters.provider).trim().toLowerCase()
+                    const capability = vectorStoreCapabilities.find((item) => item.backend === backend)
+                    return !capability || capability.supported_metrics.includes(option as 'cosine' | 'l2' | 'dot')
+                })
+                : options.filter((option): option is string => typeof option === 'string')
+    return filteredOptions
         .map((option) => ({ value: option, label: formatWidgetOptionLabel(option) }))
 }
 
@@ -1610,6 +1631,37 @@ function shouldShowParameter(parameter: NodeParameterDefinition, parameters: Rec
 
     return true
 }
+
+function getVectorStoreCapability(
+    manifest: NodeManifest,
+    parameters: Record<string, unknown>,
+    capabilities: VectorStoreCapabilities[],
+): VectorStoreCapabilities | null {
+    if (manifest.id !== 'VECTOR_STORE') {
+        return null
+    }
+    const provider = coerceTextPayload(parameters.provider).trim().toLowerCase()
+    return capabilities.find((item) => item.backend === provider) ?? null
+}
+
+function isVectorStoreParameterSupported(
+    parameter: NodeParameterDefinition,
+    manifest: NodeManifest,
+    parameters: Record<string, unknown>,
+    capabilities: VectorStoreCapabilities[],
+): boolean {
+    const capability = getVectorStoreCapability(manifest, parameters, capabilities)
+    if (!capability) {
+        return true
+    }
+    if (parameter.name === 'namespace') {
+        return capability.supports_namespaces
+    }
+    if (parameter.name === 'create_keyword_index') {
+        return capability.supports_keyword_index
+    }
+    return true
+}
 function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
     const nodeStyle: NodeAccentStyle = { '--node-accent': data.manifest.ui.accent_color }
     const structured = isStructuredNode(data.manifest)
@@ -1617,6 +1669,7 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
     const isJsonOutputNode = data.manifest.id === 'JSON_OUTPUT'
     const sqlConnectionNode = isSqlConnectionNode(data.manifest)
     const vectorStoreConnectionNode = isVectorStoreConnectionNode(data.manifest)
+    const vectorStoreCapability = getVectorStoreCapability(data.manifest, data.parameters, data.vectorStoreCapabilities)
     const supportsConnectionCheck = sqlConnectionNode || vectorStoreConnectionNode
     const [browseTarget, setBrowseTarget] = useState<string | null>(null)
     const [jsonDrafts, setJsonDrafts] = useState<Record<string, string>>({})
@@ -1627,6 +1680,7 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
 
     const visibleParameters = data.manifest.parameters.filter(
         (parameter) => shouldShowParameter(parameter, data.parameters)
+            && isVectorStoreParameterSupported(parameter, data.manifest, data.parameters, data.vectorStoreCapabilities)
             && !(isChatNode && parameter.name === 'message'),
     )
 
@@ -2008,7 +2062,7 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
                     <div className="workflow-node-parameters-grid">
                         {visibleParameters.map((parameter) => {
                             const value = data.parameters[parameter.name] ?? parameter.default ?? ''
-                            const options = getParameterOptions(parameter, data.manifest, data.parameters, data.providerModels)
+                            const options = getParameterOptions(parameter, data.manifest, data.parameters, data.providerModels, data.vectorStoreCapabilities)
                             const multiline = isMultilineControl(parameter)
                             const showParameterLabel = parameter.ui_control !== 'textarea'
                             const showHeader = showParameterLabel || parameter.ui_control === 'file-list'
@@ -2271,6 +2325,12 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
 
             <div className="workflow-node-footer">
                 <span>{NODE_CATEGORY_LABELS[data.manifest.category]}</span>
+                {vectorStoreCapability && (
+                    <span title="Vector store capability contract">
+                        {vectorStoreCapability.supported_metrics.join(', ')}
+                        {vectorStoreCapability.supports_namespaces ? ' · namespaces' : ''}
+                    </span>
+                )}
             </div>
         </div>
     )
@@ -2279,7 +2339,7 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
 const nodeTypes = { manifest: ManifestNode }
 
 function WorkflowEditor() {
-    const { catalog, loading, error, reload } = useNodeCatalog()
+    const { catalog, vectorStoreCapabilities, loading, error, reload } = useNodeCatalog()
     const location = useLocation()
     const navigate = useNavigate()
     const { requestedTour, clearRequestedTour, shouldShow, markSeen, markDismissed } = useGuidance()
@@ -2409,10 +2469,11 @@ function WorkflowEditor() {
                     isActive: node.id === activeNodeId,
                     glowLevel: glowLevelByNodeId[node.id] ?? 0,
                     providerModels,
+                    vectorStoreCapabilities,
                 },
             })),
         )
-    }, [activeNodeId, glowLevelByNodeId, providerModels, setNodes])
+    }, [activeNodeId, glowLevelByNodeId, providerModels, setNodes, vectorStoreCapabilities])
 
     useEffect(() => {
         if (providerModels.length === 0) {
@@ -2935,6 +2996,7 @@ function WorkflowEditor() {
                 manifest: input.manifest,
                 parameters: initialParameters,
                 providerModels,
+                vectorStoreCapabilities,
                 collapsed: input.collapsed ?? input.manifest.ui.collapsed_by_default,
                 itemsExpanded: input.itemsExpanded ?? false,
                 selectedItemKey: null,
@@ -2987,6 +3049,23 @@ function WorkflowEditor() {
                             const nextOptions = getDynamicModelOptions(current.data.manifest, nextParameters, providerModels)
                             if (nextOptions.length > 0) {
                                 nextParameters.model_name = nextOptions[0].model
+                            }
+                            const vectorCapability = getVectorStoreCapability(
+                                current.data.manifest,
+                                nextParameters,
+                                current.data.vectorStoreCapabilities,
+                            )
+                            if (vectorCapability) {
+                                const currentMetric = coerceTextPayload(nextParameters.distance_metric).trim().toLowerCase()
+                                if (!vectorCapability.supported_metrics.includes(currentMetric as 'cosine' | 'l2' | 'dot')) {
+                                    nextParameters.distance_metric = vectorCapability.supported_metrics[0] ?? 'cosine'
+                                }
+                                if (!vectorCapability.supports_namespaces) {
+                                    nextParameters.namespace = ''
+                                }
+                                if (!vectorCapability.supports_keyword_index) {
+                                    nextParameters.create_keyword_index = false
+                                }
                             }
                         }
                         return {

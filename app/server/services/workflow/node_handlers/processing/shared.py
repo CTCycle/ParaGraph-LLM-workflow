@@ -272,7 +272,35 @@ def _iter_recursive_splits(
     fallback_strategy: str,
     measure_text_size,
     separator_index: int = 0,
+    _apply_overlap: bool = True,
 ) -> Iterator[str]:
+    if _apply_overlap and separator_index == 0:
+        previous = ""
+        for segment in _iter_recursive_splits(
+            text,
+            separators=separators,
+            chunk_size=chunk_size,
+            chunk_overlap=chunk_overlap,
+            unit=unit,
+            fallback_strategy=fallback_strategy,
+            measure_text_size=measure_text_size,
+            separator_index=0,
+            _apply_overlap=False,
+        ):
+            current = segment.strip()
+            if not current:
+                continue
+            if previous and chunk_overlap:
+                if unit == "characters":
+                    current = previous[-chunk_overlap:] + current
+                else:
+                    current = " ".join(
+                        [*previous.split()[-chunk_overlap:], *current.split()]
+                    ).strip()
+            yield current
+            previous = current
+        return
+
     cleaned_text = text.strip()
     if not cleaned_text:
         return
@@ -285,7 +313,7 @@ def _iter_recursive_splits(
             yield from _iter_fixed_size_segments(
                 cleaned_text,
                 chunk_size=chunk_size,
-                chunk_overlap=chunk_overlap,
+                chunk_overlap=0,
                 unit=unit,
             )
         else:
@@ -307,6 +335,7 @@ def _iter_recursive_splits(
             fallback_strategy=fallback_strategy,
             measure_text_size=measure_text_size,
             separator_index=separator_index + 1,
+            _apply_overlap=False,
         )
         return
 
@@ -323,6 +352,7 @@ def _iter_recursive_splits(
             fallback_strategy=fallback_strategy,
             measure_text_size=measure_text_size,
             separator_index=separator_index + 1,
+            _apply_overlap=False,
         )
 
 ###############################################################################

@@ -20,6 +20,7 @@ from server.services.workflow.nodes.execution_context import (
     reset_execution_context,
     set_execution_context,
 )
+from server.services.workflow.vector_stores import get_vector_store_capabilities
 
 
 MODEL_NODE_IDS = {"LLM_CHAT", "LLM_STRUCTURED"}
@@ -221,7 +222,10 @@ class NodeRegistry:
 
     # -------------------------------------------------------------------------
     def catalog_response(self) -> NodeCatalogResponse:
-        return NodeCatalogResponse(nodes=self.list())
+        return NodeCatalogResponse(
+            nodes=self.list(),
+            vector_store_capabilities=get_vector_store_capabilities(),
+        )
 
     # -------------------------------------------------------------------------
     def import_manifest(self, manifest: NodeManifest) -> NodeManifest:

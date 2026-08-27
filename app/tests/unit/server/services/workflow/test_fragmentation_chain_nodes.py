@@ -131,3 +131,24 @@ def test_recursive_split_chunk_separator_parsing_preserves_whitespace_entries() 
     )
 
     assert parsed.separators == ["\n\n", " "]
+
+###############################################################################
+def test_recursive_split_applies_overlap_after_separator_splits() -> None:
+    payload = node_registry.execute(
+        "RECURSIVE_SPLIT_CHUNKS",
+        1,
+        {
+            "separators": ["\\n"],
+            "chunk_size": 4,
+            "chunk_overlap": 1,
+            "unit": "words",
+            "fallback_strategy": "continue",
+        },
+        {"text": "one two three\nfour five six\nseven eight"},
+    )
+
+    assert [chunk["text"] for chunk in payload["chunks"]] == [
+        "one two three",
+        "three four five six",
+        "six seven eight",
+    ]

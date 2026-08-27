@@ -4,6 +4,7 @@ import json
 
 import chromadb
 
+from server.contracts.node_catalog import VectorStoreCapabilities
 from server.services.workflow.vector_stores.base import (
     Any,
     RetrievalHit,
@@ -21,15 +22,48 @@ from server.services.workflow.vector_stores.base import (
     _resolve_vectorstore_root,
     _sanitize_metadata_entry,
     _score_from_metric,
+    _score_semantics_for_metric,
     _store_attr,
 )
 
 ###############################################################################
 class ChromaVectorStoreAdapter(VectorStoreAdapter):
     backend = "chroma"
-    supports_faiss_augmentation = False
-    supported_operations = frozenset(
-        {"insert", "upsert", "update", "delete_ids", "delete_document", "inspect", "delete_collection", "reload", "close"}
+    capabilities = VectorStoreCapabilities(
+        backend="chroma",
+        supported_metrics=["cosine", "l2", "dot"],
+        supported_search_modes=["vector"],
+        supported_search_engines=["native"],
+        supports_metadata_filtering=True,
+        supported_filter_operators=[
+            "eq",
+            "in",
+            "exists",
+            "contains",
+            "gt",
+            "gte",
+            "lt",
+            "lte",
+        ],
+        supports_filter_groups=True,
+        supports_minimum_should_match=True,
+        supported_operations=[
+            "insert",
+            "upsert",
+            "update",
+            "delete_ids",
+            "delete_document",
+            "inspect",
+            "delete_collection",
+            "reload",
+            "search",
+            "close",
+        ],
+        score_semantics_by_metric={
+            "cosine": "normalized_similarity",
+            "l2": "normalized_similarity",
+            "dot": "native_similarity",
+        },
     )
 
     # -------------------------------------------------------------------------
@@ -53,7 +87,8 @@ class ChromaVectorStoreAdapter(VectorStoreAdapter):
         database_name: str = "",
         provider_config: dict[str, Any] | None = None,
     ) -> None:
-        _ = namespace, api_key, database_name, provider_config
+        self.validate_connection_capabilities(namespace=namespace)
+        _ = api_key, database_name, provider_config
         client = self._build_client(
             storage_directory=storage_directory, endpoint_url=endpoint_url
         )
@@ -78,7 +113,12 @@ class ChromaVectorStoreAdapter(VectorStoreAdapter):
         id_conflict_policy: str = "reject",
         **_: Any,
     ) -> VectorStoreHandle:
-        _ = namespace, api_key, database_name, provider_config
+        self.validate_write_capabilities(
+            metric=metric,
+            namespace=namespace,
+            create_keyword_index=bool(_.get("create_keyword_index", False)),
+        )
+        _ = api_key, database_name, provider_config
         if not points:
             raise VectorStoreError(
                 "Vector store write requires at least one vector point"
@@ -179,6 +219,7 @@ class ChromaVectorStoreAdapter(VectorStoreAdapter):
             embedding_model=str(_point_attr(points[0], "embedding_model") or ""),
             embedding_revision=incoming_revision,
             normalized=normalized_metric == "cosine",
+            namespace=namespace,
             metadata={
                 "storage_directory": storage_directory,
                 "endpoint_url": endpoint_url,
@@ -200,11 +241,13 @@ class ChromaVectorStoreAdapter(VectorStoreAdapter):
         search_mode: str = "vector",
         **_: Any,
     ) -> list[RetrievalHit]:
-        _ = ann_search_depth
-        if search_mode != "vector":
-            raise VectorStoreError(
-                "Hybrid search is not currently supported for Chroma in this runtime"
-            )
+        self.validate_search_capabilities(
+            store=store,
+            search_mode=search_mode,
+            search_engine=str(_.get("search_engine") or "native"),
+            filter_spec=filter_spec,
+            keyword_query=str(_.get("keyword_query") or "") or None,
+        )
 
         metadata = (
             _store_attr(store, "metadata")
@@ -250,9 +293,8 @@ class ChromaVectorStoreAdapter(VectorStoreAdapter):
             if not _matches_filter(entry_for_filter, filter_spec):
                 continue
             raw = float(distances[idx]) if idx < len(distances) else 0.0
-            score = _score_from_metric(
-                str(_store_attr(store, "metric") or "cosine"), raw
-            )
+            metric = str(_store_attr(store, "metric") or "cosine")
+            score = _score_from_metric(metric, raw, raw_semantics="distance")
             if score < score_threshold:
                 continue
             payloads.append(
@@ -263,6 +305,7 @@ class ChromaVectorStoreAdapter(VectorStoreAdapter):
                     text=str(documents[idx] if idx < len(documents) else ""),
                     source_uri=str(meta.get("source_uri", "")),
                     score=score,
+                    score_semantics=_score_semantics_for_metric(metric),
                     metadata=(
                         json.loads(str(meta.get("metadata_json") or "{}"))
                         if include_metadata

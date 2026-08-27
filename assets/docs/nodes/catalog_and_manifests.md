@@ -8,6 +8,15 @@ This branch documents the ParaGraph node system, the node catalog, and the contr
 - Built-in node manifests are loaded from `app/resources/nodes`.
 - Custom manifests can be imported at runtime from `/nodes` using JSON payloads.
 - The backend catalog endpoint is `GET /nodes/catalog`.
+- The catalog response also includes `vector_store_capabilities`. These typed
+  entries are the single capability source for vector metrics, search modes and
+  engines, namespace support, filter operators, keyword indexes, lifecycle
+  operations, and score semantics.
+
+The workflow editor uses the selected provider's capability entry to constrain
+vector-store metric choices and hide unsupported namespace or keyword-index
+controls. The compiler and runtime re-read the same adapter-owned contract, so
+catalog metadata is advisory UI data and never replaces execution validation.
 
 ## Core Node Categories
 The frontend and backend organize nodes by category, including:

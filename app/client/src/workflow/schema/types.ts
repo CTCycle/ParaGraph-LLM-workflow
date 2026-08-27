@@ -61,6 +61,27 @@ export type NodeDataType =
     | 'DATASET'
     | 'BOOLEAN'
     | 'ANY'
+
+export type VectorMetric = 'cosine' | 'l2' | 'dot'
+export type VectorSearchMode = 'vector' | 'keyword' | 'hybrid'
+export type VectorSearchEngine = 'native' | 'faiss_augmented'
+export type VectorFilterOperator = 'eq' | 'in' | 'exists' | 'contains' | 'gt' | 'gte' | 'lt' | 'lte'
+export type VectorScoreSemantics = 'normalized_similarity' | 'native_similarity'
+
+export interface VectorStoreCapabilities {
+    backend: string
+    supported_metrics: VectorMetric[]
+    supported_search_modes: VectorSearchMode[]
+    supported_search_engines: VectorSearchEngine[]
+    supports_namespaces: boolean
+    supports_metadata_filtering: boolean
+    supported_filter_operators: VectorFilterOperator[]
+    supports_filter_groups: boolean
+    supports_minimum_should_match: boolean
+    supports_keyword_index: boolean
+    supported_operations: string[]
+    score_semantics_by_metric: Partial<Record<VectorMetric, VectorScoreSemantics>>
+}
 export interface NodePortDefinition {
     name: string
     data_type: NodeDataType
@@ -127,6 +148,7 @@ export interface NodeManifest {
 
 export interface NodeCatalogResponse {
     nodes: NodeManifest[]
+    vector_store_capabilities?: VectorStoreCapabilities[]
 }
 
 export interface WorkflowNodeInstance {
@@ -506,6 +528,7 @@ export interface VectorStoreHandle {
     dimension: number
     embedding_provider: string
     embedding_model: string
+    namespace?: string
     metadata: Record<string, unknown>
 }
 
@@ -516,6 +539,7 @@ export interface RetrievalHit {
     text: string
     source_uri: string
     score: number
+    score_semantics?: VectorScoreSemantics
     metadata: Record<string, unknown>
 }
 
