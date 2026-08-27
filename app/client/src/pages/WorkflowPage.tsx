@@ -117,7 +117,6 @@ type CopiedNodeSnapshot = {
     collapsed: boolean
     pinged: boolean
     skipped: boolean
-    isGlobal: boolean
 }
 
 type SelectedWorkflowJson = {
@@ -169,7 +168,6 @@ const WORKFLOW_EXECUTION_WORKFLOW_ID = 'workflow'
 
 type HandleKind = 'input' | 'output' | 'controller'
 type ParsedHandle = { kind: HandleKind; name: string }
-type GlobalNodeKind = 'model_provider' | 'database_provider' | 'vector_store'
 
 type ControllerScope = 'source' | 'target' | 'both'
 
@@ -263,52 +261,6 @@ function basenameOnly(value: unknown): string {
     const normalized = text.replace(/\\/g, '/')
     const segments = normalized.split('/').filter(Boolean)
     return segments.length > 0 ? segments[segments.length - 1] : normalized
-}
-
-function getGlobalNodeKind(manifest: NodeManifest): GlobalNodeKind | null {
-    if (manifest.id === 'MODEL_PROVIDER') {
-        return 'model_provider'
-    }
-    if (manifest.category === 'database') {
-        return 'database_provider'
-    }
-    if (manifest.category === 'vector_storage') {
-        return 'vector_store'
-    }
-    return null
-}
-
-function deriveGlobalNodeMetadata(nodes: Array<Node<WorkflowNodeData>>): Record<string, string> {
-    const globalNodes: Record<string, string> = {}
-    for (const node of nodes) {
-        if (!node.data.isGlobal) {
-            continue
-        }
-        const kind = getGlobalNodeKind(node.data.manifest)
-        if (!kind) {
-            continue
-        }
-        globalNodes[kind] = node.id
-    }
-    return globalNodes
-}
-
-function enforceSingleGlobalSelection(nodes: Array<Node<WorkflowNodeData>>): Array<Node<WorkflowNodeData>> {
-    const seen = new Set<GlobalNodeKind>()
-    return nodes.map((node) => {
-        const kind = getGlobalNodeKind(node.data.manifest)
-        if (!kind || !node.data.isGlobal) {
-            return node
-        }
-        if (seen.has(kind)) {
-            return {
-                ...node,
-                data: { ...node.data, isGlobal: false },
-            }
-        }
-        seen.add(kind)
-        return node
-    })
 }
 
 type BrowserDirectorySelection = {
@@ -911,6 +863,27 @@ function parseHandleId(handleId: string): ParsedHandle | null {
         return null
     }
     return { kind, name }
+}
+
+export function deriveBoundInputNames(
+    edges: Array<{ target?: string; targetHandle?: string | null }>,
+): Record<string, string[]> {
+    const boundInputs: Record<string, string[]> = {}
+    for (const edge of edges) {
+        if (!edge.target || typeof edge.targetHandle !== 'string') {
+            continue
+        }
+        const target = parseHandleId(edge.targetHandle)
+        if (!target || target.kind !== 'input') {
+            continue
+        }
+        const names = boundInputs[edge.target] ?? []
+        if (!names.includes(target.name)) {
+            names.push(target.name)
+            boundInputs[edge.target] = names
+        }
+    }
+    return boundInputs
 }
 
 
@@ -1687,7 +1660,6 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
     const runtimeOutputText = isJsonOutputNode ? formatJsonOutputRuntime(data.runtimeOutput) : formatRuntimeOutput(data.runtimeOutput)
     const shouldShowRuntimeOutput = Boolean(runtimeOutputText) || isJsonOutputNode
     const isItemExpandable = isNodeItemExpandable(data.manifest)
-    const globalNodeKind = getGlobalNodeKind(data.manifest)
     const nodeItems = collectNodeItems(data.manifest, data.parameters, data.runtimeStepOutput)
     const hasNodeItems = nodeItems.length > 0
     const nodeItemsEmptyMessage = data.runtimeStepOutput
@@ -1941,22 +1913,6 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
                             {connectionCheckState === 'checking' ? '...' : sqlConnectionNode ? 'DB' : 'VS'}
                         </button>
                     )}
-                    {globalNodeKind && (
-                        <button
-                            type="button"
-                            className={`workflow-node-global ${data.isGlobal ? 'workflow-node-global-active' : ''} nodrag nopan`}
-                            aria-label={data.isGlobal ? 'Unset global node' : 'Set node as global'}
-                            title={data.isGlobal ? 'Unset global node' : 'Set node as global'}
-                            onPointerDown={preventNodeInteractionDrag}
-                            onMouseDown={preventNodeInteractionDrag}
-                            onClick={(event) => {
-                                event.stopPropagation()
-                                data.onToggleGlobal()
-                            }}
-                        >
-                            G
-                        </button>
-                    )}
                     <button
                         type="button"
                         className="workflow-node-ping nodrag nopan"
@@ -2068,6 +2024,7 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
                             const showHeader = showParameterLabel || parameter.ui_control === 'file-list'
                             const isBrowsing = browseTarget === parameter.name
                             const isSeparatorList = isRecursiveSeparatorParameter(data.manifest, parameter)
+                            const isParameterBound = data.boundInputNames.includes(parameter.name)
                             const selectedPaths = parameter.ui_control === 'file-list' ? normalizeStringList(value) : []
                             const numberConstraints = parameter.ui_control === 'number' ? getNumberConstraints(parameter) : null
                             return (
@@ -2117,9 +2074,14 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
                                             </div>
                                         ) : parameter.ui_control === 'json' ? (
                                             <div className="workflow-node-json-widget">
+                                                {isParameterBound && (
+                                                    <div className="workflow-node-json-binding" role="status">
+                                                        Upstream input bound; this literal is the fallback when the edge is removed.
+                                                    </div>
+                                                )}
                                                 <button
                                                     type="button"
-                                                    className="workflow-node-json-validate nodrag nopan"
+                                                    className={`workflow-node-json-validate ${isParameterBound ? 'workflow-node-json-validate-bound' : ''} nodrag nopan`}
                                                     onPointerDown={preventNodeInteractionDrag}
                                                     onMouseDown={preventNodeInteractionDrag}
                                                     onClick={() =>
@@ -2380,6 +2342,7 @@ function WorkflowEditor() {
     const pasteCountRef = useRef(0)
     const canvasPanelRef = useRef<HTMLDivElement | null>(null)
     const { getZoom, screenToFlowPosition, zoomIn, zoomTo } = useReactFlow<Node<WorkflowNodeData>, Edge>()
+    const boundInputNamesByNodeId = useMemo(() => deriveBoundInputNames(edges), [edges])
     const glowLevelByNodeId = useMemo(
         () => buildNodeGlowLevelMap(activeNodeId, glowTrailNodeIds),
         [activeNodeId, glowTrailNodeIds],
@@ -2474,6 +2437,28 @@ function WorkflowEditor() {
             })),
         )
     }, [activeNodeId, glowLevelByNodeId, providerModels, setNodes, vectorStoreCapabilities])
+
+    useEffect(() => {
+        setNodes((current) => {
+            let changed = false
+            const next = current.map((node) => {
+                const boundInputNames = boundInputNamesByNodeId[node.id] ?? []
+                const currentNames = node.data.boundInputNames
+                if (
+                    currentNames.length === boundInputNames.length
+                    && currentNames.every((name, index) => name === boundInputNames[index])
+                ) {
+                    return node
+                }
+                changed = true
+                return {
+                    ...node,
+                    data: { ...node.data, boundInputNames },
+                }
+            })
+            return changed ? next : current
+        })
+    }, [boundInputNamesByNodeId, setNodes])
 
     useEffect(() => {
         if (providerModels.length === 0) {
@@ -2574,7 +2559,6 @@ function WorkflowEditor() {
                     collapsed: source.data.collapsed,
                     pinged: source.data.pinged,
                     skipped: source.data.skipped,
-                    isGlobal: source.data.isGlobal,
                 }
                 pasteCountRef.current = 0
                 setStatusText(`Copied ${source.data.manifest.name}`)
@@ -2603,7 +2587,6 @@ function WorkflowEditor() {
                     collapsed: copied.collapsed,
                     pinged: copied.pinged,
                     skipped: copied.skipped,
-                    isGlobal: false,
                     selected: true,
                 })
                 setNodes((current) => [
@@ -2694,7 +2677,6 @@ function WorkflowEditor() {
                     itemsExpanded: snapshot.items_expanded ?? false,
                     pinged: snapshot.pinged,
                     skipped: snapshot.skipped,
-                    isGlobal: Boolean(snapshot.is_global),
                     width: snapshot.width,
                     height: snapshot.height,
                 }),
@@ -2734,7 +2716,7 @@ function WorkflowEditor() {
         canOfferOnboardingRef.current = restoredNodes.length === 0 && restoredEdges.length === 0
         workflowHasStartedRef.current = !canOfferOnboardingRef.current
         saveNodeBrowseSelectionsRef.current = {}
-        setNodes(enforceSingleGlobalSelection(restoredNodes))
+        setNodes(restoredNodes)
         setEdges(restoredEdges)
         setIsLibraryVisible(false)
         setIsGridVisible(persisted.is_grid_visible)
@@ -2807,7 +2789,6 @@ function WorkflowEditor() {
                 items_expanded: node.data.itemsExpanded,
                 pinged: node.data.pinged,
                 skipped: node.data.skipped,
-                is_global: node.data.isGlobal,
             }
         })
         const persistedEdges: PersistedWorkflowEdge[] = edges.map((edge) => ({
@@ -2863,7 +2844,6 @@ function WorkflowEditor() {
         return nodes.find((node) => node.id === nodeContextMenu.nodeId) ?? null
     }, [nodeContextMenu, nodes])
     const contextMenuNodeIsExpandable = contextMenuNode ? isNodeItemExpandable(contextMenuNode.data.manifest) : false
-    const contextMenuNodeGlobalKind = contextMenuNode ? getGlobalNodeKind(contextMenuNode.data.manifest) : null
     const contextMenuNodeCanViewSchema = contextMenuNode ? isSqlConnectionNode(contextMenuNode.data.manifest) : false
 
     useEffect(() => {
@@ -2966,7 +2946,6 @@ function WorkflowEditor() {
         itemsExpanded?: boolean
         pinged?: boolean
         skipped?: boolean
-        isGlobal?: boolean
         selected?: boolean
         width?: number
         height?: number
@@ -3002,7 +2981,7 @@ function WorkflowEditor() {
                 selectedItemKey: null,
                 pinged: isPinged,
                 skipped: input.skipped ?? false,
-                isGlobal: input.isGlobal ?? false,
+                boundInputNames: [],
                 isActive: nodeId === activeNodeId,
                 glowLevel: nodeId === activeNodeId ? 3 : 0,
                 runtimeOutput: null,
@@ -3091,9 +3070,6 @@ function WorkflowEditor() {
                 onTogglePing: () => {
                     toggleNodePing(nodeId)
                 },
-                onToggleGlobal: () => {
-                    toggleNodeGlobal(nodeId)
-                },
                 onToggleCollapse: () => {
                     updateNode(nodeId, (current) => ({
                         ...current,
@@ -3164,43 +3140,6 @@ function WorkflowEditor() {
         }
     }
 
-    function toggleNodeGlobal(nodeId: string): void {
-        let statusMessage: string | null = null
-        setNodes((current) => {
-            const selected = current.find((node) => node.id === nodeId)
-            if (!selected) {
-                return current
-            }
-
-            const selectedKind = getGlobalNodeKind(selected.data.manifest)
-            if (!selectedKind) {
-                return current
-            }
-
-            const nextIsGlobal = !selected.data.isGlobal
-            return current.map((node) => {
-                if (node.id === nodeId) {
-                    statusMessage = `${nextIsGlobal ? 'Set' : 'Unset'} global ${selected.data.manifest.name}`
-                    return {
-                        ...node,
-                        data: { ...node.data, isGlobal: nextIsGlobal },
-                    }
-                }
-
-                if (nextIsGlobal && node.data.isGlobal && getGlobalNodeKind(node.data.manifest) === selectedKind) {
-                    return {
-                        ...node,
-                        data: { ...node.data, isGlobal: false },
-                    }
-                }
-                return node
-            })
-        })
-
-        if (statusMessage) {
-            setStatusText(statusMessage)
-        }
-    }
     function toggleNodeSkipped(nodeId: string): void {
         const node = nodes.find((item) => item.id === nodeId)
         if (!node) {
@@ -3234,7 +3173,6 @@ function WorkflowEditor() {
             skipped: mode === 'clone' ? sourceNode.data.skipped : false,
             width: mode === 'clone' ? dimensions.width : undefined,
             height: mode === 'clone' ? dimensions.height : undefined,
-            isGlobal: false,
             selected: true,
         })
 
@@ -3409,7 +3347,7 @@ function WorkflowEditor() {
             schema_version: 2,
             nodes: definitionNodes,
             connections: definitionConnections,
-            metadata: { global_nodes: deriveGlobalNodeMetadata(nodes) },
+            metadata: {},
         }
     }
     function buildVisualGraph(): VisualGraph {
@@ -3427,7 +3365,6 @@ function WorkflowEditor() {
                     items_expanded: node.data.itemsExpanded,
                     pinged: node.data.pinged,
                     skipped: node.data.skipped,
-                    is_global: node.data.isGlobal,
                 }
             }),
             groups: [],
@@ -3465,16 +3402,6 @@ function WorkflowEditor() {
             }
         }
 
-        const importedGlobalNodeIds = new Set<string>()
-        const rawGlobalNodes = isRecord(payload.definition.metadata) ? payload.definition.metadata.global_nodes : null
-        if (isRecord(rawGlobalNodes)) {
-            for (const value of Object.values(rawGlobalNodes)) {
-                if (typeof value === 'string' && value.trim()) {
-                    importedGlobalNodeIds.add(value.trim())
-                }
-            }
-        }
-
         const definitionNodes: unknown[] = Array.isArray(payload.definition.nodes) ? payload.definition.nodes : []
         const restoredNodes: Node<WorkflowNodeData>[] = definitionNodes.map((rawNode, index) => {
             if (!isRecord(rawNode) || typeof rawNode.node_id !== 'string' || typeof rawNode.node_type !== 'string') {
@@ -3499,11 +3426,6 @@ function WorkflowEditor() {
             const itemsExpanded = visualNode ? Boolean(visualNode.items_expanded) : false
             const pinged = visualNode ? Boolean(visualNode.pinged) : false
             const skipped = typeof rawNode.skipped === 'boolean' ? rawNode.skipped : visualNode ? Boolean(visualNode.skipped) : false
-            const isGlobal = typeof rawNode.is_global === 'boolean'
-                ? rawNode.is_global
-                : visualNode
-                    ? Boolean(visualNode.is_global)
-                    : importedGlobalNodeIds.has(rawNode.node_id)
             const parameters = isRecord(rawNode.parameters) ? rawNode.parameters : {}
 
             return createWorkflowNode({
@@ -3515,7 +3437,6 @@ function WorkflowEditor() {
                 itemsExpanded,
                 pinged,
                 skipped,
-                isGlobal,
                 width,
                 height,
             })
@@ -3589,7 +3510,7 @@ function WorkflowEditor() {
                 ]
             })
         saveNodeBrowseSelectionsRef.current = {}
-        setNodes(enforceSingleGlobalSelection(restoredNodes))
+        setNodes(restoredNodes)
         setEdges(restoredEdges)
         setNodeContextMenu(null)
         clearExecutionHighlight()
@@ -4589,21 +4510,6 @@ function WorkflowEditor() {
                                 }}
                             >
                                 {contextMenuNode.data.itemsExpanded ? 'Collapse to hide items' : 'Expand to see items'}
-                            </button>
-                            <button
-                                type="button"
-                                className={`workflow-node-context-menu-item ${contextMenuNodeGlobalKind ? '' : 'workflow-node-context-menu-item-disabled'}`}
-                                role="menuitem"
-                                disabled={!contextMenuNodeGlobalKind}
-                                onClick={() => {
-                                    if (!contextMenuNodeGlobalKind) {
-                                        return
-                                    }
-                                    contextMenuNode.data.onToggleGlobal()
-                                    setNodeContextMenu(null)
-                                }}
-                            >
-                                {contextMenuNode.data.isGlobal ? 'Unset global' : 'Set as global'}
                             </button>
                             <button
                                 type="button"

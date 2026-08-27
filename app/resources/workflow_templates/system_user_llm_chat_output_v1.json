@@ -83,11 +83,7 @@
         "to_input": "text"
       }
     ],
-    "metadata": {
-      "global_nodes": {
-        "model_provider": "model_provider_1"
-      }
-    }
+    "metadata": {}
   },
   "visual_graph": {
     "schema_version": 2,
@@ -114,8 +110,7 @@
         "y": 80,
         "width": 340,
         "height": 220,
-        "collapsed": false,
-        "is_global": true
+        "collapsed": false
       },
       {
         "node_id": "llm_chat_1",

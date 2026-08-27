@@ -1,5 +1,5 @@
 # Findings And Remediation
-Last updated: 2026-08-20
+Last updated: 2026-08-27
 
 ## Review Scope
 The architecture review covered backend layering, SQLite lifecycle, manifest
@@ -23,6 +23,15 @@ and the size of `client/src/pages/WorkflowPage.tsx`.
   implementation layers.
 - Workflow localStorage parsing and persistence moved from the route page to
   `client/src/workflow/hooks/workflowPersistence.ts` with focused unit tests.
+- Vector adapter capabilities now have one typed contract consumed by the
+  catalog, editor, compiler, and runtime. Unsupported retrieval options fail
+  closed, and score semantics and recursive overlap behavior are explicit.
+- Database operation contracts retain credential profiles and opaque credential
+  references, bind SQL parameters, enforce read-only execution, and reject
+  unsupported MySQL upserts explicitly.
+- Controller dependencies are now explicit typed graph edges. Global-node UI
+  state and compiler injection were removed, and structured JSON editors mark
+  same-name upstream bindings while retaining literals as fallbacks.
 
 ## Validation Evidence
 - Backend focused persistence, migration, manifest, execution, and event tests
@@ -36,5 +45,5 @@ and the size of `client/src/pages/WorkflowPage.tsx`.
   interaction state, and presentation modules without changing editor behavior.
 - Consolidate API response/error handling and generated/manual contract drift
   checks as endpoint payloads evolve.
-- Revisit provider capability reporting, vector-store base contracts, and
-  dependency-backed ML capability checks as separate bounded changes.
+- Validate external vector, database, and model providers when services are
+  available; local validation does not substitute for those provider checks.

@@ -1,5 +1,5 @@
 # Import And Integration
-Last updated: 2026-06-02
+Last updated: 2026-08-27
 
 ## Custom Node Import API
 - Endpoint: `POST /nodes/import`
@@ -17,7 +17,16 @@ Last updated: 2026-06-02
 ## Workflow Integration
 - The workflow editor at `/` fetches the node catalog and supports drag and drop placement.
 - The compiler validates node existence, version, ports and controllers compatibility, and required inputs.
+- Every provider, memory, store, and database connection is represented by an
+  explicit typed controller edge. `metadata.global_nodes` is unsupported and
+  never becomes a connector source; a missing controller edge is a blocking
+  compile diagnostic.
 - Execution resolves node handlers from manifest metadata through the backend registry.
+
+Structured payload parameters remain literal node configuration. When an input
+edge targets a JSON parameter with the same name, the upstream value wins at
+runtime and the literal stays available as the fallback used after that edge
+is removed.
 
 ## Connectivity Checks
 Node-level connectivity endpoints:

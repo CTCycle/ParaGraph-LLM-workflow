@@ -5,7 +5,9 @@ Last updated: 2026-08-26
 - Drag nodes from the left node tree to the canvas.
 - Connect output handles to compatible input handles.
 - Blue data ports carry values between nodes. Amber controller ports attach shared providers, memory, or stores.
-- Use context menu actions such as clone, skip, set global, and remove.
+- Use context menu actions such as clone, skip, and remove.
+- Controller ports are explicit graph edges; provider, memory, and store nodes
+  are not implicitly attached through node metadata.
 - Use import and export controls for workflow JSON when needed.
 - Use compile diagnostics to fix graph errors before execution.
 - Use the node context menu to skip or unskip a node; skipped nodes are represented in the compiled plan and execution state.

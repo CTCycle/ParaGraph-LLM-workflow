@@ -25,11 +25,6 @@ from server.services.workflow.vector_stores.base import (
 MODEL_NODE_TYPES = {"LLM_CHAT", "LLM_STRUCTURED"}
 STRUCTURED_NODE_TYPES = {"LLM_STRUCTURED"}
 CHAT_NODE_TYPES = {"CHAT_INPUT"}
-GLOBAL_CONTROLLER_KINDS: dict[str, str] = {
-    "MODEL_HANDLE": "model_provider",
-    "DATABASE_CONNECTION": "database_provider",
-    "VECTOR_STORE_HANDLE": "vector_store",
-}
 
 ###############################################################################
 def _resolve_provider(parameters: dict[str, object], default: str = "ollama") -> str:
@@ -79,9 +74,7 @@ class CompilerService:
         require_access_keys: bool = True,
     ) -> CompileWorkflowResponse:
         active_definition, skipped_node_ids = self._active_definition(definition)
-        effective_definition = self._inject_global_controller_connections(
-            active_definition
-        )
+        effective_definition = active_definition
 
         diagnostics, validated_parameters = self._collect_diagnostics(
             effective_definition,
@@ -228,143 +221,6 @@ class CompilerService:
         return terminal_outputs
 
     # -------------------------------------------------------------------------
-    def _inject_global_controller_connections(
-        self, definition: WorkflowDefinition
-    ) -> WorkflowDefinition:
-        if not definition.nodes:
-            return definition
-
-        node_by_id = {node.node_id: node for node in definition.nodes}
-        global_node_ids = self._read_global_node_ids(definition, node_by_id)
-        if not global_node_ids:
-            return definition
-
-        existing_keys: set[tuple[str, str, str, str, str]] = set()
-        inbound_controller_counts: dict[tuple[str, str], int] = defaultdict(int)
-        for connection in definition.connections:
-            if connection.connection_type != "controller":
-                continue
-            source_name = connection.from_controller or ""
-            target_name = connection.to_controller or ""
-            existing_keys.add(
-                (
-                    connection.connection_type,
-                    connection.from_node,
-                    source_name,
-                    connection.to_node,
-                    target_name,
-                )
-            )
-            inbound_controller_counts[(connection.to_node, target_name)] += 1
-
-        injected: list[WorkflowConnection] = []
-        for node in definition.nodes:
-            target_manifest = node_registry.get(node.node_type, node.node_version)
-            if target_manifest is None:
-                continue
-
-            for controller in target_manifest.controllers:
-                if self._controller_scope(controller.scope) == "source":
-                    continue
-                if inbound_controller_counts[(node.node_id, controller.name)] > 0:
-                    continue
-
-                global_kind = GLOBAL_CONTROLLER_KINDS.get(controller.data_type)
-                if not global_kind:
-                    continue
-                global_node_id = global_node_ids.get(global_kind)
-                if not global_node_id or global_node_id == node.node_id:
-                    continue
-
-                source_node = node_by_id.get(global_node_id)
-                if source_node is None:
-                    continue
-                source_manifest = node_registry.get(
-                    source_node.node_type, source_node.node_version
-                )
-                if source_manifest is None:
-                    continue
-
-                source_controller_name = self._resolve_global_source_controller_name(
-                    source_manifest, controller.data_type
-                )
-                if source_controller_name is None:
-                    continue
-
-                connection_key = (
-                    "controller",
-                    global_node_id,
-                    source_controller_name,
-                    node.node_id,
-                    controller.name,
-                )
-                if connection_key in existing_keys:
-                    continue
-                existing_keys.add(connection_key)
-                inbound_controller_counts[(node.node_id, controller.name)] += 1
-                injected.append(
-                    WorkflowConnection(
-                        from_node=global_node_id,
-                        to_node=node.node_id,
-                        connection_type="controller",
-                        from_controller=source_controller_name,
-                        to_controller=controller.name,
-                    )
-                )
-
-        if not injected:
-            return definition
-        return definition.model_copy(
-            update={"connections": [*definition.connections, *injected]}
-        )
-
-    # -------------------------------------------------------------------------
-    def _resolve_global_source_controller_name(
-        self, source_manifest, target_data_type: str
-    ) -> str | None:
-        for controller in source_manifest.controllers:
-            scope = self._controller_scope(controller.scope)
-            if scope == "target":
-                continue
-            compatible = (
-                controller.data_type == target_data_type
-                or controller.data_type == "ANY"
-                or target_data_type == "ANY"
-            )
-            if compatible:
-                return controller.name
-        return None
-
-    # -------------------------------------------------------------------------
-    def _read_global_node_ids(
-        self,
-        definition: WorkflowDefinition,
-        node_by_id: dict[str, object],
-    ) -> dict[str, str]:
-        metadata = definition.metadata if isinstance(definition.metadata, dict) else {}
-        raw_globals = metadata.get("global_nodes")
-        if not isinstance(raw_globals, dict):
-            return {}
-
-        normalized: dict[str, str] = {}
-        allowed_keys = {"model_provider", "database_provider", "vector_store"}
-        for raw_key, raw_node_id in raw_globals.items():
-            key = str(raw_key).strip().lower()
-            if key not in allowed_keys or not isinstance(raw_node_id, str):
-                continue
-            node_id = raw_node_id.strip()
-            if node_id and node_id in node_by_id:
-                normalized[key] = node_id
-        return normalized
-
-    # -------------------------------------------------------------------------
-    @staticmethod
-    def _controller_scope(scope: str | None) -> str:
-        if scope in {"source", "target", "both"}:
-            return scope
-        return "target"
-
-    # -------------------------------------------------------------------------
     def _collect_diagnostics(
         self,
         definition: WorkflowDefinition,
@@ -382,6 +238,17 @@ class CompilerService:
         )
         model_binding_by_node: dict[str, WorkflowConnection] = {}
         similarity_store_binding_by_node: dict[str, WorkflowConnection] = {}
+
+        if "global_nodes" in definition.metadata:
+            diagnostics.append(
+                CompilerDiagnostic(
+                    code="unsupported_global_connector_metadata",
+                    message=(
+                        "global_nodes metadata is unsupported; connect provider, "
+                        "memory, and store nodes with typed controller edges"
+                    ),
+                )
+            )
 
         for node in definition.nodes:
             if node.node_id in node_ids_seen:

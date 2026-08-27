@@ -13,7 +13,7 @@ export type WorkflowNodeData = {
     selectedItemKey: string | null
     pinged: boolean
     skipped: boolean
-    isGlobal: boolean
+    boundInputNames: string[]
     isActive: boolean
     glowLevel: number
     runtimeOutput: Record<string, unknown> | null
@@ -31,7 +31,6 @@ export type WorkflowNodeData = {
     onTogglePing: () => void
     onToggleCollapse: () => void
     onToggleItemsExpanded: () => void
-    onToggleGlobal: () => void
     onSelectItem: (itemKey: string | null) => void
     onOpenTextEditor: (parameterName: string) => void
     onChatSubmit: (message: string) => void

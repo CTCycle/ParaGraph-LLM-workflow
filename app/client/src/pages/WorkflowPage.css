@@ -677,7 +677,6 @@
     color: #ffdcae;
 }
 
-.workflow-node-global,
 .workflow-node-ping,
 .workflow-node-toggle {
     width: 28px;
@@ -691,7 +690,6 @@
     line-height: 1;
 }
 
-.workflow-node-global:hover,
 .workflow-node-ping:hover,
 .workflow-node-toggle:hover {
     background: rgba(95, 174, 255, 0.18);
@@ -704,19 +702,6 @@
 .workflow-node[data-pinged='true'] .workflow-node-ping {
     color: #ffe7b4;
 }
-
-.workflow-node-global {
-    color: #9db7d8;
-    font-size: 0.78rem;
-    font-weight: 700;
-    letter-spacing: 0.02em;
-}
-
-.workflow-node-global-active {
-    background: rgba(95, 174, 255, 0.2);
-    color: #e4f3ff;
-}
-
 
 .workflow-node-handle-controller {
     width: 11px !important;
@@ -1075,6 +1060,17 @@
     width: 100%;
 }
 
+.workflow-node-json-binding {
+    margin: 0 0 6px;
+    padding: 5px 8px;
+    border: 1px solid rgba(255, 193, 92, 0.28);
+    border-radius: 8px;
+    background: rgba(255, 193, 92, 0.08);
+    color: #f8d99a;
+    font-size: 0.68rem;
+    line-height: 1.35;
+}
+
 .workflow-node-json-validate {
     position: absolute;
     top: 7px;
@@ -1318,6 +1314,10 @@
     border: 1px solid var(--border-subtle, #334155);
     border-radius: 0.5rem;
     background: var(--surface-raised, #111827);
+}
+
+.workflow-node-json-validate-bound {
+    top: 34px;
 }
 
 .workflow-diagnostics h2 {
