@@ -4,7 +4,7 @@ import re
 import json
 from typing import Any
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 ###############################################################################
 def _parse_json_object(value: Any, label: str) -> dict[str, Any]:
@@ -33,6 +33,8 @@ def _parse_columns(value: Any) -> list[str]:
 
 ###############################################################################
 class _TableParameters(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     table: str
     schema_name: str = ""
 
@@ -109,6 +111,8 @@ class CrudDeleteParameters(_TableParameters):
 
 ###############################################################################
 class CustomSqlQueryParameters(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     sql: str
     parameters: dict[str, Any] = Field(default_factory=dict)
     read_only: bool = False

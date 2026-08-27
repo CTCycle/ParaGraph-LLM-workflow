@@ -7,6 +7,7 @@ from sqlalchemy import Column, Integer, MetaData, String, Table, create_engine, 
 from sqlalchemy.dialects.postgresql import dialect as postgresql_dialect
 from sqlalchemy.dialects.postgresql import insert as postgresql_insert
 
+from server.repositories.workflow import database as database_repository
 from server.repositories.workflow.database import (
     build_database_url,
     engine_registry,
@@ -131,6 +132,36 @@ def test_read_only_enforcement_and_parameterized_single_statement_sql(
         execute_custom_sql(writable, sql="select 1; select 2")
     with pytest.raises(ValueError, match="READ_ONLY_SQL_REQUIRED"):
         execute_custom_sql(writable, sql="delete from items", read_only=True)
+    with pytest.raises(ValueError, match="READ_ONLY_VIOLATION"):
+        execute_custom_sql(readonly, sql="delete from items", read_only=False)
+
+
+def test_mysql_upsert_is_rejected_before_table_access(monkeypatch) -> None:
+    class FakeDialect:
+        name = "mysql"
+
+    class FakeEngine:
+        dialect = FakeDialect()
+
+    monkeypatch.setattr(
+        database_repository,
+        "build_engine_from_connection",
+        lambda connection: FakeEngine(),
+    )
+
+    def unexpected_table_load(*args, **kwargs):
+        raise AssertionError("unsupported upsert should fail before table access")
+
+    monkeypatch.setattr(database_repository, "_load_table", unexpected_table_load)
+
+    with pytest.raises(ValueError, match="UPSERT_UNSUPPORTED: mysql"):
+        execute_upsert(
+            _connection(Path("unused.sqlite")),
+            table_name="items",
+            conflict_columns=["name"],
+            insert_values={"name": "Ada"},
+            update_values={"value": 1},
+        )
 
 ###############################################################################
 def test_generated_ids_pagination_upsert_and_optimistic_concurrency(
