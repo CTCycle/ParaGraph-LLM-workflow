@@ -22,7 +22,7 @@ The interactive menu provides these options:
 - `8` Remove application log files.
 - `9` Clear runtime caches under `runtimes/cache` and test/tool caches plus generated test/build artifacts under `app/tests/cache`.
 - `10` Remove user data and the embedded database, including database sidecars, while preserving application files and settings. This requires typing `REMOVE` to confirm.
-- `11` Uninstall local runtimes, dependencies, caches, and lockfiles while preserving settings and user data.
+- `11` Uninstall local runtimes, dependencies, caches, and build output while preserving dependency lockfiles, settings, and user data.
 - `12` Exit without changing the workspace.
 
 ## Manual Backend

@@ -692,17 +692,16 @@ function Uninstall-Application {
     $allRemoved = $true
     foreach ($relativePath in @(
         'runtimes', 'app\server\.venv', '.venv', 'app\client\node_modules',
-        'app\client\.angular', 'app\client\dist', 'app\client\package-lock.json',
-        'app\server\uv.lock', 'uv.lock'
+        'app\client\.angular', 'app\client\dist'
     )) {
         if (-not (Remove-RepoItem -RelativePath $relativePath)) { $allRemoved = $false }
     }
     if (-not (Remove-PythonCaches)) { $allRemoved = $false }
     if (-not (Clear-DeveloperCache)) { $allRemoved = $false }
     if ($allRemoved) {
-        Write-Ok 'Application runtimes, dependencies, caches, and lockfiles removed. Settings and user data were preserved.'
+        Write-Ok 'Application runtimes, dependencies, caches, and build outputs removed. Dependency lockfiles and user data were preserved.'
     } else {
-        Write-Warn ("Application runtimes, dependencies, caches, and lockfiles were removed where permitted; {0} locked or protected entries were skipped. First skipped path: {1}" -f $script:SkippedCacheCount, $script:FirstSkippedCachePath)
+        Write-Warn ("Application runtimes, dependencies, caches, and build outputs were removed where permitted; {0} locked or protected entries were skipped. Dependency lockfiles and user data were preserved. First skipped path: {1}" -f $script:SkippedCacheCount, $script:FirstSkippedCachePath)
     }
 }
 
