@@ -71,7 +71,7 @@ export const TIPS_AND_TRICKS: TipDefinition[] = [
     {
         id: 'node-actions',
         title: 'Right-click a node',
-        body: 'Use the node context menu to clone, skip, reset configuration, or set a node global.',
+          body: 'Use the node context menu to clone, skip, reset configuration, or remove a node.',
     },
     {
         id: 'provider-setup',

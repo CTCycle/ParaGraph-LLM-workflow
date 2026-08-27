@@ -29,7 +29,6 @@ describe('workflow persistence', () => {
                     items_expanded: true,
                     pinged: false,
                     skipped: false,
-                    is_global: false,
                 },
             ],
             edges: [

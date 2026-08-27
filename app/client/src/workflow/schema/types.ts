@@ -188,7 +188,6 @@ export interface VisualNodeState {
     items_expanded?: boolean
     pinged?: boolean
     skipped?: boolean
-    is_global?: boolean
 }
 
 export interface VisualGraph {

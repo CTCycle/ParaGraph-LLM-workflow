@@ -63,7 +63,6 @@ class VisualNodeState(BaseModel):
     items_expanded: bool = False
     pinged: bool = False
     skipped: bool = False
-    is_global: bool = False
 
 ###############################################################################
 class VisualGraph(BaseModel):

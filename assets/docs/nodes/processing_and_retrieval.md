@@ -38,6 +38,14 @@ Keywords: {{ keywords | join(", ") }}
 
 HTTP nodes can also use named variables in query parameters or request body templates, or receive a full upstream JSON object as the request body.
 
+## Structured Payload Editing
+
+JSON parameters have an inline literal editor with validation. If a typed input
+edge targets the same parameter name, the editor marks the literal as a
+fallback: the bound upstream payload is used for that run, while the validated
+literal remains available when the edge is removed. Controller edges are
+separate from payload bindings and never override JSON parameters.
+
 ## Prompt And Structured JSON Nodes
 - `PROMPT_TEMPLATE` is presented as Template and Prompt Format.
 - It supports Jinja syntax, including `system_template`, `user_template`, `reusable_blocks`, and strict missing-variable validation.

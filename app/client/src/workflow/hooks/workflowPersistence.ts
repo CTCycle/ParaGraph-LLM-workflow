@@ -14,7 +14,6 @@ export type PersistedWorkflowNode = {
     items_expanded?: boolean
     pinged: boolean
     skipped: boolean
-    is_global?: boolean
 }
 
 export type PersistedWorkflowEdge = {
@@ -101,7 +100,6 @@ export function readPersistedWorkflowState(): PersistedWorkflowState | null {
                         items_expanded: Boolean(value.items_expanded),
                         pinged: Boolean(value.pinged),
                         skipped: Boolean(value.skipped),
-                        is_global: Boolean(value.is_global),
                     }
                 })
                 .filter((value): value is PersistedWorkflowNode => value !== null)

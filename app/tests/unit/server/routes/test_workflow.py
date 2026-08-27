@@ -464,11 +464,13 @@ def test_compile_skipped_connection_is_excluded_from_required_input_resolution(
     assert "missing_source_node" not in codes
 
 ###############################################################################
-def test_compile_ignores_unknown_global_node_aliases(client: TestClient) -> None:
+def test_compile_requires_explicit_controller_edge_even_with_global_metadata(
+    client: TestClient,
+) -> None:
     definition = build_provider_chat_definition()
     definition["metadata"] = {
         "global_nodes": {
-            "model": "provider_1",
+            "model_provider": "provider_1",
         }
     }
     definition["connections"] = [
@@ -484,6 +486,10 @@ def test_compile_ignores_unknown_global_node_aliases(client: TestClient) -> None
     assert payload["valid"] is False
     assert any(
         item["code"] == "missing_required_controller" for item in payload["diagnostics"]
+    )
+    assert any(
+        item["code"] == "unsupported_global_connector_metadata"
+        for item in payload["diagnostics"]
     )
 
 ###############################################################################

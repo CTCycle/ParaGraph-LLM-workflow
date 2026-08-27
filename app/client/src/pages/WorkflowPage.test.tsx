@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import type { NodeManifest, ProviderModelDefinition } from '../workflow/schema/types'
 import {
     collectNodeItems,
+    deriveBoundInputNames,
     getDynamicModelOptions,
     getDynamicTokenizerOptions,
     resolveExecutionSessionId,
@@ -256,5 +257,18 @@ describe('WorkflowPage manifest-driven provider and retrieval behavior', () => {
         expect(first).toBe('session-1')
         expect(second).toBe('session-1')
         expect(third).toBe('session-2')
+    })
+
+    it('derives explicit input bindings without treating controller edges as payload bindings', () => {
+        expect(deriveBoundInputNames([
+            { target: 'read-1', targetHandle: 'input:filters' },
+            { target: 'read-1', targetHandle: 'input:filters' },
+            { target: 'read-1', targetHandle: 'controller:connection' },
+            { target: 'read-2', targetHandle: 'input:values' },
+            { target: 'read-3', targetHandle: null },
+        ])).toEqual({
+            'read-1': ['filters'],
+            'read-2': ['values'],
+        })
     })
 })

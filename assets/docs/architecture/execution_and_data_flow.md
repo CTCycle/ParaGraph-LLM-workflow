@@ -1,5 +1,5 @@
 # Execution And Data Flow
-Last updated: 2026-08-21
+Last updated: 2026-08-27
 
 ## Layered Backend Flow
 Typical backend flow follows endpoint to service to repository:
@@ -105,6 +105,9 @@ Typical backend flow follows endpoint to service to repository:
 
 ## Compiler Diagnostics
 - Compiler errors block plan creation; warnings are returned with an otherwise valid plan.
+- Controller dependencies are resolved only from typed controller connections in
+  the workflow definition. Global-node metadata is rejected and never
+  converted into an implicit edge.
 - Active nodes in independent graph components are compilation errors. A detached side-effecting node is also an error; a pure singleton workflow remains valid.
 - Graph warnings cover missing terminal outputs, pure disconnected nodes, nodes that do not contribute to terminal outputs, and connections from conditional branch outputs.
 - Workflow node instances accept optional `timeout_ms` and `retries` values, which are copied into execution steps.
