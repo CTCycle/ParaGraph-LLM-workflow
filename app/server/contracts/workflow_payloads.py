@@ -32,7 +32,6 @@ class DatabaseConnectionHandle(BaseModel):
     host: str | None = None
     port: int | None = None
     username: str | None = None
-    password: str | None = None
     credential_ref: str | None = None
     file_path: str | None = None
     read_only: bool = True

@@ -375,18 +375,10 @@ def _vector_store_executor(
     resolved_api_key = ""
     resolved_endpoint = parsed.endpoint_url
     if parsed.credential_profile:
-        profile = configuration_service.load_configuration_profile(
-            session_name=None, profile_name=parsed.credential_profile
+        access_key = configuration_service.resolve_access_key(
+            profile_name=parsed.credential_profile,
+            provider=parsed.provider,
         )
-        access_key = next(
-            (item for item in profile.access_keys if item.provider == parsed.provider),
-            None,
-        )
-        if access_key is None:
-            raise ValueError(
-                f"Credential profile '{parsed.credential_profile}' has no entry for "
-                f"provider '{parsed.provider}'"
-            )
         resolved_api_key = access_key.api_key or ""
         resolved_endpoint = resolved_endpoint or access_key.base_url or ""
     store = adapter.write_points(

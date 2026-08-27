@@ -16,20 +16,20 @@ from server.repositories.workflow.database import (
     execute_read,
     execute_update,
     execute_upsert,
+    register_database_credential,
     reset_database_engines,
 )
 
 ###############################################################################
 def _connection(path: Path, *, read_only: bool = False) -> dict[str, object]:
     return {
-        "engine": "sqlite",
-        "file_path": str(path),
-        "read_only": read_only,
+    "engine": "sqlite",
+    "file_path": str(path),
+    "read_only": read_only,
         "database_name": None,
         "host": None,
         "port": None,
         "username": None,
-        "password": None,
         "credential_ref": None,
         "options": {},
     }
@@ -43,7 +43,7 @@ def test_postgresql_workflow_connection_contract_keeps_psycopg_driver() -> None:
             "host": "db.example.test",
             "port": 5432,
             "username": "workflow_user",
-            "password": "secret",
+            "credential_ref": register_database_credential("secret"),
             "options": {"sslmode": "require", "connect_timeout_s": 9},
         }
     )
@@ -52,6 +52,20 @@ def test_postgresql_workflow_connection_contract_keeps_psycopg_driver() -> None:
     assert url.database == "workflow_db"
     assert url.host == "db.example.test"
     assert connect_args == {"connect_timeout": 9}
+
+
+def test_database_url_rejects_inline_passwords() -> None:
+    with pytest.raises(ValueError, match="opaque credential_ref"):
+        build_database_url(
+            {
+                "engine": "postgres",
+                "database_name": "workflow_db",
+                "host": "db.example.test",
+                "port": 5432,
+                "username": "workflow_user",
+                "password": "secret",
+            }
+        )
 
 ###############################################################################
 def test_postgresql_upsert_dialect_contract() -> None:
@@ -92,9 +106,7 @@ def test_engine_reuse_disposal_and_credential_safe_identity(database: Path) -> N
     second = engine_registry.get(connection)
     assert first is second
     assert engine_registry.size() == 1
-    assert "password" not in engine_registry.identity(
-        {**connection, "password": "secret"}
-    )
+    assert "secret" not in engine_registry.identity(connection)
     reset_database_engines()
     assert engine_registry.size() == 0
 

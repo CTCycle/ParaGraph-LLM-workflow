@@ -14,14 +14,18 @@ from server.services.workflow.node_handlers.rag import RAG_HANDLERS
 from server.services.workflow.node_handlers.structured import STRUCTURED_HANDLERS
 from server.contracts.node_handler_core import (
     MetadataParameters,
+    PythonToolCollectionParameters,
     ToolCallParameters,
     ToolCollectionParameters,
+    ToolSchemaCollectionParameters,
 )
 from server.services.workflow.nodes.handler import NodeHandler
 from server.services.workflow.node_handlers.core.metadata import _metadata_executor
 from server.services.workflow.node_handlers.core.tools import (
+    _python_tool_collection_executor,
     _tool_call_executor,
     _tool_collection_executor,
+    _tool_schema_collection_executor,
 )
 
 ADDITIONAL_CORE_NODE_HANDLERS = {
@@ -30,6 +34,14 @@ ADDITIONAL_CORE_NODE_HANDLERS = {
     ),
     "tool_collection": NodeHandler(
         executor=_tool_collection_executor, parameter_model=ToolCollectionParameters
+    ),
+    "tool_schema_collection": NodeHandler(
+        executor=_tool_schema_collection_executor,
+        parameter_model=ToolSchemaCollectionParameters,
+    ),
+    "python_tool_collection": NodeHandler(
+        executor=_python_tool_collection_executor,
+        parameter_model=PythonToolCollectionParameters,
     ),
     "tool_call": NodeHandler(
         executor=_tool_call_executor, parameter_model=ToolCallParameters

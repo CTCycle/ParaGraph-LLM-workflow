@@ -60,7 +60,7 @@ def test_every_manifest_parameter_model_accepts_manifest_defaults() -> None:
         "LOAD_DOCUMENTS": {"folder_path": "."},
         "LOAD_TEXT": {"storage_path": "input.txt"},
         "PROMPT_TEMPLATE": {"template": "{{ text }}"},
-        "SQL_DATABASE": {"db_name": "paragraph"},
+        "SQL_DATABASE": {"db_name": "paragraph", "credential_profile": "local"},
         "SQL_FILE_DATABASE": {"db_path": "database.db"},
         "VECTOR_STORE": {"storage_path": "vectorstores"},
     }
@@ -83,6 +83,23 @@ def test_every_manifest_parameter_model_accepts_manifest_defaults() -> None:
                 f"{manifest.id} v{manifest.version} defaults do not satisfy "
                 f"{handler.parameter_model.__name__}: {exc}"
             )
+
+
+def test_runtime_effect_metadata_is_loaded_from_manifests() -> None:
+    lifecycle = node_registry.get("VECTOR_STORE_LIFECYCLE", 1)
+    schema_collection = node_registry.get("TOOL_SCHEMA_COLLECTION", 1)
+    python_collection = node_registry.get("PYTHON_TOOL_COLLECTION", 1)
+
+    assert lifecycle is not None
+    assert lifecycle.runtime.side_effecting is True
+    assert lifecycle.runtime.destructive is True
+    assert lifecycle.runtime.idempotent is True
+    assert schema_collection is not None
+    assert schema_collection.runtime.deterministic is True
+    assert schema_collection.runtime.side_effecting is False
+    assert python_collection is not None
+    assert python_collection.runtime.deterministic is False
+    assert python_collection.runtime.side_effecting is True
 
 ###############################################################################
 @pytest.mark.parametrize("field", ["inputs", "outputs", "controllers", "parameters"])

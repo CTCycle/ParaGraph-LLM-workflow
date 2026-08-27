@@ -1,9 +1,9 @@
 {
   "id": "HTTP_REQUEST",
   "version": 1,
-  "name": "Secure HTTP Request",
+  "name": "Advanced HTTP Request",
   "category": "web",
-  "description": "Execute a bounded SSRF-protected HTTP request through the shared secure transport.",
+  "description": "Execute an advanced bounded SSRF-protected HTTP request through the shared secure transport. Use a method-specific HTTP node for common requests.",
   "inputs": [
     {"name": "url", "data_type": "TEXT", "required": false, "accepts_multiple": false, "description": "Optional URL override."},
     {"name": "body", "data_type": "ANY", "required": false, "accepts_multiple": false, "description": "Optional body override matching body_mode."}

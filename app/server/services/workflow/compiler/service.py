@@ -142,6 +142,9 @@ class CompilerService:
                     timeout_ms=node.timeout_ms,
                     retries=node.retries,
                     cacheable=manifest.runtime.cacheable,
+                    side_effecting=manifest.runtime.side_effecting,
+                    destructive=manifest.runtime.destructive,
+                    idempotent=manifest.runtime.idempotent,
                 )
             )
 
@@ -415,7 +418,11 @@ class CompilerService:
                         node_id=node.node_id,
                     )
                 )
-            elif node.retries > 0 and manifest.runtime.side_effecting:
+            elif (
+                node.retries > 0
+                and manifest.runtime.side_effecting
+                and not manifest.runtime.idempotent
+            ):
                 diagnostics.append(
                     CompilerDiagnostic(
                         code="unsafe_side_effect_retry",

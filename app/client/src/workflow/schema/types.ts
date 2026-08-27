@@ -106,6 +106,8 @@ export interface NodeRuntimeDefinition {
     cacheable: boolean
     deterministic: boolean
     side_effecting: boolean
+    destructive?: boolean
+    idempotent?: boolean
     plugin?: NodeRuntimePluginDefinition | null
 }
 
@@ -246,6 +248,9 @@ export interface ExecutionStepPlan {
     timeout_ms?: number | null
     retries: number
     cacheable: boolean
+    side_effecting?: boolean
+    destructive?: boolean
+    idempotent?: boolean
 }
 
 export interface CompiledExecutionPlan {

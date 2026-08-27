@@ -9,6 +9,8 @@ import pytest
 from server.contracts.node_handler_http import HttpRequestParameters
 from server.services.workflow.http_transport import HttpTransportError, SecureHttpTransport
 from server.common import path as common_path
+from server.services.workflow import node_registry
+from server.services.workflow.node_handlers import http as http_nodes_module
 
 ###############################################################################
 def PUBLIC_RESOLVER(host: str, port: int) -> list[str]:
@@ -193,3 +195,38 @@ def test_credential_url_dns_rebinding_and_cancellation() -> None:
     with pytest.raises(HttpTransportError) as cancelled:
         _execute(lambda request: httpx.Response(200), cancelled=lambda: True)
     assert cancelled.value.code == "cancelled"
+
+
+@pytest.mark.parametrize(
+    ("node_type", "expected_method"),
+    [
+        ("HTTP_GET", "GET"),
+        ("HTTP_POST", "POST"),
+        ("HTTP_PUT", "PUT"),
+        ("HTTP_PATCH", "PATCH"),
+        ("HTTP_DELETE", "DELETE"),
+    ],
+)
+def test_method_specific_http_nodes_share_the_transport_executor(
+    monkeypatch, node_type: str, expected_method: str
+) -> None:
+    seen: list[str] = []
+
+    class FakeTransport:
+
+        # -------------------------------------------------------------------------
+        def execute(self, parameters, inputs):
+            seen.append(parameters.method)
+            return {"status_code": 200, "text": "ok", "json": {"ok": True}}
+
+    monkeypatch.setattr(http_nodes_module, "SecureHttpTransport", FakeTransport)
+
+    result = node_registry.execute(
+        node_type,
+        1,
+        {"url": "https://example.test"},
+        {},
+    )
+
+    assert seen == [expected_method]
+    assert result["response"]["status_code"] == 200

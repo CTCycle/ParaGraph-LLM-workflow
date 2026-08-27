@@ -170,23 +170,11 @@ class SecureHttpTransport:
     def _resolve_credentials(parameters: HttpRequestParameters) -> tuple[str, str | None]:
         if parameters.auth_mode == "none":
             return "", None
-        profile = configuration_service.load_configuration_profile(
-            session_name=None, profile_name=parameters.credential_profile
+        access_key = configuration_service.resolve_access_key(
+            profile_name=parameters.credential_profile,
+            provider=parameters.credential_provider,
         )
-        access_key = next(
-            (
-                item
-                for item in profile.access_keys
-                if item.provider == parameters.credential_provider.strip().lower()
-            ),
-            None,
-        )
-        if access_key is None or not access_key.api_key:
-            raise HttpTransportError(
-                "credential_unavailable",
-                "Credential profile does not contain the requested HTTP credential",
-            )
-        return access_key.api_key, access_key.base_url
+        return access_key.api_key or "", access_key.base_url
 
     # -------------------------------------------------------------------------
     def _request_content(

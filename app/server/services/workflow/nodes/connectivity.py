@@ -13,6 +13,7 @@ from server.contracts.nodes import (
     VectorStoreConnectionCheckResponse,
 )
 from server.repositories.workflow.database import inspect_database_schema
+from server.services.configuration import configuration_service
 from server.services.workflow.nodes.registry import node_registry
 from server.services.workflow.vector_stores import get_vector_store_adapter
 
@@ -66,12 +67,21 @@ class NodeConnectivityService:
             parsed = VectorStoreParameters.model_validate(request.parameters)
             resolver = adapter_resolver or get_vector_store_adapter
             adapter = resolver(parsed.provider)
+            resolved_api_key = ""
+            resolved_endpoint = parsed.endpoint_url
+            if parsed.credential_profile:
+                access_key = configuration_service.resolve_access_key(
+                    profile_name=parsed.credential_profile,
+                    provider=parsed.provider,
+                )
+                resolved_api_key = access_key.api_key or ""
+                resolved_endpoint = resolved_endpoint or access_key.base_url or ""
             adapter.validate_connection(
                 index_name=parsed.index_name,
                 storage_directory=parsed.storage_path,
                 namespace=parsed.namespace,
-                endpoint_url=parsed.endpoint_url,
-                api_key="",
+                endpoint_url=resolved_endpoint,
+                api_key=resolved_api_key,
                 collection_name=parsed.collection_name,
                 database_name=parsed.database_name,
                 provider_config=parsed.provider_config,

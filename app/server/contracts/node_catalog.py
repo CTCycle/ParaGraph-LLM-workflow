@@ -103,6 +103,8 @@ class NodeRuntimeDefinition(BaseModel):
     cacheable: bool = False
     deterministic: bool = True
     side_effecting: bool = False
+    destructive: bool = False
+    idempotent: bool = False
     plugin: NodePluginRuntimeDefinition | None = None
 
 ###############################################################################

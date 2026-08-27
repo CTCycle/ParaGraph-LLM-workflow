@@ -170,6 +170,47 @@ def test_side_effect_retry_requires_an_idempotency_contract() -> None:
     assert valid is False
     assert "unsafe_side_effect_retry" in codes
 
+
+def test_idempotent_side_effect_carries_effect_metadata_into_plan() -> None:
+    definition = WorkflowDefinition(
+        schema_version=2,
+        nodes=[
+            WorkflowNodeInstance(
+                node_id="store",
+                node_type="VECTOR_STORE",
+                node_version=2,
+                parameters={"storage_path": "vectorstores"},
+            ),
+            WorkflowNodeInstance(
+                node_id="lifecycle",
+                node_type="VECTOR_STORE_LIFECYCLE",
+                node_version=1,
+                parameters={"operation": "inspect"},
+                retries=1,
+            ),
+        ],
+        connections=[
+            WorkflowConnection(
+                from_node="store",
+                to_node="lifecycle",
+                connection_type="controller",
+                from_controller="store",
+                to_controller="store",
+            )
+        ],
+    )
+
+    compiled = compiler_service.compile(definition, require_access_keys=False)
+
+    assert compiled.valid is True
+    assert compiled.plan is not None
+    lifecycle = next(
+        step for step in compiled.plan.steps if step.node_id == "lifecycle"
+    )
+    assert lifecycle.side_effecting is True
+    assert lifecycle.destructive is True
+    assert lifecycle.idempotent is True
+
 ###############################################################################
 def test_timeout_and_retries_are_copied_to_execution_plan() -> None:
     definition = WorkflowDefinition(

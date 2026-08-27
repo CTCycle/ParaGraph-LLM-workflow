@@ -1,0 +1,21 @@
+{
+  "id": "PYTHON_TOOL_COLLECTION",
+  "version": 1,
+  "name": "Python Tool Collection",
+  "category": "model",
+  "description": "Load executable inline or file-based Python tools into a run-scoped collection.",
+  "inputs": [
+    {"name": "code", "data_type": "TEXT", "required": false}
+  ],
+  "outputs": [
+    {"name": "tools", "data_type": "TOOL_COLLECTION_HANDLE", "required": true}
+  ],
+  "parameters": [
+    {"name": "source_type", "data_type": "TEXT", "default": "inline_python", "constraints": {"options": ["inline_python", "python_file"]}, "ui_control": "select"},
+    {"name": "inline_code", "data_type": "TEXT", "default": "", "ui_control": "textarea"},
+    {"name": "file_path", "data_type": "TEXT", "default": "", "ui_control": "file"},
+    {"name": "entrypoint", "data_type": "TEXT", "default": "", "ui_control": "text"}
+  ],
+  "ui": {"default_width": 380, "accent_color": "#c46bff", "collapsed_by_default": false},
+  "runtime": {"executor_key": "python_tool_collection", "cacheable": false, "deterministic": false, "side_effecting": true, "idempotent": false}
+}

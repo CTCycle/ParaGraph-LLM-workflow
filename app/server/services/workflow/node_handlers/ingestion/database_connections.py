@@ -16,6 +16,7 @@ from server.repositories.workflow.database import (
     build_database_url,
     register_database_credential,
 )
+from server.services.configuration import configuration_service
 from server.services.workflow.node_handlers.ingestion.files import resolve_local_path
 
 ###############################################################################
@@ -47,11 +48,6 @@ def _validate_and_build_database_connection(
     resolved_file_path = (
         str(resolve_local_path(parsed.file_path)) if parsed.engine == "sqlite" else None
     )
-    credential_ref = (
-        register_database_credential(parsed.password)
-        if parsed.engine != "sqlite" and parsed.password
-        else None
-    )
     return {
         "connection": {
             "engine": parsed.engine,
@@ -60,8 +56,7 @@ def _validate_and_build_database_connection(
             "host": parsed.host or None,
             "port": parsed.port,
             "username": parsed.username or None,
-            "password": None,
-            "credential_ref": credential_ref,
+            "credential_ref": parsed.credential_ref or None,
             "file_path": resolved_file_path,
             "read_only": False,
             "options": {
@@ -77,13 +72,18 @@ def _sql_database_executor(
 ) -> dict[str, Any]:
     _ = inputs
     parsed = SQLDatabaseParameters.model_validate(parameters)
+    access_key = configuration_service.resolve_access_key(
+        profile_name=parsed.credential_profile,
+        provider=parsed.db_engine,
+    )
+    credential_ref = register_database_credential(access_key.api_key or "")
     connection_payload = {
         "engine": parsed.db_engine,
         "database_name": parsed.db_name,
         "host": parsed.db_host,
         "port": parsed.db_port,
         "username": parsed.db_user,
-        "password": parsed.db_password,
+        "credential_ref": credential_ref,
         "file_path": "",
         "options": _build_sql_connection_options(
             db_ssl=parsed.db_ssl, db_ssl_ca=parsed.db_ssl_ca
@@ -104,7 +104,7 @@ def _sql_file_database_executor(
         "host": "",
         "port": None,
         "username": "",
-        "password": "",
+        "credential_ref": "",
         "file_path": parsed.db_path,
         "options": {},
         "connect_timeout_s": parsed.db_connect_timeout,
