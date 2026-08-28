@@ -5,25 +5,27 @@ app/resources/workflows/**
 app/resources/tokenizers/**
 app/resources/logs/**
 app/client/node_modules/
+app/client/.vite/
 app/client/dist/
 app/client/dist-ssr/
 app/client/logs/
-app/src-tauri/target/
-app/src-tauri/bundle/
-app/src-tauri/gen/
-app/src-tauri/**/*.exe
-app/src-tauri/**/*.msi
-app/src-tauri/**/*.dmg
-app/src-tauri/**/*.AppImage
-app/src-tauri/**/*.deb
-app/src-tauri/**/*.rpm
-app/src-tauri/**/*.zip
-app/src-tauri/**/*.7z
-app/src-tauri/**/*.tar.gz
 app/client/*.local
+app/client/debug.log
+app/client/.eslintcache
+app/client/test-results/
+app/client/playwright-report/
+app/client/coverage/
 runtimes/**
-release/windows/
+!runtimes/cache/
+!runtimes/cache/.gitkeep
 assets/QA/**
+
+# Legacy cache location retained only so old local artifacts stay ignored while option 7 migrates/removes them.
+/assets/cache/
+
+# Test and tool caches plus generated test/build artifacts
+/app/tests/cache/*
+!/app/tests/cache/.gitkeep
 
 # Python
 __pycache__/
@@ -59,12 +61,18 @@ yarn.lock
 Thumbs.db
 
 # Misc
+# Never commit local environment files; .env.example is intentionally tracked.
+.env
+**/.env
+*.env
 *.lock
 *.log
 *.db
 *.sqlite*
 *.exe
 *.gz
-!app/src-tauri/Cargo.lock
-
 !.gitkeep
+
+# Commit dependency lockfiles for reproducible CI installs.
+!app/server/uv.lock
+!app/client/package-lock.json

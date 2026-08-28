@@ -4,68 +4,28 @@ from datetime import datetime, timezone
 
 import sqlalchemy
 
-from server.domain.chat_history import ChatHistoryMessage
-from server.domain.settings import DatabaseSettings
-from server.repositories.database.base import TabularDatabaseRepository
+from server.contracts.chat_history import ChatHistoryMessage
+from server.configurations.settings import SQLiteSettings
+from server.repositories.database.sqlite import SQLiteRepository
+from server.repositories.schemas import Base
 from server.repositories.workflow import chat_history_database as chat_history_module
 
 ###############################################################################
-class InMemoryTabularRepository(TabularDatabaseRepository):
+class InMemorySQLiteRepository(SQLiteRepository):
 
     # -------------------------------------------------------------------------
     def __init__(self) -> None:
         engine = sqlalchemy.create_engine("sqlite:///:memory:", future=True)
         super().__init__(
-            engine=engine,
-            db_path=None,
-            insert_batch_size=2,
+            SQLiteSettings(insert_batch_size=2), engine=engine, db_path=None
         )
 
 ###############################################################################
-class FakeDatabaseFactory:
+def test_database_chat_history_repository_accepts_injected_sqlite_repository() -> None:
+    database_repository = InMemorySQLiteRepository()
+    repository = chat_history_module.DatabaseChatHistoryRepository(database_repository)
 
-    # -------------------------------------------------------------------------
-    def __init__(self, repository: InMemoryTabularRepository) -> None:
-        self.repository = repository
-        self.build_calls = 0
-
-    # -------------------------------------------------------------------------
-    def build(self, settings: DatabaseSettings) -> InMemoryTabularRepository:
-        self.build_calls += 1
-        return self.repository
-
-###############################################################################
-class FakeServerSettings:
-
-    # -------------------------------------------------------------------------
-    def __init__(self) -> None:
-        self.database = DatabaseSettings(
-            embedded_database=True,
-            engine=None,
-            host=None,
-            port=None,
-            database_name=None,
-            username=None,
-            password=None,
-            ssl=False,
-            ssl_ca=None,
-            connect_timeout=10,
-            insert_batch_size=2,
-        )
-
-###############################################################################
-def test_database_chat_history_repository_builds_database_once(monkeypatch) -> None:
-    database_repository = InMemoryTabularRepository()
-    database_factory = FakeDatabaseFactory(database_repository)
-    monkeypatch.setattr(
-        chat_history_module,
-        "get_server_settings",
-        lambda: FakeServerSettings(),
-    )
-
-    repository = chat_history_module.DatabaseChatHistoryRepository(database_factory)
-
-    assert database_factory.build_calls == 1
+    Base.metadata.create_all(database_repository.engine)
 
     first_message = ChatHistoryMessage(
         role="user",
@@ -89,11 +49,9 @@ def test_database_chat_history_repository_builds_database_once(monkeypatch) -> N
 
     messages = repository.get_messages("workflow-a", "session-a", "node-a")
     assert [message.content for message in messages] == ["first", "second"]
-    assert database_factory.build_calls == 1
 
     repository.clear_session("workflow-a", "session-a")
 
     assert repository.get_messages("workflow-a", "session-a", "node-a") == []
     remaining = repository.get_messages("workflow-a", "session-b", "node-a")
     assert [message.content for message in remaining] == ["other"]
-    assert database_factory.build_calls == 1

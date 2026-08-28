@@ -1,17 +1,36 @@
 # Database And Tools
-Last updated: 2026-06-02
+Last updated: 2026-08-27
 
 ## Database Nodes
-- The database category includes SQL database connection nodes, CRUD create, read, update, and delete nodes, plus a custom SQL query node.
-- Existing SQL nodes use typed database connection controllers and parameterized SQLAlchemy execution paths.
+- The database category includes SQL database connection nodes, CRUD create, read, update, delete, and upsert nodes, plus a custom SQL node.
+- Connection engines are reused through a bounded credential-safe registry and disposed at application shutdown. Server database nodes require a saved `credential_profile`; the profile's secret is resolved at execution time and replaced by an opaque process-local credential reference before a connection handle is emitted. Raw database passwords are not accepted in workflow parameters or connection handles.
+- PostgreSQL and MySQL credentials are selected from profile entries named `postgres`/`postgresql` and `mysql`, respectively. MySQL uses the locked `PyMySQL` driver.
+- `read_only` is enforced in the repository for every write operation. Custom SQL separates statement text from named bind parameters, rejects multiple statements, and can require query-only execution.
+- Table and schema identifiers are validated. PostgreSQL schemas are explicit; SQLite ignores schema selection.
+- Reads use bounded limit/offset pagination with deterministic primary-key ordering by default and return total-count and `has_more` metadata.
+- Result envelopes consistently expose operation, rows, row count, affected rows, generated identifiers, pagination, and error fields.
+- Bulk create, update, and delete repository operations are bounded at 1,000 items and transactionally roll back as a unit on failure.
+- Upsert supports explicit conflict columns on SQLite and PostgreSQL. MySQL fails closed with `UPSERT_UNSUPPORTED: mysql`; it is never silently treated as an insert or update. Update and delete support optional version-column checks for optimistic concurrency.
+
+### Canonical query and SQL contracts
+
+- The audit labels `DATABASE_QUERY` and `DATABASE_EXECUTE_SQL` map to the existing canonical manifest IDs `CRUD_READ` and `CUSTOM_SQL_QUERY`. Both use the typed `DATABASE_CONNECTION` controller and the normal node handler registry.
+- No duplicate aliases are added: retaining one manifest, controller, parameter model, and executor for each operation keeps the catalog, compiler, and runtime contract aligned.
+- `CRUD_READ` uses SQLAlchemy-bound equality filters and bounded pagination. `CUSTOM_SQL_QUERY` accepts named `:parameter` bindings, executes one statement inside an explicit transaction, and uses `read_only` to require query-only execution when enabled.
+
+## Transaction Boundary
+- Each individual CRUD/custom-SQL operation runs in an explicit database transaction.
+- Each bulk repository operation shares one transaction across its complete batch.
+- The executor does not currently provide a graph-wide transaction handle across separate nodes; workflows must not assume cross-node atomicity.
 
 ## Tool Collection
-- `TOOL_COLLECTION` creates a typed `TOOL_COLLECTION_HANDLE`.
-- Sources can include inline Python functions, JSON Schema tool definitions, signature text, or local `.py` files.
+- `TOOL_SCHEMA_COLLECTION` creates a deterministic, schema-only `TOOL_COLLECTION_HANDLE` from JSON Schema definitions or signature text. It never imports or executes Python and does not allocate a runtime executable registry.
+- `PYTHON_TOOL_COLLECTION` creates an explicitly executable, run-scoped `TOOL_COLLECTION_HANDLE` from inline Python functions or local `.py` files. It is non-deterministic and side-effect-capable because loading Python can execute module-level code.
+- `TOOL_COLLECTION` remains available as an advanced mixed-source node and is conservatively marked non-deterministic and side-effect-capable.
 - Callable signatures are converted into JSON Schema parameter definitions.
 
 ## Tool Call
 - `TOOL_CALL` is provider-neutral.
 - It accepts a `MODEL_HANDLE` from `MODEL_PROVIDER` and a `TOOL_COLLECTION_HANDLE`.
-- It uses native tool calling when a provider advertises support and falls back to structured JSON selection otherwise.
-- The node is intended to work across Ollama, Hugging Face, OpenAI, Gemini, and future providers that implement the provider service interface.
+- Current providers use prompt-emulated structured selection. The runtime reports `prompt_emulated`; native tool protocol support remains a separate capability and is not claimed until a provider adapter returns structured tool-call IDs and arguments.
+- Schema-only tool definitions can be selected for inspection but cannot be executed. Python callables are resolved by run and collection identity, and async callables are awaited before an execution result is marked as executed.

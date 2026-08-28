@@ -3,7 +3,7 @@
   "version": 1,
   "name": "Template / Prompt Format",
   "category": "prompt",
-  "description": "Compose prompt text with Jinja-style variables such as {{ summary }} and {{ keywords | join(\", \") }}, or legacy {name} format placeholders.",
+  "description": "Compose prompt text with Jinja templates such as {{ summary }} and {{ keywords | join(\", \") }}.",
   "inputs": [
     {
       "name": "variables",
@@ -44,16 +44,6 @@
     }
   ],
   "parameters": [
-    {
-      "name": "template_engine",
-      "data_type": "TEXT",
-      "default": "jinja2",
-      "constraints": {
-        "options": ["jinja2", "format"]
-      },
-      "ui_control": "select",
-      "description": "Template engine. Use jinja2 for {{ variable }} syntax or format for legacy {variable} syntax."
-    },
     {
       "name": "template",
       "data_type": "TEXT",

@@ -54,11 +54,39 @@
       "description": "JSON object of column names to updated values."
     },
     {
+      "name": "schema_name",
+      "data_type": "TEXT",
+      "default": "",
+      "ui_control": "text",
+      "description": "Optional PostgreSQL schema. Ignored for SQLite."
+    },
+    {
       "name": "filters",
       "data_type": "JSON",
       "default": {},
       "ui_control": "json",
       "description": "Required JSON object of column names to equality filter values."
+    },
+    {
+      "name": "version_column",
+      "data_type": "TEXT",
+      "default": "",
+      "ui_control": "text",
+      "description": "Optional version column used for optimistic concurrency."
+    },
+    {
+      "name": "expected_version",
+      "data_type": "JSON",
+      "default": null,
+      "ui_control": "json",
+      "description": "Expected version value when version_column is set."
+    },
+    {
+      "name": "increment_version",
+      "data_type": "BOOLEAN",
+      "default": false,
+      "ui_control": "checkbox",
+      "description": "Increment the version column after a successful update."
     }
   ],
   "ui": {

@@ -4,7 +4,7 @@ import re
 import unicodedata
 from typing import Any
 
-from server.services.workflow.node_handlers.base import NodeHandler
+from server.services.workflow.nodes.handler import NodeHandler
 from server.common.utils.values import coerce_text
 
 ###############################################################################
@@ -20,28 +20,6 @@ def _text_of(value: Any) -> str:
             value.get("text") or value.get("content") or value.get("chunk") or ""
         )
     return coerce_text(value)
-
-###############################################################################
-def _chunk(text: str, size: int, overlap: int) -> list[dict[str, Any]]:
-    size = max(1, size)
-    overlap = max(0, min(overlap, size - 1))
-    chunks: list[dict[str, Any]] = []
-    start = 0
-    index = 0
-    while start < len(text):
-        end = min(len(text), start + size)
-        chunks.append(
-            {
-                "text": text[start:end],
-                "chunk_id": f"chunk-{index}",
-                "metadata": {"start": start, "end": end},
-            }
-        )
-        if end >= len(text):
-            break
-        start = end - overlap
-        index += 1
-    return chunks
 
 ###############################################################################
 def _normalize_text_executor(
@@ -88,36 +66,6 @@ def _regex_replace_executor(
             coerce_text(parameters.get("replacement", "")),
             _text_of(inputs.get("text", "")),
         )
-    }
-
-###############################################################################
-def _token_split_chunks_executor(
-    parameters: dict[str, Any], inputs: dict[str, Any]
-) -> dict[str, Any]:
-    return {
-        "chunks": _chunk(
-            _text_of(inputs.get("text", inputs.get("value", ""))),
-            int(parameters.get("max_tokens", 800)),
-            int(parameters.get("overlap", 80)),
-        )
-    }
-
-###############################################################################
-def _semantic_split_chunks_executor(
-    parameters: dict[str, Any], inputs: dict[str, Any]
-) -> dict[str, Any]:
-    _ = parameters
-    text = _text_of(inputs.get("text", inputs.get("value", "")))
-    parts = [
-        part.strip()
-        for part in re.split(r"\n\s*\n|(?<=[.!?])\s+", text)
-        if part.strip()
-    ]
-    return {
-        "chunks": [
-            {"text": part, "chunk_id": f"chunk-{index}", "metadata": {}}
-            for index, part in enumerate(parts)
-        ]
     }
 
 ###############################################################################
@@ -168,84 +116,11 @@ def _metadata_attach_executor(
     return {"result": {"text": _text_of(value), "metadata": metadata}}
 
 ###############################################################################
-def _language_detect_executor(
-    parameters: dict[str, Any], inputs: dict[str, Any]
-) -> dict[str, Any]:
-    _ = parameters
-    text = _text_of(inputs.get("text", ""))
-    label = "en" if re.search(r"\b(the|and|of|to|in)\b", text.lower()) else "unknown"
-    return {
-        "label": label,
-        "score": 0.6 if label == "en" else 0.0,
-        "matches": [],
-        "metadata": {},
-    }
-
-###############################################################################
-def _token_counter_executor(
-    parameters: dict[str, Any], inputs: dict[str, Any]
-) -> dict[str, Any]:
-    text = _text_of(inputs.get("text", inputs.get("value", "")))
-    tokens = max(1, len(text.split()))
-    return {
-        "result": {
-            "tokens": tokens,
-            "characters": len(text),
-            "estimated_cost": tokens * float(parameters.get("cost_per_token", 0.0)),
-        }
-    }
-
-###############################################################################
-def _truncate_to_budget_executor(
-    parameters: dict[str, Any], inputs: dict[str, Any]
-) -> dict[str, Any]:
-    text = _text_of(inputs.get("text", ""))
-    budget = max(1, int(parameters.get("max_tokens", 800)))
-    words = text.split()
-    mode = parameters.get("mode", "first")
-    if len(words) <= budget:
-        result = text
-    elif mode == "last":
-        result = " ".join(words[-budget:])
-    elif mode == "balanced":
-        half = budget // 2
-        result = " ".join(words[:half] + words[-(budget - half) :])
-    else:
-        result = " ".join(words[:budget])
-    return {"result": result}
-
-###############################################################################
-def _llm_summarize_executor(
-    parameters: dict[str, Any], inputs: dict[str, Any]
-) -> dict[str, Any]:
-    max_sentences = int(parameters.get("max_sentences", 3))
-    sentences = [
-        part.strip()
-        for part in re.split(r"(?<=[.!?])\s+", _text_of(inputs.get("text", "")))
-        if part.strip()
-    ]
-    return {"result": " ".join(sentences[:max_sentences])}
-
-###############################################################################
-def _llm_rewrite_executor(
-    parameters: dict[str, Any], inputs: dict[str, Any]
-) -> dict[str, Any]:
-    _ = parameters
-    return {"result": _text_of(inputs.get("text", ""))}
-
-
 TEXT_PROCESSING_HANDLERS = {
     "normalize_text": NodeHandler(executor=_normalize_text_executor),
     "regex_extract": NodeHandler(executor=_regex_extract_executor),
     "regex_replace": NodeHandler(executor=_regex_replace_executor),
-    "token_split_chunks": NodeHandler(executor=_token_split_chunks_executor),
-    "semantic_split_chunks": NodeHandler(executor=_semantic_split_chunks_executor),
     "join_merge_text": NodeHandler(executor=_join_merge_text_executor),
     "deduplicate_text": NodeHandler(executor=_deduplicate_text_executor),
     "metadata_attach": NodeHandler(executor=_metadata_attach_executor),
-    "language_detect": NodeHandler(executor=_language_detect_executor),
-    "token_counter": NodeHandler(executor=_token_counter_executor),
-    "truncate_to_budget": NodeHandler(executor=_truncate_to_budget_executor),
-    "llm_summarize": NodeHandler(executor=_llm_summarize_executor),
-    "llm_rewrite": NodeHandler(executor=_llm_rewrite_executor),
 }

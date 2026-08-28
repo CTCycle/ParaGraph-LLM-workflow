@@ -4,6 +4,7 @@ from server.services.workflow.vector_stores.base import (
     VectorStoreAdapter,
     VectorStoreError,
 )
+from server.contracts.node_catalog import VectorStoreCapabilities
 from server.services.workflow.vector_stores.chroma import (
     ChromaVectorStoreAdapter,
 )
@@ -46,6 +47,13 @@ def get_vector_store_adapter(backend: str) -> VectorStoreAdapter:
     return adapter
 
 
+def get_vector_store_capabilities() -> list[VectorStoreCapabilities]:
+    return [
+        VECTOR_STORE_ADAPTERS[backend].describe_capabilities()
+        for backend in sorted(VECTOR_STORE_ADAPTERS)
+    ]
+
+
 __all__ = [
     "ChromaVectorStoreAdapter",
     "FaissVectorStoreAdapter",
@@ -57,4 +65,5 @@ __all__ = [
     "VectorStoreError",
     "WeaviateVectorStoreAdapter",
     "get_vector_store_adapter",
+    "get_vector_store_capabilities",
 ]

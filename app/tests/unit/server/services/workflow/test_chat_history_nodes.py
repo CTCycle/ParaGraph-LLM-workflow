@@ -6,14 +6,15 @@ from typing import Any
 
 import pytest
 
-from server.domain.chat_history import ChatHistoryHandle
-from server.domain.node_catalog import ProviderModelDefinition
+from server.contracts.chat_history import ChatHistoryHandle
+from server.contracts.node_catalog import ProviderModelDefinition
 from server.repositories.workflow import (
     database_chat_history_repository,
     file_chat_history_repository,
     in_memory_chat_history_repository,
 )
 from server.services.workflow import node_registry, provider_service
+from server.services.workflow.chat_history import chat_history_service
 
 ###############################################################################
 def _model_handle() -> dict[str, Any]:
@@ -364,3 +365,120 @@ def test_failed_llm_execution_does_not_append_history(
     assert [item.model_dump(mode="json") for item in after_failure] == [
         item.model_dump(mode="json") for item in baseline
     ]
+
+###############################################################################
+def test_chat_input_scopes_history_and_llm_does_not_append_execution_owned_history(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        provider_service, "validate_model_request", lambda **kwargs: None
+    )
+    monkeypatch.setattr(provider_service, "chat", lambda **kwargs: "reply")
+
+    history_handle = _build_history_handle(
+        node_type="CHAT_HISTORY_MEMORY",
+        parameters={"max_messages": 10, "separator": "\n", "keep_prompt_type": True},
+        context=_history_context(
+            workflow_id="wf-chat",
+            session_id="chat-session",
+            run_id="run-chat",
+            node_id="memory_node",
+        ),
+    )
+    chat_payload = node_registry.execute(
+        "CHAT_INPUT",
+        1,
+        {"message": "hello"},
+        {},
+        {
+            "history": history_handle.model_copy(
+                update={
+                    "workflow_id": "wrong-workflow",
+                    "execution_session_id": "wrong-session",
+                }
+            ).model_dump(mode="json")
+        },
+        context=_history_context(
+            workflow_id="wf-chat",
+            session_id="chat-session",
+            run_id="run-chat",
+            node_id="chat_node",
+        ),
+    )
+
+    scoped_handle = ChatHistoryHandle.model_validate(chat_payload["history"])
+    assert scoped_handle.workflow_id == "wf-chat"
+    assert scoped_handle.execution_session_id == "chat-session"
+    assert scoped_handle.node_id == "chat_node"
+    assert scoped_handle.execution_owned is True
+
+    llm_payload = node_registry.execute(
+        "LLM_CHAT",
+        1,
+        {"context_window": 0, "max_tokens": 16, "use_reasoning": False},
+        {"user_prompt": chat_payload["text"]},
+        {"model": _model_handle(), "history": scoped_handle.model_dump(mode="json")},
+        context=_history_context(
+            workflow_id="wf-chat",
+            session_id="chat-session",
+            run_id="run-chat",
+            node_id="llm_node",
+        ),
+    )
+
+    assert llm_payload["response"] == "reply"
+    assert in_memory_chat_history_repository.get_messages(
+        "wf-chat", "chat-session", "chat_node"
+    ) == []
+
+###############################################################################
+def test_execution_owned_chat_result_appends_user_and_final_terminal_output() -> None:
+    handle = ChatHistoryHandle(
+        node_type="CHAT_HISTORY_MEMORY",
+        node_id="chat_node",
+        workflow_id="wf-chat-result",
+        execution_session_id="session-chat-result",
+        max_messages=10,
+        separator="\n",
+        keep_prompt_type=True,
+        execution_owned=True,
+    )
+
+    chat_history_service.append_chat_result(
+        handle,
+        user_message="hello",
+        assistant_output="final answer",
+    )
+
+    messages = in_memory_chat_history_repository.get_messages(
+        "wf-chat-result", "session-chat-result", "chat_node"
+    )
+    assert [(item.role, item.content) for item in messages] == [
+        ("user", "hello"),
+        ("assistant", "final answer"),
+    ]
+
+###############################################################################
+def test_reset_clears_only_selected_chat_scope() -> None:
+    first = ChatHistoryHandle(
+        node_type="CHAT_HISTORY_MEMORY",
+        node_id="chat-one",
+        workflow_id="wf-reset",
+        execution_session_id="session-reset",
+        max_messages=10,
+        separator="\n",
+        keep_prompt_type=True,
+        execution_owned=True,
+    )
+    second = first.model_copy(update={"node_id": "chat-two"})
+    chat_history_service.append_chat_result(first, user_message="one", assistant_output="a")
+    chat_history_service.append_chat_result(second, user_message="two", assistant_output="b")
+
+    chat_history_service.clear_messages(first)
+
+    assert in_memory_chat_history_repository.get_messages(
+        "wf-reset", "session-reset", "chat-one"
+    ) == []
+    assert [item.content for item in in_memory_chat_history_repository.get_messages(
+        "wf-reset", "session-reset", "chat-two"
+    )] == ["two", "b"]

@@ -8,7 +8,7 @@ from typing import Any
 from uuid import uuid4
 
 from server.common import path as common_path
-from server.domain.workflow_model import (
+from server.contracts.workflow_model import (
     WorkflowDocument,
     WorkflowListItem,
 )

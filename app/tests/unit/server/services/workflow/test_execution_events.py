@@ -1,15 +1,29 @@
 from __future__ import annotations
 
-from server.domain.execution import (
+from concurrent.futures import ThreadPoolExecutor
+
+from server.contracts.execution import (
     CompiledExecutionPlan,
     ExecutionBinding,
+    ExecutionRunState,
     ExecutionStepPlan,
 )
+from server.repositories.workflow.execution_run import execution_run_repository
 from server.services.runtime.events import execution_event_service
 from server.services.workflow.execution import execution_service
 
 ###############################################################################
+def _create_event_run(run_id: str) -> None:
+    plan = CompiledExecutionPlan(plan_id=f"plan-{run_id}")
+    execution_run_repository.create_run(
+        ExecutionRunState(run_id=run_id, plan_id=plan.plan_id, plan=plan)
+    )
+
+###############################################################################
 def test_execution_event_sequence_is_monotonic_for_each_run() -> None:
+    _create_event_run("run-a")
+    _create_event_run("run-b")
+
     first = execution_event_service.publish(
         run_id="run-a",
         event_type="execution.queued",
@@ -32,6 +46,26 @@ def test_execution_event_sequence_is_monotonic_for_each_run() -> None:
     assert [
         event.sequence for event in execution_event_service.get_history("run-a").events
     ] == [1, 2]
+
+###############################################################################
+def test_concurrent_event_publishers_receive_unique_sequences() -> None:
+    _create_event_run("run-concurrent")
+
+    def publish(index: int):
+        return execution_event_service.publish(
+            run_id="run-concurrent",
+            event_type="execution.step.progress",
+            payload={"index": index},
+        )
+
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        events = list(executor.map(publish, range(32)))
+
+    assert sorted(event.sequence for event in events) == list(range(1, 33))
+    assert [
+        event.sequence
+        for event in execution_event_service.get_history("run-concurrent").events
+    ] == list(range(1, 33))
 
 ###############################################################################
 def test_execution_service_emits_expected_event_order_for_prompt_to_output_plan(
@@ -230,11 +264,11 @@ def test_execution_service_persists_compact_step_output_payload(
     assert all(set(step.output.keys()) == {"inputs", "ports"} for step in run.steps)
 
 ###############################################################################
-def test_execution_service_uses_named_output_as_prompt_template_variable(
+def test_execution_service_uses_json_field_as_prompt_template_variable(
     job_state_factory,
 ) -> None:
     plan = CompiledExecutionPlan(
-        plan_id="plan-renamed-output",
+        plan_id="plan-json-field-output",
         step_order=["prompt_1", "template_1", "output_1"],
         steps=[
             ExecutionStepPlan(
@@ -244,7 +278,7 @@ def test_execution_service_uses_named_output_as_prompt_template_variable(
                 node_version=1,
                 category="prompt",
                 executor_key="prompt",
-                parameters={"prompt_text": "hello", "__output_name": "greeting"},
+                parameters={"prompt_text": '{"greeting":"hello"}'},
                 bindings=[],
                 cacheable=False,
             ),
@@ -255,7 +289,7 @@ def test_execution_service_uses_named_output_as_prompt_template_variable(
                 node_version=1,
                 category="prompt",
                 executor_key="prompt_template",
-                parameters={"template": "{greeting}"},
+                parameters={"template": "{{ greeting }}"},
                 bindings=[
                     ExecutionBinding(
                         binding_type="input",
@@ -288,9 +322,9 @@ def test_execution_service_uses_named_output_as_prompt_template_variable(
         metadata={},
     )
 
-    job_state_factory("run-renamed-output", "workflow")
+    job_state_factory("run-json-field-output", "workflow")
     result = execution_service.execute_plan_job(
-        plan=plan, workflow_id=None, job_id="run-renamed-output"
+        plan=plan, workflow_id=None, job_id="run-json-field-output"
     )
 
     assert result == {"outputs": {"output_1": {"text": "hello"}}}

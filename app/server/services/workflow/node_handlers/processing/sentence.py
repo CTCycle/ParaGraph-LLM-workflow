@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from server.domain.node_handler_processing import SentenceWindowChunksParameters
+from server.contracts.node_handler_processing import SentenceWindowChunksParameters
 from server.services.workflow.node_handlers.processing.shared import (
     _apply_overflow,
     _build_chunk_records,

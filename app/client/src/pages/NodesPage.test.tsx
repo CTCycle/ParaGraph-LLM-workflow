@@ -10,6 +10,7 @@ import { createNodeManifest } from '../test/fixtures'
 const navigateMock = vi.fn()
 
 vi.mock('react-router-dom', () => ({
+    useLocation: () => ({ hash: '' }),
     useNavigate: () => navigateMock,
 }))
 
@@ -44,7 +45,8 @@ describe('NodesPage', () => {
         })
 
         render(<NodesPage />)
-        await screen.findByText('Prompt')
+        await screen.findByRole('button', { name: 'Add Prompt to canvas' })
+        expect(screen.getByText('1 node matches the current filters.')).toBeInTheDocument()
 
         await userEvent.click(screen.getByRole('button', { name: 'Open custom node JSON import' }))
         const dialog = screen.getByRole('dialog', { name: 'Custom node JSON import' })
@@ -142,10 +144,10 @@ describe('NodesPage', () => {
             state: {
                 workflow_intent: {
                     type: 'load-template',
-                    template_id: 'template-1',
-                    template_name: 'Simple Chat',
-                    definition: expect.any(Object),
-                    visual_graph: expect.any(Object),
+                    template: expect.objectContaining({
+                        id: 'template-1',
+                        name: 'Simple Chat',
+                    }),
                 },
             },
         })

@@ -6,10 +6,19 @@ on:
       - main
       - develop
   pull_request:
+    branches: [main, develop]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   backend-validation:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     env:
       PYTHONPATH: app
     steps:
@@ -22,22 +31,27 @@ jobs:
           python-version: "3.14"
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v4
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.11.30"
+          enable-cache: true
+          cache-dependency-glob: app/server/uv.lock
 
-      - name: Sync Test Dependencies
-        run: uv --project app/server sync --extra test
+      - name: Install locked test dependencies
+        run: uv sync --locked --project app/server --extra test
 
       - name: Lint Backend
-        run: uv --project app/server run ruff check app/server app/tests
+        run: uv run --project app/server ruff check --isolated app/server app/tests
 
       - name: Compile Backend
-        run: uv --project app/server run python -m compileall app/server/app.py app/server/api app/server/common app/server/configurations app/server/domain app/server/repositories app/server/services
+        run: uv run --project app/server python -m compileall app/server/app.py app/server/api app/server/common app/server/configurations app/server/contracts app/server/repositories app/server/services
 
       - name: Run Backend Tests
-        run: uv --project app/server run pytest app/tests/unit/server app/tests/e2e/server/test_execution_lifecycle.py
+        run: uv run --project app/server python -m pytest app/tests/unit/server app/tests/e2e/server/test_execution_lifecycle.py
 
   frontend-validation:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -45,11 +59,13 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
-          node-version: "22"
+          node-version: "22.13.0"
+          cache: npm
+          cache-dependency-path: app/client/package-lock.json
 
       - name: Install Frontend Dependencies
         working-directory: app/client
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
 
       - name: Lint Frontend
         working-directory: app/client

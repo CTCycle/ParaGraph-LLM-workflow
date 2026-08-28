@@ -7,7 +7,7 @@ import re
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from starlette.websockets import WebSocketState
 
-from server.domain.execution import RUN_ID_PATTERN
+from server.contracts.execution import RUN_ID_PATTERN
 from server.services.runtime.events import execution_event_service
 
 

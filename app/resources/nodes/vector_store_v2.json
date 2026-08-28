@@ -1,0 +1,231 @@
+{
+  "id": "VECTOR_STORE",
+  "version": 2,
+  "name": "Vector Store Upsert",
+  "category": "vector_storage",
+  "description": "Upsert embedding vectors using the selected vector store provider and return the stored handle plus an upsert summary.",
+  "inputs": [
+    {
+      "name": "vectors",
+      "data_type": "VECTOR_POINT_LIST",
+      "required": false,
+      "accepts_multiple": true,
+      "description": "One or more embedded vector collections to store."
+    }
+  ],
+  "outputs": [
+    {
+      "name": "store",
+      "data_type": "VECTOR_STORE_HANDLE",
+      "required": true,
+      "accepts_multiple": false,
+      "description": "Stored vector index handle."
+    },
+    {
+      "name": "summary",
+      "data_type": "JSON",
+      "required": true,
+      "accepts_multiple": false,
+      "description": "Upsert count and stored point IDs."
+    }
+  ],
+  "controllers": [
+    {
+      "name": "embedding",
+      "data_type": "JSON",
+      "required": false,
+      "accepts_multiple": true,
+      "description": "Controller payload from TEXT_EMBEDDING to store generated vectors directly.",
+      "scope": "target"
+    },
+    {
+      "name": "store",
+      "data_type": "VECTOR_STORE_HANDLE",
+      "required": false,
+      "accepts_multiple": false,
+      "description": "Controller handle for downstream retrieval nodes.",
+      "scope": "source"
+    }
+  ],
+  "parameters": [
+    {
+      "name": "provider",
+      "data_type": "TEXT",
+      "default": "lancedb",
+      "constraints": {
+        "required": true,
+        "options": [
+          "lancedb",
+          "qdrant",
+          "pinecone",
+          "weaviate",
+          "milvus",
+          "chroma",
+          "faiss"
+        ]
+      },
+      "ui_control": "select",
+      "description": "Vector store backend provider."
+    },
+    {
+      "name": "index_name",
+      "data_type": "TEXT",
+      "default": "documents",
+      "constraints": {
+        "required": true
+      },
+      "ui_control": "text",
+      "description": "Index or table name used by the selected provider."
+    },
+    {
+      "name": "namespace",
+      "data_type": "TEXT",
+      "default": "",
+      "ui_control": "text",
+      "description": "Optional namespace or tenant scope.",
+      "constraints": {}
+    },
+    {
+      "name": "distance_metric",
+      "data_type": "TEXT",
+      "default": "cosine",
+      "constraints": {
+        "required": true,
+        "options": [
+          "cosine",
+          "l2",
+          "dot"
+        ]
+      },
+      "ui_control": "select",
+      "description": "Distance metric used for vector indexing and search."
+    },
+    {
+      "name": "write_mode",
+      "data_type": "TEXT",
+      "default": "overwrite",
+      "constraints": {
+        "required": true,
+        "options": [
+          "overwrite",
+          "append"
+        ]
+      },
+      "ui_control": "select",
+      "description": "Whether to overwrite the index or append to it."
+    },
+    {
+      "name": "id_conflict_policy",
+      "data_type": "TEXT",
+      "default": "upsert",
+      "constraints": {
+        "required": true,
+        "options": [
+          "reject",
+          "upsert"
+        ]
+      },
+      "ui_control": "select",
+      "description": "Reject duplicate record IDs or deterministically replace them."
+    },
+    {
+      "name": "storage_path",
+      "data_type": "TEXT",
+      "default": "",
+      "ui_control": "directory",
+      "description": "Local storage path used by local providers.",
+      "constraints": {
+        "visible_when": {
+          "provider": [
+            "lancedb",
+            "chroma",
+            "faiss"
+          ]
+        }
+      }
+    },
+    {
+      "name": "endpoint_url",
+      "data_type": "TEXT",
+      "default": "",
+      "ui_control": "text",
+      "description": "Provider endpoint URL for remote vector stores.",
+      "constraints": {
+        "visible_when": {
+          "provider": [
+            "qdrant",
+            "pinecone",
+            "weaviate",
+            "milvus"
+          ]
+        }
+      }
+    },
+    {
+      "name": "credential_profile",
+      "data_type": "TEXT",
+      "default": "",
+      "ui_control": "text",
+      "description": "Saved configuration profile used to resolve provider credentials at runtime.",
+      "constraints": {
+        "visible_when": {
+          "provider": [
+            "qdrant",
+            "pinecone",
+            "weaviate",
+            "milvus"
+          ]
+        }
+      }
+    },
+    {
+      "name": "collection_name",
+      "data_type": "TEXT",
+      "default": "",
+      "ui_control": "text",
+      "description": "Optional provider-specific collection name.",
+      "constraints": {
+        "visible_when": {
+          "provider": [
+            "qdrant",
+            "chroma"
+          ]
+        }
+      }
+    },
+    {
+      "name": "database_name",
+      "data_type": "TEXT",
+      "default": "",
+      "ui_control": "text",
+      "description": "Optional provider-specific database name.",
+      "constraints": {
+        "visible_when": {
+          "provider": [
+            "milvus",
+            "weaviate"
+          ]
+        }
+      }
+    },
+    {
+      "name": "provider_config",
+      "data_type": "JSON",
+      "default": {},
+      "ui_control": "json",
+      "description": "Advanced provider-specific configuration options as JSON.",
+      "constraints": {}
+    }
+  ],
+  "ui": {
+    "default_width": 380,
+    "accent_color": "#59a6ff",
+    "collapsed_by_default": false
+  },
+  "runtime": {
+    "executor_key": "vector_store",
+    "cacheable": false,
+    "deterministic": false,
+    "side_effecting": true
+  }
+}

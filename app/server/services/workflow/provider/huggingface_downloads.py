@@ -9,8 +9,8 @@ from huggingface_hub import hf_hub_url
 import httpx
 
 from server.configurations.startup import get_server_settings
-from server.domain.configuration import DEFAULT_SESSION_NAME
-from server.domain.node_catalog import (
+from server.contracts.configuration import DEFAULT_SESSION_NAME
+from server.contracts.node_catalog import (
     HuggingFaceModelDownloadCancelResponse,
     HuggingFaceModelDownloadResponse,
     HuggingFaceModelDownloadStatusResponse,

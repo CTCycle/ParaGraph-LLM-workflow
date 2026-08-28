@@ -2,9 +2,7 @@ from __future__ import annotations
 
 from server.services.workflow.node_handlers.rag import (
     _context_builder_executor,
-    _grounding_checker_executor,
     _html_to_text_executor,
-    _ocr_text_extract_executor,
 )
 
 ###############################################################################
@@ -22,15 +20,3 @@ def test_context_builder_respects_token_budget() -> None:
         {"token_budget": 2}, {"chunks": [{"text": "one two three"}]}
     )
     assert result["result"] == "one two"
-
-###############################################################################
-def test_grounding_checker_marks_unsupported_claim_when_evidence_absent() -> None:
-    result = _grounding_checker_executor(
-        {}, {"claim": "missing", "evidence": "present"}
-    )
-    assert result["label"] == "unsupported"
-
-###############################################################################
-def test_ocr_returns_dependency_error_when_binary_unavailable_or_empty_result() -> None:
-    result = _ocr_text_extract_executor({}, {})
-    assert "error" in result or "result" in result

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 import warnings
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -12,6 +11,7 @@ from fastapi.staticfiles import StaticFiles
 
 from server.common import path as common_path
 from server.common.constants import FASTAPI_DESCRIPTION, FASTAPI_TITLE, FASTAPI_VERSION
+from server.api.chat_history import router as chat_history_router
 from server.api.configurations import router as configurations_router
 from server.api.executions import router as executions_router
 from server.api.nodes import router as nodes_router
@@ -21,7 +21,9 @@ from server.api.workflows import router as workflows_router
 from server.api.ws import router as ws_router
 from server.configurations.startup import get_server_settings
 from server.repositories.database.initializer import initialize_database
+from server.repositories.workflow.database import reset_database_engines
 from server.services.startup_validation import run_startup_validations
+from server.services.workflow.execution import execution_service
 
 warnings.filterwarnings("ignore", category=FutureWarning)
 
@@ -63,18 +65,15 @@ async def app_lifespan(application: FastAPI) -> AsyncIterator[None]:
     settings = get_server_settings()
     initialize_database()
     run_startup_validations()
+    execution_service.recover_interrupted()
     application.state.server_settings = settings
-    yield
+    try:
+        yield
+    finally:
+        reset_database_engines()
 
 ###############################################################################
 def create_app() -> FastAPI:
-    tauri_mode = os.getenv("PARAGRAPH_TAURI_MODE", "").strip().lower() in {
-        "1",
-        "true",
-        "yes",
-        "on",
-    }
-
     app = FastAPI(
         title=FASTAPI_TITLE,
         version=FASTAPI_VERSION,
@@ -82,7 +81,6 @@ def create_app() -> FastAPI:
         lifespan=app_lifespan,
     )
 
-    app.state.tauri_mode = tauri_mode
     app.middleware("http")(request_id_middleware)
 
     app.include_router(workflows_router)
@@ -90,9 +88,10 @@ def create_app() -> FastAPI:
     app.include_router(nodes_router)
     app.include_router(providers_router)
     app.include_router(configurations_router)
+    app.include_router(chat_history_router)
     app.include_router(ws_router)
 
-    if tauri_mode and _client_build_available():
+    if _client_build_available():
         if common_path.FRONTEND_ASSETS_ROOT.is_dir():
             app.mount(
                 "/assets",

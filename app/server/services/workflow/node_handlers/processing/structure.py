@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from server.domain.node_handler_processing import (
+from server.contracts.node_handler_processing import (
     ByStructureChunksParameters,
     RegexSplitChunksParameters,
 )

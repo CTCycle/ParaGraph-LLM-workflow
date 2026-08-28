@@ -1,5 +1,5 @@
 # Configuration
-Last updated: 2026-06-18
+Last updated: 2026-08-20
 
 ## Shared Configuration Sources
 - Shared environment keys are loaded from `settings/.env`.
@@ -7,19 +7,22 @@ Last updated: 2026-06-18
 
 ## Default Local Values
 - `.env.example` provides defaults such as:
+  - `FASTAPI_HOST=127.0.0.1`
   - `FASTAPI_PORT=5002`
+  - `UI_HOST=127.0.0.1`
   - `UI_PORT=8002`
   - `VITE_API_BASE_URL=/api`
   - `RELOAD=false`
+  - `BACKEND_LOGS_VISIBLE=true`
+- `PARAGRAPH_RESOURCES_DIR` is blank by default, which keeps shared resource data under `app/resources`.
+- Set `PARAGRAPH_RESOURCES_DIR` to an absolute path or a path relative to the repository root to relocate resource data, including the embedded SQLite database.
 
-## Runtime-Specific Differences
-- In packaged desktop mode, the backend sets `PARAGRAPH_TAURI_MODE=true`.
-- In Tauri mode, FastAPI serves the built `client/dist` frontend from the application root.
+## Runtime Settings
+- Launcher option `2` creates or refreshes the frontend build. Application launch serves the existing build output and rebuilds it only when the build or required environment is missing or unusable.
 - Database and runtime behavior split across:
-  - `settings/.env` for all internal application database mode and connection values.
+  - `settings/.env` for the internal SQLite batch-size setting.
   - `settings/configurations.json` for non-database runtime settings such as `global.seed` and `jobs.polling_interval`.
-- The default database mode is embedded SQLite through `DATABASE_EMBEDDED=true`.
-- PostgreSQL is optional when embedded mode is disabled.
+- Internal application persistence always uses embedded SQLite. PostgreSQL settings belong only to user-configured workflow database nodes and are not used for application records.
 - Provider credentials and endpoint overrides are persisted as configuration access key records.
 - Ollama settings remain first-class session fields; DeepSeek, LM Studio, and llama.cpp use access key records with `provider`, optional `api_key`, optional `base_url`, and local default model metadata.
 - Default provider endpoints:
@@ -31,7 +34,9 @@ Last updated: 2026-06-18
 - Frontend to backend communication targets the relative API base path `/api`.
 - In web mode, Vite handles proxying or rewriting to the backend.
 - WebSocket execution streaming uses `/api/executions/ws/runs/{run_id}` derived from the current origin.
-- In desktop mode, the Rust launcher starts uvicorn and redirects the UI to the backend URL after a readiness check.
+- The Windows launcher starts uvicorn, waits for `/docs`, then starts Vite preview and opens the UI URL.
 
 ## Shared Runtime Data
-- Shared persistence lives under `app/resources`, including workflows, database files, logs, artifacts, and model assets.
+- Shared persistence lives under `PARAGRAPH_RESOURCES_DIR` when configured, or under `app/resources` by default. This includes workflows, database files, logs, artifacts, and model assets.
+- The launcher imports `settings/.env` into the process environment before starting either process. Its fallback values are `FASTAPI_PORT=8000` and `UI_PORT=8001` only when individual keys are absent; the checked-in template overrides them to `5002` and `8002`.
+- Runtime caches are kept under `runtimes/cache`, while test/tool caches and generated test/build artifacts are kept under `app/tests/cache`. These are separate from application runtime data and user resources.

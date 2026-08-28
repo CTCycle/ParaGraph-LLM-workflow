@@ -5,9 +5,9 @@ from typing import Any
 
 from pydantic import ValidationError
 
-from server.domain.chat_history import ChatHistoryHandle
-from server.domain.node_catalog import ProviderModelDefinition
-from server.domain.node_handler_core import ModelProviderParameters
+from server.contracts.chat_history import ChatHistoryHandle
+from server.contracts.node_catalog import ProviderModelDefinition
+from server.contracts.node_handler_core import ModelProviderParameters
 from server.services.configuration import configuration_service
 from server.services.workflow.chat_history import chat_history_service
 from server.common.utils.values import (
@@ -265,7 +265,7 @@ def _execute_model_node(
             if not isinstance(schema, dict):
                 raise ValueError("Structured response schema is required")
             validate_json_against_schema(parsed, schema)
-        if history_handle is not None:
+        if history_handle is not None and not history_handle.execution_owned:
             chat_history_service.append_exchange(
                 history_handle,
                 system_prompt=system_prompt,
@@ -280,7 +280,7 @@ def _execute_model_node(
             "valid": not validation_errors,
             "errors": validation_errors,
         }
-    if history_handle is not None:
+    if history_handle is not None and not history_handle.execution_owned:
         chat_history_service.append_exchange(
             history_handle,
             system_prompt=system_prompt,

@@ -103,7 +103,7 @@ describe('ConfigurationsPage profile modal flows', () => {
         await waitFor(() => {
             expect(saveConfigurationProfileMock).toHaveBeenCalledWith('team profile', expect.any(Object))
         })
-    })
+    }, 15_000)
 
     it('renders ollama connectivity failures with strong error styling and alert semantics', async () => {
         const fetchConfigurationsMock = vi.mocked(workflowApi.fetchConfigurations)

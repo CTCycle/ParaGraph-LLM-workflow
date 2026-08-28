@@ -5,7 +5,7 @@ import shutil
 from pathlib import Path
 
 from server.common import path as common_path
-from server.domain.chat_history import ChatHistoryMessage
+from server.contracts.chat_history import ChatHistoryMessage
 
 ###############################################################################
 def _safe_segment(value: str) -> str:
@@ -93,6 +93,18 @@ class FileChatHistoryRepository:
             ),
             encoding="utf-8",
         )
+
+    # -------------------------------------------------------------------------
+    def clear_messages(
+        self, workflow_id: str, execution_session_id: str, node_id: str
+    ) -> None:
+        path = self._file_path(workflow_id, execution_session_id, node_id)
+        path.unlink(missing_ok=True)
+        for parent in (path.parent, path.parent.parent):
+            try:
+                parent.rmdir()
+            except OSError:
+                break
 
     # -------------------------------------------------------------------------
     def clear_session(self, workflow_id: str, execution_session_id: str) -> None:

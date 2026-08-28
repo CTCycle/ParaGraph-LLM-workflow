@@ -3,194 +3,41 @@
   "version": 1,
   "name": "HTTP DELETE",
   "category": "web",
-  "description": "HTTP DELETE node.",
+  "description": "Execute a bounded SSRF-protected DELETE request through the shared secure transport.",
   "inputs": [
-    {
-      "required": false,
-      "description": "Input value.",
-      "accepts_multiple": false,
-      "name": "value",
-      "data_type": "ANY"
-    },
-    {
-      "required": false,
-      "description": "Input text.",
-      "accepts_multiple": false,
-      "name": "text",
-      "data_type": "TEXT"
-    }
+    {"name": "url", "data_type": "TEXT", "required": false}
   ],
   "outputs": [
-    {
-      "required": false,
-      "description": "Primary result.",
-      "accepts_multiple": false,
-      "name": "result",
-      "data_type": "ANY"
-    },
-    {
-      "required": false,
-      "description": "JSON result.",
-      "accepts_multiple": false,
-      "name": "json",
-      "data_type": "JSON"
-    },
-    {
-      "required": false,
-      "description": "Chunk output.",
-      "accepts_multiple": false,
-      "name": "chunks",
-      "data_type": "ANY"
-    },
-    {
-      "required": false,
-      "description": "Classifier label.",
-      "accepts_multiple": false,
-      "name": "label",
-      "data_type": "TEXT"
-    },
-    {
-      "required": false,
-      "description": "Structured error.",
-      "accepts_multiple": false,
-      "name": "error",
-      "data_type": "JSON"
-    },
-    {
-      "name": "schema",
-      "data_type": "JSON",
-      "required": false,
-      "description": "JSON schema.",
-      "accepts_multiple": false
-    },
-    {
-      "name": "valid",
-      "data_type": "BOOLEAN",
-      "required": false,
-      "description": "Validation state.",
-      "accepts_multiple": false
-    },
-    {
-      "name": "errors",
-      "data_type": "JSON",
-      "required": false,
-      "description": "Errors.",
-      "accepts_multiple": false
-    },
-    {
-      "name": "fields",
-      "data_type": "JSON",
-      "required": false,
-      "description": "Top-level JSON fields.",
-      "accepts_multiple": false
-    },
-    {
-      "name": "status_code",
-      "data_type": "JSON",
-      "required": false,
-      "description": "HTTP status code.",
-      "accepts_multiple": false
-    },
-    {
-      "name": "ok",
-      "data_type": "BOOLEAN",
-      "required": false,
-      "description": "Success flag.",
-      "accepts_multiple": false
-    },
-    {
-      "name": "true",
-      "data_type": "ANY",
-      "required": false,
-      "description": "True branch.",
-      "accepts_multiple": false
-    },
-    {
-      "name": "false",
-      "data_type": "ANY",
-      "required": false,
-      "description": "False branch.",
-      "accepts_multiple": false
-    },
-    {
-      "name": "selected",
-      "data_type": "TEXT",
-      "required": false,
-      "description": "Selected branch.",
-      "accepts_multiple": false
-    },
-    {
-      "name": "paused",
-      "data_type": "BOOLEAN",
-      "required": false,
-      "description": "Paused flag.",
-      "accepts_multiple": false
-    },
-    {
-      "name": "pause_payload",
-      "data_type": "JSON",
-      "required": false,
-      "description": "Pause payload.",
-      "accepts_multiple": false
-    },
-    {
-      "name": "cache_key",
-      "data_type": "TEXT",
-      "required": false,
-      "description": "Cache key.",
-      "accepts_multiple": false
-    },
-    {
-      "name": "headers",
-      "data_type": "JSON",
-      "required": false,
-      "description": "Headers.",
-      "accepts_multiple": false
-    }
+    {"name": "response", "data_type": "JSON", "required": true},
+    {"name": "json", "data_type": "JSON", "required": false},
+    {"name": "text", "data_type": "TEXT", "required": false}
   ],
   "parameters": [
-    {
-      "description": "Keyword or label.",
-      "name": "keyword",
-      "constraints": {},
-      "default": "",
-      "data_type": "TEXT",
-      "ui_control": "text"
-    },
-    {
-      "description": "Regex pattern.",
-      "name": "pattern",
-      "constraints": {},
-      "default": "",
-      "data_type": "TEXT",
-      "ui_control": "text"
-    },
-    {
-      "description": "HTTP URL.",
-      "name": "url",
-      "constraints": {},
-      "default": "",
-      "data_type": "TEXT",
-      "ui_control": "text"
-    },
-    {
-      "description": "Metadata.",
-      "name": "metadata",
-      "constraints": {},
-      "default": {},
-      "data_type": "JSON",
-      "ui_control": "json"
-    }
+    {"name": "url", "data_type": "TEXT", "default": "", "ui_control": "text"},
+    {"name": "headers", "data_type": "JSON", "default": {}, "ui_control": "json"},
+    {"name": "query", "data_type": "JSON", "default": {}, "ui_control": "json"},
+    {"name": "response_mode", "data_type": "TEXT", "default": "auto", "constraints": {"options": ["auto", "json", "text", "binary", "file"]}, "ui_control": "select"},
+    {"name": "download_path", "data_type": "TEXT", "default": "", "ui_control": "file"},
+    {"name": "accepted_statuses", "data_type": "JSON", "default": ["200-299"], "ui_control": "json"},
+    {"name": "credential_profile", "data_type": "TEXT", "default": "", "ui_control": "text"},
+    {"name": "credential_provider", "data_type": "TEXT", "default": "http", "ui_control": "text"},
+    {"name": "auth_mode", "data_type": "TEXT", "default": "none", "constraints": {"options": ["none", "bearer", "api_key", "basic"]}, "ui_control": "select"},
+    {"name": "api_key_header", "data_type": "TEXT", "default": "X-API-Key", "ui_control": "text"},
+    {"name": "username", "data_type": "TEXT", "default": "", "ui_control": "text"},
+    {"name": "connect_timeout", "data_type": "JSON", "default": 10.0, "ui_control": "number"},
+    {"name": "read_timeout", "data_type": "JSON", "default": 30.0, "ui_control": "number"},
+    {"name": "pool_timeout", "data_type": "JSON", "default": 10.0, "ui_control": "number"},
+    {"name": "overall_timeout", "data_type": "JSON", "default": 60.0, "ui_control": "number"},
+    {"name": "max_response_bytes", "data_type": "JSON", "default": 2000000, "ui_control": "number"},
+    {"name": "max_download_bytes", "data_type": "JSON", "default": 100000000, "ui_control": "number"},
+    {"name": "max_redirects", "data_type": "JSON", "default": 0, "ui_control": "number"},
+    {"name": "allow_https_downgrade", "data_type": "BOOLEAN", "default": false, "ui_control": "checkbox"},
+    {"name": "max_attempts", "data_type": "JSON", "default": 1, "ui_control": "number"},
+    {"name": "backoff_seconds", "data_type": "JSON", "default": 0.25, "ui_control": "number"},
+    {"name": "max_retry_delay", "data_type": "JSON", "default": 60.0, "ui_control": "number"},
+    {"name": "retry_statuses", "data_type": "JSON", "default": [429, 502, 503, 504], "ui_control": "json"},
+    {"name": "idempotency_key", "data_type": "TEXT", "default": "", "ui_control": "text"}
   ],
-  "ui": {
-    "default_width": 320,
-    "collapsed_by_default": false,
-    "accent_color": "#59c6ff"
-  },
-  "runtime": {
-    "executor_key": "http_delete",
-    "side_effecting": true,
-    "cacheable": false,
-    "deterministic": true
-  }
+  "ui": {"default_width": 360, "accent_color": "#ff6d75", "collapsed_by_default": false},
+  "runtime": {"executor_key": "http_delete", "cacheable": false, "deterministic": false, "side_effecting": true, "destructive": true, "idempotent": true}
 }

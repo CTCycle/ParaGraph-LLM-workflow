@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Path, Query
 
-from server.domain.configuration import (
+from server.contracts.configuration import (
     AppConfigurationPayload,
     ConfigurationProfileListResponse,
     DEFAULT_SESSION_NAME,

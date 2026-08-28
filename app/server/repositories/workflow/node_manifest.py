@@ -4,9 +4,9 @@ import json
 from pathlib import Path
 
 from server.common import path as common_path
-from server.domain.node_catalog import NodeManifest
+from server.contracts.node_catalog import NodeManifest
 
-
+###############################################################################
 class NodeManifestRepository:
 
     # -------------------------------------------------------------------------

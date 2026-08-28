@@ -13,6 +13,27 @@ export type NodeCategory =
     | 'vector_storage'
     | 'database'
     | 'control'
+
+export type ChatHistoryNodeType = 'CHAT_HISTORY_MEMORY' | 'CHAT_HISTORY_PERSISTED'
+export type ChatHistoryStorageBackend = 'file' | 'database'
+
+export interface ChatHistoryMessage {
+    role: 'system' | 'user' | 'assistant'
+    content: string
+    timestamp: string
+}
+
+export interface ChatHistoryHandle {
+    node_type: ChatHistoryNodeType
+    node_id: string
+    workflow_id: string
+    execution_session_id: string
+    max_messages: number
+    separator: string
+    keep_prompt_type: boolean
+    storage_backend?: ChatHistoryStorageBackend | null
+    execution_owned?: boolean
+}
 export type NodeDataType =
     | 'TEXT'
     | 'IMAGE'
@@ -27,12 +48,40 @@ export type NodeDataType =
     | 'VECTOR_POINT_LIST'
     | 'VECTOR_STORE_HANDLE'
     | 'RETRIEVAL_RESULTS'
+    | 'TOKENIZER_OUTPUT'
+    | 'METADATA'
+    | 'METADATA_LIST'
+    | 'TOOL_DEFINITION'
+    | 'TOOL_COLLECTION_HANDLE'
+    | 'TOOL_CALL_RESULT'
+    | 'SQL_OPERATION_RESULT'
     | 'JSON'
     | 'MODEL_HANDLE'
     | 'CHAT_HISTORY_HANDLE'
     | 'DATASET'
     | 'BOOLEAN'
     | 'ANY'
+
+export type VectorMetric = 'cosine' | 'l2' | 'dot'
+export type VectorSearchMode = 'vector' | 'keyword' | 'hybrid'
+export type VectorSearchEngine = 'native' | 'faiss_augmented'
+export type VectorFilterOperator = 'eq' | 'in' | 'exists' | 'contains' | 'gt' | 'gte' | 'lt' | 'lte'
+export type VectorScoreSemantics = 'normalized_similarity' | 'native_similarity'
+
+export interface VectorStoreCapabilities {
+    backend: string
+    supported_metrics: VectorMetric[]
+    supported_search_modes: VectorSearchMode[]
+    supported_search_engines: VectorSearchEngine[]
+    supports_namespaces: boolean
+    supports_metadata_filtering: boolean
+    supported_filter_operators: VectorFilterOperator[]
+    supports_filter_groups: boolean
+    supports_minimum_should_match: boolean
+    supports_keyword_index: boolean
+    supported_operations: string[]
+    score_semantics_by_metric: Partial<Record<VectorMetric, VectorScoreSemantics>>
+}
 export interface NodePortDefinition {
     name: string
     data_type: NodeDataType
@@ -78,6 +127,8 @@ export interface NodeRuntimeDefinition {
     cacheable: boolean
     deterministic: boolean
     side_effecting: boolean
+    destructive?: boolean
+    idempotent?: boolean
     plugin?: NodeRuntimePluginDefinition | null
 }
 
@@ -97,6 +148,7 @@ export interface NodeManifest {
 
 export interface NodeCatalogResponse {
     nodes: NodeManifest[]
+    vector_store_capabilities?: VectorStoreCapabilities[]
 }
 
 export interface WorkflowNodeInstance {
@@ -104,6 +156,8 @@ export interface WorkflowNodeInstance {
     node_type: string
     node_version: number
     parameters: Record<string, unknown>
+    timeout_ms?: number | null
+    retries?: number
     skipped?: boolean
 }
 
@@ -118,7 +172,7 @@ export interface WorkflowConnection {
 }
 
 export interface WorkflowDefinition {
-    schema_version: number
+    schema_version: 2
     nodes: WorkflowNodeInstance[]
     connections: WorkflowConnection[]
     metadata: Record<string, unknown>
@@ -134,11 +188,10 @@ export interface VisualNodeState {
     items_expanded?: boolean
     pinged?: boolean
     skipped?: boolean
-    is_global?: boolean
 }
 
 export interface VisualGraph {
-    schema_version: number
+    schema_version: 2
     nodes: VisualNodeState[]
     groups: Record<string, unknown>[]
     comments: Record<string, unknown>[]
@@ -154,7 +207,7 @@ export interface WorkflowDocument {
 }
 
 export interface WorkflowShareBundle {
-    bundle_version: number
+    bundle_version: 1
     app: string
     created_at: string
     workflow: {
@@ -188,11 +241,7 @@ export interface WorkflowOpenIntentAddNode {
 
 export interface WorkflowOpenIntentLoadTemplate {
     type: 'load-template'
-    template?: WorkflowTemplate
-    template_id?: string
-    template_name?: string
-    definition?: WorkflowDefinition
-    visual_graph?: VisualGraph
+    template: WorkflowTemplate
 }
 
 export type WorkflowOpenIntent = WorkflowOpenIntentAddNode | WorkflowOpenIntentLoadTemplate
@@ -220,6 +269,9 @@ export interface ExecutionStepPlan {
     timeout_ms?: number | null
     retries: number
     cacheable: boolean
+    side_effecting?: boolean
+    destructive?: boolean
+    idempotent?: boolean
 }
 
 export interface CompiledExecutionPlan {
@@ -233,7 +285,7 @@ export interface CompiledExecutionPlan {
 export interface CompilerDiagnostic {
     code: string
     message: string
-    level: string
+    level: 'error' | 'warning'
     node_id?: string | null
     connection?: WorkflowConnection | null
 }
@@ -258,11 +310,16 @@ export interface ExecutionStepState {
     step_id: string
     node_id: string
     node_type: string
-    status: 'queued' | 'running' | 'completed' | 'failed' | 'skipped'
+    status: 'queued' | 'running' | 'paused' | 'completed' | 'failed' | 'skipped'
     started_at?: string | null
     completed_at?: string | null
     output: Record<string, unknown>
     error?: string | null
+    position: number
+    attempt_count: number
+    blocked_reason?: string | null
+    pause_payload?: Record<string, unknown> | null
+    resume_token?: string | null
 }
 
 export interface ExecutionRunState {
@@ -280,6 +337,15 @@ export interface ExecutionRunState {
     error?: string | null
     pause_payload?: Record<string, unknown> | null
     resume_token?: string | null
+    pause_checkpoint?: {
+        node_id: string
+        step_id: string
+        resume_token: string
+        pause_payload: Record<string, unknown>
+        expected_reviewed_payload_schema: Record<string, unknown>
+    } | null
+    plan?: CompiledExecutionPlan | null
+    cancellation_requested: boolean
 }
 
 export type ExecutionEventType =
@@ -289,6 +355,14 @@ export type ExecutionEventType =
     | 'execution.step.progress'
     | 'execution.step.completed'
     | 'execution.step.failed'
+    | 'execution.cancellation.requested'
+    | 'execution.cancelled'
+    | 'execution.step.retry.started'
+    | 'execution.step.retry.failed'
+    | 'execution.step.timeout'
+    | 'execution.paused'
+    | 'execution.resumed'
+    | 'execution.recovered'
     | 'execution.completed'
     | 'execution.failed'
 
@@ -309,6 +383,8 @@ export interface ProviderCapability {
     supports_structured_output: boolean
     supports_streaming: boolean
     supports_tool_calling: boolean
+    supports_tool_selection: boolean
+    supports_native_tool_protocol: boolean
 }
 
 export interface ProviderCatalogResponse {
@@ -451,6 +527,7 @@ export interface VectorStoreHandle {
     dimension: number
     embedding_provider: string
     embedding_model: string
+    namespace?: string
     metadata: Record<string, unknown>
 }
 
@@ -461,6 +538,7 @@ export interface RetrievalHit {
     text: string
     source_uri: string
     score: number
+    score_semantics?: VectorScoreSemantics
     metadata: Record<string, unknown>
 }
 

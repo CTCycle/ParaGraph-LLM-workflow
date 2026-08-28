@@ -4,13 +4,12 @@ from typing import Any
 
 from pydantic import ValidationError
 
-from server.domain.node_handler_structured import (
-    JsonValidateRepairParameters,
+from server.contracts.node_handler_structured import (
     OutputParserParameters,
     StructuredInputParameters,
     StructuredOutputParameters,
 )
-from server.services.workflow.node_handlers.base import NodeHandler
+from server.services.workflow.nodes.handler import NodeHandler
 from server.common.utils.values import parse_json_if_possible
 from server.services.workflow.structured_models import (
     infer_model_from_json,
@@ -69,14 +68,6 @@ def _structured_output_executor(
     return _validate_payload(value, parsed.model_dump(mode="json"))
 
 ###############################################################################
-def _json_validate_repair_executor(
-    parameters: dict[str, Any], inputs: dict[str, Any]
-) -> dict[str, Any]:
-    parsed = JsonValidateRepairParameters.model_validate(parameters)
-    value = parse_json_if_possible(inputs.get("value", inputs))
-    return _validate_payload(value, parsed.model_dump(mode="json"))
-
-###############################################################################
 def _output_parser_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
 ) -> dict[str, Any]:
@@ -96,10 +87,6 @@ STRUCTURED_HANDLERS = {
     ),
     "structured_output": NodeHandler(
         executor=_structured_output_executor, parameter_model=StructuredOutputParameters
-    ),
-    "json_validate_repair": NodeHandler(
-        executor=_json_validate_repair_executor,
-        parameter_model=JsonValidateRepairParameters,
     ),
     "output_parser": NodeHandler(
         executor=_output_parser_executor, parameter_model=OutputParserParameters

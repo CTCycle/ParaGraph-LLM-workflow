@@ -1,5 +1,5 @@
 # TypeScript
-Last updated: 2026-06-02
+Last updated: 2026-08-20
 
 ## Baseline
 - Use strict TypeScript typing for application logic and service boundaries.
@@ -21,6 +21,14 @@ Last updated: 2026-06-02
 - Treat `client/src/workflow` as the editor-local domain area for schema, hooks, and workflow-specific presentation.
 - Keep shared cross-page services typed and isolated from page rendering logic.
 - Prefer narrow, reusable components over page-local duplication when interaction patterns repeat.
+- Keep workflow editor persistence and pure graph I/O helpers under
+  `client/src/workflow`; route pages should coordinate them rather than own all
+  serialization and validation logic.
+- Keep API response types in the typed API service boundary and editor-only
+  state types in `client/src/workflow/schema`. Do not make a page-local editor
+  shape the implicit API contract.
+- Continue decomposing `WorkflowPage.tsx` by responsibility: persistence and
+  I/O, execution control, graph interaction, and presentation components.
 
 ## Documentation Expectation
 - Update the corresponding UI, runtime, or user documentation when frontend changes alter routes, workflows, interaction patterns, or visible runtime behavior.

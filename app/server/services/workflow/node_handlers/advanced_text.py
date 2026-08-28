@@ -2,15 +2,14 @@ from __future__ import annotations
 
 import difflib
 import re
-from datetime import datetime
 from typing import Any
 
 from dateutil import parser as date_parser
 from markdown_it import MarkdownIt
 from rapidfuzz import fuzz
 
-from server.domain.node_handler_advanced_text import AdvancedTextParameters
-from server.services.workflow.node_handlers.base import NodeHandler
+from server.contracts.node_handler_advanced_text import AdvancedTextParameters
+from server.services.workflow.nodes.handler import NodeHandler
 from server.common.utils.values import coerce_text
 
 
@@ -177,15 +176,6 @@ def _diff_text_executor(
     return {"result": "\n".join(diff)}
 
 ###############################################################################
-def _patch_apply_executor(
-    parameters: dict[str, Any], inputs: dict[str, Any]
-) -> dict[str, Any]:
-    _ = parameters
-    raise ValueError(
-        "PATCH_APPLY rejects patches unless context matching is implemented for the target text"
-    )
-
-###############################################################################
 def _markdown_parser_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
 ) -> dict[str, Any]:
@@ -263,23 +253,6 @@ def _table_extractor_executor(
     rows = [line for line in _text(inputs).splitlines() if "|" in line]
     return {"result": rows}
 
-###############################################################################
-class StaticClassifierExecutor:
-
-    # -------------------------------------------------------------------------
-    def __init__(self, label: str) -> None:
-        self._label = label
-
-    # -------------------------------------------------------------------------
-    def __call__(
-        self, parameters: dict[str, Any], inputs: dict[str, Any]
-    ) -> dict[str, Any]:
-        _ = parameters, inputs
-        return _classifier(
-            self._label, 0.5, [], {"evaluated_at": datetime.utcnow().isoformat()}
-        )
-
-
 ADVANCED_TEXT_HANDLERS = {
     "claim_extractor": NodeHandler(executor=_claim_extractor_executor),
     "contradiction_detector": NodeHandler(executor=_contradiction_detector_executor),
@@ -291,26 +264,16 @@ ADVANCED_TEXT_HANDLERS = {
     "pii_redactor": NodeHandler(
         executor=_pii_redactor_executor, parameter_model=AdvancedTextParameters
     ),
-    "toxicity_policy_classifier": NodeHandler(
-        executor=StaticClassifierExecutor("allowed")
-    ),
     "prompt_injection_detector": NodeHandler(
         executor=_prompt_injection_detector_executor,
         parameter_model=AdvancedTextParameters,
     ),
     "instruction_stripper": NodeHandler(executor=_instruction_stripper_executor),
     "diff_text": NodeHandler(executor=_diff_text_executor),
-    "patch_apply": NodeHandler(executor=_patch_apply_executor),
     "table_extractor": NodeHandler(executor=_table_extractor_executor),
     "markdown_parser": NodeHandler(executor=_markdown_parser_executor),
     "code_block_extractor": NodeHandler(executor=_code_block_extractor_executor),
     "citation_extractor": NodeHandler(executor=_citation_extractor_executor),
     "date_normalizer": NodeHandler(executor=_date_normalizer_executor),
     "unit_number_normalizer": NodeHandler(executor=_unit_number_normalizer_executor),
-    "sentiment_intent_classifier": NodeHandler(
-        executor=StaticClassifierExecutor("neutral")
-    ),
-    "topic_classifier": NodeHandler(executor=StaticClassifierExecutor("general")),
-    "quality_scorer": NodeHandler(executor=StaticClassifierExecutor("acceptable")),
-    "compression": NodeHandler(executor=StaticClassifierExecutor("compressed")),
 }

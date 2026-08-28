@@ -40,16 +40,21 @@ import {
 } from '../app/services/nodesApi'
 import { compileWorkflow } from '../app/services/workflowsApi'
 import { fetchProviderModels } from '../app/services/providersApi'
-import { pollExecution, startExecution, subscribeExecutionEvents } from '../app/services/executionsApi'
+import { cancelExecution, pollExecution, startExecution, subscribeExecutionEvents } from '../app/services/executionsApi'
+import { fetchChatHistory, resetChatHistory } from '../app/services/chatHistoryApi'
 import { usePageMetadata } from '../app/hooks/usePageMetadata'
+import { EDITOR_TOUR_STEPS, GUIDANCE_CONTENT_VERSIONS } from '../guidance/guidanceContent'
+import { useGuidance } from '../guidance/GuidanceContext'
+import GuidedTour from '../guidance/GuidedTour'
 import { useNodeCatalog } from '../workflow/hooks/useNodeCatalog'
-import {
-    type WorkflowTextEditorBinding,
-    useWorkflowTextEditorDraft,
-} from '../workflow/hooks/useWorkflowTextEditorDraft'
+import type { WorkflowTextEditorBinding } from '../workflow/hooks/useWorkflowTextEditorDraft'
+import { ChatNodeControls } from '../workflow/components/ChatNodeControls'
+import { WorkflowTextEditorModal } from '../workflow/components/WorkflowTextEditorModal'
 import { NODE_CATEGORY_LABELS, NODE_CATEGORY_ORDER } from '../workflow/schema/nodeCategory'
 import {
     CompiledExecutionPlan,
+    ChatHistoryHandle,
+    CompilerDiagnostic,
     ExecutionRunState,
     NodeCategory,
     NodeManifest,
@@ -64,8 +69,16 @@ import {
     WorkflowOpenIntent,
     WorkflowShareBundle,
     WorkflowTemplate,
+    VectorStoreCapabilities,
 } from '../workflow/schema/types'
 import { WorkflowParameterPathActions } from '../workflow/components/WorkflowParameterPathActions'
+import {
+    type PersistedActiveExecution,
+    type PersistedWorkflowEdge,
+    type PersistedWorkflowNode,
+    persistWorkflowState,
+    readPersistedWorkflowState,
+} from '../workflow/hooks/workflowPersistence'
 import {
     type SaveNodeBrowserSelection,
     type WorkflowNodeData,
@@ -95,45 +108,6 @@ type WorkflowExecutionErrorModal = {
     message: string
 }
 
-type PersistedWorkflowNode = {
-    id: string
-    manifest_id: string
-    manifest_version: number
-    position: XYPosition
-    width?: number
-    height?: number
-    parameters: Record<string, unknown>
-    collapsed: boolean
-    items_expanded?: boolean
-    pinged: boolean
-    skipped: boolean
-    is_global?: boolean
-}
-
-type PersistedWorkflowEdge = {
-    id: string
-    source: string
-    target: string
-    source_handle: string | null
-    target_handle: string | null
-}
-
-type PersistedActiveExecution = {
-    run_id: string
-    poll_interval: number
-}
-
-type PersistedWorkflowState = {
-    nodes: PersistedWorkflowNode[]
-    edges: PersistedWorkflowEdge[]
-    is_library_visible: boolean
-    is_grid_visible: boolean
-    search: string
-    selected_manifest_key: string | null
-    active_run: PersistedActiveExecution | null
-}
-
-
 type CopiedNodeSnapshot = {
     manifest: NodeManifest
     parameters: Record<string, unknown>
@@ -143,20 +117,11 @@ type CopiedNodeSnapshot = {
     collapsed: boolean
     pinged: boolean
     skipped: boolean
-    isGlobal: boolean
 }
 
 type SelectedWorkflowJson = {
     fileName: string
     jsonPayload: string
-}
-
-type EditorSelectionNode = {
-    id: string
-    manifestId: string
-    category: NodeCategory
-    parameters: Record<string, unknown>
-    runtimeOutput: Record<string, unknown> | null
 }
 
 export type NodeItemRecord = {
@@ -166,11 +131,7 @@ export type NodeItemRecord = {
 }
 
 export function createExecutionSessionId(): string {
-    const cryptoApi = globalThis.crypto
-    if (cryptoApi && typeof cryptoApi.randomUUID === 'function') {
-        return cryptoApi.randomUUID()
-    }
-    return `sess_${Date.now()}_${Math.round(Math.random() * 1_000_000)}`
+    return crypto.randomUUID()
 }
 
 export function resolveExecutionSessionId(
@@ -190,7 +151,6 @@ const NODE_MIN_HEIGHT = 140
 const NODE_MAX_HEIGHT = 760
 const NODE_LIBRARY_MIME = 'application/x-paragraph-node'
 const WORKFLOW_TREE_STATE_STORAGE_KEY = 'paragraph.workflow.tree.expansion.v1'
-const WORKFLOW_STATE_STORAGE_KEY = 'paragraph.workflow.state.v1'
 const WORKFLOW_EDGE_MARKER = { type: MarkerType.ArrowClosed as const, width: 18, height: 18 }
 const WORKFLOW_EDGE_STYLE = { stroke: '#5ba7ff', strokeWidth: 2.2 }
 const WORKFLOW_BUNDLE_VERSION = 1
@@ -202,14 +162,12 @@ const SAVE_AS_FOLDER_NODE_TYPE = 'SAVE_AS_FOLDER'
 const SAVE_AS_FILE_CHUNK_SEPARATOR = '/n/n'
 const SAVE_AS_FOLDER_INDEX_WIDTH = 6
 const INTERNAL_PREVIEW_ITEMS_PARAMETER = '__preview_items'
-const NODE_OUTPUT_NAME_PARAMETER = '__output_name'
 const MAX_NODE_GLOW_TRAIL = 3
 const NODE_GLOW_CLEAR_DELAY_MS = 1200
-const WORKFLOW_EDITOR_HANDLE_HEIGHT_PX = 22
+const WORKFLOW_EXECUTION_WORKFLOW_ID = 'workflow'
 
 type HandleKind = 'input' | 'output' | 'controller'
 type ParsedHandle = { kind: HandleKind; name: string }
-type GlobalNodeKind = 'model_provider' | 'database_provider' | 'vector_store'
 
 type ControllerScope = 'source' | 'target' | 'both'
 
@@ -303,52 +261,6 @@ function basenameOnly(value: unknown): string {
     const normalized = text.replace(/\\/g, '/')
     const segments = normalized.split('/').filter(Boolean)
     return segments.length > 0 ? segments[segments.length - 1] : normalized
-}
-
-function getGlobalNodeKind(manifest: NodeManifest): GlobalNodeKind | null {
-    if (manifest.id === 'MODEL_PROVIDER') {
-        return 'model_provider'
-    }
-    if (manifest.category === 'database') {
-        return 'database_provider'
-    }
-    if (manifest.category === 'vector_storage') {
-        return 'vector_store'
-    }
-    return null
-}
-
-function deriveGlobalNodeMetadata(nodes: Array<Node<WorkflowNodeData>>): Record<string, string> {
-    const globalNodes: Record<string, string> = {}
-    for (const node of nodes) {
-        if (!node.data.isGlobal) {
-            continue
-        }
-        const kind = getGlobalNodeKind(node.data.manifest)
-        if (!kind) {
-            continue
-        }
-        globalNodes[kind] = node.id
-    }
-    return globalNodes
-}
-
-function enforceSingleGlobalSelection(nodes: Array<Node<WorkflowNodeData>>): Array<Node<WorkflowNodeData>> {
-    const seen = new Set<GlobalNodeKind>()
-    return nodes.map((node) => {
-        const kind = getGlobalNodeKind(node.data.manifest)
-        if (!kind || !node.data.isGlobal) {
-            return node
-        }
-        if (seen.has(kind)) {
-            return {
-                ...node,
-                data: { ...node.data, isGlobal: false },
-            }
-        }
-        seen.add(kind)
-        return node
-    })
 }
 
 type BrowserDirectorySelection = {
@@ -953,6 +865,27 @@ function parseHandleId(handleId: string): ParsedHandle | null {
     return { kind, name }
 }
 
+export function deriveBoundInputNames(
+    edges: Array<{ target?: string; targetHandle?: string | null }>,
+): Record<string, string[]> {
+    const boundInputs: Record<string, string[]> = {}
+    for (const edge of edges) {
+        if (!edge.target || typeof edge.targetHandle !== 'string') {
+            continue
+        }
+        const target = parseHandleId(edge.targetHandle)
+        if (!target || target.kind !== 'input') {
+            continue
+        }
+        const names = boundInputs[edge.target] ?? []
+        if (!names.includes(target.name)) {
+            names.push(target.name)
+            boundInputs[edge.target] = names
+        }
+    }
+    return boundInputs
+}
+
 
 export function pushNodeGlowTrail(current: string[], nodeId: string | null, maxEntries = MAX_NODE_GLOW_TRAIL): string[] {
     if (!nodeId) {
@@ -1037,27 +970,11 @@ function resolveNodeDimensions(node: Node<WorkflowNodeData>): { width?: number; 
 }
 
 function cloneNodeParameters(parameters: Record<string, unknown>): Record<string, unknown> {
-    if (typeof structuredClone === 'function') {
-        return structuredClone(parameters)
-    }
-    try {
-        return JSON.parse(JSON.stringify(parameters)) as Record<string, unknown>
-    } catch {
-        return { ...parameters }
-    }
+    return structuredClone(parameters)
 }
 
 function defaultParameters(manifest: NodeManifest): Record<string, unknown> {
     return Object.fromEntries(manifest.parameters.map((parameter) => [parameter.name, parameter.default ?? '']))
-}
-
-function getNodeOutputName(parameters: Record<string, unknown>): string | null {
-    const value = parameters[NODE_OUTPUT_NAME_PARAMETER]
-    if (typeof value !== 'string') {
-        return null
-    }
-    const trimmed = value.trim()
-    return trimmed || null
 }
 
 function normalizeNodePathParameters(_manifest: NodeManifest, parameters: Record<string, unknown>): Record<string, unknown> {
@@ -1304,7 +1221,7 @@ function isWorkflowDefinitionPayload(value: unknown): value is WorkflowDefinitio
     }
 
     return (
-        isFiniteNumber(value.schema_version) &&
+        value.schema_version === 2 &&
         Array.isArray(value.nodes) &&
         value.nodes.every(isWorkflowNodeInstancePayload) &&
         Array.isArray(value.connections) &&
@@ -1319,7 +1236,7 @@ function isVisualGraphPayload(value: unknown): value is VisualGraph {
     }
 
     return (
-        isFiniteNumber(value.schema_version) &&
+        value.schema_version === 2 &&
         Array.isArray(value.nodes) &&
         value.nodes.every(isVisualNodeStatePayload) &&
         Array.isArray(value.groups) &&
@@ -1354,15 +1271,7 @@ function isWorkflowOpenIntentPayload(value: unknown): value is WorkflowOpenInten
         return typeof value.node_id === 'string' && isFiniteNumber(value.node_version)
     }
     if (value.type === 'load-template') {
-        if (isWorkflowTemplatePayload(value.template)) {
-            return true
-        }
-        return (
-            typeof value.template_name === 'string' &&
-            (value.template_id === undefined || typeof value.template_id === 'string') &&
-            isWorkflowDefinitionPayload(value.definition) &&
-            isVisualGraphPayload(value.visual_graph)
-        )
+        return isWorkflowTemplatePayload(value.template)
     }
     return false
 }
@@ -1374,7 +1283,7 @@ function isWorkflowShareBundlePayload(value: unknown): value is WorkflowShareBun
 
     const workflow = value.workflow
     return (
-        isFiniteNumber(value.bundle_version) &&
+        value.bundle_version === 1 &&
         typeof value.app === 'string' &&
         typeof value.created_at === 'string' &&
         Array.isArray(value.required_nodes) &&
@@ -1395,126 +1304,7 @@ function readImportedWorkflowPayload(value: unknown): ImportedWorkflowPayload {
         }
     }
 
-    if (
-        isRecord(value) &&
-        typeof value.name === 'string' &&
-        isWorkflowDefinitionPayload(value.definition) &&
-        isVisualGraphPayload(value.visual_graph)
-    ) {
-        return {
-            name: value.name,
-            definition: value.definition,
-            visualGraph: value.visual_graph,
-            requiredNodes: [],
-        }
-    }
-
     throw new Error('Unsupported workflow JSON. Expected a ParaGraph workflow bundle.')
-}
-
-function readPersistedWorkflowState(): PersistedWorkflowState | null {
-    if (typeof globalThis.localStorage === 'undefined') {
-        return null
-    }
-
-    try {
-        const raw = globalThis.localStorage.getItem(WORKFLOW_STATE_STORAGE_KEY)
-        if (!raw) {
-            return null
-        }
-        const parsed: unknown = JSON.parse(raw)
-        if (!isRecord(parsed)) {
-            return null
-        }
-
-        const nodes = Array.isArray(parsed.nodes)
-            ? parsed.nodes
-                .filter((value): value is Record<string, unknown> => isRecord(value))
-                .map<PersistedWorkflowNode | null>((value) => {
-                    const position = value.position
-                    if (
-                        typeof value.id !== 'string' ||
-                        typeof value.manifest_id !== 'string' ||
-                        !isFiniteNumber(value.manifest_version) ||
-                        !isRecord(position) ||
-                        !isFiniteNumber(position.x) ||
-                        !isFiniteNumber(position.y)
-                    ) {
-                        return null
-                    }
-                    return {
-                        id: value.id,
-                        manifest_id: value.manifest_id,
-                        manifest_version: value.manifest_version,
-                        position: { x: position.x, y: position.y },
-                        width: isFiniteNumber(value.width) ? value.width : undefined,
-                        height: isFiniteNumber(value.height) ? value.height : undefined,
-                        parameters: isRecord(value.parameters) ? value.parameters : {},
-                        collapsed: Boolean(value.collapsed),
-                        items_expanded: Boolean(value.items_expanded),
-                        pinged: Boolean(value.pinged),
-                        skipped: Boolean(value.skipped),
-                        is_global: Boolean(value.is_global),
-                    }
-                })
-                .filter((value): value is PersistedWorkflowNode => value !== null)
-            : []
-
-        const edges = Array.isArray(parsed.edges)
-            ? parsed.edges
-                .filter((value): value is Record<string, unknown> => isRecord(value))
-                .map<PersistedWorkflowEdge | null>((value) => {
-                    if (typeof value.source !== 'string' || typeof value.target !== 'string') {
-                        return null
-                    }
-                    const sourceHandle = value.source_handle
-                    const targetHandle = value.target_handle
-                    return {
-                        id:
-                            typeof value.id === 'string' && value.id.trim()
-                                ? value.id
-                                : `${value.source}-${coerceTextPayload(sourceHandle)}-${value.target}-${coerceTextPayload(targetHandle)}`,
-                        source: value.source,
-                        target: value.target,
-                        source_handle: typeof sourceHandle === 'string' ? sourceHandle : null,
-                        target_handle: typeof targetHandle === 'string' ? targetHandle : null,
-                    }
-                })
-                .filter((value): value is PersistedWorkflowEdge => value !== null)
-            : []
-
-        const activeRun = isRecord(parsed.active_run)
-            && typeof parsed.active_run.run_id === 'string'
-            && parsed.active_run.run_id.trim().length > 0
-            && isFiniteNumber(parsed.active_run.poll_interval)
-            && parsed.active_run.poll_interval > 0
-            ? {
-                run_id: parsed.active_run.run_id,
-                poll_interval: parsed.active_run.poll_interval,
-            }
-            : null
-
-        return {
-            nodes,
-            edges,
-            is_library_visible:
-                typeof parsed.is_library_visible === 'boolean' ? parsed.is_library_visible : false,
-            is_grid_visible: typeof parsed.is_grid_visible === 'boolean' ? parsed.is_grid_visible : true,
-            search: typeof parsed.search === 'string' ? parsed.search : '',
-            selected_manifest_key:
-                typeof parsed.selected_manifest_key === 'string' ? parsed.selected_manifest_key : null,
-            active_run: activeRun,
-        }
-    } catch {
-        return null
-    }
-}
-
-function persistWorkflowState(state: PersistedWorkflowState): void {
-    if (typeof globalThis.localStorage === 'undefined') {
-        return
-    }
-    globalThis.localStorage.setItem(WORKFLOW_STATE_STORAGE_KEY, JSON.stringify(state))
 }
 
 function buildNodeSummary(manifest: NodeManifest): string {
@@ -1645,49 +1435,6 @@ export function formatListEditorValue(
     return formatPathListValue(value, options)
 }
 
-export function resolveWorkflowTextEditorBinding(selectedNode: EditorSelectionNode | null): WorkflowTextEditorBinding {
-    if (!selectedNode) {
-        return { nodeId: null, text: '', editable: false, parameterName: null }
-    }
-
-    if (selectedNode.manifestId === 'PROMPT') {
-        return {
-            nodeId: selectedNode.id,
-            text: coerceTextPayload(selectedNode.parameters.prompt_text),
-            editable: true,
-            parameterName: 'prompt_text',
-        }
-    }
-
-    if (selectedNode.manifestId === 'PROMPT_TEMPLATE') {
-        return {
-            nodeId: selectedNode.id,
-            text: coerceTextPayload(selectedNode.parameters.template),
-            editable: true,
-            parameterName: 'template',
-        }
-    }
-
-    if (selectedNode.category === 'output') {
-        const text = selectedNode.manifestId === 'JSON_OUTPUT'
-            ? formatJsonOutputRuntime(selectedNode.runtimeOutput)
-            : formatRuntimeOutput(selectedNode.runtimeOutput)
-        return {
-            nodeId: selectedNode.id,
-            text,
-            editable: false,
-            parameterName: null,
-        }
-    }
-
-    return {
-        nodeId: selectedNode.id,
-        text: '',
-        editable: false,
-        parameterName: null,
-    }
-}
-
 function isMultilineControl(parameter: NodeParameterDefinition): boolean {
     return (
         parameter.ui_control === 'textarea'
@@ -1783,6 +1530,7 @@ function getParameterOptions(
     manifest: NodeManifest,
     parameters: Record<string, unknown>,
     providerModels: ProviderModelDefinition[],
+    vectorStoreCapabilities: VectorStoreCapabilities[] = [],
 ): Array<{ value: string; label: string }> {
     if (parameter.name === 'model_name') {
         return getDynamicModelOptions(manifest, parameters, providerModels).map((item) => ({
@@ -1801,8 +1549,27 @@ function getParameterOptions(
     if (!Array.isArray(options)) {
         return []
     }
-    return options
-        .filter((option): option is string => typeof option === 'string')
+    const filteredOptions =
+        manifest.id === 'VECTOR_STORE' && parameter.name === 'provider'
+            ? options.filter(
+                (option): option is string =>
+                    typeof option === 'string'
+                    && (
+                        vectorStoreCapabilities.length === 0
+                        || vectorStoreCapabilities.some((item) => item.backend === option)
+                    ),
+            )
+            : manifest.id === 'VECTOR_STORE' && parameter.name === 'distance_metric'
+                ? options.filter((option): option is string => {
+                    if (typeof option !== 'string') {
+                        return false
+                    }
+                    const backend = coerceTextPayload(parameters.provider).trim().toLowerCase()
+                    const capability = vectorStoreCapabilities.find((item) => item.backend === backend)
+                    return !capability || capability.supported_metrics.includes(option as 'cosine' | 'l2' | 'dot')
+                })
+                : options.filter((option): option is string => typeof option === 'string')
+    return filteredOptions
         .map((option) => ({ value: option, label: formatWidgetOptionLabel(option) }))
 }
 
@@ -1837,12 +1604,45 @@ function shouldShowParameter(parameter: NodeParameterDefinition, parameters: Rec
 
     return true
 }
+
+function getVectorStoreCapability(
+    manifest: NodeManifest,
+    parameters: Record<string, unknown>,
+    capabilities: VectorStoreCapabilities[],
+): VectorStoreCapabilities | null {
+    if (manifest.id !== 'VECTOR_STORE') {
+        return null
+    }
+    const provider = coerceTextPayload(parameters.provider).trim().toLowerCase()
+    return capabilities.find((item) => item.backend === provider) ?? null
+}
+
+function isVectorStoreParameterSupported(
+    parameter: NodeParameterDefinition,
+    manifest: NodeManifest,
+    parameters: Record<string, unknown>,
+    capabilities: VectorStoreCapabilities[],
+): boolean {
+    const capability = getVectorStoreCapability(manifest, parameters, capabilities)
+    if (!capability) {
+        return true
+    }
+    if (parameter.name === 'namespace') {
+        return capability.supports_namespaces
+    }
+    if (parameter.name === 'create_keyword_index') {
+        return capability.supports_keyword_index
+    }
+    return true
+}
 function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
     const nodeStyle: NodeAccentStyle = { '--node-accent': data.manifest.ui.accent_color }
     const structured = isStructuredNode(data.manifest)
+    const isChatNode = data.manifest.id === 'CHAT_INPUT'
     const isJsonOutputNode = data.manifest.id === 'JSON_OUTPUT'
     const sqlConnectionNode = isSqlConnectionNode(data.manifest)
     const vectorStoreConnectionNode = isVectorStoreConnectionNode(data.manifest)
+    const vectorStoreCapability = getVectorStoreCapability(data.manifest, data.parameters, data.vectorStoreCapabilities)
     const supportsConnectionCheck = sqlConnectionNode || vectorStoreConnectionNode
     const [browseTarget, setBrowseTarget] = useState<string | null>(null)
     const [jsonDrafts, setJsonDrafts] = useState<Record<string, string>>({})
@@ -1851,12 +1651,15 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
     const [runtimeJsonValidation, setRuntimeJsonValidation] = useState<JsonValidationState>('idle')
     const [connectionCheckState, setConnectionCheckState] = useState<'idle' | 'checking' | 'success' | 'error'>('idle')
 
-    const visibleParameters = data.manifest.parameters.filter((parameter) => shouldShowParameter(parameter, data.parameters))
+    const visibleParameters = data.manifest.parameters.filter(
+        (parameter) => shouldShowParameter(parameter, data.parameters)
+            && isVectorStoreParameterSupported(parameter, data.manifest, data.parameters, data.vectorStoreCapabilities)
+            && !(isChatNode && parameter.name === 'message'),
+    )
 
     const runtimeOutputText = isJsonOutputNode ? formatJsonOutputRuntime(data.runtimeOutput) : formatRuntimeOutput(data.runtimeOutput)
     const shouldShowRuntimeOutput = Boolean(runtimeOutputText) || isJsonOutputNode
     const isItemExpandable = isNodeItemExpandable(data.manifest)
-    const globalNodeKind = getGlobalNodeKind(data.manifest)
     const nodeItems = collectNodeItems(data.manifest, data.parameters, data.runtimeStepOutput)
     const hasNodeItems = nodeItems.length > 0
     const nodeItemsEmptyMessage = data.runtimeStepOutput
@@ -2069,7 +1872,7 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
     const targetControllers = controllers.filter((controller) => supportsControllerTarget(data.manifest, controller))
     return (
         <div
-            className={`workflow-node ${data.manifest.id === 'PROMPT' ? 'workflow-node-prompt' : ''}`}
+            className={`workflow-node ${data.manifest.id === 'PROMPT' ? 'workflow-node-prompt' : ''} ${isChatNode ? 'workflow-node-chat' : ''}`}
             style={nodeStyle}
             data-selected={selected || undefined}
             data-active={data.isActive || undefined}
@@ -2108,22 +1911,6 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
                             onClick={() => void handleConnectionCheck()}
                         >
                             {connectionCheckState === 'checking' ? '...' : sqlConnectionNode ? 'DB' : 'VS'}
-                        </button>
-                    )}
-                    {globalNodeKind && (
-                        <button
-                            type="button"
-                            className={`workflow-node-global ${data.isGlobal ? 'workflow-node-global-active' : ''} nodrag nopan`}
-                            aria-label={data.isGlobal ? 'Unset global node' : 'Set node as global'}
-                            title={data.isGlobal ? 'Unset global node' : 'Set node as global'}
-                            onPointerDown={preventNodeInteractionDrag}
-                            onMouseDown={preventNodeInteractionDrag}
-                            onClick={(event) => {
-                                event.stopPropagation()
-                                data.onToggleGlobal()
-                            }}
-                        >
-                            G
                         </button>
                     )}
                     <button
@@ -2214,17 +2001,30 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
                 </div>
             </div>
 
+            {isChatNode && !data.collapsed && (
+                <ChatNodeControls
+                    history={data.chatHistory}
+                    historyLoading={data.chatHistoryLoading}
+                    historyError={data.chatHistoryError}
+                    running={data.chatRunning}
+                    historyConnected={data.chatHistoryConnected}
+                    onSubmit={data.onChatSubmit}
+                    onReset={data.onChatReset}
+                />
+            )}
+
             {!data.collapsed && visibleParameters.length > 0 && (
                 <div className="workflow-node-parameters">
                     <div className="workflow-node-parameters-grid">
                         {visibleParameters.map((parameter) => {
                             const value = data.parameters[parameter.name] ?? parameter.default ?? ''
-                            const options = getParameterOptions(parameter, data.manifest, data.parameters, data.providerModels)
+                            const options = getParameterOptions(parameter, data.manifest, data.parameters, data.providerModels, data.vectorStoreCapabilities)
                             const multiline = isMultilineControl(parameter)
                             const showParameterLabel = parameter.ui_control !== 'textarea'
                             const showHeader = showParameterLabel || parameter.ui_control === 'file-list'
                             const isBrowsing = browseTarget === parameter.name
                             const isSeparatorList = isRecursiveSeparatorParameter(data.manifest, parameter)
+                            const isParameterBound = data.boundInputNames.includes(parameter.name)
                             const selectedPaths = parameter.ui_control === 'file-list' ? normalizeStringList(value) : []
                             const numberConstraints = parameter.ui_control === 'number' ? getNumberConstraints(parameter) : null
                             return (
@@ -2251,20 +2051,37 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
                                     )}
                                     <div className="workflow-node-parameter-value">
                                         {parameter.ui_control === 'textarea' ? (
-                                            <textarea
-                                                rows={2}
-                                                className="workflow-node-parameter-textbox nodrag nopan"
-                                                value={formatParameterValue(parameter, value)}
-                                                onPointerDown={preventNodeInteractionDrag}
-                                                onMouseDown={preventNodeInteractionDrag}
-                                                onKeyDown={stopKeyboardEventPropagation}
-                                                onChange={(event) => data.onParameterChange(parameter.name, parseValue(parameter, event.target.value))}
-                                            />
-                                        ) : parameter.ui_control === 'json' ? (
-                                            <div className="workflow-node-json-widget">
+                                            <div className="workflow-node-text-editor-control">
+                                                <textarea
+                                                    rows={2}
+                                                    className="workflow-node-parameter-textbox workflow-node-parameter-textbox-compact nodrag nopan"
+                                                    value={formatParameterValue(parameter, value)}
+                                                    readOnly
+                                                    aria-label={`${formatParameterLabel(parameter.name)} preview`}
+                                                    onPointerDown={preventNodeInteractionDrag}
+                                                    onMouseDown={preventNodeInteractionDrag}
+                                                    onKeyDown={stopKeyboardEventPropagation}
+                                                />
                                                 <button
                                                     type="button"
-                                                    className="workflow-node-json-validate nodrag nopan"
+                                                    className="workflow-node-text-editor-edit nodrag nopan"
+                                                    onPointerDown={preventNodeInteractionDrag}
+                                                    onMouseDown={preventNodeInteractionDrag}
+                                                    onClick={() => data.onOpenTextEditor(parameter.name)}
+                                                >
+                                                    Edit
+                                                </button>
+                                            </div>
+                                        ) : parameter.ui_control === 'json' ? (
+                                            <div className="workflow-node-json-widget">
+                                                {isParameterBound && (
+                                                    <div className="workflow-node-json-binding" role="status">
+                                                        Upstream input bound; this literal is the fallback when the edge is removed.
+                                                    </div>
+                                                )}
+                                                <button
+                                                    type="button"
+                                                    className={`workflow-node-json-validate ${isParameterBound ? 'workflow-node-json-validate-bound' : ''} nodrag nopan`}
                                                     onPointerDown={preventNodeInteractionDrag}
                                                     onMouseDown={preventNodeInteractionDrag}
                                                     onClick={() =>
@@ -2470,8 +2287,11 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
 
             <div className="workflow-node-footer">
                 <span>{NODE_CATEGORY_LABELS[data.manifest.category]}</span>
-                {getNodeOutputName(data.parameters) && (
-                    <span className="workflow-node-output-name">{getNodeOutputName(data.parameters)}</span>
+                {vectorStoreCapability && (
+                    <span title="Vector store capability contract">
+                        {vectorStoreCapability.supported_metrics.join(', ')}
+                        {vectorStoreCapability.supports_namespaces ? ' · namespaces' : ''}
+                    </span>
                 )}
             </div>
         </div>
@@ -2481,12 +2301,14 @@ function ManifestNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
 const nodeTypes = { manifest: ManifestNode }
 
 function WorkflowEditor() {
-    const { catalog, loading, error, reload } = useNodeCatalog()
+    const { catalog, vectorStoreCapabilities, loading, error, reload } = useNodeCatalog()
     const location = useLocation()
     const navigate = useNavigate()
+    const { requestedTour, clearRequestedTour, shouldShow, markSeen, markDismissed } = useGuidance()
     const [providerModels, setProviderModels] = useState<ProviderModelDefinition[]>([])
     const [statusText, setStatusText] = useState('Ready')
     const [executionErrorModal, setExecutionErrorModal] = useState<WorkflowExecutionErrorModal | null>(null)
+    const [compileDiagnostics, setCompileDiagnostics] = useState<CompilerDiagnostic[]>([])
     const [isRunning, setIsRunning] = useState(false)
     const [activeRun, setActiveRun] = useState<PersistedActiveExecution | null>(null)
     const [executionSessionId, setExecutionSessionId] = useState<string>(() => resolveExecutionSessionId(null))
@@ -2502,80 +2324,50 @@ function WorkflowEditor() {
     const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([])
     const [isGridVisible, setIsGridVisible] = useState(true)
     const [isConnecting, setIsConnecting] = useState(false)
-    const [editorPanelHeight, setEditorPanelHeight] = useState(0)
-    const [isEditorResizing, setIsEditorResizing] = useState(false)
+    const [textEditorTarget, setTextEditorTarget] = useState<{ nodeId: string; parameterName: string } | null>(null)
+    const [isEditorTourOpen, setIsEditorTourOpen] = useState(false)
+    const [isOnboardingVisible, setIsOnboardingVisible] = useState(false)
     const stopEventsRef = useRef<(() => void) | null>(null)
     const pollingAbortRef = useRef<AbortController | null>(null)
     const activePlanRef = useRef<CompiledExecutionPlan | null>(null)
     const runWorkflowLockRef = useRef(false)
+    const chatSubmitRef = useRef<(nodeId: string, message: string) => Promise<void>>(async () => undefined)
+    const chatResetRef = useRef<(nodeId: string) => Promise<void>>(async () => undefined)
     const saveNodeBrowseSelectionsRef = useRef<Record<string, SaveNodeBrowserSelection>>({})
     const hasHydratedWorkflowRef = useRef(false)
+    const canOfferOnboardingRef = useRef(false)
+    const workflowHasStartedRef = useRef(false)
     const draggedManifestKeyRef = useRef<string | null>(null)
     const copiedNodeRef = useRef<CopiedNodeSnapshot | null>(null)
     const pasteCountRef = useRef(0)
     const canvasPanelRef = useRef<HTMLDivElement | null>(null)
-    const canvasColumnRef = useRef<HTMLDivElement | null>(null)
-    const workflowShellRef = useRef<HTMLElement | null>(null)
-    const editorResizeOriginRef = useRef<{ startY: number; startHeight: number } | null>(null)
     const { getZoom, screenToFlowPosition, zoomIn, zoomTo } = useReactFlow<Node<WorkflowNodeData>, Edge>()
+    const boundInputNamesByNodeId = useMemo(() => deriveBoundInputNames(edges), [edges])
     const glowLevelByNodeId = useMemo(
         () => buildNodeGlowLevelMap(activeNodeId, glowTrailNodeIds),
         [activeNodeId, glowTrailNodeIds],
     )
-    const selectedCanvasNode = useMemo<EditorSelectionNode | null>(() => {
-        const selectedNodes = nodes.filter((node) => node.selected)
-        if (selectedNodes.length === 0) {
+    const textEditorBinding = useMemo<WorkflowTextEditorBinding | null>(() => {
+        if (!textEditorTarget) {
             return null
         }
-        const node = selectedNodes[selectedNodes.length - 1]
-        return {
-            id: node.id,
-            manifestId: node.data.manifest.id,
-            category: node.data.manifest.category,
-            parameters: node.data.parameters,
-            runtimeOutput: node.data.runtimeOutput,
-        }
-    }, [nodes])
-    const editorBinding = useMemo(
-        () => resolveWorkflowTextEditorBinding(selectedCanvasNode),
-        [selectedCanvasNode],
-    )
-    const { editorTextDraft, setEditorTextDraft } = useWorkflowTextEditorDraft(editorBinding)
-
-    function getEditorPanelMaxHeight(): number {
-        const canvasColumnHeight = canvasColumnRef.current?.clientHeight ?? 0
-        if (canvasColumnHeight > 0) {
-            return Math.max(0, canvasColumnHeight - WORKFLOW_EDITOR_HANDLE_HEIGHT_PX)
-        }
-        const shellHeight = workflowShellRef.current?.clientHeight ?? 0
-        return Math.max(0, shellHeight - 220)
-    }
-
-    function clampEditorPanelHeight(nextHeight: number): number {
-        return Math.min(Math.max(nextHeight, 0), getEditorPanelMaxHeight())
-    }
-
-    function beginEditorResize(event: ReactPointerEvent<HTMLButtonElement>): void {
-        event.preventDefault()
-        event.stopPropagation()
-        editorResizeOriginRef.current = {
-            startY: event.clientY,
-            startHeight: editorPanelHeight,
-        }
-        setIsEditorResizing(true)
-    }
-
-    function handleBottomEditorChange(nextValue: string): void {
-        setEditorTextDraft(nextValue)
-        if (!editorBinding.editable || !editorBinding.nodeId || !editorBinding.parameterName) {
-            return
-        }
-        const node = nodes.find((item) => item.id === editorBinding.nodeId)
+        const node = nodes.find((item) => item.id === textEditorTarget.nodeId)
         if (!node) {
-            return
+            return null
         }
-        node.data.onParameterChange(editorBinding.parameterName, nextValue)
-    }
+        const parameter = node.data.manifest.parameters.find(
+            (item) => item.name === textEditorTarget.parameterName && item.ui_control === 'textarea',
+        )
+        if (!parameter) {
+            return null
+        }
+        return {
+            nodeId: node.id,
+            text: formatParameterValue(parameter, node.data.parameters[parameter.name] ?? parameter.default ?? ''),
+            editable: true,
+            parameterName: parameter.name,
+        }
+    }, [nodes, textEditorTarget])
 
     function updateExecutionHighlight(nodeId: string | null): void {
         setActiveNodeId(nodeId)
@@ -2612,45 +2404,6 @@ function WorkflowEditor() {
     }, [])
 
     useEffect(() => {
-        if (!isEditorResizing) {
-            return
-        }
-
-        const handlePointerMove = (event: PointerEvent): void => {
-            const origin = editorResizeOriginRef.current
-            if (!origin) {
-                return
-            }
-            const delta = origin.startY - event.clientY
-            setEditorPanelHeight(clampEditorPanelHeight(origin.startHeight + delta))
-        }
-
-        const stopResize = (): void => {
-            editorResizeOriginRef.current = null
-            setIsEditorResizing(false)
-        }
-
-        globalThis.addEventListener('pointermove', handlePointerMove)
-        globalThis.addEventListener('pointerup', stopResize)
-        globalThis.addEventListener('pointercancel', stopResize)
-
-        return () => {
-            globalThis.removeEventListener('pointermove', handlePointerMove)
-            globalThis.removeEventListener('pointerup', stopResize)
-            globalThis.removeEventListener('pointercancel', stopResize)
-        }
-    }, [isEditorResizing])
-
-    useEffect(() => {
-        const handleResize = (): void => {
-            setEditorPanelHeight((current) => clampEditorPanelHeight(current))
-        }
-
-        globalThis.addEventListener('resize', handleResize)
-        return () => globalThis.removeEventListener('resize', handleResize)
-    }, [])
-
-    useEffect(() => {
         void fetchProviderModels()
             .then((payload) => setProviderModels(payload.models))
             .catch((loadError) => {
@@ -2679,10 +2432,33 @@ function WorkflowEditor() {
                     isActive: node.id === activeNodeId,
                     glowLevel: glowLevelByNodeId[node.id] ?? 0,
                     providerModels,
+                    vectorStoreCapabilities,
                 },
             })),
         )
-    }, [activeNodeId, glowLevelByNodeId, providerModels, setNodes])
+    }, [activeNodeId, glowLevelByNodeId, providerModels, setNodes, vectorStoreCapabilities])
+
+    useEffect(() => {
+        setNodes((current) => {
+            let changed = false
+            const next = current.map((node) => {
+                const boundInputNames = boundInputNamesByNodeId[node.id] ?? []
+                const currentNames = node.data.boundInputNames
+                if (
+                    currentNames.length === boundInputNames.length
+                    && currentNames.every((name, index) => name === boundInputNames[index])
+                ) {
+                    return node
+                }
+                changed = true
+                return {
+                    ...node,
+                    data: { ...node.data, boundInputNames },
+                }
+            })
+            return changed ? next : current
+        })
+    }, [boundInputNamesByNodeId, setNodes])
 
     useEffect(() => {
         if (providerModels.length === 0) {
@@ -2783,7 +2559,6 @@ function WorkflowEditor() {
                     collapsed: source.data.collapsed,
                     pinged: source.data.pinged,
                     skipped: source.data.skipped,
-                    isGlobal: source.data.isGlobal,
                 }
                 pasteCountRef.current = 0
                 setStatusText(`Copied ${source.data.manifest.name}`)
@@ -2812,7 +2587,6 @@ function WorkflowEditor() {
                     collapsed: copied.collapsed,
                     pinged: copied.pinged,
                     skipped: copied.skipped,
-                    isGlobal: false,
                     selected: true,
                 })
                 setNodes((current) => [
@@ -2883,6 +2657,7 @@ function WorkflowEditor() {
         hasHydratedWorkflowRef.current = true
         const persisted = readPersistedWorkflowState()
         if (!persisted) {
+            canOfferOnboardingRef.current = true
             return
         }
 
@@ -2902,7 +2677,6 @@ function WorkflowEditor() {
                     itemsExpanded: snapshot.items_expanded ?? false,
                     pinged: snapshot.pinged,
                     skipped: snapshot.skipped,
-                    isGlobal: Boolean(snapshot.is_global),
                     width: snapshot.width,
                     height: snapshot.height,
                 }),
@@ -2939,13 +2713,16 @@ function WorkflowEditor() {
                     },
                 ]
             })
+        canOfferOnboardingRef.current = restoredNodes.length === 0 && restoredEdges.length === 0
+        workflowHasStartedRef.current = !canOfferOnboardingRef.current
         saveNodeBrowseSelectionsRef.current = {}
-        setNodes(enforceSingleGlobalSelection(restoredNodes))
+        setNodes(restoredNodes)
         setEdges(restoredEdges)
         setIsLibraryVisible(false)
         setIsGridVisible(persisted.is_grid_visible)
         setSearch(persisted.search)
         setSelectedManifestKey(persisted.selected_manifest_key)
+        setExecutionSessionId(resolveExecutionSessionId(persisted.execution_session_id || null))
         setActiveRun(persisted.active_run)
         setResumeRunSnapshot(persisted.active_run)
         if (persisted.active_run) {
@@ -2954,6 +2731,44 @@ function WorkflowEditor() {
             setStatusText('Restored workflow state')
         }
     }, [catalog, providerModels, setEdges, setNodes])
+
+    useEffect(() => {
+        if (!hasHydratedWorkflowRef.current) {
+            return
+        }
+        if (nodes.length > 0 || edges.length > 0) {
+            workflowHasStartedRef.current = true
+            setIsOnboardingVisible(false)
+        }
+    }, [edges.length, nodes.length])
+
+    useEffect(() => {
+        if (
+            loading ||
+            error ||
+            !hasHydratedWorkflowRef.current ||
+            !canOfferOnboardingRef.current ||
+            workflowHasStartedRef.current ||
+            nodes.length > 0 ||
+            isEditorTourOpen ||
+            requestedTour !== null ||
+            !shouldShow('editor-onboarding', GUIDANCE_CONTENT_VERSIONS['editor-onboarding'])
+        ) {
+            return
+        }
+        setIsOnboardingVisible(true)
+        markSeen('editor-onboarding', GUIDANCE_CONTENT_VERSIONS['editor-onboarding'])
+    }, [error, isEditorTourOpen, loading, markSeen, nodes.length, requestedTour, shouldShow])
+
+    useEffect(() => {
+        if (requestedTour !== 'editor' || loading || !hasHydratedWorkflowRef.current) {
+            return
+        }
+        setIsLibraryVisible(true)
+        setIsOnboardingVisible(false)
+        setIsEditorTourOpen(true)
+        clearRequestedTour()
+    }, [clearRequestedTour, loading, requestedTour])
 
     useEffect(() => {
         if (!hasHydratedWorkflowRef.current) {
@@ -2974,7 +2789,6 @@ function WorkflowEditor() {
                 items_expanded: node.data.itemsExpanded,
                 pinged: node.data.pinged,
                 skipped: node.data.skipped,
-                is_global: node.data.isGlobal,
             }
         })
         const persistedEdges: PersistedWorkflowEdge[] = edges.map((edge) => ({
@@ -2992,9 +2806,10 @@ function WorkflowEditor() {
             is_grid_visible: isGridVisible,
             search,
             selected_manifest_key: selectedManifestKey,
+            execution_session_id: executionSessionId,
             active_run: activeRun,
         })
-    }, [activeRun, edges, isGridVisible, isLibraryVisible, nodes, search, selectedManifestKey])
+    }, [activeRun, edges, executionSessionId, isGridVisible, isLibraryVisible, nodes, search, selectedManifestKey])
 
     const filteredCatalog = useMemo(() => {
         const normalized = search.trim().toLowerCase()
@@ -3029,7 +2844,6 @@ function WorkflowEditor() {
         return nodes.find((node) => node.id === nodeContextMenu.nodeId) ?? null
     }, [nodeContextMenu, nodes])
     const contextMenuNodeIsExpandable = contextMenuNode ? isNodeItemExpandable(contextMenuNode.data.manifest) : false
-    const contextMenuNodeGlobalKind = contextMenuNode ? getGlobalNodeKind(contextMenuNode.data.manifest) : null
     const contextMenuNodeCanViewSchema = contextMenuNode ? isSqlConnectionNode(contextMenuNode.data.manifest) : false
 
     useEffect(() => {
@@ -3071,14 +2885,9 @@ function WorkflowEditor() {
             return
         }
 
-        const templateName = rawIntent.template?.name ?? rawIntent.template_name
-        const templateDefinition = rawIntent.template?.definition ?? rawIntent.definition
-        const templateVisualGraph = rawIntent.template?.visual_graph ?? rawIntent.visual_graph
-        if (!templateName || !templateDefinition || !templateVisualGraph) {
-            setStatusText('Unable to load template payload from navigation state')
-            clearIntentState()
-            return
-        }
+        const templateName = rawIntent.template.name
+        const templateDefinition = rawIntent.template.definition
+        const templateVisualGraph = rawIntent.template.visual_graph
 
         const requiredManifestKeys = new Set(
             templateDefinition.nodes.map((node) => `${node.node_type}:${node.node_version}`),
@@ -3137,7 +2946,6 @@ function WorkflowEditor() {
         itemsExpanded?: boolean
         pinged?: boolean
         skipped?: boolean
-        isGlobal?: boolean
         selected?: boolean
         width?: number
         height?: number
@@ -3167,16 +2975,22 @@ function WorkflowEditor() {
                 manifest: input.manifest,
                 parameters: initialParameters,
                 providerModels,
+                vectorStoreCapabilities,
                 collapsed: input.collapsed ?? input.manifest.ui.collapsed_by_default,
                 itemsExpanded: input.itemsExpanded ?? false,
                 selectedItemKey: null,
                 pinged: isPinged,
                 skipped: input.skipped ?? false,
-                isGlobal: input.isGlobal ?? false,
+                boundInputNames: [],
                 isActive: nodeId === activeNodeId,
                 glowLevel: nodeId === activeNodeId ? 3 : 0,
                 runtimeOutput: null,
                 runtimeStepOutput: null,
+                chatHistory: [],
+                chatHistoryLoading: false,
+                chatHistoryError: null,
+                chatRunning: false,
+                chatHistoryConnected: false,
                 onParameterChange: (parameterName, value) => {
                     updateNode(nodeId, (current) => {
                         const nextParameters = { ...current.data.parameters, [parameterName]: value }
@@ -3215,6 +3029,23 @@ function WorkflowEditor() {
                             if (nextOptions.length > 0) {
                                 nextParameters.model_name = nextOptions[0].model
                             }
+                            const vectorCapability = getVectorStoreCapability(
+                                current.data.manifest,
+                                nextParameters,
+                                current.data.vectorStoreCapabilities,
+                            )
+                            if (vectorCapability) {
+                                const currentMetric = coerceTextPayload(nextParameters.distance_metric).trim().toLowerCase()
+                                if (!vectorCapability.supported_metrics.includes(currentMetric as 'cosine' | 'l2' | 'dot')) {
+                                    nextParameters.distance_metric = vectorCapability.supported_metrics[0] ?? 'cosine'
+                                }
+                                if (!vectorCapability.supports_namespaces) {
+                                    nextParameters.namespace = ''
+                                }
+                                if (!vectorCapability.supports_keyword_index) {
+                                    nextParameters.create_keyword_index = false
+                                }
+                            }
                         }
                         return {
                             ...current,
@@ -3238,9 +3069,6 @@ function WorkflowEditor() {
                 },
                 onTogglePing: () => {
                     toggleNodePing(nodeId)
-                },
-                onToggleGlobal: () => {
-                    toggleNodeGlobal(nodeId)
                 },
                 onToggleCollapse: () => {
                     updateNode(nodeId, (current) => ({
@@ -3267,6 +3095,15 @@ function WorkflowEditor() {
                         ...current,
                         data: { ...current.data, selectedItemKey: itemKey },
                     }))
+                },
+                onOpenTextEditor: (parameterName) => {
+                    setTextEditorTarget({ nodeId, parameterName })
+                },
+                onChatSubmit: (message) => {
+                    void chatSubmitRef.current(nodeId, message)
+                },
+                onChatReset: () => {
+                    void chatResetRef.current(nodeId)
                 },
             },
             style,
@@ -3303,43 +3140,6 @@ function WorkflowEditor() {
         }
     }
 
-    function toggleNodeGlobal(nodeId: string): void {
-        let statusMessage: string | null = null
-        setNodes((current) => {
-            const selected = current.find((node) => node.id === nodeId)
-            if (!selected) {
-                return current
-            }
-
-            const selectedKind = getGlobalNodeKind(selected.data.manifest)
-            if (!selectedKind) {
-                return current
-            }
-
-            const nextIsGlobal = !selected.data.isGlobal
-            return current.map((node) => {
-                if (node.id === nodeId) {
-                    statusMessage = `${nextIsGlobal ? 'Set' : 'Unset'} global ${selected.data.manifest.name}`
-                    return {
-                        ...node,
-                        data: { ...node.data, isGlobal: nextIsGlobal },
-                    }
-                }
-
-                if (nextIsGlobal && node.data.isGlobal && getGlobalNodeKind(node.data.manifest) === selectedKind) {
-                    return {
-                        ...node,
-                        data: { ...node.data, isGlobal: false },
-                    }
-                }
-                return node
-            })
-        })
-
-        if (statusMessage) {
-            setStatusText(statusMessage)
-        }
-    }
     function toggleNodeSkipped(nodeId: string): void {
         const node = nodes.find((item) => item.id === nodeId)
         if (!node) {
@@ -3373,7 +3173,6 @@ function WorkflowEditor() {
             skipped: mode === 'clone' ? sourceNode.data.skipped : false,
             width: mode === 'clone' ? dimensions.width : undefined,
             height: mode === 'clone' ? dimensions.height : undefined,
-            isGlobal: false,
             selected: true,
         })
 
@@ -3492,9 +3291,16 @@ function WorkflowEditor() {
         return `Workflow completed (saved ${savedFiles} file${savedFiles === 1 ? '' : 's'} to selected local path)`
     }
 
-    function buildDefinition(): WorkflowDefinition {
+    function buildDefinition(options?: { chatNodeId?: string; chatMessage?: string }): WorkflowDefinition {
         const definitionNodes = nodes.map((node) => {
             const parameters = normalizeNodePathParameters(node.data.manifest, node.data.parameters)
+            if (
+                node.data.manifest.id === 'CHAT_INPUT'
+                && options?.chatNodeId === node.id
+                && typeof options.chatMessage === 'string'
+            ) {
+                parameters.message = options.chatMessage.trim()
+            }
             if (node.data.manifest.id === SAVE_AS_FILE_NODE_TYPE || node.data.manifest.id === SAVE_AS_FOLDER_NODE_TYPE) {
                 if (saveNodeBrowseSelectionsRef.current[node.id]) {
                     parameters[SAVE_NODE_CLIENT_SIDE_PARAMETER] = true
@@ -3541,7 +3347,7 @@ function WorkflowEditor() {
             schema_version: 2,
             nodes: definitionNodes,
             connections: definitionConnections,
-            metadata: { global_nodes: deriveGlobalNodeMetadata(nodes) },
+            metadata: {},
         }
     }
     function buildVisualGraph(): VisualGraph {
@@ -3559,7 +3365,6 @@ function WorkflowEditor() {
                     items_expanded: node.data.itemsExpanded,
                     pinged: node.data.pinged,
                     skipped: node.data.skipped,
-                    is_global: node.data.isGlobal,
                 }
             }),
             groups: [],
@@ -3597,16 +3402,6 @@ function WorkflowEditor() {
             }
         }
 
-        const importedGlobalNodeIds = new Set<string>()
-        const rawGlobalNodes = isRecord(payload.definition.metadata) ? payload.definition.metadata.global_nodes : null
-        if (isRecord(rawGlobalNodes)) {
-            for (const value of Object.values(rawGlobalNodes)) {
-                if (typeof value === 'string' && value.trim()) {
-                    importedGlobalNodeIds.add(value.trim())
-                }
-            }
-        }
-
         const definitionNodes: unknown[] = Array.isArray(payload.definition.nodes) ? payload.definition.nodes : []
         const restoredNodes: Node<WorkflowNodeData>[] = definitionNodes.map((rawNode, index) => {
             if (!isRecord(rawNode) || typeof rawNode.node_id !== 'string' || typeof rawNode.node_type !== 'string') {
@@ -3631,11 +3426,6 @@ function WorkflowEditor() {
             const itemsExpanded = visualNode ? Boolean(visualNode.items_expanded) : false
             const pinged = visualNode ? Boolean(visualNode.pinged) : false
             const skipped = typeof rawNode.skipped === 'boolean' ? rawNode.skipped : visualNode ? Boolean(visualNode.skipped) : false
-            const isGlobal = typeof rawNode.is_global === 'boolean'
-                ? rawNode.is_global
-                : visualNode
-                    ? Boolean(visualNode.is_global)
-                    : importedGlobalNodeIds.has(rawNode.node_id)
             const parameters = isRecord(rawNode.parameters) ? rawNode.parameters : {}
 
             return createWorkflowNode({
@@ -3647,7 +3437,6 @@ function WorkflowEditor() {
                 itemsExpanded,
                 pinged,
                 skipped,
-                isGlobal,
                 width,
                 height,
             })
@@ -3721,7 +3510,7 @@ function WorkflowEditor() {
                 ]
             })
         saveNodeBrowseSelectionsRef.current = {}
-        setNodes(enforceSingleGlobalSelection(restoredNodes))
+        setNodes(restoredNodes)
         setEdges(restoredEdges)
         setNodeContextMenu(null)
         clearExecutionHighlight()
@@ -3949,6 +3738,7 @@ function WorkflowEditor() {
         applyRunState(finalState)
         if (finalState.status === 'completed') {
             const localSaveStatus = await syncSaveNodeBrowserSelections(finalState)
+            await refreshAllChatHistories()
             setStatusText(localSaveStatus || 'Workflow completed')
             return
         }
@@ -4008,8 +3798,14 @@ function WorkflowEditor() {
         })()
     }, [isRunning, resumeRunSnapshot])
 
-    async function runWorkflow(): Promise<void> {
+    async function runWorkflow(options?: { chatNodeId?: string; chatMessage?: string }): Promise<void> {
+        const chatNodeId = options?.chatNodeId
+        const chatMessage = options?.chatMessage?.trim() ?? ''
         if (isRunning || runWorkflowLockRef.current) {
+            return
+        }
+        if (chatNodeId && !chatMessage) {
+            setStatusText('Enter a message before sending it to Chat')
             return
         }
         if (executionErrorModal) {
@@ -4021,9 +3817,16 @@ function WorkflowEditor() {
             return
         }
         setExecutionErrorModal(null)
+        setCompileDiagnostics([])
         setResumeRunSnapshot(null)
         runWorkflowLockRef.current = true
         setIsRunning(true)
+        if (chatNodeId) {
+            updateNode(chatNodeId, (current) => ({
+                ...current,
+                data: { ...current.data, chatRunning: true, chatHistoryError: null },
+            }))
+        }
         clearExecutionHighlight()
         setGlowTrailNodeIds([])
         setNodes((current) =>
@@ -4042,18 +3845,23 @@ function WorkflowEditor() {
         let latestRunState: ExecutionRunState | null = null
         let keepRunTracking = false
         try {
-            const definition = buildDefinition()
+            const definition = buildDefinition({ chatNodeId, chatMessage })
             if (!definition.nodes.some((node) => !node.skipped)) {
                 throw new Error('Add at least one active node before running the workflow')
             }
 
             const compileResponse = await compileWorkflow(definition)
+            setCompileDiagnostics(compileResponse.diagnostics)
             if (!compileResponse.valid || !compileResponse.plan) {
                 throw new Error(compileResponse.diagnostics.map((item) => item.message).join('; ') || 'Compilation failed')
             }
 
             activePlanRef.current = compileResponse.plan
-            const execution = await startExecution(compileResponse.plan, undefined, executionSessionId)
+            const execution = await startExecution(
+                compileResponse.plan,
+                WORKFLOW_EXECUTION_WORKFLOW_ID,
+                executionSessionId,
+            )
             const runSnapshot: PersistedActiveExecution = {
                 run_id: execution.run_id,
                 poll_interval: execution.poll_interval,
@@ -4089,10 +3897,178 @@ function WorkflowEditor() {
                 runWorkflowLockRef.current = false
                 clearExecutionHighlight()
                 setIsRunning(false)
+                if (chatNodeId) {
+                    updateNode(chatNodeId, (current) => ({
+                        ...current,
+                        data: { ...current.data, chatRunning: false },
+                    }))
+                }
                 activePlanRef.current = null
             }
         }
     }
+
+    async function requestCancellation(): Promise<void> {
+        if (!activeRun || !isRunning) return
+        setStatusText('Requesting cancellation...')
+        try {
+            const response = await cancelExecution(activeRun.run_id)
+            setStatusText(response.message || `Run ${response.status}`)
+        } catch (error) {
+            setStatusText(error instanceof Error ? `Cancellation failed: ${error.message}` : 'Cancellation failed')
+        }
+    }
+
+    function resolveChatHistoryHandle(
+        chatNodeId: string,
+        candidateNodes: Array<Node<WorkflowNodeData>> = nodes,
+        candidateEdges: Edge[] = edges,
+    ): ChatHistoryHandle | null {
+        const chatNode = candidateNodes.find((node) => node.id === chatNodeId)
+        if (!chatNode || chatNode.data.manifest.id !== 'CHAT_INPUT') {
+            return null
+        }
+
+        const historyConnection = candidateEdges.find((edge) => {
+            if (edge.target !== chatNodeId || typeof edge.targetHandle !== 'string') {
+                return false
+            }
+            const target = parseHandleId(edge.targetHandle)
+            return target?.kind === 'controller' && target.name === 'history'
+        })
+        if (!historyConnection) {
+            return null
+        }
+
+        const historySource = candidateNodes.find((node) => node.id === historyConnection.source)
+        if (!historySource) {
+            return null
+        }
+        const sourceId = historySource.data.manifest.id
+        if (sourceId !== 'CHAT_HISTORY_MEMORY' && sourceId !== 'CHAT_HISTORY_PERSISTED') {
+            return null
+        }
+
+        const rawMaxMessages = historySource.data.parameters.max_messages
+        const maxMessages = typeof rawMaxMessages === 'number' && Number.isFinite(rawMaxMessages)
+            ? Math.max(1, Math.trunc(rawMaxMessages))
+            : 20
+        const rawStorageBackend = coerceTextPayload(historySource.data.parameters.storage_backend).trim()
+        const storageBackend = rawStorageBackend === 'database' || rawStorageBackend === 'file'
+            ? rawStorageBackend
+            : null
+
+        return {
+            node_type: sourceId,
+            node_id: chatNodeId,
+            workflow_id: WORKFLOW_EXECUTION_WORKFLOW_ID,
+            execution_session_id: executionSessionId,
+            max_messages: maxMessages,
+            separator: coerceTextPayload(historySource.data.parameters.separator),
+            keep_prompt_type: Boolean(historySource.data.parameters.keep_prompt_type ?? true),
+            storage_backend: sourceId === 'CHAT_HISTORY_PERSISTED' ? storageBackend : null,
+            execution_owned: true,
+        }
+    }
+
+    async function refreshChatHistory(chatNodeId: string): Promise<void> {
+        const handle = resolveChatHistoryHandle(chatNodeId)
+        updateNode(chatNodeId, (current) => ({
+            ...current,
+            data: {
+                ...current.data,
+                chatHistory: handle ? current.data.chatHistory : [],
+                chatHistoryLoading: Boolean(handle),
+                chatHistoryError: null,
+                chatHistoryConnected: Boolean(handle),
+            },
+        }))
+        if (!handle) {
+            return
+        }
+
+        try {
+            const response = await fetchChatHistory(handle)
+            updateNode(chatNodeId, (current) => ({
+                ...current,
+                data: {
+                    ...current.data,
+                    chatHistory: response.messages,
+                    chatHistoryLoading: false,
+                    chatHistoryError: null,
+                    chatHistoryConnected: true,
+                },
+            }))
+        } catch (error) {
+            updateNode(chatNodeId, (current) => ({
+                ...current,
+                data: {
+                    ...current.data,
+                    chatHistoryLoading: false,
+                    chatHistoryError: error instanceof Error ? error.message : 'Unable to load chat history',
+                    chatHistoryConnected: true,
+                },
+            }))
+        }
+    }
+
+    async function refreshAllChatHistories(): Promise<void> {
+        const chatNodeIds = nodes
+            .filter((node) => node.data.manifest.id === 'CHAT_INPUT')
+            .map((node) => node.id)
+        await Promise.all(chatNodeIds.map((nodeId) => refreshChatHistory(nodeId)))
+    }
+
+    async function resetChatHistoryForNode(chatNodeId: string): Promise<void> {
+        if (isRunning) {
+            return
+        }
+        const handle = resolveChatHistoryHandle(chatNodeId)
+        if (!handle) {
+            setStatusText('Connect a chat history node before resetting the conversation')
+            return
+        }
+        try {
+            await resetChatHistory(handle)
+            updateNode(chatNodeId, (current) => ({
+                ...current,
+                data: { ...current.data, chatHistory: [], chatHistoryError: null },
+            }))
+            setStatusText('Chat conversation reset')
+        } catch (error) {
+            setStatusText(error instanceof Error ? error.message : 'Unable to reset chat history')
+        }
+    }
+
+    const chatHistoryTopologyKey = useMemo(
+        () => JSON.stringify({
+            session: executionSessionId,
+            nodes: nodes
+                .filter((node) => node.data.manifest.id === 'CHAT_INPUT' || node.data.manifest.category === 'memory')
+                .map((node) => ({
+                    id: node.id,
+                    manifest: node.data.manifest.id,
+                    parameters: node.data.parameters,
+                })),
+            edges: edges.map((edge) => ({
+                source: edge.source,
+                target: edge.target,
+                sourceHandle: edge.sourceHandle,
+                targetHandle: edge.targetHandle,
+            })),
+        }),
+        [edges, executionSessionId, nodes],
+    )
+
+    useEffect(() => {
+        const chatNodeIds = nodes
+            .filter((node) => node.data.manifest.id === 'CHAT_INPUT')
+            .map((node) => node.id)
+        if (chatNodeIds.length === 0) {
+            return
+        }
+        void Promise.all(chatNodeIds.map((nodeId) => refreshChatHistory(nodeId)))
+    }, [chatHistoryTopologyKey])
 
     function resetExecutionSession(): void {
         if (isRunning) {
@@ -4103,8 +4079,27 @@ function WorkflowEditor() {
         setStatusText('Run session ID reset (workflow graph unchanged)')
     }
 
+    chatSubmitRef.current = async (nodeId, message) => {
+        await runWorkflow({ chatNodeId: nodeId, chatMessage: message })
+    }
+    chatResetRef.current = resetChatHistoryForNode
+
+    function applyTextEditorValue(value: string): void {
+        if (!textEditorBinding?.nodeId || !textEditorBinding.parameterName) {
+            return
+        }
+        const node = nodes.find((item) => item.id === textEditorBinding.nodeId)
+        if (!node) {
+            setTextEditorTarget(null)
+            return
+        }
+        node.data.onParameterChange(textEditorBinding.parameterName, value)
+        setTextEditorTarget(null)
+        setStatusText('Text editor changes applied')
+    }
+
     return (
-        <section className="workflow-shell" ref={workflowShellRef}>
+        <section className="workflow-shell">
             <nav className="workflow-toolbar" aria-label="Workflow actions">
                 <div className="workflow-toolbar-status">
                     <span className="workflow-toolbar-status-label">Status</span>
@@ -4139,13 +4134,41 @@ function WorkflowEditor() {
                     <button
                         type="button"
                         className="workflow-run"
+                        data-guidance-target="run-workflow"
                         onClick={() => void runWorkflow()}
                         disabled={isRunning || !hasRunnableNodes || isExecutionErrorModalOpen}
                     >
                         {isRunning ? 'Running...' : 'Run Workflow'}
                     </button>
+                    {isRunning && activeRun && (
+                        <button
+                            type="button"
+                            className="workflow-cancel"
+                            onClick={() => void requestCancellation()}
+                            aria-label="Cancel running workflow"
+                        >
+                            Cancel Run
+                        </button>
+                    )}
                 </div>
             </nav>
+
+            {compileDiagnostics.length > 0 && (
+                <section className="workflow-diagnostics" aria-label="Compilation diagnostics">
+                    <h2>Compilation diagnostics</h2>
+                    {compileDiagnostics.map((diagnostic, index) => (
+                        <div
+                            key={`${diagnostic.code}-${diagnostic.node_id ?? 'graph'}-${index}`}
+                            className={`workflow-diagnostic workflow-diagnostic-${diagnostic.level}`}
+                            role={diagnostic.level === 'error' ? 'alert' : 'status'}
+                        >
+                            <strong>{diagnostic.level === 'warning' ? 'Warning' : 'Error'}: {diagnostic.code}</strong>
+                            <span>{diagnostic.message}</span>
+                            {diagnostic.node_id && <small>Node: {diagnostic.node_id}</small>}
+                        </div>
+                    ))}
+                </section>
+            )}
 
             {executionErrorModal && (
                 <div
@@ -4175,7 +4198,7 @@ function WorkflowEditor() {
 
             <div className="workflow-layout" data-library-hidden={!isLibraryVisible || undefined}>
                 {isLibraryVisible && (
-                    <aside className="workflow-library-shell" aria-label="Node tree viewer">
+                    <aside className="workflow-library-shell" aria-label="Node tree viewer" data-guidance-target="node-library">
                         <div className="workflow-tree-header">
                             <div>
                                 <h2>Node tree</h2>
@@ -4276,8 +4299,8 @@ function WorkflowEditor() {
                     </aside>
                 )}
 
-                <div className="workflow-canvas-column" ref={canvasColumnRef}>
-                    <div className={`workflow-canvas-panel ${isConnecting ? 'workflow-canvas-panel-connecting' : ''}`} ref={canvasPanelRef} onDragOver={handleCanvasDragOver} onDrop={handleCanvasDrop}>
+                <div className="workflow-canvas-column">
+                    <div className={`workflow-canvas-panel ${isConnecting ? 'workflow-canvas-panel-connecting' : ''}`} ref={canvasPanelRef} data-guidance-target="workflow-canvas" onDragOver={handleCanvasDragOver} onDrop={handleCanvasDrop}>
                     {!isLibraryVisible && (
                         <button
                             type="button"
@@ -4286,6 +4309,54 @@ function WorkflowEditor() {
                         >
                             Show node tree
                         </button>
+                    )}
+                    {isOnboardingVisible && (
+                        <aside className="workflow-guidance-onboarding" role="note" aria-label="Workflow getting started">
+                            <div className="workflow-guidance-onboarding-header">
+                                <div>
+                                    <span className="guidance-eyebrow">Getting started</span>
+                                    <h2>Build a workflow in three moves</h2>
+                                </div>
+                                <button
+                                    type="button"
+                                    className="guidance-icon-button"
+                                    aria-label="Dismiss workflow getting started"
+                                    onClick={() => {
+                                        setIsOnboardingVisible(false)
+                                        markDismissed('editor-onboarding', GUIDANCE_CONTENT_VERSIONS['editor-onboarding'])
+                                    }}
+                                >
+                                    ×
+                                </button>
+                            </div>
+                            <p>Choose a node or template, drop it on the canvas, then connect compatible ports.</p>
+                            <div className="workflow-guidance-onboarding-actions">
+                                <button
+                                    type="button"
+                                    className="guidance-primary-button"
+                                    onClick={() => {
+                                        setIsOnboardingVisible(false)
+                                        setIsLibraryVisible(true)
+                                        setIsEditorTourOpen(true)
+                                    }}
+                                >
+                                    Show me
+                                </button>
+                                <button type="button" className="guidance-secondary-button" onClick={() => navigate('/nodes#workflow-templates')}>
+                                    Browse templates
+                                </button>
+                                <button
+                                    type="button"
+                                    className="guidance-secondary-button"
+                                    onClick={() => {
+                                        setIsOnboardingVisible(false)
+                                        markDismissed('editor-onboarding', GUIDANCE_CONTENT_VERSIONS['editor-onboarding'])
+                                    }}
+                                >
+                                    Not now
+                                </button>
+                            </div>
+                        </aside>
                     )}
                     <ReactFlow
                         nodes={nodes}
@@ -4442,21 +4513,6 @@ function WorkflowEditor() {
                             </button>
                             <button
                                 type="button"
-                                className={`workflow-node-context-menu-item ${contextMenuNodeGlobalKind ? '' : 'workflow-node-context-menu-item-disabled'}`}
-                                role="menuitem"
-                                disabled={!contextMenuNodeGlobalKind}
-                                onClick={() => {
-                                    if (!contextMenuNodeGlobalKind) {
-                                        return
-                                    }
-                                    contextMenuNode.data.onToggleGlobal()
-                                    setNodeContextMenu(null)
-                                }}
-                            >
-                                {contextMenuNode.data.isGlobal ? 'Unset global' : 'Set as global'}
-                            </button>
-                            <button
-                                type="button"
                                 className="workflow-node-context-menu-item" role="menuitem"
                                 onClick={() => {
                                     toggleNodeSkipped(contextMenuNode.id)
@@ -4464,37 +4520,6 @@ function WorkflowEditor() {
                                 }}
                             >
                                 {contextMenuNode.data.skipped ? 'Unskip' : 'Skip'}
-                            </button>
-                            <button
-                                type="button"
-                                className={`workflow-node-context-menu-item ${contextMenuNode.data.manifest.outputs.length > 0 ? '' : 'workflow-node-context-menu-item-disabled'}`}
-                                role="menuitem"
-                                disabled={contextMenuNode.data.manifest.outputs.length === 0}
-                                onClick={() => {
-                                    if (contextMenuNode.data.manifest.outputs.length === 0) {
-                                        return
-                                    }
-                                    const currentName = getNodeOutputName(contextMenuNode.data.parameters) ?? ''
-                                    const nextName = globalThis.prompt('Rename output', currentName)
-                                    if (nextName === null) {
-                                        return
-                                    }
-                                    const trimmed = nextName.trim()
-                                    updateNode(contextMenuNode.id, (current) => ({
-                                        ...current,
-                                        data: {
-                                            ...current.data,
-                                            parameters: {
-                                                ...current.data.parameters,
-                                                [NODE_OUTPUT_NAME_PARAMETER]: trimmed,
-                                            },
-                                        },
-                                    }))
-                                    setStatusText(trimmed ? `Output renamed to ${trimmed}` : 'Output name cleared')
-                                    setNodeContextMenu(null)
-                                }}
-                            >
-                                Rename output
                             </button>
                             <hr className="workflow-node-context-menu-separator" />
                             <button
@@ -4513,42 +4538,18 @@ function WorkflowEditor() {
                     {loading && <div className="workflow-loading">Loading node catalog...</div>}
                 </div>
 
-                <div className="workflow-bottom-editor-shell" data-expanded={editorPanelHeight > 0 || undefined}>
-                <button
-                    type="button"
-                    className="workflow-bottom-editor-handle"
-                    aria-label="Resize text editor"
-                    onPointerDown={beginEditorResize}
-                    onMouseDown={(event) => {
-                        event.preventDefault()
-                    }}
-                >
-                    <span className="workflow-bottom-editor-handle-grip" aria-hidden="true" />
-                </button>
-                <div
-                    className="workflow-bottom-editor-panel"
-                    style={{ height: `${editorPanelHeight}px` }}
-                >
-                    <div className="workflow-bottom-editor-header">
-                        <strong>Text Editor</strong>
-                        <span>{editorBinding.nodeId ? (editorBinding.editable ? 'Editable' : 'Read-only') : 'No selection'}</span>
-                    </div>
-                    {editorBinding.nodeId ? (
-                        editorBinding.editable ? (
-                            <textarea
-                                className="workflow-bottom-editor-textarea"
-                                value={editorTextDraft}
-                                onChange={(event) => handleBottomEditorChange(event.target.value)}
-                                onKeyDown={stopKeyboardEventPropagation}
-                            />
-                        ) : (
-                            <pre className="workflow-bottom-editor-readonly">{editorTextDraft}</pre>
-                        )
-                    ) : (
-                        <div className="workflow-bottom-editor-empty" />
-                    )}
-                </div>
-            </div>
+                <WorkflowTextEditorModal
+                    binding={textEditorBinding}
+                    title={textEditorBinding?.parameterName ? `Edit ${formatParameterLabel(textEditorBinding.parameterName)}` : 'Edit text'}
+                    onApply={applyTextEditorValue}
+                    onCancel={() => setTextEditorTarget(null)}
+                />
+                <GuidedTour
+                    isOpen={isEditorTourOpen}
+                    tourId="editor"
+                    steps={EDITOR_TOUR_STEPS}
+                    onRequestClose={() => setIsEditorTourOpen(false)}
+                />
             </div>
             </div>
         </section>

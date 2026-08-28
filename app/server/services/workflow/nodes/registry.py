@@ -8,19 +8,19 @@ from typing import Any
 from pydantic import ValidationError
 
 from server.common import path as common_path
-from server.domain.node_catalog import NodeCatalogResponse, NodeManifest
-from server.domain.workflow_payloads import validate_data_type
+from server.contracts.node_catalog import NodeCatalogResponse, NodeManifest
+from server.contracts.workflow_payloads import validate_data_type
 from server.repositories.workflow.node_manifest import (
     NodeManifestRepository,
     node_manifest_repository,
 )
-from server.services.configuration import configuration_service
 from server.services.workflow.node_handlers import NODE_HANDLERS
-from server.services.workflow.node_handlers.base import NodeHandler
+from server.services.workflow.nodes.handler import NodeHandler
 from server.services.workflow.nodes.execution_context import (
     reset_execution_context,
     set_execution_context,
 )
+from server.services.workflow.vector_stores import get_vector_store_capabilities
 
 
 MODEL_NODE_IDS = {"LLM_CHAT", "LLM_STRUCTURED"}
@@ -222,7 +222,10 @@ class NodeRegistry:
 
     # -------------------------------------------------------------------------
     def catalog_response(self) -> NodeCatalogResponse:
-        return NodeCatalogResponse(nodes=self.list())
+        return NodeCatalogResponse(
+            nodes=self.list(),
+            vector_store_capabilities=get_vector_store_capabilities(),
+        )
 
     # -------------------------------------------------------------------------
     def import_manifest(self, manifest: NodeManifest) -> NodeManifest:
@@ -242,12 +245,11 @@ class NodeRegistry:
                 raise ValueError(
                     f"Imported node manifest could not be reloaded: {manifest.id} v{manifest.version}"
                 )
-            configuration_service.save_node_manifest(created)
         except Exception as exc:
             self._manifest_repository.delete_manifest(path)
             self.reload()
             raise ValueError(
-                f"Failed to persist imported node manifest in database: {exc}"
+                f"Failed to persist imported node manifest: {exc}"
             ) from exc
 
         return created
@@ -369,6 +371,21 @@ class NodeRegistry:
         token = set_execution_context(context or {})
         try:
             outputs = handler.executor(validated_parameters, execution_inputs)
+            if not isinstance(outputs, dict):
+                raise ValueError(
+                    f"Node '{manifest.id}' executor must return an object"
+                )
+            declared_output_names = {
+                port.name for port in [*manifest.outputs, *manifest.controllers]
+            }
+            undeclared_output_names = sorted(
+                set(outputs).difference(declared_output_names)
+            )
+            if undeclared_output_names:
+                joined = ", ".join(undeclared_output_names)
+                raise ValueError(
+                    f"Node '{manifest.id}' produced undeclared outputs: {joined}"
+                )
             validated_outputs = self._validate_ports(manifest, outputs, label="output")
             validated_controller_outputs = self._validate_ports(
                 manifest, outputs, label="controller"

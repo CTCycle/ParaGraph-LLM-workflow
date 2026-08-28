@@ -4,11 +4,47 @@ import inspect
 import threading
 import uuid
 from collections.abc import Callable
+from dataclasses import dataclass, field
 from time import monotonic
 from typing import Any
 
 from server.common.utils.logger import logger
-from server.domain.jobs import JobState
+
+
+###############################################################################
+@dataclass
+class JobState:
+    job_id: str
+    job_type: str
+    status: str
+    progress: float = 0.0
+    result: dict[str, Any] | None = None
+    error: str | None = None
+    created_at: float = field(default_factory=monotonic)
+    completed_at: float | None = None
+    stop_requested: bool = False
+    lock: threading.Lock = field(default_factory=threading.Lock, init=False, repr=False)
+
+    # -------------------------------------------------------------------------
+    def update(self, **kwargs: Any) -> None:
+        with self.lock:
+            for key, value in kwargs.items():
+                if hasattr(self, key):
+                    setattr(self, key, value)
+
+    # -------------------------------------------------------------------------
+    def snapshot(self) -> dict[str, Any]:
+        with self.lock:
+            return {
+                "job_id": self.job_id,
+                "job_type": self.job_type,
+                "status": self.status,
+                "progress": self.progress,
+                "result": self.result,
+                "error": self.error,
+                "created_at": self.created_at,
+                "completed_at": self.completed_at,
+            }
 
 ###############################################################################
 class JobManager:
@@ -26,8 +62,9 @@ class JobManager:
         runner: Callable[..., dict[str, Any]],
         args: tuple[Any, ...] = (),
         kwargs: dict[str, Any] | None = None,
+        job_id: str | None = None,
     ) -> str:
-        job_id = str(uuid.uuid4())[:8]
+        job_id = job_id or str(uuid.uuid4())[:8]
         state = JobState(job_id=job_id, job_type=job_type, status="pending")
         runner_kwargs = kwargs.copy() if kwargs else {}
 
