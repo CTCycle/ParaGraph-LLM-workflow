@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { fetchNodeCatalog } from '../../app/services/nodesApi'
-import { NodeManifest } from '../schema/types'
+import { NodeManifest, VectorStoreCapabilities } from '../schema/types'
 
 type UseNodeCatalogResult = {
     catalog: NodeManifest[]
+    vectorStoreCapabilities: VectorStoreCapabilities[]
     loading: boolean
     error: string | null
     reload: () => Promise<void>
@@ -12,6 +13,7 @@ type UseNodeCatalogResult = {
 
 export function useNodeCatalog(): UseNodeCatalogResult {
     const [catalog, setCatalog] = useState<NodeManifest[]>([])
+    const [vectorStoreCapabilities, setVectorStoreCapabilities] = useState<VectorStoreCapabilities[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
     const mountedRef = useRef(true)
@@ -31,6 +33,7 @@ export function useNodeCatalog(): UseNodeCatalogResult {
                 return
             }
             setCatalog(payload.nodes)
+            setVectorStoreCapabilities(payload.vector_store_capabilities ?? [])
             setError(null)
         } catch (loadError) {
             if (!mountedRef.current) {
@@ -50,6 +53,7 @@ export function useNodeCatalog(): UseNodeCatalogResult {
 
     return {
         catalog,
+        vectorStoreCapabilities,
         loading,
         error,
         reload,

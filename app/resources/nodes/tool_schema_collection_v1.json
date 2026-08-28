@@ -1,0 +1,22 @@
+{
+  "id": "TOOL_SCHEMA_COLLECTION",
+  "version": 1,
+  "name": "Tool Schema Collection",
+  "category": "model",
+  "description": "Build a deterministic, schema-only collection of tool signatures without executable Python.",
+  "inputs": [
+    {"name": "schema", "data_type": "JSON", "required": false}
+  ],
+  "outputs": [
+    {"name": "tools", "data_type": "TOOL_COLLECTION_HANDLE", "required": true}
+  ],
+  "parameters": [
+    {"name": "source_type", "data_type": "TEXT", "default": "json_schema", "constraints": {"options": ["json_schema", "signature"]}, "ui_control": "select"},
+    {"name": "schema_json", "data_type": "JSON", "default": {}, "ui_control": "json"},
+    {"name": "signature_text", "data_type": "TEXT", "default": "", "ui_control": "textarea"},
+    {"name": "tool_name", "data_type": "TEXT", "default": "", "ui_control": "text"},
+    {"name": "description", "data_type": "TEXT", "default": "", "ui_control": "textarea"}
+  ],
+  "ui": {"default_width": 380, "accent_color": "#7e9cff", "collapsed_by_default": false},
+  "runtime": {"executor_key": "tool_schema_collection", "cacheable": true, "deterministic": true, "side_effecting": false, "idempotent": true}
+}

@@ -48,6 +48,13 @@
       "description": "Optional comma-separated columns. Leave empty to return all columns."
     },
     {
+      "name": "schema_name",
+      "data_type": "TEXT",
+      "default": "",
+      "ui_control": "text",
+      "description": "Optional PostgreSQL schema. Ignored for SQLite."
+    },
+    {
       "name": "filters",
       "data_type": "JSON",
       "default": {},
@@ -60,10 +67,18 @@
       "default": 100,
       "constraints": {
         "min": 1,
-        "max": 10000
+        "max": 1000
       },
       "ui_control": "number",
       "description": "Maximum number of rows returned."
+    },
+    {
+      "name": "offset",
+      "data_type": "JSON",
+      "default": 0,
+      "constraints": { "min": 0 },
+      "ui_control": "number",
+      "description": "Number of ordered rows to skip."
     },
     {
       "name": "order_by",

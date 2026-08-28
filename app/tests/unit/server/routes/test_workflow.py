@@ -5,8 +5,8 @@ from collections.abc import Callable
 from fastapi.testclient import TestClient
 import pytest
 
-from server.domain.configuration import AccessKeyConfiguration
-from server.domain.node_catalog import ProviderModelDefinition
+from server.contracts.configuration import AccessKeyConfiguration
+from server.contracts.node_catalog import ProviderModelDefinition
 from server.services.workflow import provider_service
 
 ###############################################################################
@@ -229,6 +229,42 @@ def test_compile_returns_plan_for_prompt_graph(client: TestClient) -> None:
     assert payload["plan"]["steps"][0]["node_type"] == "PROMPT"
 
 ###############################################################################
+def test_workflow_create_rejects_definition_that_fails_compilation(
+    client: TestClient,
+) -> None:
+    definition = build_simple_definition("Persist me")
+    definition["nodes"].append(
+        {
+            "node_id": "detached",
+            "node_type": "PROMPT",
+            "node_version": 1,
+            "parameters": {"prompt_text": "Do not run"},
+        }
+    )
+
+    response = client.post(
+        "/workflows",
+        json={
+            "name": "Invalid workflow",
+            "definition": definition,
+            "visual_graph": {
+                "schema_version": 2,
+                "nodes": [],
+                "groups": [],
+                "comments": [],
+            },
+        },
+    )
+
+    assert response.status_code == 422
+    detail = response.json()["detail"]
+    assert any(
+        item["code"] == "disconnected_execution_component"
+        for item in detail["diagnostics"]
+    )
+    assert client.get("/workflows").json()["workflows"] == []
+
+###############################################################################
 def test_compile_rejects_cycles(client: TestClient) -> None:
     response = client.post(
         "/executions/compile",
@@ -428,11 +464,13 @@ def test_compile_skipped_connection_is_excluded_from_required_input_resolution(
     assert "missing_source_node" not in codes
 
 ###############################################################################
-def test_compile_ignores_unknown_global_node_aliases(client: TestClient) -> None:
+def test_compile_requires_explicit_controller_edge_even_with_global_metadata(
+    client: TestClient,
+) -> None:
     definition = build_provider_chat_definition()
     definition["metadata"] = {
         "global_nodes": {
-            "model": "provider_1",
+            "model_provider": "provider_1",
         }
     }
     definition["connections"] = [
@@ -448,6 +486,10 @@ def test_compile_ignores_unknown_global_node_aliases(client: TestClient) -> None
     assert payload["valid"] is False
     assert any(
         item["code"] == "missing_required_controller" for item in payload["diagnostics"]
+    )
+    assert any(
+        item["code"] == "unsupported_global_connector_metadata"
+        for item in payload["diagnostics"]
     )
 
 ###############################################################################

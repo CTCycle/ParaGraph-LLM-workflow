@@ -41,6 +41,13 @@
       "description": "Existing table to insert into."
     },
     {
+      "name": "schema_name",
+      "data_type": "TEXT",
+      "default": "",
+      "ui_control": "text",
+      "description": "Optional PostgreSQL schema. Ignored for SQLite."
+    },
+    {
       "name": "values",
       "data_type": "JSON",
       "default": {},

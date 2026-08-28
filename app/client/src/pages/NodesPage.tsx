@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
     ArrowDownToLine,
     ArrowUpToLine,
@@ -15,7 +15,7 @@ import {
     X,
     type LucideIcon,
 } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 
 import { useErrorMessage } from '../app/hooks/useErrorMessage'
 import { useEscapeToClose } from '../app/hooks/useEscapeToClose'
@@ -83,6 +83,10 @@ function buildNodeExplanation(node: NodeManifest): string {
     return description || 'No description provided.'
 }
 
+function formatNodeMatchSummary(count: number): string {
+    return `${count} node${count === 1 ? '' : 's'} ${count === 1 ? 'matches' : 'match'} the current filters.`
+}
+
 function buildNodeDetails(node: NodeManifest): NodePreviewDetailItem[] {
     const parameterNames = node.parameters.map((parameter) => parameter.name)
 
@@ -110,6 +114,7 @@ function buildTemplateFlowPreview(template: WorkflowTemplate): string[] {
 }
 
 export default function NodesPage() {
+    const location = useLocation()
     usePageMetadata({
         title: 'Workflow Nodes Library',
         description:
@@ -118,6 +123,14 @@ export default function NodesPage() {
 
     const { catalog, loading, error, reload } = useNodeCatalog()
     const navigate = useNavigate()
+
+    useEffect(() => {
+        if (location.hash !== '#workflow-templates') {
+            return
+        }
+        document.getElementById('workflow-templates')?.scrollIntoView({ block: 'start' })
+    }, [location.hash])
+
     const [search, setSearch] = useState('')
     const [templateSearch, setTemplateSearch] = useState('')
     const [selectedCategories, setSelectedCategories] = useState<NodeCategory[]>(() => [...NODE_CATEGORY_ORDER])
@@ -244,7 +257,7 @@ export default function NodesPage() {
                                 <SectionHeading
                                     className="nodes-section-heading"
                                     title="Node preview"
-                                    description={`${filteredCatalog.length} nodes match the current filters.`}
+                                    description={formatNodeMatchSummary(filteredCatalog.length)}
                                 />
                                 <div className="nodes-preview-header-controls">
                                     <input
@@ -301,7 +314,7 @@ export default function NodesPage() {
                         </div>
                     </section>
 
-                    <section className="nodes-split-panel nodes-split-panel-templates">
+                    <section id="workflow-templates" className="nodes-split-panel nodes-split-panel-templates">
                         <div className="nodes-templates-shell">
                             <div className="nodes-templates-header">
                                 <SectionHeading

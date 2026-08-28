@@ -7,13 +7,14 @@ from uuid import NAMESPACE_URL, uuid5
 import httpx
 from pydantic import ValidationError
 
-from server.domain.node_handler_core import (
+from server.contracts.node_handler_core import (
     EmbeddingParameters,
     RerankParameters,
     SimilaritySearchParameters,
+    VectorStoreLifecycleParameters,
     VectorStoreParameters,
 )
-from server.domain.workflow_payloads import (
+from server.contracts.workflow_payloads import (
     RetrievalResults,
     VectorPoint,
     VectorStoreHandle,
@@ -23,10 +24,7 @@ from server.common.utils.values import (
     coerce_text,
     normalize_provider_name,
 )
-from server.services.workflow.node_handlers.core.huggingface_runtime import (
-    load_huggingface_embedding_modules as _default_load_huggingface_embedding_modules,
-)
-from server.services.workflow.node_handlers.core.resolvers import resolve_core_override
+from server.services.workflow.node_handlers.core.huggingface_runtime import load_huggingface_embedding_modules
 from server.services.workflow.node_handlers.core.storage import (
     _extract_text_from_payload,
 )
@@ -36,31 +34,12 @@ from server.services.workflow.node_handlers.ingestion import (
 )
 from server.services.workflow.provider import provider_service
 from server.services.workflow.vector_stores import get_vector_store_adapter
+from server.services.workflow.vector_stores.base import (
+    validate_vector_request_capabilities,
+)
 
 
 _HF_EMBEDDING_CACHE: dict[str, tuple[Any, Any, Any]] = {}
-
-###############################################################################
-def _resolve_vector_store_adapter(backend: str):
-    override = resolve_core_override(
-        "get_vector_store_adapter", get_vector_store_adapter
-    )
-    return override(backend)
-
-###############################################################################
-def _resolve_embedding_function():
-    return resolve_core_override(
-        "_embed_text_for_text_embedding_node",
-        _embed_text_for_text_embedding_node,
-    )
-
-###############################################################################
-def _resolve_huggingface_embedding_modules():
-    override = resolve_core_override(
-        "_load_huggingface_embedding_modules",
-        _default_load_huggingface_embedding_modules,
-    )
-    return override()
 
 ###############################################################################
 def _normalize_embedding_vector(vector: list[float]) -> list[float]:
@@ -131,7 +110,7 @@ def _embed_text_with_gemini(*, model_name: str, text: str) -> list[float]:
 def _embed_text_with_huggingface(
     *, model_name: str, text: str, tokenizer_name: str = ""
 ) -> list[float]:
-    torch_module, auto_model, auto_tokenizer = _resolve_huggingface_embedding_modules()
+    torch_module, auto_model, auto_tokenizer = load_huggingface_embedding_modules()
     config = configuration_service.load_configuration()
     access_key = next(
         (
@@ -395,18 +374,31 @@ def _vector_store_executor(
     ]
     if not points:
         raise ValueError("VECTOR_STORE requires at least one vectors input")
-    adapter = _resolve_vector_store_adapter(parsed.provider)
+    adapter = get_vector_store_adapter(parsed.provider)
+    resolved_api_key = ""
+    resolved_endpoint = parsed.endpoint_url
+    if parsed.credential_profile:
+        access_key = configuration_service.resolve_access_key(
+            profile_name=parsed.credential_profile,
+            provider=parsed.provider,
+        )
+        resolved_api_key = access_key.api_key or ""
+        resolved_endpoint = resolved_endpoint or access_key.base_url or ""
     store = adapter.write_points(
         index_name=parsed.index_name,
         storage_directory=parsed.storage_path,
         metric=parsed.distance_metric,
         write_mode=parsed.write_mode,
         namespace=parsed.namespace,
-        endpoint_url=parsed.endpoint_url,
-        api_key=parsed.api_key,
+        endpoint_url=resolved_endpoint,
+        api_key=resolved_api_key,
         collection_name=parsed.collection_name,
         database_name=parsed.database_name,
-        provider_config=parsed.provider_config,
+        provider_config={
+            **parsed.provider_config,
+            "credential_profile": parsed.credential_profile,
+            "provider": parsed.provider,
+        },
         index_type=parsed.index_type,
         create_vector_index=parsed.create_vector_index,
         create_keyword_index=parsed.create_keyword_index,
@@ -425,6 +417,55 @@ def _vector_store_executor(
     }
 
 ###############################################################################
+def _vector_store_lifecycle_executor(
+    parameters: dict[str, Any], inputs: dict[str, Any]
+) -> dict[str, Any]:
+    parsed = VectorStoreLifecycleParameters.model_validate(parameters)
+    raw_store = inputs.get("store")
+    if not isinstance(raw_store, dict):
+        raise ValueError("VECTOR_STORE_LIFECYCLE requires a vector store handle")
+    store = VectorStoreHandle.model_validate(raw_store)
+    adapter = get_vector_store_adapter(store.backend)
+    operation = parsed.operation
+    if operation == "inspect":
+        result = adapter.inspect_collection(store=store)
+    elif operation == "reload":
+        reloaded = adapter.reload(store=store)
+        return {"result": reloaded.model_dump(mode="json"), "store": reloaded.model_dump(mode="json")}
+    elif operation == "update":
+        points = _flatten_vector_point_inputs(inputs.get("vectors"))
+        if not points:
+            raise ValueError("Vector update requires at least one vector point")
+        result = adapter.update_points(
+            store=store, points=points, lock_timeout=parsed.lock_timeout
+        )
+    elif operation == "delete_ids":
+        result = adapter.delete_ids(
+            store=store, ids=parsed.ids, lock_timeout=parsed.lock_timeout
+        )
+    elif operation == "delete_document":
+        result = adapter.delete_document(
+            store=store,
+            document_id=parsed.document_id,
+            lock_timeout=parsed.lock_timeout,
+        )
+    elif operation == "delete_filter":
+        result = adapter.delete_filter(
+            store=store,
+            filter_spec=parsed.metadata_filter,
+            lock_timeout=parsed.lock_timeout,
+        )
+    else:
+        result = adapter.delete_collection(
+            store=store, lock_timeout=parsed.lock_timeout
+        )
+    payload = result.model_dump(mode="json")
+    response = {"result": payload}
+    if operation != "delete_collection":
+        response["store"] = adapter.reload(store=store).model_dump(mode="json")
+    return response
+
+###############################################################################
 def _similarity_search_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
 ) -> dict[str, Any]:
@@ -435,7 +476,7 @@ def _similarity_search_executor(
 
     embedding_payload = inputs.get("embedding")
     provider, model_name, tokenizer_name = _extract_embedding_source(embedding_payload)
-    query_vector = _resolve_embedding_function()(
+    query_vector = _embed_text_for_text_embedding_node(
         provider=provider,
         model_name=model_name,
         tokenizer_name=tokenizer_name,
@@ -465,30 +506,30 @@ def _similarity_search_executor(
         )
 
     backend = coerce_text(store_payload.get("backend") or "lancedb").strip().lower()
-    adapter = _resolve_vector_store_adapter(backend)
+    adapter = get_vector_store_adapter(backend)
     capabilities = adapter.describe_capabilities()
-    if parsed.search_mode == "hybrid" and not bool(
-        capabilities.get("supports_hybrid_search")
-    ):
-        raise ValueError(
-            f"SIMILARITY_SEARCH backend '{backend}' does not support hybrid mode"
-        )
-    if parsed.search_engine == "faiss_augmented" and not bool(
-        capabilities.get("supports_faiss_augmentation")
-    ):
-        raise ValueError(
-            f"SIMILARITY_SEARCH backend '{backend}' does not support faiss_augmented engine"
-        )
-
     raw_filter_spec = (
         parsed.metadata_filter if isinstance(parsed.metadata_filter, dict) else None
     )
-    if raw_filter_spec and not bool(
-        capabilities.get("supports_metadata_filtering", True)
-    ):
-        raise ValueError(
-            f"SIMILARITY_SEARCH backend '{backend}' does not support metadata filtering"
+    store_namespace = coerce_text(store_payload.get("namespace") or "").strip()
+    if not store_namespace and isinstance(store_payload.get("metadata"), dict):
+        store_namespace = coerce_text(
+            store_payload["metadata"].get("namespace") or ""
+        ).strip()
+    try:
+        validate_vector_request_capabilities(
+            capabilities,
+            metric=store_metric,
+            namespace=store_namespace,
+            search_mode=parsed.search_mode,
+            search_engine=parsed.search_engine,
+            filter_spec=raw_filter_spec,
+            keyword_query=coerce_text(parsed.keyword_query).strip() or None,
         )
+    except ValueError as exc:
+        raise ValueError(
+            f"SIMILARITY_SEARCH backend '{backend}' capability contract rejected the request: {exc}"
+        ) from exc
 
     effective_search_engine = parsed.search_engine
     if effective_search_engine == "faiss_augmented":
@@ -621,4 +662,5 @@ __all__ = [
     "_rerank_results_executor",
     "_similarity_search_executor",
     "_vector_store_executor",
+    "_vector_store_lifecycle_executor",
 ]

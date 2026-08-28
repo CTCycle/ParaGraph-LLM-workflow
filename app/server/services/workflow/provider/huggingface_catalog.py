@@ -11,8 +11,8 @@ from huggingface_hub import HfApi
 import httpx
 
 from server.common.utils.logger import logger
-from server.domain.node_catalog import HuggingFaceModelDefinition
-from server.domain.provider import CachedValue, ModelMetadata
+from server.contracts.node_catalog import HuggingFaceModelDefinition
+from server.services.workflow.provider.models import CachedValue, ModelMetadata
 from server.services.workflow.provider.constants import (
     HUGGINGFACE_CACHE_TTL_SECONDS,
     HUGGINGFACE_FALLBACK_LIBRARIES,
@@ -39,8 +39,8 @@ from server.services.workflow.provider.helpers import (
     _resolve_visibility,
     _safe_int,
 )
-from server.domain.configuration import DEFAULT_SESSION_NAME
-from server.domain.node_catalog import (
+from server.contracts.configuration import DEFAULT_SESSION_NAME
+from server.contracts.node_catalog import (
     HuggingFaceModelCatalogResponse,
     HuggingFaceSortBy,
     ModelVisibilityFilter,
@@ -693,39 +693,4 @@ class HuggingFaceCatalogMixin:
         return ProviderApiError(
             f"Hugging Face query failed: {error}",
             status_code=502,
-        )
-
-###############################################################################
-class HuggingFaceCatalogService:
-
-    # -------------------------------------------------------------------------
-    def __init__(self, provider_service: object) -> None:
-        self._provider_service = provider_service
-
-    # -------------------------------------------------------------------------
-    def list_models(
-        self,
-        *,
-        session_name: str = DEFAULT_SESSION_NAME,
-        search: str | None = None,
-        task: str | None = None,
-        library: str | None = None,
-        author: str | None = None,
-        visibility: ModelVisibilityFilter = "all",
-        sort: HuggingFaceSortBy = "relevance",
-        page: int = 1,
-        page_size: int = 20,
-        refresh: bool = False,
-    ) -> HuggingFaceModelCatalogResponse:
-        return self._provider_service._list_huggingface_models_impl(  # noqa: SLF001
-            session_name=session_name,
-            search=search,
-            task=task,
-            library=library,
-            author=author,
-            visibility=visibility,
-            sort=sort,
-            page=page,
-            page_size=page_size,
-            refresh=refresh,
         )

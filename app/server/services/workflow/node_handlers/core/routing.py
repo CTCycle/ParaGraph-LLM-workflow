@@ -7,7 +7,7 @@ from typing import Any
 from transformers import AutoTokenizer
 
 from server.common.utils.values import coerce_text
-from server.domain.node_handler_core import TokenizerParameters
+from server.contracts.node_handler_core import TokenizerParameters
 
 ###############################################################################
 @lru_cache(maxsize=32)
@@ -116,41 +116,4 @@ def _tokenize_executor(
         return {"serialized": json.dumps(structured, ensure_ascii=False)}
     return {"tokenized": structured}
 
-###############################################################################
-def _text_split_executor(
-    parameters: dict[str, Any], inputs: dict[str, Any]
-) -> dict[str, Any]:
-    text = coerce_text(inputs.get("text") or "")
-    delimiter = coerce_text(parameters.get("delimiter") or "\n")
-    return {
-        "segments": [
-            segment.strip() for segment in text.split(delimiter) if segment.strip()
-        ]
-    }
-
-###############################################################################
-def _if_executor(parameters: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
-    _ = parameters
-    return {
-        "result": inputs.get("true_value")
-        if bool(inputs.get("condition"))
-        else inputs.get("false_value")
-    }
-
-###############################################################################
-def _router_executor(
-    parameters: dict[str, Any], inputs: dict[str, Any]
-) -> dict[str, Any]:
-    value = inputs.get("value")
-    expected = coerce_text(parameters.get("expected_value") or "")
-    if coerce_text(value) == expected:
-        return {"matched": value, "unmatched": None}
-    return {"matched": None, "unmatched": value}
-
-
-__all__ = [
-    "_if_executor",
-    "_router_executor",
-    "_text_split_executor",
-    "_tokenize_executor",
-]
+__all__ = ["_tokenize_executor"]

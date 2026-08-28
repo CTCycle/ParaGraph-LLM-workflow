@@ -5,7 +5,7 @@ from threading import Thread
 
 from fastapi.testclient import TestClient
 
-from server.domain.node_catalog import ProviderModelDefinition
+from server.contracts.node_catalog import ProviderModelDefinition
 from server.services.runtime.events import execution_event_service
 from server.services.workflow.provider import provider_service
 

@@ -88,7 +88,10 @@ test('Configurations and Models pages complete deterministic smoke flows', async
     await saveDialog.getByRole('button', { name: 'Save' }).click()
     await expect(page.getByText("Saved configuration 'browser profile'" )).toBeVisible()
 
-    await page.getByRole('button', { name: 'Check Status' }).click()
+    const ollamaPanel = page.locator('section.config-panel').filter({
+        has: page.getByRole('heading', { name: 'Ollama' }),
+    })
+    await ollamaPanel.getByRole('button', { name: 'Check Status' }).click()
     await expect(page.getByText('Ollama reachable (mocked)')).toBeVisible()
 
     await page.getByRole('link', { name: 'Models' }).click()

@@ -5,7 +5,9 @@ from server.repositories.schemas.models import (
     Base,
     ChatHistoryMessageRecord,
     ConfigurationProfile,
-    NodeConfiguration,
+    ExecutionEventRecord,
+    ExecutionRunRecord,
+    ExecutionStepRecord,
     UserSession,
 )
 from server.repositories.schemas.types import JSONSequence
@@ -15,7 +17,9 @@ __all__ = [
     "Base",
     "ChatHistoryMessageRecord",
     "ConfigurationProfile",
+    "ExecutionEventRecord",
+    "ExecutionRunRecord",
+    "ExecutionStepRecord",
     "JSONSequence",
-    "NodeConfiguration",
     "UserSession",
 ]

@@ -4,7 +4,8 @@ from pathlib import Path
 
 import pytest
 
-from server.domain.node_handler_core import VectorStoreParameters
+from server.contracts.node_handler_core import VectorStoreParameters
+from server.contracts.node_catalog import VectorStoreCapabilities
 from server.services.workflow.vector_stores import (
     MilvusVectorStoreAdapter,
     PineconeVectorStoreAdapter,
@@ -13,6 +14,30 @@ from server.services.workflow.vector_stores import (
     WeaviateVectorStoreAdapter,
     get_vector_store_adapter,
 )
+from server.services.workflow.vector_stores.base import (
+    VectorStoreConflictError,
+    _score_from_metric,
+    _redacted_provider_config,
+    _resolve_runtime_secret,
+    reset_vector_secret_registry,
+)
+from server.services.workflow.vector_stores import base as vector_store_base
+
+###############################################################################
+def _point(point_id: str, document_id: str, vector: list[float]) -> dict[str, object]:
+    return {
+        "id": point_id,
+        "chunk_id": f"chunk-{point_id}",
+        "document_id": document_id,
+        "text": point_id,
+        "source_uri": "local",
+        "vector": vector,
+        "embedding_provider": "test",
+        "embedding_model": "embedding-v1",
+        "embedding_revision": "r1",
+        "normalized": False,
+        "metadata": {"kind": "test"},
+    }
 
 ###############################################################################
 def test_pinecone_map_filter_uses_operator_keys() -> None:
@@ -53,7 +78,7 @@ def test_qdrant_search_rejects_hybrid_mode() -> None:
             search_mode="hybrid",
         )
     except VectorStoreError as exc:
-        assert "Hybrid search" in str(exc)
+        assert "hybrid mode" in str(exc)
     else:
         raise AssertionError("Expected VectorStoreError")
 
@@ -145,7 +170,7 @@ def test_faiss_validate_connection_accepts_absolute_storage_path(
 def test_vector_store_parameters_require_endpoint_for_remote_providers(
     provider: str,
 ) -> None:
-    with pytest.raises(ValueError, match="endpoint_url is required"):
+    with pytest.raises(ValueError, match="endpoint_url"):
         VectorStoreParameters.model_validate(
             {
                 "provider": provider,
@@ -157,7 +182,7 @@ def test_vector_store_parameters_require_endpoint_for_remote_providers(
 
 ###############################################################################
 @pytest.mark.parametrize(
-    ("backend", "supports_faiss_augmentation"),
+    ("backend", "supports_faiss_augmented"),
     [
         ("faiss", True),
         ("lancedb", False),
@@ -169,10 +194,181 @@ def test_vector_store_parameters_require_endpoint_for_remote_providers(
     ],
 )
 def test_vector_store_capabilities_matrix(
-    backend: str, supports_faiss_augmentation: bool
+    backend: str, supports_faiss_augmented: bool
 ) -> None:
     capabilities = get_vector_store_adapter(backend).describe_capabilities()
-    assert capabilities["backend"] == backend
-    assert capabilities["supports_metadata_filtering"] is True
-    assert capabilities["supports_hybrid_search"] is False
-    assert capabilities["supports_faiss_augmentation"] is supports_faiss_augmentation
+    assert isinstance(capabilities, VectorStoreCapabilities)
+    assert capabilities.backend == backend
+    assert capabilities.supports_metadata_filtering is True
+    assert capabilities.supported_search_modes == ["vector"]
+    assert ("faiss_augmented" in capabilities.supported_search_engines) is supports_faiss_augmented
+
+###############################################################################
+def test_vector_capabilities_fail_closed_for_unsupported_filters_and_namespaces() -> None:
+    pinecone = get_vector_store_adapter("pinecone")
+
+    with pytest.raises(VectorStoreError, match="minimum_should_match"):
+        pinecone._map_filter(
+            {
+                "should": [
+                    {"field": "language", "op": "eq", "value": "en"},
+                    {"field": "tenant", "op": "eq", "value": "default"},
+                ],
+                "minimum_should_match": 2,
+            }
+        )
+
+    with pytest.raises(VectorStoreError, match="does not support namespaces"):
+        get_vector_store_adapter("qdrant").validate_connection(
+            index_name="docs", namespace="tenant-a", endpoint_url="https://qdrant"
+        )
+
+###############################################################################
+def test_score_contract_is_explicit_for_distance_and_dot_metrics() -> None:
+    assert _score_from_metric("cosine", -1.0, raw_semantics="cosine_similarity") == 0.0
+    assert _score_from_metric("cosine", 0.25, raw_semantics="distance") == 0.75
+    assert _score_from_metric("l2", 3.0, raw_semantics="distance") == 0.25
+    assert _score_from_metric("dot", 3.0, raw_semantics="similarity") == 3.0
+
+###############################################################################
+def test_faiss_lifecycle_is_owned_reloadable_and_explicit(tmp_path: Path) -> None:
+    adapter = get_vector_store_adapter("faiss")
+    store = adapter.write_points(
+        index_name="docs",
+        storage_directory=str(tmp_path),
+        metric="cosine",
+        write_mode="overwrite",
+        id_conflict_policy="upsert",
+        index_type="flat",
+        points=[
+            _point("one", "doc-a", [1.0, 0.0]),
+            _point("two", "doc-a", [0.0, 1.0]),
+            _point("three", "doc-b", [0.5, 0.5]),
+        ],
+    )
+
+    assert adapter.inspect_collection(store=store).count == 3
+    deleted = adapter.delete_document(store=store, document_id="doc-a")
+    assert deleted.affected_ids == ["one", "two"]
+    assert adapter.reload(store=store).metadata["count"] == 1
+    removed = adapter.delete_collection(store=store)
+    assert removed.affected_ids == ["three"]
+
+###############################################################################
+def test_faiss_search_returns_explicit_score_semantics(tmp_path: Path) -> None:
+    adapter = get_vector_store_adapter("faiss")
+    store = adapter.write_points(
+        index_name="docs",
+        storage_directory=str(tmp_path),
+        metric="cosine",
+        write_mode="overwrite",
+        id_conflict_policy="upsert",
+        index_type="flat",
+        points=[
+            _point("one", "doc-a", [1.0, 0.0]),
+            _point("two", "doc-a", [0.0, 1.0]),
+        ],
+    )
+
+    hits = adapter.search(
+        store=store,
+        query_vector=[1.0, 0.0],
+        top_k=2,
+        score_threshold=0.0,
+        filter_spec=None,
+        include_metadata=True,
+    )
+
+    assert hits[0].id == "one"
+    assert hits[0].score == 1.0
+    assert hits[0].score_semantics == "normalized_similarity"
+
+###############################################################################
+def test_faiss_duplicate_and_compatibility_policies_are_stable(tmp_path: Path) -> None:
+    adapter = get_vector_store_adapter("faiss")
+    store = adapter.write_points(
+        index_name="docs",
+        storage_directory=str(tmp_path),
+        metric="cosine",
+        write_mode="overwrite",
+        id_conflict_policy="upsert",
+        index_type="flat",
+        points=[_point("one", "doc-a", [1.0, 0.0])],
+    )
+
+    with pytest.raises(VectorStoreConflictError) as duplicate:
+        adapter.write_points(
+            index_name="docs",
+            storage_directory=str(tmp_path),
+            metric="cosine",
+            write_mode="append",
+            id_conflict_policy="reject",
+            index_type="flat",
+            points=[_point("one", "doc-a", [0.0, 1.0])],
+        )
+    assert duplicate.value.conflicts == ["one"]
+
+    incompatible = _point("two", "doc-b", [1.0, 0.0])
+    incompatible["embedding_model"] = "embedding-v2"
+    with pytest.raises(VectorStoreError, match="embedding_model"):
+        adapter.write_points(
+            index_name="docs",
+            storage_directory=str(tmp_path),
+            metric="cosine",
+            write_mode="append",
+            id_conflict_policy="upsert",
+            index_type="flat",
+            points=[incompatible],
+        )
+    assert adapter.reload(store=store).metadata["count"] == 1
+
+###############################################################################
+def test_faiss_failed_atomic_write_preserves_last_good_store(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    adapter = get_vector_store_adapter("faiss")
+    store = adapter.write_points(
+        index_name="docs",
+        storage_directory=str(tmp_path),
+        metric="cosine",
+        write_mode="overwrite",
+        id_conflict_policy="upsert",
+        index_type="flat",
+        points=[_point("one", "doc-a", [1.0, 0.0])],
+    )
+
+    def fail_build(*args: object, **kwargs: object) -> object:
+        raise RuntimeError("injected index build failure")
+
+    monkeypatch.setattr(vector_store_base, "_build_index", fail_build)
+    with pytest.raises(RuntimeError, match="injected index build failure"):
+        adapter.write_points(
+            index_name="docs",
+            storage_directory=str(tmp_path),
+            metric="cosine",
+            write_mode="overwrite",
+            id_conflict_policy="upsert",
+            index_type="flat",
+            points=[_point("two", "doc-b", [0.0, 1.0])],
+        )
+
+    assert adapter.reload(store=store).metadata["count"] == 1
+    assert not list(tmp_path.glob(".docs.tmp-*"))
+
+###############################################################################
+def test_runtime_vector_secret_handles_are_redacted_and_disposable() -> None:
+    safe = _redacted_provider_config(
+        {
+            "provider": "qdrant",
+            "api_key": "sk-sensitive-value",
+            "password": "hidden",
+        },
+        "sk-sensitive-value",
+    )
+
+    serialized = str(safe)
+    assert "sk-sensitive-value" not in serialized
+    assert "hidden" not in serialized
+    assert _resolve_runtime_secret(safe) == "sk-sensitive-value"
+    reset_vector_secret_registry()
+    assert _resolve_runtime_secret(safe) == ""

@@ -4,7 +4,7 @@ from collections import defaultdict
 from typing import Any
 from uuid import NAMESPACE_URL, uuid5
 
-from server.domain.node_handler_processing import MergeSmallChunksParameters
+from server.contracts.node_handler_processing import MergeSmallChunksParameters
 from server.services.workflow.node_handlers.processing.sources import (
     _iter_merge_fragments,
     _measure_text_size,

@@ -25,6 +25,24 @@ export function getExecution(runId: string): Promise<ExecutionRunState> {
   return requestJson<ExecutionRunState>(`/executions/${encodeURIComponent(runId)}`)
 }
 
+export function cancelExecution(runId: string): Promise<{ run_id: string; status: string; message: string }> {
+  return requestJson(`/executions/${encodeURIComponent(runId)}/cancel`, { method: 'POST' })
+}
+
+export function resumeExecution(
+  runId: string,
+  resumeToken: string,
+  reviewedPayload?: Record<string, unknown>,
+): Promise<{ run_id: string; status: string; message: string }> {
+  return requestJson(`/executions/${encodeURIComponent(runId)}/resume`, {
+    method: 'POST',
+    body: JSON.stringify({
+      resume_token: resumeToken,
+      reviewed_payload: reviewedPayload ?? null,
+    }),
+  })
+}
+
 function createAbortError(): Error {
   const error = new Error('Execution polling aborted')
   error.name = 'AbortError'

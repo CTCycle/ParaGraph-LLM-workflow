@@ -3,12 +3,12 @@ from __future__ import annotations
 from collections import defaultdict, deque
 from uuid import uuid4
 
-from server.domain.execution import (
+from server.contracts.execution import (
     CompiledExecutionPlan,
     ExecutionBinding,
     ExecutionStepPlan,
 )
-from server.domain.workflow_model import (
+from server.contracts.workflow_model import (
     CompilerDiagnostic,
     CompileWorkflowResponse,
     WorkflowConnection,
@@ -17,15 +17,14 @@ from server.domain.workflow_model import (
 from server.services.workflow.nodes import node_registry
 from server.services.workflow.provider import provider_service
 from server.services.workflow.vector_stores import get_vector_store_adapter
+from server.services.workflow.vector_stores.base import (
+    validate_vector_request_capabilities,
+)
 
 
 MODEL_NODE_TYPES = {"LLM_CHAT", "LLM_STRUCTURED"}
 STRUCTURED_NODE_TYPES = {"LLM_STRUCTURED"}
-GLOBAL_CONTROLLER_KINDS: dict[str, str] = {
-    "MODEL_HANDLE": "model_provider",
-    "DATABASE_CONNECTION": "database_provider",
-    "VECTOR_STORE_HANDLE": "vector_store",
-}
+CHAT_NODE_TYPES = {"CHAT_INPUT"}
 
 ###############################################################################
 def _resolve_provider(parameters: dict[str, object], default: str = "ollama") -> str:
@@ -75,15 +74,16 @@ class CompilerService:
         require_access_keys: bool = True,
     ) -> CompileWorkflowResponse:
         active_definition, skipped_node_ids = self._active_definition(definition)
-        effective_definition = self._inject_global_controller_connections(
-            active_definition
-        )
+        effective_definition = active_definition
 
         diagnostics, validated_parameters = self._collect_diagnostics(
             effective_definition,
             require_access_keys=require_access_keys,
         )
-        if diagnostics:
+        chat_terminal_outputs = self._collect_chat_terminal_outputs(
+            effective_definition, diagnostics
+        )
+        if any(diagnostic.level == "error" for diagnostic in diagnostics):
             return CompileWorkflowResponse(
                 valid=False, diagnostics=diagnostics, plan=None
             )
@@ -135,7 +135,12 @@ class CompilerService:
                     executor_key=manifest.runtime.executor_key,
                     parameters=validated_parameters.get(node.node_id, node.parameters),
                     bindings=bindings,
+                    timeout_ms=node.timeout_ms,
+                    retries=node.retries,
                     cacheable=manifest.runtime.cacheable,
+                    side_effecting=manifest.runtime.side_effecting,
+                    destructive=manifest.runtime.destructive,
+                    idempotent=manifest.runtime.idempotent,
                 )
             )
 
@@ -145,10 +150,12 @@ class CompilerService:
         }
         if skipped_node_ids:
             plan_metadata["skipped_node_ids"] = skipped_node_ids
+        if chat_terminal_outputs:
+            plan_metadata["chat_terminal_outputs"] = chat_terminal_outputs
 
         return CompileWorkflowResponse(
             valid=True,
-            diagnostics=[],
+            diagnostics=diagnostics,
             plan=CompiledExecutionPlan(
                 plan_id=f"plan_{uuid4().hex[:12]}",
                 step_order=[step.step_id for step in steps],
@@ -158,141 +165,60 @@ class CompilerService:
         )
 
     # -------------------------------------------------------------------------
-    def _inject_global_controller_connections(
-        self, definition: WorkflowDefinition
-    ) -> WorkflowDefinition:
-        if not definition.nodes:
-            return definition
-
-        node_by_id = {node.node_id: node for node in definition.nodes}
-        global_node_ids = self._read_global_node_ids(definition, node_by_id)
-        if not global_node_ids:
-            return definition
-
-        existing_keys: set[tuple[str, str, str, str, str]] = set()
-        inbound_controller_counts: dict[tuple[str, str], int] = defaultdict(int)
-        for connection in definition.connections:
-            if connection.connection_type != "controller":
-                continue
-            source_name = connection.from_controller or ""
-            target_name = connection.to_controller or ""
-            existing_keys.add(
-                (
-                    connection.connection_type,
-                    connection.from_node,
-                    source_name,
-                    connection.to_node,
-                    target_name,
-                )
-            )
-            inbound_controller_counts[(connection.to_node, target_name)] += 1
-
-        injected: list[WorkflowConnection] = []
-        for node in definition.nodes:
-            target_manifest = node_registry.get(node.node_type, node.node_version)
-            if target_manifest is None:
-                continue
-
-            for controller in target_manifest.controllers:
-                if self._controller_scope(controller.scope) == "source":
-                    continue
-                if inbound_controller_counts[(node.node_id, controller.name)] > 0:
-                    continue
-
-                global_kind = GLOBAL_CONTROLLER_KINDS.get(controller.data_type)
-                if not global_kind:
-                    continue
-                global_node_id = global_node_ids.get(global_kind)
-                if not global_node_id or global_node_id == node.node_id:
-                    continue
-
-                source_node = node_by_id.get(global_node_id)
-                if source_node is None:
-                    continue
-                source_manifest = node_registry.get(
-                    source_node.node_type, source_node.node_version
-                )
-                if source_manifest is None:
-                    continue
-
-                source_controller_name = self._resolve_global_source_controller_name(
-                    source_manifest, controller.data_type
-                )
-                if source_controller_name is None:
-                    continue
-
-                connection_key = (
-                    "controller",
-                    global_node_id,
-                    source_controller_name,
-                    node.node_id,
-                    controller.name,
-                )
-                if connection_key in existing_keys:
-                    continue
-                existing_keys.add(connection_key)
-                inbound_controller_counts[(node.node_id, controller.name)] += 1
-                injected.append(
-                    WorkflowConnection(
-                        from_node=global_node_id,
-                        to_node=node.node_id,
-                        connection_type="controller",
-                        from_controller=source_controller_name,
-                        to_controller=controller.name,
-                    )
-                )
-
-        if not injected:
-            return definition
-        return definition.model_copy(
-            update={"connections": [*definition.connections, *injected]}
-        )
-
-    # -------------------------------------------------------------------------
-    def _resolve_global_source_controller_name(
-        self, source_manifest, target_data_type: str
-    ) -> str | None:
-        for controller in source_manifest.controllers:
-            scope = self._controller_scope(controller.scope)
-            if scope == "target":
-                continue
-            compatible = (
-                controller.data_type == target_data_type
-                or controller.data_type == "ANY"
-                or target_data_type == "ANY"
-            )
-            if compatible:
-                return controller.name
-        return None
-
-    # -------------------------------------------------------------------------
-    def _read_global_node_ids(
+    def _collect_chat_terminal_outputs(
         self,
         definition: WorkflowDefinition,
-        node_by_id: dict[str, object],
+        diagnostics: list[CompilerDiagnostic],
     ) -> dict[str, str]:
-        metadata = definition.metadata if isinstance(definition.metadata, dict) else {}
-        raw_globals = metadata.get("global_nodes")
-        if not isinstance(raw_globals, dict):
-            return {}
-
-        normalized: dict[str, str] = {}
-        allowed_keys = {"model_provider", "database_provider", "vector_store"}
-        for raw_key, raw_node_id in raw_globals.items():
-            key = str(raw_key).strip().lower()
-            if key not in allowed_keys or not isinstance(raw_node_id, str):
+        node_by_id = {node.node_id: node for node in definition.nodes}
+        terminal_node_ids = {
+            node.node_id
+            for node in definition.nodes
+            if (
+                (manifest := node_registry.get(node.node_type, node.node_version))
+                is not None
+                and manifest.category == "output"
+            )
+        }
+        adjacency: dict[str, list[str]] = defaultdict(list)
+        for connection in definition.connections:
+            if connection.connection_type != "data":
                 continue
-            node_id = raw_node_id.strip()
-            if node_id and node_id in node_by_id:
-                normalized[key] = node_id
-        return normalized
+            if connection.from_node in node_by_id and connection.to_node in node_by_id:
+                adjacency[connection.from_node].append(connection.to_node)
 
-    # -------------------------------------------------------------------------
-    @staticmethod
-    def _controller_scope(scope: str | None) -> str:
-        if scope in {"source", "target", "both"}:
-            return scope
-        return "target"
+        terminal_outputs: dict[str, str] = {}
+        for chat_node in definition.nodes:
+            if chat_node.node_type not in CHAT_NODE_TYPES:
+                continue
+            reachable: set[str] = set()
+            queue = deque([chat_node.node_id])
+            while queue:
+                current = queue.popleft()
+                for target in adjacency.get(current, []):
+                    if target in reachable:
+                        continue
+                    reachable.add(target)
+                    queue.append(target)
+
+            reachable_terminals = sorted(reachable.intersection(terminal_node_ids))
+            if len(reachable_terminals) != 1:
+                count_label = "none" if not reachable_terminals else str(len(reachable_terminals))
+                diagnostics.append(
+                    CompilerDiagnostic(
+                        code="chat_terminal_output_count",
+                        level="error",
+                        message=(
+                            f"Chat node '{chat_node.node_id}' must reach exactly one "
+                            f"terminal output; found {count_label}."
+                        ),
+                        node_id=chat_node.node_id,
+                    )
+                )
+                continue
+            terminal_outputs[chat_node.node_id] = reachable_terminals[0]
+
+        return terminal_outputs
 
     # -------------------------------------------------------------------------
     def _collect_diagnostics(
@@ -312,6 +238,17 @@ class CompilerService:
         )
         model_binding_by_node: dict[str, WorkflowConnection] = {}
         similarity_store_binding_by_node: dict[str, WorkflowConnection] = {}
+
+        if "global_nodes" in definition.metadata:
+            diagnostics.append(
+                CompilerDiagnostic(
+                    code="unsupported_global_connector_metadata",
+                    message=(
+                        "global_nodes metadata is unsupported; connect provider, "
+                        "memory, and store nodes with typed controller edges"
+                    ),
+                )
+            )
 
         for node in definition.nodes:
             if node.node_id in node_ids_seen:
@@ -334,6 +271,38 @@ class CompilerService:
                     )
                 )
                 continue
+
+            if node.timeout_ms is not None and node.timeout_ms <= 0:
+                diagnostics.append(
+                    CompilerDiagnostic(
+                        code="invalid_timeout",
+                        message=f"Node '{node.node_id}' timeout_ms must be greater than zero",
+                        node_id=node.node_id,
+                    )
+                )
+            if node.retries < 0:
+                diagnostics.append(
+                    CompilerDiagnostic(
+                        code="invalid_retries",
+                        message=f"Node '{node.node_id}' retries must be zero or greater",
+                        node_id=node.node_id,
+                    )
+                )
+            elif (
+                node.retries > 0
+                and manifest.runtime.side_effecting
+                and not manifest.runtime.idempotent
+            ):
+                diagnostics.append(
+                    CompilerDiagnostic(
+                        code="unsafe_side_effect_retry",
+                        message=(
+                            f"Node '{node.node_id}' is side-effecting and cannot be "
+                            "retried without an idempotency contract"
+                        ),
+                        node_id=node.node_id,
+                    )
+                )
 
             for parameter in manifest.parameters:
                 required = bool(parameter.constraints.get("required"))
@@ -371,6 +340,32 @@ class CompilerService:
                         node_id=node.node_id,
                     )
                 )
+
+            if node.node_type == "VECTOR_STORE":
+                parameters = validated_parameters_by_node.get(
+                    node.node_id, node.parameters
+                )
+                backend = str(parameters.get("provider") or "lancedb").strip().lower()
+                try:
+                    capabilities = get_vector_store_adapter(
+                        backend
+                    ).describe_capabilities()
+                    validate_vector_request_capabilities(
+                        capabilities,
+                        metric=str(parameters.get("distance_metric") or "cosine"),
+                        namespace=str(parameters.get("namespace") or ""),
+                        create_keyword_index=bool(
+                            parameters.get("create_keyword_index", False)
+                        ),
+                    )
+                except ValueError as exc:
+                    diagnostics.append(
+                        CompilerDiagnostic(
+                            code="unsupported_vector_capability",
+                            message=str(exc),
+                            node_id=node.node_id,
+                        )
+                    )
 
         for connection in definition.connections:
             source_name = (
@@ -700,39 +695,214 @@ class CompilerService:
                             .strip()
                             .lower()
                         )
+                        filter_spec = parameters.get("metadata_filter")
+                        if not isinstance(filter_spec, dict):
+                            filter_spec = None
+                        keyword_query = str(
+                            parameters.get("keyword_query") or ""
+                        ).strip() or None
                         try:
                             capabilities = get_vector_store_adapter(
                                 backend
                             ).describe_capabilities()
-                        except ValueError:
-                            capabilities = {}
-                        if search_mode == "hybrid" and not bool(
-                            capabilities.get("supports_hybrid_search", False)
-                        ):
+                        except ValueError as exc:
                             diagnostics.append(
                                 CompilerDiagnostic(
-                                    code="unsupported_similarity_mode",
-                                    message=f"Backend '{backend}' does not support SIMILARITY_SEARCH search_mode='hybrid'.",
+                                    code="unsupported_vector_backend",
+                                    message=str(exc),
                                     node_id=node.node_id,
                                 )
                             )
-                        if search_engine == "faiss_augmented" and not bool(
-                            capabilities.get("supports_faiss_augmentation", False)
-                        ):
-                            diagnostics.append(
-                                CompilerDiagnostic(
-                                    code="unsupported_similarity_engine",
-                                    message=f"Backend '{backend}' does not support SIMILARITY_SEARCH search_engine='faiss_augmented'.",
-                                    node_id=node.node_id,
+                            continue
+
+                        capability_checks = (
+                            (
+                                "unsupported_similarity_metric",
+                                {"metric": similarity_metric},
+                            ),
+                            (
+                                "unsupported_similarity_mode",
+                                {"search_mode": search_mode},
+                            ),
+                            (
+                                "unsupported_similarity_engine",
+                                {"search_engine": search_engine},
+                            ),
+                            (
+                                "unsupported_similarity_namespace",
+                                {
+                                    "namespace": str(
+                                        source_parameters.get("namespace") or ""
+                                    )
+                                },
+                            ),
+                            (
+                                "unsupported_similarity_filter",
+                                {
+                                    "filter_spec": filter_spec,
+                                    "keyword_query": keyword_query,
+                                    "search_mode": search_mode,
+                                },
+                            ),
+                        )
+                        for diagnostic_code, check_kwargs in capability_checks:
+                            try:
+                                validate_vector_request_capabilities(
+                                    capabilities, **check_kwargs
                                 )
-                            )
+                            except ValueError as exc:
+                                diagnostics.append(
+                                    CompilerDiagnostic(
+                                        code=diagnostic_code,
+                                        message=str(exc),
+                                        node_id=node.node_id,
+                                    )
+                                )
 
         try:
             self._topological_order(definition)
         except ValueError as exc:
             diagnostics.append(CompilerDiagnostic(code="graph_cycle", message=str(exc)))
 
+        diagnostics.extend(self._collect_graph_diagnostics(definition))
+
         return diagnostics, validated_parameters_by_node
+
+    # -------------------------------------------------------------------------
+    def _collect_graph_diagnostics(
+        self, definition: WorkflowDefinition
+    ) -> list[CompilerDiagnostic]:
+        diagnostics: list[CompilerDiagnostic] = []
+        node_by_id = {node.node_id: node for node in definition.nodes}
+        manifests = {
+            node.node_id: node_registry.get(node.node_type, node.node_version)
+            for node in definition.nodes
+        }
+        connected_node_ids: set[str] = set()
+        undirected_adjacency: dict[str, set[str]] = defaultdict(set)
+        reverse_adjacency: dict[str, set[str]] = defaultdict(set)
+
+        for connection in definition.connections:
+            if (
+                connection.from_node not in node_by_id
+                or connection.to_node not in node_by_id
+            ):
+                continue
+            connected_node_ids.update((connection.from_node, connection.to_node))
+            undirected_adjacency[connection.from_node].add(connection.to_node)
+            undirected_adjacency[connection.to_node].add(connection.from_node)
+            reverse_adjacency[connection.to_node].add(connection.from_node)
+
+            source_node = node_by_id[connection.from_node]
+            if (
+                connection.connection_type == "data"
+                and source_node.node_type == "IF_TEXT_CONTAINS"
+                and connection.from_output in {"true", "false"}
+            ):
+                diagnostics.append(
+                    CompilerDiagnostic(
+                        code="conditional_output_connection",
+                        level="warning",
+                        message=(
+                            f"Connection from conditional output "
+                            f"'{connection.from_node}.{connection.from_output}' "
+                            "may not produce a value at runtime"
+                        ),
+                        connection=connection,
+                    )
+                )
+
+        terminal_node_ids = {
+            node_id
+            for node_id, manifest in manifests.items()
+            if manifest is not None and manifest.category == "output"
+        }
+        if definition.nodes and not terminal_node_ids:
+            diagnostics.append(
+                CompilerDiagnostic(
+                    code="missing_terminal_output",
+                    level="warning",
+                    message="Workflow has no terminal output node",
+                )
+            )
+
+        components: list[list[str]] = []
+        unvisited = set(node_by_id)
+        while unvisited:
+            root = min(unvisited)
+            queue = deque([root])
+            unvisited.remove(root)
+            component: list[str] = []
+            while queue:
+                current = queue.popleft()
+                component.append(current)
+                for neighbor in sorted(undirected_adjacency[current]):
+                    if neighbor in unvisited:
+                        unvisited.remove(neighbor)
+                        queue.append(neighbor)
+            components.append(sorted(component))
+
+        if len(definition.nodes) > 1 and len(components) > 1:
+            for component in components:
+                identifiers = ", ".join(component)
+                diagnostics.append(
+                    CompilerDiagnostic(
+                        code="disconnected_execution_component",
+                        message=(
+                            "Workflow contains an independent executable component "
+                            f"with nodes: {identifiers}"
+                        ),
+                        node_id=component[0],
+                    )
+                )
+
+        contributing_node_ids = set(terminal_node_ids)
+        queue = deque(sorted(terminal_node_ids))
+        while queue:
+            current = queue.popleft()
+            for source in sorted(reverse_adjacency[current]):
+                if source in contributing_node_ids:
+                    continue
+                contributing_node_ids.add(source)
+                queue.append(source)
+
+        for node in definition.nodes:
+            manifest = manifests[node.node_id]
+            if manifest is None:
+                continue
+            if node.node_id not in connected_node_ids:
+                code = (
+                    "disconnected_side_effecting_node"
+                    if manifest.runtime.side_effecting
+                    else "disconnected_node"
+                )
+                diagnostics.append(
+                    CompilerDiagnostic(
+                        code=code,
+                        level="error"
+                        if manifest.runtime.side_effecting
+                        else "warning",
+                        message=f"Node '{node.node_id}' is disconnected",
+                        node_id=node.node_id,
+                    )
+                )
+            if (
+                terminal_node_ids
+                and node.node_id not in contributing_node_ids
+                and not manifest.runtime.side_effecting
+            ):
+                diagnostics.append(
+                    CompilerDiagnostic(
+                        code="node_not_contributing_to_output",
+                        level="warning",
+                        message=(
+                            f"Node '{node.node_id}' does not contribute to any "
+                            "terminal output"
+                        ),
+                        node_id=node.node_id,
+                    )
+                )
+        return diagnostics
 
     # -------------------------------------------------------------------------
     def _topological_order(self, definition: WorkflowDefinition) -> list[str]:

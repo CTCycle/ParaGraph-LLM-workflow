@@ -8,7 +8,7 @@ from sqlalchemy import Integer, String, create_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 from server.common import path as common_path
-from server.domain.node_catalog import (
+from server.contracts.node_catalog import (
     HuggingFaceModelCatalogResponse,
     HuggingFaceModelDefinition,
     HuggingFaceModelDownloadCancelResponse,
@@ -62,11 +62,10 @@ def test_nodes_catalog_exposes_registry(client: TestClient) -> None:
 
     ids = {node["id"] for node in payload["nodes"]}
     assert ids >= {
-        "API_CALL",
         "BY_DELIMITER_CHUNKS",
         "BY_STRUCTURE_CHUNKS",
-        "FETCH_HTML",
         "FIXED_SIZE_CHUNKS",
+        "HTTP_REQUEST",
         "JSON_OUTPUT",
         "LLM_CHAT",
         "LLM_STRUCTURED",
@@ -99,6 +98,21 @@ def test_nodes_catalog_exposes_registry(client: TestClient) -> None:
     assert "text_segmentation" in categories
     assert "prompt" in categories
     assert "retrieval" in categories
+    capabilities = {
+        item["backend"]: item for item in payload["vector_store_capabilities"]
+    }
+    assert set(capabilities) == {
+        "chroma",
+        "faiss",
+        "lancedb",
+        "milvus",
+        "pinecone",
+        "qdrant",
+        "weaviate",
+    }
+    assert capabilities["pinecone"]["supports_namespaces"] is True
+    assert capabilities["pinecone"]["supports_minimum_should_match"] is False
+    assert capabilities["weaviate"]["supported_metrics"] == ["cosine"]
 
 ###############################################################################
 def test_nodes_import_persists_manifest(client: TestClient, tmp_path: Path) -> None:
@@ -267,13 +281,7 @@ def test_nodes_database_connection_check_returns_success_for_sqlite(
             "node_type": "SQL_FILE_DATABASE",
             "node_version": 1,
             "parameters": {
-                "db_engine": "sqlite",
                 "db_path": str(database_path),
-                "db_name": "health",
-                "db_user": "postgres",
-                "db_password": "change_me",
-                "db_ssl": False,
-                "db_ssl_ca": "",
                 "db_connect_timeout": 5,
             },
         },
@@ -292,13 +300,7 @@ def test_nodes_database_connection_check_returns_failure_payload(
             "node_type": "SQL_FILE_DATABASE",
             "node_version": 1,
             "parameters": {
-                "db_engine": "sqlite",
                 "db_path": "C:/does/not/exist/missing.sqlite",
-                "db_name": "missing",
-                "db_user": "postgres",
-                "db_password": "change_me",
-                "db_ssl": False,
-                "db_ssl_ca": "",
                 "db_connect_timeout": 5,
             },
         },

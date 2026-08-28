@@ -40,9 +40,9 @@ def test_strict_missing_variable_raises_clear_validation_error() -> None:
         _prompt_template_executor({"template": "{{ missing }}"}, {"variables": {}})
 
 ###############################################################################
-def test_legacy_format_mode_remains_working() -> None:
+def test_legacy_format_syntax_is_not_interpolated() -> None:
     result = _prompt_template_executor(
-        {"template_engine": "format", "template": "Hello {name}"},
+        {"template": "Hello {name}"},
         {"variables": {"name": "World"}},
     )
-    assert result["text"] == "Hello World"
+    assert result["text"] == "Hello {name}"

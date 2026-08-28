@@ -3,13 +3,11 @@ from __future__ import annotations
 from typing import Any
 from uuid import NAMESPACE_URL, uuid5
 
-from server.domain.node_handler_ingestion import (
+from server.contracts.node_handler_ingestion import (
     DocumentTextExtractorParameters,
     LOAD_DOCUMENTS_SUPPORTED_EXTENSIONS,
     LoadDocumentsParameters,
-    SUPPORTED_DOCUMENT_EXTENSIONS,
 )
-from server.common.utils.values import coerce_bool, coerce_text
 from server.services.workflow.node_handlers.ingestion.files import (
     load_docx_paragraphs,
     load_file_text,
@@ -27,53 +25,11 @@ def _build_document(
 ) -> dict[str, Any]:
     return {
         "id": _make_document_id(source_uri),
-        "document_id": _make_document_id(source_uri),
         "text": text_content.strip(),
-        "source": source_uri,
         "source_uri": source_uri,
         "mime_type": mime_type,
         "metadata": metadata,
     }
-
-###############################################################################
-def _directory_loader_executor(
-    parameters: dict[str, Any], inputs: dict[str, Any]
-) -> dict[str, Any]:
-    _ = inputs
-    directory = resolve_local_path(
-        coerce_text(parameters.get("directory_path")).strip()
-    )
-    if not directory.exists() or not directory.is_dir():
-        raise ValueError(f"Directory not found: {directory}")
-
-    recursive = coerce_bool(parameters.get("recursive", True))
-    include_extensions = parameters.get("include_extensions") or sorted(
-        SUPPORTED_DOCUMENT_EXTENSIONS
-    )
-    if not isinstance(include_extensions, list):
-        raise ValueError("include_extensions must be an array")
-    extensions = {str(item).lower() for item in include_extensions}
-    paths = directory.rglob("*") if recursive else directory.glob("*")
-
-    documents: list[dict[str, Any]] = []
-    for path in sorted(paths):
-        if not path.is_file() or path.suffix.lower() not in extensions:
-            continue
-        text_content, mime_type = load_file_text(path)
-        documents.append(
-            _build_document(
-                str(path.resolve()),
-                text_content,
-                mime_type,
-                {
-                    "extension": path.suffix.lower(),
-                    "file_name": path.name,
-                    "relative_path": str(path.relative_to(directory)),
-                    "size_bytes": path.stat().st_size,
-                },
-            )
-        )
-    return {"documents": documents}
 
 ###############################################################################
 def _load_documents_executor(
@@ -123,19 +79,13 @@ def _document_text_extractor_executor(
     for document in documents:
         if not isinstance(document, dict):
             continue
-        source_uri = str(
-            document.get("source_uri") or document.get("source") or ""
-        ).strip()
+        source_uri = str(document.get("source_uri", "")).strip()
         metadata = (
             dict(document.get("metadata", {}))
             if isinstance(document.get("metadata"), dict)
             else {}
         )
-        document_id = str(
-            document.get("document_id")
-            or document.get("id")
-            or _make_document_id(source_uri)
-        )
+        document_id = str(document["id"])
         path_candidate = str(metadata.get("file_path") or source_uri).strip()
         suffix = str(metadata.get("extension") or "").lower()
         if path_candidate:
@@ -148,7 +98,6 @@ def _document_text_extractor_executor(
                     extracted.append(
                         {
                             **document,
-                            "document_id": document_id,
                             "text": page["text"],
                             "metadata": {
                                 **metadata,
@@ -164,7 +113,6 @@ def _document_text_extractor_executor(
                     extracted.append(
                         {
                             **document,
-                            "document_id": document_id,
                             "text": paragraph["text"],
                             "metadata": {
                                 **metadata,
@@ -178,7 +126,6 @@ def _document_text_extractor_executor(
         extracted.append(
             {
                 **document,
-                "document_id": document_id,
                 "metadata": {
                     **metadata,
                     "source": source_uri,
@@ -190,7 +137,6 @@ def _document_text_extractor_executor(
 
 
 __all__ = [
-    "_directory_loader_executor",
     "_document_text_extractor_executor",
     "_load_documents_executor",
 ]

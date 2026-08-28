@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Path, Query
 
-from server.domain.configuration import DEFAULT_SESSION_NAME, SESSION_NAME_PATTERN
-from server.domain.jobs import JOB_ID_PATTERN
-from server.domain.node_catalog import (
+from server.contracts.configuration import DEFAULT_SESSION_NAME, SESSION_NAME_PATTERN
+from server.contracts.jobs import JOB_ID_PATTERN
+from server.contracts.node_catalog import (
     HuggingFaceModelCatalogResponse,
     HuggingFaceModelDownloadCancelResponse,
     HuggingFaceModelDownloadRequest,

@@ -3,11 +3,14 @@
 [![Python](https://img.shields.io/badge/Python-%3E%3D3.14-blue)](https://www.python.org/)
 [![Node.js](https://img.shields.io/badge/Node.js-22.12.0-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![CTCycle Portfolio](https://img.shields.io/badge/CTCycle-Portfolio-58a6ff?style=flat-square)](https://ctcycle.github.io/CTCycle/)
 [![CI](https://github.com/CTCycle/ParaGraph-LLM-workflow/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/CTCycle/ParaGraph-LLM-workflow/actions/workflows/ci.yml?query=branch%3Adevelop)
 
 ParaGraph is a local application for planning, running, and observing LLM workflows in a visual way.
 
 It is meant for people who want to assemble a workflow step by step instead of writing everything from scratch. You can connect building blocks, define how information should move through them, run the workflow, and watch what happens as it executes.
+
+ParaGraph is a desktop application delivered through web technologies. Use it in a desktop or laptop browser window at least 1024 CSS pixels wide. Windows tablets are supported when they behave like a normal desktop environment and can comfortably display the desktop interface. Narrower windows show a minimum-window-size notice instead of switching to a mobile layout.
 
 The app is organized around a simple idea:
 
@@ -132,8 +135,8 @@ If your workflow is intended for document retrieval, the usual shape is:
 
 Run:
 
-```bat
-start_on_windows.bat
+```powershell
+.\start_on_windows.ps1
 ```
 
 This is the easiest way to start the app locally. The launcher prepares what it needs, starts the backend and frontend, and opens the interface.
@@ -176,7 +179,7 @@ For more detail, see:
 
 ## Data And Files
 
-The app stores its local runtime data under `app/resources`.
+The app stores its local runtime data under `app/resources` by default. Set `PARAGRAPH_RESOURCES_DIR` in `settings/.env` to use another absolute or repository-relative location.
 
 That includes things like:
 
@@ -185,18 +188,6 @@ That includes things like:
 - downloaded models and related assets
 - local database files
 - runtime artifacts created while the app is running
-
-## Packaging
-
-ParaGraph can also be packaged as a Windows desktop application through the Tauri build flow.
-
-The `app/src-tauri` directory is versioned as desktop source and build metadata. Keep `Cargo.toml`, `Cargo.lock`, `build.rs`, `tauri.conf.json`, `src/`, `capabilities/`, and `icons/` in Git.
-
-Generated desktop outputs are not committed. Ignore `app/src-tauri/target`, `app/src-tauri/bundle`, `app/src-tauri/gen`, and `release/windows`, and publish Windows `.exe` and installer outputs as release artifacts instead of tracking them in the repository.
-
-If you need that path, use the deployment notes in the runtime documentation:
-
-- [Deployment guide](assets/docs/runtime/deployment.md)
 
 ## License
 

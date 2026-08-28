@@ -8,9 +8,12 @@ from server.services.jobs import job_manager
 
 ###############################################################################
 class RecordingJobRunner:
+
+    # -------------------------------------------------------------------------
     def __init__(self) -> None:
         self.observed: dict[str, str] = {}
 
+    # -------------------------------------------------------------------------
     def __call__(self, *, job_id: str) -> dict[str, Any]:
         self.observed["job_id"] = job_id
         job_manager.update_result(job_id, {"stage": "running"})

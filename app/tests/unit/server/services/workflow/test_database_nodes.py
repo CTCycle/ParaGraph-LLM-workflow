@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
 from sqlalchemy import ForeignKey, Integer, String, create_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
 
@@ -155,3 +156,23 @@ def test_custom_sql_query_returns_rows_and_rejects_invalid_sql(tmp_path: Path) -
             assert "sql" in str(exc)
         else:
             raise AssertionError("Expected invalid SQL to fail validation")
+
+
+def test_database_query_nodes_keep_one_typed_controller_contract() -> None:
+    expected = ("CRUD_READ", "CUSTOM_SQL_QUERY")
+
+    for node_type in expected:
+        manifest = node_registry.get(node_type, 1)
+        assert manifest is not None
+        assert len(manifest.controllers) == 1
+        assert manifest.controllers[0].name == "connection"
+        assert manifest.controllers[0].data_type == "DATABASE_CONNECTION"
+
+
+def test_database_parameters_reject_unknown_fields() -> None:
+    with pytest.raises(ValueError, match="password"):
+        node_registry.validate_parameters(
+            "CUSTOM_SQL_QUERY",
+            1,
+            {"sql": "select 1", "password": "must-not-be-accepted"},
+        )

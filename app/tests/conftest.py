@@ -9,7 +9,8 @@ from fastapi.testclient import TestClient
 
 from server.common import path as common_path
 from server.app import app
-from server.domain.jobs import JobState
+from server.services.jobs import JobState
+from server.repositories.database.initializer import initialize_database
 from server.repositories.workflow import (
     database_chat_history_repository,
     execution_run_repository,
@@ -22,6 +23,12 @@ from server.services.jobs import job_manager
 from server.services.runtime.events import execution_event_service
 from server.services.workflow.nodes import registry as node_registry_module
 from server.services.workflow.provider import provider_service
+
+###############################################################################
+@pytest.fixture(scope="session", autouse=True)
+def initialized_application_database() -> Iterator[None]:
+    initialize_database()
+    yield
 
 ###############################################################################
 def clear_job_manager() -> None:

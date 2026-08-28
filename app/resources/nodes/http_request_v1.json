@@ -1,0 +1,53 @@
+{
+  "id": "HTTP_REQUEST",
+  "version": 1,
+  "name": "Advanced HTTP Request",
+  "category": "web",
+  "description": "Execute an advanced bounded SSRF-protected HTTP request through the shared secure transport. Use a method-specific HTTP node for common requests.",
+  "inputs": [
+    {"name": "url", "data_type": "TEXT", "required": false, "accepts_multiple": false, "description": "Optional URL override."},
+    {"name": "body", "data_type": "ANY", "required": false, "accepts_multiple": false, "description": "Optional body override matching body_mode."}
+  ],
+  "outputs": [
+    {"name": "response", "data_type": "JSON", "required": true, "accepts_multiple": false, "description": "Structured status, headers, final URL, size, redirects, and attempt metadata."},
+    {"name": "json", "data_type": "JSON", "required": false, "accepts_multiple": false, "description": "Parsed JSON response when available."},
+    {"name": "text", "data_type": "TEXT", "required": false, "accepts_multiple": false, "description": "Bounded text response."}
+  ],
+  "parameters": [
+    {"name": "url", "data_type": "TEXT", "default": "", "constraints": {}, "ui_control": "text", "description": "HTTP or HTTPS URL."},
+    {"name": "method", "data_type": "TEXT", "default": "GET", "constraints": {"options": ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"]}, "ui_control": "select", "description": "Allowed HTTP method."},
+    {"name": "headers", "data_type": "JSON", "default": {}, "constraints": {}, "ui_control": "json", "description": "Request headers; resolved secrets must use a credential profile."},
+    {"name": "query", "data_type": "JSON", "default": {}, "constraints": {}, "ui_control": "json", "description": "Query parameters."},
+    {"name": "body_mode", "data_type": "TEXT", "default": "none", "constraints": {"options": ["none", "json", "text", "form", "multipart", "binary", "file"]}, "ui_control": "select", "description": "Mutually exclusive request body mode."},
+    {"name": "json_body", "data_type": "JSON", "default": null, "constraints": {}, "ui_control": "json", "description": "JSON request body."},
+    {"name": "text_body", "data_type": "TEXT", "default": "", "constraints": {}, "ui_control": "textarea", "description": "Text or binary-source request body."},
+    {"name": "form_body", "data_type": "JSON", "default": {}, "constraints": {}, "ui_control": "json", "description": "URL-encoded form fields."},
+    {"name": "multipart_fields", "data_type": "JSON", "default": {}, "constraints": {}, "ui_control": "json", "description": "Multipart scalar fields."},
+    {"name": "upload_path", "data_type": "TEXT", "default": "", "constraints": {}, "ui_control": "file", "description": "Artifact-root file used by file or multipart mode."},
+    {"name": "response_mode", "data_type": "TEXT", "default": "auto", "constraints": {"options": ["auto", "json", "text", "binary", "file"]}, "ui_control": "select", "description": "Bounded response handling mode."},
+    {"name": "download_path", "data_type": "TEXT", "default": "", "constraints": {}, "ui_control": "file", "description": "Artifact-root destination for file responses."},
+    {"name": "accepted_statuses", "data_type": "JSON", "default": ["200-299"], "constraints": {}, "ui_control": "json", "description": "Accepted explicit status codes or inclusive ranges."},
+    {"name": "credential_profile", "data_type": "TEXT", "default": "", "constraints": {}, "ui_control": "text", "description": "Saved configuration profile for runtime-only secret resolution."},
+    {"name": "credential_provider", "data_type": "TEXT", "default": "http", "constraints": {}, "ui_control": "text", "description": "Credential entry provider key in the saved profile."},
+    {"name": "auth_mode", "data_type": "TEXT", "default": "none", "constraints": {"options": ["none", "bearer", "api_key", "basic"]}, "ui_control": "select", "description": "Authentication mode."},
+    {"name": "api_key_header", "data_type": "TEXT", "default": "X-API-Key", "constraints": {}, "ui_control": "text", "description": "Header used by API-key authentication."},
+    {"name": "username", "data_type": "TEXT", "default": "", "constraints": {}, "ui_control": "text", "description": "Basic-auth username; password comes from the profile."},
+    {"name": "connect_timeout", "data_type": "JSON", "default": 10.0, "constraints": {"min": 0.1, "max": 120}, "ui_control": "number", "description": "Connect timeout seconds."},
+    {"name": "read_timeout", "data_type": "JSON", "default": 30.0, "constraints": {"min": 0.1, "max": 600}, "ui_control": "number", "description": "Read timeout seconds."},
+    {"name": "write_timeout", "data_type": "JSON", "default": 30.0, "constraints": {"min": 0.1, "max": 600}, "ui_control": "number", "description": "Write timeout seconds."},
+    {"name": "pool_timeout", "data_type": "JSON", "default": 10.0, "constraints": {"min": 0.1, "max": 120}, "ui_control": "number", "description": "Connection-pool timeout seconds."},
+    {"name": "overall_timeout", "data_type": "JSON", "default": 60.0, "constraints": {"min": 0.1, "max": 1800}, "ui_control": "number", "description": "Overall request deadline seconds."},
+    {"name": "max_response_bytes", "data_type": "JSON", "default": 2000000, "constraints": {"min": 1, "max": 50000000}, "ui_control": "number", "description": "Maximum in-memory response bytes."},
+    {"name": "max_download_bytes", "data_type": "JSON", "default": 100000000, "constraints": {"min": 1, "max": 1000000000}, "ui_control": "number", "description": "Maximum file download bytes."},
+    {"name": "max_redirects", "data_type": "JSON", "default": 0, "constraints": {"min": 0, "max": 10}, "ui_control": "number", "description": "Maximum manually validated redirects; zero disables redirects."},
+    {"name": "allow_https_downgrade", "data_type": "BOOLEAN", "default": false, "constraints": {}, "ui_control": "checkbox", "description": "Allow HTTPS-to-HTTP redirects."},
+    {"name": "max_attempts", "data_type": "JSON", "default": 1, "constraints": {"min": 1, "max": 10}, "ui_control": "number", "description": "Maximum bounded attempts."},
+    {"name": "backoff_seconds", "data_type": "JSON", "default": 0.25, "constraints": {"min": 0, "max": 60}, "ui_control": "number", "description": "Initial exponential retry backoff."},
+    {"name": "max_retry_delay", "data_type": "JSON", "default": 60.0, "constraints": {"min": 0, "max": 600}, "ui_control": "number", "description": "Maximum delay for one retry."},
+    {"name": "retry_statuses", "data_type": "JSON", "default": [429, 502, 503, 504], "constraints": {}, "ui_control": "json", "description": "Retryable HTTP statuses."},
+    {"name": "retry_unsafe", "data_type": "BOOLEAN", "default": false, "constraints": {}, "ui_control": "checkbox", "description": "Explicitly permit unsafe-method retries."},
+    {"name": "idempotency_key", "data_type": "TEXT", "default": "", "constraints": {}, "ui_control": "text", "description": "Stable idempotency key preserved across retries and redacted in outputs."}
+  ],
+  "ui": {"default_width": 390, "accent_color": "#59c6ff", "collapsed_by_default": false},
+  "runtime": {"executor_key": "http_request", "side_effecting": true, "cacheable": false, "deterministic": false}
+}

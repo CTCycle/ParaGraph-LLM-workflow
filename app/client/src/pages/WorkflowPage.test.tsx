@@ -3,13 +3,14 @@ import { describe, expect, it } from 'vitest'
 import type { NodeManifest, ProviderModelDefinition } from '../workflow/schema/types'
 import {
     collectNodeItems,
+    deriveBoundInputNames,
     getDynamicModelOptions,
     getDynamicTokenizerOptions,
     resolveExecutionSessionId,
 } from './WorkflowPage'
 
 import textEmbeddingManifestJson from '../../../resources/nodes/text_embedding_v1.json'
-import vectorStoreManifestJson from '../../../resources/nodes/vector_store_v1.json'
+import vectorStoreManifestJson from '../../../resources/nodes/vector_store_v2.json'
 import rerankManifestJson from '../../../resources/nodes/rerank_results_v1.json'
 import similaritySearchManifestJson from '../../../resources/nodes/similarity_search_v1.json'
 import chatHistoryMemoryManifestJson from '../../../resources/nodes/chat_history_memory_v1.json'
@@ -256,5 +257,18 @@ describe('WorkflowPage manifest-driven provider and retrieval behavior', () => {
         expect(first).toBe('session-1')
         expect(second).toBe('session-1')
         expect(third).toBe('session-2')
+    })
+
+    it('derives explicit input bindings without treating controller edges as payload bindings', () => {
+        expect(deriveBoundInputNames([
+            { target: 'read-1', targetHandle: 'input:filters' },
+            { target: 'read-1', targetHandle: 'input:filters' },
+            { target: 'read-1', targetHandle: 'controller:connection' },
+            { target: 'read-2', targetHandle: 'input:values' },
+            { target: 'read-3', targetHandle: null },
+        ])).toEqual({
+            'read-1': ['filters'],
+            'read-2': ['values'],
+        })
     })
 })

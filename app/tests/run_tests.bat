@@ -7,6 +7,9 @@ set "APP_DIR=%PROJECT_ROOT%\app"
 set "SERVER_DIR=%APP_DIR%\server"
 set "CLIENT_DIR=%APP_DIR%\client"
 set "TESTS_DIR=%APP_DIR%\tests"
+set "RUNTIME_CACHE_DIR=%PROJECT_ROOT%\runtimes\cache"
+set "TEST_CACHE_DIR=%TESTS_DIR%\cache"
+set "FRONTEND_BUILD_DIR=%TEST_CACHE_DIR%\frontend-dist"
 set "SETTINGS_ENV=%PROJECT_ROOT%\settings\.env"
 set "VENV_PYTHON=%SERVER_DIR%\.venv\Scripts\python.exe"
 set "RUNTIME_NPM=%PROJECT_ROOT%\runtimes\nodejs\npm.cmd"
@@ -60,7 +63,7 @@ if exist "%VENV_PYTHON%" (
   set "PYTHON_CMD=%VENV_PYTHON%"
 ) else (
   echo [ERROR] Missing backend venv: "%VENV_PYTHON%"
-  echo [ERROR] Run start_on_windows.bat first.
+  echo [ERROR] Run start_on_windows.ps1 first.
   exit /b 1
 )
 
@@ -75,11 +78,15 @@ if exist "%RUNTIME_NPM%" (
   set "NPM_CMD=npm"
 )
 
-set "UVICORN_APP=app.server.app:app"`r`nset "BACKEND_WORKDIR=%PROJECT_ROOT%"`r`nset "PYTHONPATH=%PROJECT_ROOT%;%APP_DIR%"
-"%PYTHON_CMD%" -c "import importlib; importlib.import_module('app.server.app')" >nul 2>&1
-if errorlevel 1 (
-  set "UVICORN_APP=server.app:app"`r`n  set "BACKEND_WORKDIR=%SERVER_DIR%"`r`n  set "PYTHONPATH=%APP_DIR%"
-)
+set "UVICORN_APP=server.app:app"
+set "BACKEND_WORKDIR=%SERVER_DIR%"
+set "PYTHONPATH=%APP_DIR%"
+set "PYTHONPYCACHEPREFIX=%RUNTIME_CACHE_DIR%\pycache"
+set "RUFF_CACHE_DIR=%TEST_CACHE_DIR%\ruff"
+set "COVERAGE_FILE=%TEST_CACHE_DIR%\coverage\.coverage"
+set "UV_CACHE_DIR=%RUNTIME_CACHE_DIR%\uv"
+set "npm_config_cache=%RUNTIME_CACHE_DIR%\npm"
+set "PLAYWRIGHT_BROWSERS_PATH=%TEST_CACHE_DIR%\playwright\browsers"
 
 echo.
 echo ============================================================
@@ -123,7 +130,7 @@ if /i "%STANDARD_TEST_SKIP_LIVE_SERVERS%"=="false" if "%HAS_E2E%"=="1" (
         )
       )
 
-      if not exist "%CLIENT_DIR%\dist" (
+      if not exist "%FRONTEND_BUILD_DIR%\index.html" (
         echo [INFO] Building frontend...
         call "%NPM_CMD%" --prefix "%CLIENT_DIR%" run build
         if errorlevel 1 (
@@ -166,7 +173,7 @@ if /i "%STANDARD_TEST_SKIP_LIVE_SERVERS%"=="false" if "%HAS_E2E%"=="1" (
 )
 
 echo [STEP] Running Python tests...
-"%PYTHON_CMD%" -m pytest "%PYTEST_TARGET%" -v --tb=short %*
+"%PYTHON_CMD%" -m pytest "%PYTEST_TARGET%" -v --tb=short --basetemp="%TEST_CACHE_DIR%\pytest-tmp" %*
 set "PYTEST_RC=%ERRORLEVEL%"
 if "%PYTEST_RC%"=="0" (
   set "PYTEST_PHASE=PASS"

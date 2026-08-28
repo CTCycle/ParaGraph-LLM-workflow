@@ -74,11 +74,14 @@
       "description": "Database username."
     },
     {
-      "name": "db_password",
+      "name": "credential_profile",
       "data_type": "TEXT",
-      "default": "change_me",
-      "ui_control": "password",
-      "description": "Database password."
+      "default": "",
+      "constraints": {
+        "required": true
+      },
+      "ui_control": "text",
+      "description": "Saved configuration profile containing the database credential for this engine. The password is resolved only at runtime."
     },
     {
       "name": "db_ssl",

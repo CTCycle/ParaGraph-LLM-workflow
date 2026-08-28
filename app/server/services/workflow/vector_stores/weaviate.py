@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import weaviate
 
+from server.contracts.node_catalog import VectorStoreCapabilities
 from server.services.workflow.vector_stores.base import (
     Any,
     RetrievalHit,
@@ -14,15 +15,38 @@ from server.services.workflow.vector_stores.base import (
     _matches_filter,
     _normalize_index_name,
     _point_attr,
+    _redacted_provider_config,
+    _resolve_runtime_secret,
     _sanitize_metadata_entry,
     _score_from_metric,
+    _score_semantics_for_metric,
     _store_attr,
 )
 
 ###############################################################################
 class WeaviateVectorStoreAdapter(VectorStoreAdapter):
     backend = "weaviate"
-    supports_faiss_augmentation = False
+    capabilities = VectorStoreCapabilities(
+        backend="weaviate",
+        supported_metrics=["cosine"],
+        supported_search_modes=["vector"],
+        supported_search_engines=["native"],
+        supports_metadata_filtering=True,
+        supported_filter_operators=[
+            "eq",
+            "in",
+            "exists",
+            "contains",
+            "gt",
+            "gte",
+            "lt",
+            "lte",
+        ],
+        supports_filter_groups=True,
+        supports_minimum_should_match=True,
+        supported_operations=["insert", "upsert", "search", "close"],
+        score_semantics_by_metric={"cosine": "normalized_similarity"},
+    )
 
     # -------------------------------------------------------------------------
     def _connect(self, *, endpoint_url: str, api_key: str):
@@ -50,7 +74,8 @@ class WeaviateVectorStoreAdapter(VectorStoreAdapter):
         database_name: str = "",
         provider_config: dict[str, Any] | None = None,
     ) -> None:
-        _ = storage_directory, namespace, database_name
+        self.validate_connection_capabilities(namespace=namespace)
+        _ = storage_directory, database_name
         _, endpoint, token = _extract_provider_config(
             provider_config=provider_config,
             endpoint_url=endpoint_url,
@@ -80,7 +105,12 @@ class WeaviateVectorStoreAdapter(VectorStoreAdapter):
         points: list[VectorPoint | dict[str, Any]],
         **_: Any,
     ) -> VectorStoreHandle:
-        _ = storage_directory, namespace, database_name
+        self.validate_write_capabilities(
+            metric=metric,
+            namespace=namespace,
+            create_keyword_index=bool(_.get("create_keyword_index", False)),
+        )
+        _ = storage_directory, database_name
         if not points:
             raise VectorStoreError(
                 "Vector store write requires at least one vector point"
@@ -137,10 +167,11 @@ class WeaviateVectorStoreAdapter(VectorStoreAdapter):
             dimension=dimension,
             embedding_provider=str(_point_attr(points[0], "embedding_provider") or ""),
             embedding_model=str(_point_attr(points[0], "embedding_model") or ""),
+            namespace=namespace,
             metadata={
                 "endpoint_url": endpoint,
                 "collection_name": collection,
-                "provider_config": {**config, "api_key": token},
+                "provider_config": _redacted_provider_config(config, token),
             },
         )
 
@@ -161,11 +192,13 @@ class WeaviateVectorStoreAdapter(VectorStoreAdapter):
         keyword_weight: float = 0.5,
         **_: Any,
     ) -> list[RetrievalHit]:
-        _ = ann_search_depth, keyword_query, vector_weight, keyword_weight
-        if search_mode != "vector":
-            raise VectorStoreError(
-                "Hybrid search is not currently supported for Weaviate in this runtime"
-            )
+        self.validate_search_capabilities(
+            store=store,
+            search_mode=search_mode,
+            search_engine=str(_.get("search_engine") or "native"),
+            filter_spec=filter_spec,
+            keyword_query=keyword_query,
+        )
 
         metadata = (
             _store_attr(store, "metadata")
@@ -180,7 +213,7 @@ class WeaviateVectorStoreAdapter(VectorStoreAdapter):
         endpoint = str(
             metadata.get("endpoint_url") or config.get("endpoint_url") or ""
         ).strip()
-        token = str(config.get("api_key") or "").strip()
+        token = _resolve_runtime_secret(config)
         collection = str(
             metadata.get("collection_name") or _store_attr(store, "index_name") or ""
         ).strip()
@@ -192,7 +225,7 @@ class WeaviateVectorStoreAdapter(VectorStoreAdapter):
             coll = client.collections.get(collection)
             response = coll.query.near_vector(
                 near_vector=[float(item) for item in query_vector],
-                limit=max(1, int(top_k)),
+                limit=max(1, int(top_k) * 5),
                 return_metadata=["distance"],
             )
             objects = getattr(response, "objects", []) or []
@@ -224,9 +257,7 @@ class WeaviateVectorStoreAdapter(VectorStoreAdapter):
             distance = float(
                 getattr(getattr(item, "metadata", None), "distance", 0.0) or 0.0
             )
-            score = _score_from_metric(
-                metric, distance if metric == "l2" else 1.0 - distance
-            )
+            score = _score_from_metric(metric, distance, raw_semantics="distance")
             if score < score_threshold:
                 continue
             hits.append(
@@ -237,6 +268,7 @@ class WeaviateVectorStoreAdapter(VectorStoreAdapter):
                     text=str(properties.get("text", "")),
                     source_uri=str(properties.get("source_uri", "")),
                     score=score,
+                    score_semantics=_score_semantics_for_metric(metric),
                     metadata=(meta if include_metadata else {}),
                 )
             )

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import threading
 
-from server.domain.chat_history import ChatHistoryMessage
+from server.contracts.chat_history import ChatHistoryMessage
 
 ###############################################################################
 class InMemoryChatHistoryRepository:
@@ -45,6 +45,14 @@ class InMemoryChatHistoryRepository:
         key = (workflow_id, execution_session_id, node_id)
         with self._lock:
             self._store[key] = [item.model_copy(deep=True) for item in messages]
+
+    # -------------------------------------------------------------------------
+    def clear_messages(
+        self, workflow_id: str, execution_session_id: str, node_id: str
+    ) -> None:
+        key = (workflow_id, execution_session_id, node_id)
+        with self._lock:
+            self._store.pop(key, None)
 
     # -------------------------------------------------------------------------
     def clear_session(self, workflow_id: str, execution_session_id: str) -> None:

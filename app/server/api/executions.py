@@ -5,14 +5,16 @@ from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Path, Request, status
 
-from server.domain.execution import (
+from server.contracts.execution import (
+    ExecutionActionResponse,
     EventHistoryResponse,
     ExecutionRunState,
     RUN_ID_PATTERN,
+    ResumeExecutionRequest,
     StartExecutionRequest,
     StartExecutionResponse,
 )
-from server.domain.workflow_model import (
+from server.contracts.workflow_model import (
     CompileWorkflowRequest,
     CompileWorkflowResponse,
 )
@@ -67,3 +69,50 @@ def get_execution(run_id: RunIdPath) -> ExecutionRunState:
 @router.get("/{run_id}/events", response_model=EventHistoryResponse)
 def get_execution_events(run_id: RunIdPath) -> EventHistoryResponse:
     return execution_event_service.get_history(run_id)
+
+###############################################################################
+@router.post("/{run_id}/cancel", response_model=ExecutionActionResponse)
+def cancel_execution(run_id: RunIdPath) -> ExecutionActionResponse:
+    before = execution_service.get_run(run_id)
+    if before is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"Run not found: {run_id}"
+        )
+    run = execution_service.cancel(run_id)
+    if run is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"Run not found: {run_id}"
+        )
+    if before.status in ("completed", "failed", "cancelled"):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Run is not cancellable in status: {before.status}",
+        )
+    return ExecutionActionResponse(
+        run_id=run_id,
+        status=run.status,
+        message="Cancellation requested"
+        if run.status != "cancelled"
+        else "Execution cancelled",
+    )
+
+###############################################################################
+@router.post("/{run_id}/resume", response_model=ExecutionActionResponse)
+def resume_execution(
+    run_id: RunIdPath, payload: ResumeExecutionRequest
+) -> ExecutionActionResponse:
+    try:
+        run = execution_service.resume(
+            run_id, payload.resume_token, payload.reviewed_payload
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail=str(exc)
+        ) from exc
+    if run is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"Run not found: {run_id}"
+        )
+    return ExecutionActionResponse(
+        run_id=run_id, status=run.status, message="Execution resumed"
+    )

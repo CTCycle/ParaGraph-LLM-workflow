@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from server.domain.workflow_model import WorkflowDefinition
+from server.contracts.workflow_model import WorkflowDefinition
 from server.services.workflow.compiler import compiler_service
 
 ###############################################################################
@@ -33,7 +33,7 @@ def _build_similarity_workflow(
                 {
                     "node_id": "store_vectors",
                     "node_type": "VECTOR_STORE",
-                    "node_version": 1,
+                    "node_version": 2,
                     "parameters": {
                         "provider": "chroma",
                         "index_name": "docs",

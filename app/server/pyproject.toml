@@ -4,10 +4,11 @@ build-backend = "hatchling.build"
 
 [project]
 name = "paragraph"
-version = "0.1.0"
+version = "1.0.0"
 requires-python = ">=3.14"
 
 dependencies = [
+    "alembic==1.19.0",
     "fastapi==0.136.3",
     "uvicorn[standard]==0.48.0",
     "pydantic==2.13.4",
@@ -15,6 +16,7 @@ dependencies = [
     "pandas==3.0.3",
     "SQLAlchemy==2.0.50",
     "psycopg[binary]==3.3.4",
+    "PyMySQL==1.1.2",
     "python-dotenv==1.2.2",
     "python-multipart==0.0.29",
     "httpx==0.28.1",
@@ -38,12 +40,12 @@ dependencies = [
     "weaviate-client",
     "pymilvus",
     "chromadb",
+    "portalocker==3.2.0",
 ]
 
 [project.optional-dependencies]
 test = [
     "pytest>=8.0",
-    "pytest-playwright>=0.5.0",
     "psutil>=6.1.1",
     "ruff==0.15.9"
 ]
@@ -51,4 +53,10 @@ test = [
 [tool.hatch.build.targets.wheel]
 packages = ["server"]
 
+[tool.ruff]
+extend = "../../ruff.toml"
+
+[tool.alembic]
+script_location = "%(here)s/migrations"
+prepend_sys_path = ["%(here)s/.."]
 

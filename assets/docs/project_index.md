@@ -1,5 +1,5 @@
 # Project Overview
-Last updated: 2026-06-02
+Last updated: 2026-08-20
 
 ## Purpose
 This file is the root index for `assets/docs`. Read it first, then open only the smallest leaf file that matches the task.
@@ -30,6 +30,9 @@ This file is the root index for `assets/docs`. Read it first, then open only the
   - Layered backend flow, key module responsibilities, and async/background execution behavior.
 - `architecture/persistence.md`
   - File-based persistence, database responsibilities, and in-memory runtime stores.
+- `architecture/findings_and_remediation.md`
+  - Architecture review findings, implemented P0/P1 remediations, validation
+    evidence, and intentionally deferred follow-up work.
 
 ### Coding
 - `coding/python.md`
@@ -43,11 +46,11 @@ This file is the root index for `assets/docs`. Read it first, then open only the
 - `runtime/modes.md`
   - Supported runtime modes and operational differences.
 - `runtime/startup.md`
-  - Windows startup procedures for launcher, backend, frontend, and desktop packaging flows.
+  - Windows startup procedures for the launcher, backend, and frontend.
 - `runtime/configuration.md`
   - Shared environment keys, runtime settings, and cross-runtime communication rules.
 - `runtime/deployment.md`
-  - Packaging targets, artifact locations, limitations, and runtime-heavy generated outputs.
+  - Supported local operation model, limitations, and runtime-heavy generated outputs.
 
 ### UI
 - `ui/design_tokens.md`
@@ -95,5 +98,5 @@ This file is the root index for `assets/docs`. Read it first, then open only the
 ## Environment Rules
 - Windows is the default operating environment for this project.
 - Document both PowerShell and CMD variants when commands differ.
-- Keep runtime guidance aligned with `start_on_windows.bat` and `release/tauri/build_with_tauri.bat`.
+- Keep runtime guidance aligned with `start_on_windows.ps1`.
 - Update environment guidance when Windows-specific constraints or workarounds change.
