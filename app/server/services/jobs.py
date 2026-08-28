@@ -10,7 +10,6 @@ from typing import Any
 
 from server.common.utils.logger import logger
 
-
 ###############################################################################
 @dataclass
 class JobState:

@@ -171,6 +171,7 @@ def test_side_effect_retry_requires_an_idempotency_contract() -> None:
     assert "unsafe_side_effect_retry" in codes
 
 
+###############################################################################
 def test_idempotent_side_effect_carries_effect_metadata_into_plan() -> None:
     definition = WorkflowDefinition(
         schema_version=2,

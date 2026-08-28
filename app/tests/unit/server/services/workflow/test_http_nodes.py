@@ -197,6 +197,7 @@ def test_credential_url_dns_rebinding_and_cancellation() -> None:
     assert cancelled.value.code == "cancelled"
 
 
+###############################################################################
 @pytest.mark.parametrize(
     ("node_type", "expected_method"),
     [
@@ -212,6 +213,7 @@ def test_method_specific_http_nodes_share_the_transport_executor(
 ) -> None:
     seen: list[str] = []
 
+    ###############################################################################
     class FakeTransport:
 
         # -------------------------------------------------------------------------

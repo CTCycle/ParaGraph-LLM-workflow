@@ -91,6 +91,7 @@ def test_check_vector_store_connection_calls_adapter_validate(
     assert calls["api_key"] == ""
 
 
+###############################################################################
 def test_check_vector_store_connection_resolves_saved_credential(
     client: TestClient, monkeypatch
 ) -> None:
