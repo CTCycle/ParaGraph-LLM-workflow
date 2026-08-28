@@ -158,6 +158,7 @@ def test_custom_sql_query_returns_rows_and_rejects_invalid_sql(tmp_path: Path) -
             raise AssertionError("Expected invalid SQL to fail validation")
 
 
+###############################################################################
 def test_database_query_nodes_keep_one_typed_controller_contract() -> None:
     expected = ("CRUD_READ", "CUSTOM_SQL_QUERY")
 
@@ -169,6 +170,7 @@ def test_database_query_nodes_keep_one_typed_controller_contract() -> None:
         assert manifest.controllers[0].data_type == "DATABASE_CONNECTION"
 
 
+###############################################################################
 def test_database_parameters_reject_unknown_fields() -> None:
     with pytest.raises(ValueError, match="password"):
         node_registry.validate_parameters(

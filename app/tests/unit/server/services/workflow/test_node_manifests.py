@@ -85,6 +85,7 @@ def test_every_manifest_parameter_model_accepts_manifest_defaults() -> None:
             )
 
 
+###############################################################################
 def test_runtime_effect_metadata_is_loaded_from_manifests() -> None:
     lifecycle = node_registry.get("VECTOR_STORE_LIFECYCLE", 1)
     schema_collection = node_registry.get("TOOL_SCHEMA_COLLECTION", 1)

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from fastapi.testclient import TestClient
 
-
 ###############################################################################
 def _handle(node_id: str = "chat-node") -> dict[str, object]:
     return {
@@ -15,7 +14,6 @@ def _handle(node_id: str = "chat-node") -> dict[str, object]:
         "keep_prompt_type": True,
         "execution_owned": True,
     }
-
 
 ###############################################################################
 def test_chat_history_route_reads_and_resets_a_single_scope(

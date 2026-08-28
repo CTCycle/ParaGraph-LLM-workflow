@@ -63,23 +63,28 @@ class HttpRequestParameters(BaseModel):
         return self
 
 
+###############################################################################
 class HttpGetParameters(HttpRequestParameters):
     method: Literal["GET"] = "GET"
     body_mode: Literal["none"] = "none"
 
 
+###############################################################################
 class HttpPostParameters(HttpRequestParameters):
     method: Literal["POST"] = "POST"
 
 
+###############################################################################
 class HttpPutParameters(HttpRequestParameters):
     method: Literal["PUT"] = "PUT"
 
 
+###############################################################################
 class HttpPatchParameters(HttpRequestParameters):
     method: Literal["PATCH"] = "PATCH"
 
 
+###############################################################################
 class HttpDeleteParameters(HttpRequestParameters):
     method: Literal["DELETE"] = "DELETE"
     body_mode: Literal["none"] = "none"

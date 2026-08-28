@@ -47,6 +47,7 @@ def get_vector_store_adapter(backend: str) -> VectorStoreAdapter:
     return adapter
 
 
+###############################################################################
 def get_vector_store_capabilities() -> list[VectorStoreCapabilities]:
     return [
         VECTOR_STORE_ADAPTERS[backend].describe_capabilities()

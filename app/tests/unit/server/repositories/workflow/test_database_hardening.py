@@ -55,6 +55,7 @@ def test_postgresql_workflow_connection_contract_keeps_psycopg_driver() -> None:
     assert connect_args == {"connect_timeout": 9}
 
 
+###############################################################################
 def test_database_url_rejects_inline_passwords() -> None:
     with pytest.raises(ValueError, match="opaque credential_ref"):
         build_database_url(
@@ -136,10 +137,14 @@ def test_read_only_enforcement_and_parameterized_single_statement_sql(
         execute_custom_sql(readonly, sql="delete from items", read_only=False)
 
 
+###############################################################################
 def test_mysql_upsert_is_rejected_before_table_access(monkeypatch) -> None:
+
+    ###############################################################################
     class FakeDialect:
         name = "mysql"
 
+    ###############################################################################
     class FakeEngine:
         dialect = FakeDialect()
 

@@ -169,6 +169,7 @@ def test_sql_database_requires_required_fields_before_connect_attempt() -> None:
         )
 
 
+###############################################################################
 def test_sql_database_emits_only_an_opaque_credential_reference(monkeypatch) -> None:
     captured: dict[str, object] = {}
     monkeypatch.setattr(

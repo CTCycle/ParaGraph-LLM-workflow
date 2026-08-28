@@ -79,6 +79,7 @@ def _schema_from_callable_signature(function: Callable[..., Any]) -> dict[str, A
     }
 
 
+###############################################################################
 def _schema_runtime_tool_id(
     *, source_type: str, name: str, description: str, parameters_schema: dict[str, Any]
 ) -> str:
@@ -342,6 +343,7 @@ def _tool_collection_executor(
     return {"tools": handle.model_dump(mode="json")}
 
 
+###############################################################################
 def _tool_schema_collection_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
 ) -> dict[str, Any]:
@@ -352,6 +354,7 @@ def _tool_schema_collection_executor(
     )
 
 
+###############################################################################
 def _python_tool_collection_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
 ) -> dict[str, Any]:

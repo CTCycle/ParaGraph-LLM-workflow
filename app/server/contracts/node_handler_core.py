@@ -528,10 +528,12 @@ class ToolCollectionParameters(BaseModel):
     description: str = ""
 
 
+###############################################################################
 class ToolSchemaCollectionParameters(ToolCollectionParameters):
     source_type: Literal["json_schema", "signature"]
 
 
+###############################################################################
 class PythonToolCollectionParameters(ToolCollectionParameters):
     source_type: Literal["inline_python", "python_file"]
 
