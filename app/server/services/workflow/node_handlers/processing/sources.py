@@ -9,6 +9,7 @@ from server.services.workflow.node_handlers.ingestion import (
     resolve_local_path,
 )
 
+
 ###############################################################################
 def _hydrate_document_text(document: dict[str, Any]) -> tuple[str, dict[str, Any]]:
     metadata = (
@@ -43,6 +44,7 @@ def _hydrate_document_text(document: dict[str, Any]) -> tuple[str, dict[str, Any
     metadata["loaded_extension"] = path.suffix.lower()
     return loaded_text, metadata
 
+
 ###############################################################################
 def _iter_mapping_payload(raw_value: Any) -> Iterator[dict[str, Any]]:
     if raw_value is None:
@@ -64,6 +66,7 @@ def _iter_mapping_payload(raw_value: Any) -> Iterator[dict[str, Any]]:
         for nested in item:
             if isinstance(nested, dict):
                 yield nested
+
 
 ###############################################################################
 def _iter_sources(inputs: dict[str, Any]) -> Iterator[dict[str, Any]]:
@@ -118,15 +121,18 @@ def _iter_sources(inputs: dict[str, Any]) -> Iterator[dict[str, Any]]:
             "parent_chunk_id": parent_chunk_id,
         }
 
+
 ###############################################################################
 def _resolve_max_chunk_size(value: int) -> int | None:
     return value if value > 0 else None
+
 
 ###############################################################################
 def _measure_text_size(text: str, unit: str) -> int:
     if unit == "characters":
         return len(text)
     return len(text.split())
+
 
 ###############################################################################
 def _iter_merge_fragments(inputs: dict[str, Any]) -> Iterator[dict[str, Any]]:

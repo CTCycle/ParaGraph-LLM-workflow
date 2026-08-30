@@ -32,6 +32,7 @@ _PINECONE_METRIC_MAP = {
     "dot": "dotproduct",
 }
 
+
 ###############################################################################
 class PineconeVectorStoreAdapter(VectorStoreAdapter):
     backend = "pinecone"
@@ -66,17 +67,23 @@ class PineconeVectorStoreAdapter(VectorStoreAdapter):
         for clause in filter_spec.get("must", []):
             translated = _pinecone_clause(clause)
             if translated is None:
-                raise VectorStoreError("Pinecone could not translate a metadata filter clause")
+                raise VectorStoreError(
+                    "Pinecone could not translate a metadata filter clause"
+                )
             clauses.append(translated)
         for clause in filter_spec.get("must_not", []):
             translated = _pinecone_clause(clause)
             if translated is None:
-                raise VectorStoreError("Pinecone could not translate a metadata filter clause")
+                raise VectorStoreError(
+                    "Pinecone could not translate a metadata filter clause"
+                )
             must_not.append(translated)
         for clause in filter_spec.get("should", []):
             translated = _pinecone_clause(clause)
             if translated is None:
-                raise VectorStoreError("Pinecone could not translate a metadata filter clause")
+                raise VectorStoreError(
+                    "Pinecone could not translate a metadata filter clause"
+                )
             should.append(translated)
 
         if not clauses and not must_not and not should:
@@ -272,9 +279,12 @@ class PineconeVectorStoreAdapter(VectorStoreAdapter):
         ).strip()
         if not index_name:
             raise VectorStoreError("Pinecone search requires an index name")
-        namespace = str(
-            _store_attr(store, "namespace") or metadata.get("namespace") or ""
-        ).strip() or None
+        namespace = (
+            str(
+                _store_attr(store, "namespace") or metadata.get("namespace") or ""
+            ).strip()
+            or None
+        )
 
         pinecone_filter = self._map_filter(filter_spec)
         response = client.Index(index_name).query(
@@ -306,9 +316,7 @@ class PineconeVectorStoreAdapter(VectorStoreAdapter):
             metric = _coerce_metric(str(_store_attr(store, "metric") or "cosine"))
             raw_score = float(record.get("score") or 0.0)
             raw_semantics = "distance" if metric == "l2" else "similarity"
-            score = _score_from_metric(
-                metric, raw_score, raw_semantics=raw_semantics
-            )
+            score = _score_from_metric(metric, raw_score, raw_semantics=raw_semantics)
             if score < score_threshold:
                 continue
             results.append(

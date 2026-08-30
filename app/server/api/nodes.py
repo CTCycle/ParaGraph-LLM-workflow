@@ -19,10 +19,12 @@ from server.services.workflow.nodes import node_connectivity_service
 
 router = APIRouter(prefix="/nodes", tags=["nodes"])
 
+
 ###############################################################################
 @router.get("/catalog", response_model=NodeCatalogResponse)
 def get_node_catalog() -> NodeCatalogResponse:
     return node_registry.catalog_response()
+
 
 ###############################################################################
 @router.post(
@@ -35,6 +37,7 @@ def import_node_manifest(manifest: NodeManifest) -> NodeManifest:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)
         ) from exc
+
 
 ###############################################################################
 @router.post("/uploads/directory", response_model=UploadedDirectoryResponse)
@@ -55,6 +58,7 @@ async def upload_directory(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)
         ) from exc
 
+
 ###############################################################################
 @router.post(
     "/check-database-connection", response_model=DatabaseConnectionCheckResponse
@@ -63,6 +67,7 @@ def check_database_connection(
     request: DatabaseConnectionCheckRequest,
 ) -> DatabaseConnectionCheckResponse:
     return node_connectivity_service.check_database_connection(request)
+
 
 ###############################################################################
 @router.post("/database-schema", response_model=DatabaseSchemaResponse)
@@ -73,6 +78,7 @@ def get_database_schema(request: DatabaseSchemaRequest) -> DatabaseSchemaRespons
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)
         ) from exc
+
 
 ###############################################################################
 @router.post(

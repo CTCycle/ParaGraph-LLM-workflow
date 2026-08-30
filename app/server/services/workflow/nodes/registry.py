@@ -26,6 +26,7 @@ from server.services.workflow.vector_stores import get_vector_store_capabilities
 MODEL_NODE_IDS = {"LLM_CHAT", "LLM_STRUCTURED"}
 STRUCTURED_NODE_IDS = {"LLM_STRUCTURED"}
 
+
 ###############################################################################
 def _format_parameter_validation_error(error: ValidationError) -> str:
     issues = error.errors()
@@ -44,6 +45,7 @@ def _format_parameter_validation_error(error: ValidationError) -> str:
         messages.append(f"(+{len(issues) - 3} more)")
     return "; ".join(messages)
 
+
 ###############################################################################
 def _execute_plugin_manifest(
     registry: NodeRegistry,
@@ -59,9 +61,9 @@ def _execute_plugin_manifest(
         )
     return result
 
+
 ###############################################################################
 class NodeRegistry:
-
     # -------------------------------------------------------------------------
     def __init__(
         self, manifest_repository: NodeManifestRepository | None = None
@@ -372,9 +374,7 @@ class NodeRegistry:
         try:
             outputs = handler.executor(validated_parameters, execution_inputs)
             if not isinstance(outputs, dict):
-                raise ValueError(
-                    f"Node '{manifest.id}' executor must return an object"
-                )
+                raise ValueError(f"Node '{manifest.id}' executor must return an object")
             declared_output_names = {
                 port.name for port in [*manifest.outputs, *manifest.controllers]
             }

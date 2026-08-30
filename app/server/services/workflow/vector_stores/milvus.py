@@ -25,6 +25,7 @@ from server.services.workflow.vector_stores.base import (
     validate_vector_request_capabilities,
 )
 
+
 ###############################################################################
 class MilvusVectorStoreAdapter(VectorStoreAdapter):
     backend = "milvus"
@@ -312,9 +313,7 @@ class MilvusVectorStoreAdapter(VectorStoreAdapter):
                 continue
             raw_score = float(hit.get("distance", hit.get("score", 0.0)) or 0.0)
             normalized_metric = _coerce_metric(metric)
-            raw_semantics = (
-                "distance" if normalized_metric == "l2" else "similarity"
-            )
+            raw_semantics = "distance" if normalized_metric == "l2" else "similarity"
             score = _score_from_metric(
                 normalized_metric, raw_score, raw_semantics=raw_semantics
             )

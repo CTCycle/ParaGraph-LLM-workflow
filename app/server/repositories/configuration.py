@@ -19,13 +19,11 @@ from server.repositories.schemas import (
     UserSession,
 )
 
+
 ###############################################################################
 class ConfigurationRepository:
-
     # -------------------------------------------------------------------------
-    def __init__(
-        self, database_repository: SQLiteRepository | None = None
-    ) -> None:
+    def __init__(self, database_repository: SQLiteRepository | None = None) -> None:
         self._database_repository = database_repository
 
     # -------------------------------------------------------------------------
@@ -298,5 +296,6 @@ class ConfigurationRepository:
                 existing.configuration_json = configuration_json
 
             db_session.commit()
+
 
 configuration_repository = ConfigurationRepository()

@@ -26,6 +26,7 @@ from server.services.workflow.vector_stores.base import (
     _store_lock,
 )
 
+
 ###############################################################################
 class LanceDbVectorStoreAdapter(VectorStoreAdapter):
     backend = "lancedb"
@@ -133,7 +134,10 @@ class LanceDbVectorStoreAdapter(VectorStoreAdapter):
 
         with _store_lock(root_path / normalized_index_name, lock_timeout):
             current_rows: list[dict[str, Any]] = []
-            if write_mode_normalized == "append" and normalized_index_name in table_names:
+            if (
+                write_mode_normalized == "append"
+                and normalized_index_name in table_names
+            ):
                 table = db.open_table(normalized_index_name)
                 current_rows = _materialize_lancedb_rows(table)
             if current_rows:
@@ -174,7 +178,9 @@ class LanceDbVectorStoreAdapter(VectorStoreAdapter):
                 existing_ids = {str(row.get("id", "")) for row in current_rows}
                 incoming_ids = [str(row.get("id", "")) for row in rows]
                 duplicate_incoming = {
-                    item_id for item_id in incoming_ids if incoming_ids.count(item_id) > 1
+                    item_id
+                    for item_id in incoming_ids
+                    if incoming_ids.count(item_id) > 1
                 }
                 if duplicate_incoming:
                     raise VectorStoreConflictError(list(duplicate_incoming))
@@ -188,7 +194,9 @@ class LanceDbVectorStoreAdapter(VectorStoreAdapter):
                     raise VectorStoreConflictError(list(conflicts))
                 if conflicts:
                     current_rows = [
-                        row for row in current_rows if str(row.get("id", "")) not in conflicts
+                        row
+                        for row in current_rows
+                        if str(row.get("id", "")) not in conflicts
                     ]
                 rows = [*current_rows, *rows]
             table = db.create_table(normalized_index_name, data=rows, mode="overwrite")

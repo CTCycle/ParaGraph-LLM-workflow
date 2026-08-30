@@ -6,9 +6,9 @@ from typing import Any
 
 from server.services.jobs import job_manager
 
+
 ###############################################################################
 class RecordingJobRunner:
-
     # -------------------------------------------------------------------------
     def __init__(self) -> None:
         self.observed: dict[str, str] = {}
@@ -19,11 +19,13 @@ class RecordingJobRunner:
         job_manager.update_result(job_id, {"stage": "running"})
         return {"success": True}
 
+
 ###############################################################################
 def cancellable_runner(*, job_id: str) -> dict[str, Any]:
     while not job_manager.should_stop(job_id):
         time.sleep(0.01)
     return {"success": False}
+
 
 ###############################################################################
 def test_start_job_injects_job_id_and_merges_results(
@@ -39,6 +41,7 @@ def test_start_job_injects_job_id_and_merges_results(
     assert payload["progress"] == 100.0
     assert payload["result"] == {"stage": "running", "success": True}
 
+
 ###############################################################################
 def test_cancel_job_marks_running_job_cancelled(
     wait_for_job: Callable[[str, float], dict[str, object]],
@@ -51,6 +54,7 @@ def test_cancel_job_marks_running_job_cancelled(
 
     assert payload["status"] == "cancelled"
     assert payload["result"] is None
+
 
 ###############################################################################
 def test_cancel_job_returns_false_for_unknown_job() -> None:

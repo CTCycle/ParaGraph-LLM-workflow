@@ -14,15 +14,14 @@ from server.services.workflow.chat_history import chat_history_service
 
 router = APIRouter(prefix="/chat-history", tags=["chat-history"])
 
+
 ###############################################################################
 @router.get("", response_model=ChatHistoryResponse)
 def get_chat_history(
     workflow_id: Annotated[str, Query(min_length=1, max_length=256)],
     execution_session_id: Annotated[str, Query(min_length=1, max_length=256)],
     node_id: Annotated[str, Query(min_length=1, max_length=256)],
-    node_type: Annotated[
-        str, Query(pattern="^CHAT_HISTORY_(MEMORY|PERSISTED)$")
-    ],
+    node_type: Annotated[str, Query(pattern="^CHAT_HISTORY_(MEMORY|PERSISTED)$")],
     max_messages: Annotated[int, Query(ge=1, le=10_000)] = 20,
     separator: str = "\n",
     keep_prompt_type: bool = True,
@@ -39,6 +38,7 @@ def get_chat_history(
         storage_backend=storage_backend,
     )
     return ChatHistoryResponse(messages=chat_history_service.load_messages(handle))
+
 
 ###############################################################################
 @router.post("/reset", response_model=ChatHistoryResponse)

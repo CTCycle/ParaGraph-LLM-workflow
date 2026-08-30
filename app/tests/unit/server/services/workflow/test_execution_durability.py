@@ -17,6 +17,7 @@ from server.services.runtime.events import EventService, execution_event_service
 from server.services.workflow.execution import execution_service
 from server.services.workflow.nodes import node_registry
 
+
 ###############################################################################
 def _plan(*, retries: int = 0, timeout_ms: int | None = None) -> CompiledExecutionPlan:
     step = ExecutionStepPlan(
@@ -33,6 +34,7 @@ def _plan(*, retries: int = 0, timeout_ms: int | None = None) -> CompiledExecuti
     return CompiledExecutionPlan(
         plan_id="durable-plan", step_order=["step"], steps=[step]
     )
+
 
 ###############################################################################
 def test_run_steps_and_events_survive_repository_reinstantiation() -> None:
@@ -66,6 +68,7 @@ def test_run_steps_and_events_survive_repository_reinstantiation() -> None:
     assert restored.steps[0].output["ports"]["text"] == "persisted"
     assert [event.sequence for event in fresh_events.events] == [1]
 
+
 ###############################################################################
 def test_retry_succeeds_without_restarting_prior_steps(
     job_state_factory, monkeypatch
@@ -89,6 +92,7 @@ def test_retry_succeeds_without_restarting_prior_steps(
     assert run is not None and run.steps[0].attempt_count == 2
     assert run.status == "completed"
 
+
 ###############################################################################
 def test_retry_exhaustion_records_final_failure(job_state_factory, monkeypatch) -> None:
     monkeypatch.setattr(
@@ -106,6 +110,7 @@ def test_retry_exhaustion_records_final_failure(job_state_factory, monkeypatch) 
     run = execution_run_repository.get_run("failed-retry")
     assert run is not None and run.status == "failed"
     assert run.steps[0].attempt_count == 2
+
 
 ###############################################################################
 def test_timeout_late_result_cannot_overwrite_terminal_state(
@@ -127,6 +132,7 @@ def test_timeout_late_result_cannot_overwrite_terminal_state(
     assert run is not None and run.status == "failed"
     assert run.steps[0].status == "failed"
     assert run.steps[0].output == {}
+
 
 ###############################################################################
 def test_cancel_before_start_and_retention_cleanup() -> None:

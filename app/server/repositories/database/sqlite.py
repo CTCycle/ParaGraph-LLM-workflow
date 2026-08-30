@@ -31,6 +31,7 @@ from server.configurations.settings import SQLiteSettings
 from server.repositories.database.sqlite_policy import configure_sqlite_engine
 from server.repositories.schemas import Base
 
+
 ###############################################################################
 def normalize_string_columns(df: pd.DataFrame) -> pd.DataFrame:
     normalized = df.copy()
@@ -42,9 +43,9 @@ def normalize_string_columns(df: pd.DataFrame) -> pd.DataFrame:
             normalized[column] = object_series.where(object_series.notna(), None)
     return normalized
 
+
 ###############################################################################
 class SQLiteRepository:
-
     # -------------------------------------------------------------------------
     def __init__(
         self,

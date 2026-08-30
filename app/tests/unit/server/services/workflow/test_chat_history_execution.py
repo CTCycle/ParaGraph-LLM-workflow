@@ -14,6 +14,7 @@ from server.services.jobs import job_manager
 from server.services.workflow import node_registry
 from server.services.workflow.execution import execution_service
 
+
 ###############################################################################
 def _chat_plan() -> CompiledExecutionPlan:
     return CompiledExecutionPlan(
@@ -74,6 +75,7 @@ def _chat_plan() -> CompiledExecutionPlan:
         metadata={"chat_terminal_outputs": {"chat": "output"}},
     )
 
+
 ###############################################################################
 def test_successful_chat_execution_persists_user_and_terminal_output(
     job_state_factory,
@@ -95,6 +97,7 @@ def test_successful_chat_execution_persists_user_and_terminal_output(
         ("user", "hello"),
         ("assistant", "hello"),
     ]
+
 
 ###############################################################################
 def test_failed_chat_execution_does_not_persist_history(
@@ -132,9 +135,13 @@ def test_failed_chat_execution_does_not_persist_history(
             execution_session_id="chat-session-failed",
         )
 
-    assert in_memory_chat_history_repository.get_messages(
-        "chat-workflow", "chat-session-failed", "chat"
-    ) == []
+    assert (
+        in_memory_chat_history_repository.get_messages(
+            "chat-workflow", "chat-session-failed", "chat"
+        )
+        == []
+    )
+
 
 ###############################################################################
 def test_cancelled_chat_execution_does_not_persist_history(
@@ -173,6 +180,9 @@ def test_cancelled_chat_execution_does_not_persist_history(
     )
 
     assert result == {}
-    assert in_memory_chat_history_repository.get_messages(
-        "chat-workflow", "chat-session-cancelled", "chat"
-    ) == []
+    assert (
+        in_memory_chat_history_repository.get_messages(
+            "chat-workflow", "chat-session-cancelled", "chat"
+        )
+        == []
+    )

@@ -6,7 +6,10 @@ import time
 from bs4 import BeautifulSoup
 import httpx
 
-from server.services.workflow.provider.models import CachedValue, OllamaLibraryCachePayload
+from server.services.workflow.provider.models import (
+    CachedValue,
+    OllamaLibraryCachePayload,
+)
 from server.services.llm.providers import OllamaError
 from server.services.workflow.provider.constants import (
     OLLAMA_LIBRARY_CACHE_TTL_SECONDS,
@@ -18,9 +21,9 @@ from server.services.workflow.provider.helpers import (
     _normalize_ollama_library_slug,
 )
 
+
 ###############################################################################
 class OllamaLibraryCatalogMixin:
-
     # -------------------------------------------------------------------------
     def _load_ollama_library_catalog(
         self, *, refresh: bool

@@ -24,6 +24,7 @@ from server.services.workflow.vector_stores.weaviate import (
     WeaviateVectorStoreAdapter,
 )
 
+
 ###############################################################################
 class FaissVectorStoreAdapter(VectorStoreAdapter):
     pass
@@ -38,6 +39,7 @@ VECTOR_STORE_ADAPTERS = {
     "milvus": MilvusVectorStoreAdapter(),
     "chroma": ChromaVectorStoreAdapter(),
 }
+
 
 ###############################################################################
 def get_vector_store_adapter(backend: str) -> VectorStoreAdapter:

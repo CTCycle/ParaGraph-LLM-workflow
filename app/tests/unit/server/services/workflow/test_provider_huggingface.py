@@ -21,9 +21,9 @@ from server.services.workflow.provider.constants import (
     HUGGINGFACE_FALLBACK_TASKS,
 )
 
+
 ###############################################################################
 class _FakeExpandApi:
-
     # -------------------------------------------------------------------------
     def list_models(
         self,
@@ -42,6 +42,7 @@ class _FakeExpandApi:
         token: str | None = None,
     ) -> None:
         return None
+
 
 ###############################################################################
 def test_build_huggingface_list_kwargs_prefers_expand() -> None:
@@ -62,13 +63,13 @@ def test_build_huggingface_list_kwargs_prefers_expand() -> None:
     assert kwargs["expand"] == list(HUGGINGFACE_MODEL_LIST_EXPAND_FIELDS)
     assert "full" not in kwargs
 
+
 ###############################################################################
 def test_huggingface_model_iteration_errors_are_translated(monkeypatch) -> None:
     service = ProviderService()
 
     ###############################################################################
     class _LazyFailingApi:
-
         # -------------------------------------------------------------------------
         def list_models(self, **kwargs):
             _ = kwargs
@@ -82,7 +83,9 @@ def test_huggingface_model_iteration_errors_are_translated(monkeypatch) -> None:
 
     monkeypatch.setattr(_LazyFailingApi, "list_models", _raise_connect_error)
     monkeypatch.setattr(
-        service, "_resolve_huggingface_api", lambda session_name: (_LazyFailingApi(), None)
+        service,
+        "_resolve_huggingface_api",
+        lambda session_name: (_LazyFailingApi(), None),
     )
     monkeypatch.setattr(service, "_downloaded_huggingface_repo_ids", lambda: set())
 
@@ -92,7 +95,10 @@ def test_huggingface_model_iteration_errors_are_translated(monkeypatch) -> None:
         assert exc.status_code == 503
         assert "Unable to reach Hugging Face" in str(exc)
     else:
-        raise AssertionError("expected lazy Hugging Face iteration failure to translate")
+        raise AssertionError(
+            "expected lazy Hugging Face iteration failure to translate"
+        )
+
 
 ###############################################################################
 def test_huggingface_download_uses_explicit_stream_timeout(
@@ -118,7 +124,6 @@ def test_huggingface_download_uses_explicit_stream_timeout(
 
     ###############################################################################
     class _FakeStreamContext:
-
         # -------------------------------------------------------------------------
         def __enter__(self) -> _FakeResponse:
             return _FakeResponse()
@@ -159,6 +164,7 @@ def test_huggingface_download_uses_explicit_stream_timeout(
     assert timeout.write == HUGGINGFACE_DOWNLOAD_TIMEOUT_SECONDS
     assert timeout.pool == HUGGINGFACE_DOWNLOAD_TIMEOUT_SECONDS
 
+
 ###############################################################################
 def test_huggingface_filter_tags_logs_and_falls_back(monkeypatch) -> None:
     service = ProviderService()
@@ -166,7 +172,6 @@ def test_huggingface_filter_tags_logs_and_falls_back(monkeypatch) -> None:
 
     ###############################################################################
     class _FailingApi:
-
         # -------------------------------------------------------------------------
         def get_model_tags(self) -> dict[str, object]:
             raise RuntimeError("tag service unavailable")

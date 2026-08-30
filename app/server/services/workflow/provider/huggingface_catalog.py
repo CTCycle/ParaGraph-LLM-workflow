@@ -46,9 +46,9 @@ from server.contracts.node_catalog import (
     ModelVisibilityFilter,
 )
 
+
 ###############################################################################
 class HuggingFaceCatalogMixin:
-
     # -------------------------------------------------------------------------
     def _list_huggingface_models_impl(
         self,

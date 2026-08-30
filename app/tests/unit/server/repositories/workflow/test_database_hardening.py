@@ -21,12 +21,13 @@ from server.repositories.workflow.database import (
     reset_database_engines,
 )
 
+
 ###############################################################################
 def _connection(path: Path, *, read_only: bool = False) -> dict[str, object]:
     return {
-    "engine": "sqlite",
-    "file_path": str(path),
-    "read_only": read_only,
+        "engine": "sqlite",
+        "file_path": str(path),
+        "read_only": read_only,
         "database_name": None,
         "host": None,
         "port": None,
@@ -34,6 +35,7 @@ def _connection(path: Path, *, read_only: bool = False) -> dict[str, object]:
         "credential_ref": None,
         "options": {},
     }
+
 
 ###############################################################################
 def test_postgresql_workflow_connection_contract_keeps_psycopg_driver() -> None:
@@ -69,6 +71,7 @@ def test_database_url_rejects_inline_passwords() -> None:
             }
         )
 
+
 ###############################################################################
 def test_postgresql_upsert_dialect_contract() -> None:
     table = Table(
@@ -85,6 +88,7 @@ def test_postgresql_upsert_dialect_contract() -> None:
 
     assert "ON CONFLICT" in str(statement.compile(dialect=postgresql_dialect()))
 
+
 ###############################################################################
 @pytest.fixture
 def database(tmp_path: Path):
@@ -100,6 +104,7 @@ def database(tmp_path: Path):
     yield path
     reset_database_engines()
 
+
 ###############################################################################
 def test_engine_reuse_disposal_and_credential_safe_identity(database: Path) -> None:
     reset_database_engines()
@@ -111,6 +116,7 @@ def test_engine_reuse_disposal_and_credential_safe_identity(database: Path) -> N
     assert "secret" not in engine_registry.identity(connection)
     reset_database_engines()
     assert engine_registry.size() == 0
+
 
 ###############################################################################
 def test_read_only_enforcement_and_parameterized_single_statement_sql(
@@ -168,6 +174,7 @@ def test_mysql_upsert_is_rejected_before_table_access(monkeypatch) -> None:
             update_values={"value": 1},
         )
 
+
 ###############################################################################
 def test_generated_ids_pagination_upsert_and_optimistic_concurrency(
     database: Path,
@@ -212,6 +219,7 @@ def test_generated_ids_pagination_upsert_and_optimistic_concurrency(
         increment_version=True,
     )
     assert conflict["affected_rows"] == 0
+
 
 ###############################################################################
 def test_bulk_create_rolls_back_entire_batch_on_constraint_failure(

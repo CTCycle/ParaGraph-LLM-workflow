@@ -13,9 +13,9 @@ from server.services.workflow.nodes import node_registry
 
 TEMPLATE_ROOT = common_path.RESOURCES_ROOT / "workflow_templates"
 
+
 ###############################################################################
 class WorkflowTemplateService:
-
     # -------------------------------------------------------------------------
     def __init__(self) -> None:
         TEMPLATE_ROOT.mkdir(parents=True, exist_ok=True)

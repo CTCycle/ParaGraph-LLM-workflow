@@ -13,9 +13,11 @@ _EXECUTION_CONTEXT_VAR: ContextVar[dict[str, str]] = ContextVar(
     },
 )
 
+
 ###############################################################################
 def get_execution_context() -> dict[str, str]:
     return dict(_EXECUTION_CONTEXT_VAR.get())
+
 
 ###############################################################################
 def set_execution_context(context: dict[str, str]) -> Token[dict[str, str]]:
@@ -26,6 +28,7 @@ def set_execution_context(context: dict[str, str]) -> Token[dict[str, str]]:
         "node_id": str(context.get("node_id") or ""),
     }
     return _EXECUTION_CONTEXT_VAR.set(normalized_context)
+
 
 ###############################################################################
 def reset_execution_context(token: Token[dict[str, str]]) -> None:

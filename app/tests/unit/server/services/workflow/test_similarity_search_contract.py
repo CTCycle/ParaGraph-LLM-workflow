@@ -12,6 +12,7 @@ from server.contracts.node_catalog import VectorStoreCapabilities
 from server.services.workflow import node_registry
 import server.services.workflow.node_handlers.core.embeddings as embeddings_module
 
+
 ###############################################################################
 def _read_parameter_options_from_doc(parameter_name: str) -> list[str]:
     doc_path = (
@@ -33,6 +34,7 @@ def _read_parameter_options_from_doc(parameter_name: str) -> list[str]:
         )
     return re.findall(r"`([^`]+)`", match.group(1))
 
+
 ###############################################################################
 def _manifest_parameter_options(parameter_name: str) -> list[str]:
     manifest_path = common_path.RESOURCES_ROOT / "nodes" / "similarity_search_v1.json"
@@ -41,6 +43,7 @@ def _manifest_parameter_options(parameter_name: str) -> list[str]:
         item for item in manifest["parameters"] if item["name"] == parameter_name
     )
     return [str(item) for item in parameter.get("constraints", {}).get("options", [])]
+
 
 ###############################################################################
 def test_similarity_contract_matrix_doc_matches_manifest_options() -> None:
@@ -53,6 +56,7 @@ def test_similarity_contract_matrix_doc_matches_manifest_options() -> None:
     assert _manifest_parameter_options(
         "similarity_strategy"
     ) == _read_parameter_options_from_doc("similarity_strategy")
+
 
 ###############################################################################
 def test_similarity_search_parameters_validate_search_engine_rules() -> None:
@@ -84,9 +88,9 @@ def test_similarity_search_parameters_validate_search_engine_rules() -> None:
             }
         )
 
+
 ###############################################################################
 class _FakeAdapter:
-
     # -------------------------------------------------------------------------
     def __init__(
         self,
@@ -149,6 +153,7 @@ class _FakeAdapter:
             }
         ]
 
+
 ###############################################################################
 def _valid_store_payload(*, backend: str, metric: str = "cosine") -> dict[str, Any]:
     return {
@@ -161,6 +166,7 @@ def _valid_store_payload(*, backend: str, metric: str = "cosine") -> dict[str, A
         "embedding_model": "text-embedding-3-small",
         "metadata": {},
     }
+
 
 ###############################################################################
 def test_similarity_search_executor_rejects_unsupported_backend_modes(
@@ -201,6 +207,7 @@ def test_similarity_search_executor_rejects_unsupported_backend_modes(
                 "store": _valid_store_payload(backend="chroma"),
             },
         )
+
 
 ###############################################################################
 def test_similarity_search_executor_validates_store_payload_and_uses_native_search_engine(

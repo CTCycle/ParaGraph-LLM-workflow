@@ -16,6 +16,7 @@ from server.repositories.workflow import (
 from server.services.workflow import node_registry, provider_service
 from server.services.workflow.chat_history import chat_history_service
 
+
 ###############################################################################
 def _model_handle() -> dict[str, Any]:
     return ProviderModelDefinition(
@@ -29,6 +30,7 @@ def _model_handle() -> dict[str, Any]:
         timeout_s=30.0,
     ).model_dump(mode="json")
 
+
 ###############################################################################
 def _history_context(
     *, workflow_id: str, session_id: str, run_id: str, node_id: str
@@ -39,6 +41,7 @@ def _history_context(
         "run_id": run_id,
         "node_id": node_id,
     }
+
 
 ###############################################################################
 def _build_history_handle(
@@ -55,6 +58,7 @@ def _build_history_handle(
         context=context,
     )
     return ChatHistoryHandle.model_validate(payload["history"])
+
 
 ###############################################################################
 def test_in_memory_history_reuses_same_session_and_isolates_different_sessions(
@@ -126,6 +130,7 @@ def test_in_memory_history_reuses_same_session_and_isolates_different_sessions(
     assert len(calls) == 3
     assert "user: hello" not in json.dumps(calls[2])
 
+
 ###############################################################################
 def test_in_memory_history_trims_max_messages_and_keeps_labels(
     monkeypatch: pytest.MonkeyPatch,
@@ -169,6 +174,7 @@ def test_in_memory_history_trims_max_messages_and_keeps_labels(
     assert messages[0].content == "second"
     assert messages[1].role == "assistant"
     assert messages[1].content == "fixed-reply"
+
 
 ###############################################################################
 def test_file_persisted_history_saves_reloads_and_trims(
@@ -221,6 +227,7 @@ def test_file_persisted_history_saves_reloads_and_trims(
     expected_file = root / "wf-file" / "file-session" / "history_file_node.json"
     assert expected_file.exists()
 
+
 ###############################################################################
 def test_database_persisted_history_saves_reloads_and_trims(
     monkeypatch: pytest.MonkeyPatch,
@@ -268,6 +275,7 @@ def test_database_persisted_history_saves_reloads_and_trims(
     assert messages[0].content == "second"
     assert messages[1].content == "db-reply"
 
+
 ###############################################################################
 def test_llm_structured_uses_history_and_serializes_assistant_payload(
     monkeypatch: pytest.MonkeyPatch,
@@ -312,6 +320,7 @@ def test_llm_structured_uses_history_and_serializes_assistant_payload(
         "wf-structured", "structured-session", "history_structured_node"
     )
     assert messages[-1].content == '{"value":7}'
+
 
 ###############################################################################
 def test_failed_llm_execution_does_not_append_history(
@@ -365,6 +374,7 @@ def test_failed_llm_execution_does_not_append_history(
     assert [item.model_dump(mode="json") for item in after_failure] == [
         item.model_dump(mode="json") for item in baseline
     ]
+
 
 ###############################################################################
 def test_chat_input_scopes_history_and_llm_does_not_append_execution_owned_history(
@@ -427,9 +437,13 @@ def test_chat_input_scopes_history_and_llm_does_not_append_execution_owned_histo
     )
 
     assert llm_payload["response"] == "reply"
-    assert in_memory_chat_history_repository.get_messages(
-        "wf-chat", "chat-session", "chat_node"
-    ) == []
+    assert (
+        in_memory_chat_history_repository.get_messages(
+            "wf-chat", "chat-session", "chat_node"
+        )
+        == []
+    )
+
 
 ###############################################################################
 def test_execution_owned_chat_result_appends_user_and_final_terminal_output() -> None:
@@ -458,6 +472,7 @@ def test_execution_owned_chat_result_appends_user_and_final_terminal_output() ->
         ("assistant", "final answer"),
     ]
 
+
 ###############################################################################
 def test_reset_clears_only_selected_chat_scope() -> None:
     first = ChatHistoryHandle(
@@ -471,14 +486,24 @@ def test_reset_clears_only_selected_chat_scope() -> None:
         execution_owned=True,
     )
     second = first.model_copy(update={"node_id": "chat-two"})
-    chat_history_service.append_chat_result(first, user_message="one", assistant_output="a")
-    chat_history_service.append_chat_result(second, user_message="two", assistant_output="b")
+    chat_history_service.append_chat_result(
+        first, user_message="one", assistant_output="a"
+    )
+    chat_history_service.append_chat_result(
+        second, user_message="two", assistant_output="b"
+    )
 
     chat_history_service.clear_messages(first)
 
-    assert in_memory_chat_history_repository.get_messages(
-        "wf-reset", "session-reset", "chat-one"
-    ) == []
-    assert [item.content for item in in_memory_chat_history_repository.get_messages(
-        "wf-reset", "session-reset", "chat-two"
-    )] == ["two", "b"]
+    assert (
+        in_memory_chat_history_repository.get_messages(
+            "wf-reset", "session-reset", "chat-one"
+        )
+        == []
+    )
+    assert [
+        item.content
+        for item in in_memory_chat_history_repository.get_messages(
+            "wf-reset", "session-reset", "chat-two"
+        )
+    ] == ["two", "b"]

@@ -10,9 +10,11 @@ ChatHistoryRole = Literal["system", "user", "assistant"]
 ChatHistoryStorageBackend = Literal["file", "database"]
 DEFAULT_CHAT_HISTORY_STORAGE_BACKEND: ChatHistoryStorageBackend = "file"
 
+
 ###############################################################################
 def utc_now() -> datetime:
     return datetime.now(timezone.utc)
+
 
 ###############################################################################
 class ChatHistoryMessage(BaseModel):
@@ -21,6 +23,7 @@ class ChatHistoryMessage(BaseModel):
     role: ChatHistoryRole
     content: str
     timestamp: datetime = Field(default_factory=utc_now)
+
 
 ###############################################################################
 class ChatHistoryHandle(BaseModel):
@@ -35,6 +38,7 @@ class ChatHistoryHandle(BaseModel):
     keep_prompt_type: bool
     storage_backend: ChatHistoryStorageBackend | None = None
     execution_owned: bool = False
+
 
 ###############################################################################
 class ChatHistoryResponse(BaseModel):

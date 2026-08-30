@@ -8,9 +8,11 @@ from bs4 import BeautifulSoup
 from docx import Document
 from pypdf import PdfReader
 
+
 ###############################################################################
 def resolve_local_path(path_value: str) -> Path:
     return Path(path_value).expanduser().resolve()
+
 
 ###############################################################################
 def _html_to_text(raw_html: str) -> str:
@@ -21,6 +23,7 @@ def _html_to_text(raw_html: str) -> str:
         part.strip() for part in soup.get_text("\n").splitlines() if part.strip()
     )
 
+
 ###############################################################################
 def _load_docx_text(path: Path) -> str:
     document = Document(str(path))
@@ -29,6 +32,7 @@ def _load_docx_text(path: Path) -> str:
         for paragraph in document.paragraphs
         if paragraph.text.strip()
     )
+
 
 ###############################################################################
 def load_docx_paragraphs(path: Path) -> list[dict[str, object]]:
@@ -39,6 +43,7 @@ def load_docx_paragraphs(path: Path) -> list[dict[str, object]]:
         if paragraph.text.strip()
     ]
 
+
 ###############################################################################
 def _load_pdf_text(path: Path) -> str:
     reader = PdfReader(str(path))
@@ -48,6 +53,7 @@ def _load_pdf_text(path: Path) -> str:
         if extracted:
             parts.append(extracted)
     return "\n\n".join(parts)
+
 
 ###############################################################################
 def load_pdf_pages(
@@ -61,12 +67,14 @@ def load_pdf_pages(
             pages.append({"page_number": index, "text": extracted})
     return pages
 
+
 ###############################################################################
 def _read_text_file(path: Path) -> str:
     try:
         return path.read_text(encoding="utf-8")
     except UnicodeDecodeError:
         return path.read_text(encoding="latin-1")
+
 
 ###############################################################################
 def load_file_text(path: Path) -> tuple[str, str]:

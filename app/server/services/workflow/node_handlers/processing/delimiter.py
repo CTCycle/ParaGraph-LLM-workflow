@@ -13,6 +13,7 @@ from server.services.workflow.node_handlers.processing.sources import (
     _resolve_max_chunk_size,
 )
 
+
 ###############################################################################
 def _by_delimiter_chunks_executor(
     parameters: dict[str, object], inputs: dict[str, object]

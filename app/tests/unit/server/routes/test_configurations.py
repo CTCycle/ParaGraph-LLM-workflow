@@ -13,6 +13,7 @@ from server.contracts.configuration import (
 )
 from server.services.configuration import configuration_service
 
+
 ###############################################################################
 def _payload(session_name: str = "default") -> AppConfigurationPayload:
     return AppConfigurationPayload(
@@ -31,6 +32,7 @@ def _payload(session_name: str = "default") -> AppConfigurationPayload:
             embedding_model="nomic-embed-text",
         ),
     )
+
 
 ###############################################################################
 def test_configurations_load_save_profile_and_ping_flows(
@@ -140,6 +142,7 @@ def test_configurations_load_save_profile_and_ping_flows(
     )
     assert provider_ping_response.status_code == 200
     assert provider_ping_response.json()["provider"] == "lmstudio"
+
 
 ###############################################################################
 def test_configuration_profile_errors_map_to_http(

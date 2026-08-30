@@ -4,6 +4,7 @@ import pytest
 
 from server.services.workflow import node_registry
 
+
 ###############################################################################
 def test_prompt_template_renders_jinja_variables() -> None:
     payload = node_registry.execute(
@@ -20,6 +21,7 @@ def test_prompt_template_renders_jinja_variables() -> None:
 
     assert payload["text"] == "Hello Alice from Rome."
 
+
 ###############################################################################
 def test_prompt_template_fails_when_jinja_variable_is_missing() -> None:
     with pytest.raises(ValueError, match="failed to render Jinja template"):
@@ -29,6 +31,7 @@ def test_prompt_template_fails_when_jinja_variable_is_missing() -> None:
             {"template": "A={{ known }} B={{ missing }}"},
             {"variables": {"known": "ok"}},
         )
+
 
 ###############################################################################
 def test_prompt_template_merges_multiple_input_maps() -> None:

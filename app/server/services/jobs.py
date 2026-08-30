@@ -10,6 +10,7 @@ from typing import Any
 
 from server.common.utils.logger import logger
 
+
 ###############################################################################
 @dataclass
 class JobState:
@@ -45,9 +46,9 @@ class JobState:
                 "completed_at": self.completed_at,
             }
 
+
 ###############################################################################
 class JobManager:
-
     # -------------------------------------------------------------------------
     def __init__(self) -> None:
         self._jobs: dict[str, JobState] = {}

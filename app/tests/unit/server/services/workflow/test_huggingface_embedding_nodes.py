@@ -7,6 +7,7 @@ import torch
 
 import server.services.workflow.node_handlers.core.embeddings as embeddings_module
 
+
 ###############################################################################
 def test_huggingface_embedding_uses_eos_token_when_tokenizer_has_no_pad_token(
     monkeypatch,
@@ -34,7 +35,6 @@ def test_huggingface_embedding_uses_eos_token_when_tokenizer_has_no_pad_token(
 
     ###############################################################################
     class FakeAutoTokenizer:
-
         # -------------------------------------------------------------------------
         @staticmethod
         def from_pretrained(model_name: str, token: str | None = None):
@@ -55,7 +55,6 @@ def test_huggingface_embedding_uses_eos_token_when_tokenizer_has_no_pad_token(
 
     ###############################################################################
     class FakeAutoModel:
-
         # -------------------------------------------------------------------------
         @staticmethod
         def from_pretrained(model_name: str, token: str | None = None):
@@ -83,6 +82,7 @@ def test_huggingface_embedding_uses_eos_token_when_tokenizer_has_no_pad_token(
     assert len(vector) == 2
     assert sum(item * item for item in vector) == pytest.approx(1.0, abs=1e-6)
 
+
 ###############################################################################
 def test_huggingface_embedding_can_use_explicit_tokenizer_repo(monkeypatch) -> None:
     embeddings_module._HF_EMBEDDING_CACHE.clear()  # noqa: SLF001
@@ -103,7 +103,6 @@ def test_huggingface_embedding_can_use_explicit_tokenizer_repo(monkeypatch) -> N
 
     ###############################################################################
     class FakeAutoTokenizer:
-
         # -------------------------------------------------------------------------
         @staticmethod
         def from_pretrained(model_name: str, token: str | None = None):
@@ -122,7 +121,6 @@ def test_huggingface_embedding_can_use_explicit_tokenizer_repo(monkeypatch) -> N
 
     ###############################################################################
     class FakeAutoModel:
-
         # -------------------------------------------------------------------------
         @staticmethod
         def from_pretrained(model_name: str, token: str | None = None):

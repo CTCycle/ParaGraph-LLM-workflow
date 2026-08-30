@@ -18,10 +18,12 @@ from server.services.workflow.workflow import WorkflowCompilationError
 
 router = APIRouter(prefix="/workflows", tags=["workflows"])
 
+
 ###############################################################################
 @router.get("", response_model=WorkflowListResponse)
 def list_workflows() -> WorkflowListResponse:
     return workflow_service.list_workflows()
+
 
 ###############################################################################
 @router.post("", response_model=WorkflowDocument, status_code=status.HTTP_201_CREATED)
@@ -33,9 +35,12 @@ def create_workflow(request: CreateWorkflowRequest) -> WorkflowDocument:
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail={
                 "message": str(exc),
-                "diagnostics": [item.model_dump(mode="json") for item in exc.diagnostics],
+                "diagnostics": [
+                    item.model_dump(mode="json") for item in exc.diagnostics
+                ],
             },
         ) from exc
+
 
 ###############################################################################
 @router.get("/templates", response_model=WorkflowTemplateListResponse)
@@ -47,6 +52,7 @@ def list_workflow_templates() -> WorkflowTemplateListResponse:
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)
         ) from exc
 
+
 ###############################################################################
 @router.get("/{workflow_id}", response_model=WorkflowDocument)
 def get_workflow(workflow_id: str) -> WorkflowDocument:
@@ -57,6 +63,7 @@ def get_workflow(workflow_id: str) -> WorkflowDocument:
             detail=f"Workflow not found: {workflow_id}",
         )
     return payload
+
 
 ###############################################################################
 @router.put("/{workflow_id}", response_model=WorkflowDocument)
@@ -70,7 +77,9 @@ def update_workflow(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail={
                 "message": str(exc),
-                "diagnostics": [item.model_dump(mode="json") for item in exc.diagnostics],
+                "diagnostics": [
+                    item.model_dump(mode="json") for item in exc.diagnostics
+                ],
             },
         ) from exc
     if payload is None:

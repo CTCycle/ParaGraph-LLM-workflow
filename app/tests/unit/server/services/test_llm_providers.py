@@ -6,9 +6,9 @@ import httpx
 
 from server.services.llm.providers import CloudLLMClient, OpenAICompatibleLocalClient
 
+
 ###############################################################################
 class _FakeResponse:
-
     # -------------------------------------------------------------------------
     def __init__(self, payload: dict[str, Any]) -> None:
         self._payload = payload
@@ -19,6 +19,7 @@ class _FakeResponse:
     # -------------------------------------------------------------------------
     def json(self) -> dict[str, Any]:
         return self._payload
+
 
 ###############################################################################
 def _mock_openai_post(
@@ -42,6 +43,7 @@ def _mock_openai_post(
 
     return _post
 
+
 ###############################################################################
 def _mock_request(captured: list[dict[str, Any]], payload: dict[str, Any]):
     def _request(
@@ -64,6 +66,7 @@ def _mock_request(captured: list[dict[str, Any]], payload: dict[str, Any]):
 
     return _request
 
+
 ###############################################################################
 def test_openai_gpt5_uses_max_completion_tokens(monkeypatch) -> None:
     captured: list[dict[str, Any]] = []
@@ -83,6 +86,7 @@ def test_openai_gpt5_uses_max_completion_tokens(monkeypatch) -> None:
     assert payload["max_completion_tokens"] == 128
     assert "max_tokens" not in payload
 
+
 ###############################################################################
 def test_openai_non_gpt5_uses_max_tokens(monkeypatch) -> None:
     captured: list[dict[str, Any]] = []
@@ -101,6 +105,7 @@ def test_openai_non_gpt5_uses_max_tokens(monkeypatch) -> None:
     payload = captured[0]["json"]
     assert payload["max_tokens"] == 128
     assert "max_completion_tokens" not in payload
+
 
 ###############################################################################
 def test_deepseek_chat_uses_openai_compatible_payload(monkeypatch) -> None:
@@ -124,6 +129,7 @@ def test_deepseek_chat_uses_openai_compatible_payload(monkeypatch) -> None:
     assert payload["response_format"] == {"type": "json_object"}
     assert payload["thinking"] == {"type": "enabled"}
     assert payload["reasoning_effort"] == "high"
+
 
 ###############################################################################
 def test_local_openai_compatible_client_lists_models_and_chats(monkeypatch) -> None:

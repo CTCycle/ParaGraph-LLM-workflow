@@ -23,6 +23,7 @@ from server.services.workflow.vector_stores.base import (
 )
 from server.services.workflow.vector_stores import base as vector_store_base
 
+
 ###############################################################################
 def _point(point_id: str, document_id: str, vector: list[float]) -> dict[str, object]:
     return {
@@ -38,6 +39,7 @@ def _point(point_id: str, document_id: str, vector: list[float]) -> dict[str, ob
         "normalized": False,
         "metadata": {"kind": "test"},
     }
+
 
 ###############################################################################
 def test_pinecone_map_filter_uses_operator_keys() -> None:
@@ -59,6 +61,7 @@ def test_pinecone_map_filter_uses_operator_keys() -> None:
     assert {"metadata.rank": {"$gte": 2}} in mapped["$and"]
     assert mapped["$or"] == [{"metadata.lang": {"$in": ["en", "it"]}}]
     assert mapped["$nor"] == [{"metadata.tenant": {"$eq": "blocked"}}]
+
 
 ###############################################################################
 def test_qdrant_search_rejects_hybrid_mode() -> None:
@@ -82,6 +85,7 @@ def test_qdrant_search_rejects_hybrid_mode() -> None:
     else:
         raise AssertionError("Expected VectorStoreError")
 
+
 ###############################################################################
 def test_weaviate_validate_connection_invokes_collection_exists(monkeypatch) -> None:
     adapter = WeaviateVectorStoreAdapter()
@@ -89,7 +93,6 @@ def test_weaviate_validate_connection_invokes_collection_exists(monkeypatch) -> 
 
     ###############################################################################
     class FakeCollections:
-
         # -------------------------------------------------------------------------
         def exists(self, name: str) -> bool:
             calls["collection"] = name
@@ -112,6 +115,7 @@ def test_weaviate_validate_connection_invokes_collection_exists(monkeypatch) -> 
     assert calls["collection"] == "docs"
     assert calls["closed"] is True
 
+
 ###############################################################################
 def test_milvus_filter_expression_combines_groups() -> None:
     adapter = MilvusVectorStoreAdapter()
@@ -131,6 +135,7 @@ def test_milvus_filter_expression_combines_groups() -> None:
     assert 'source_uri == "a"' in expression
     assert 'source_uri == "b"' in expression
 
+
 ###############################################################################
 @pytest.mark.parametrize("provider", ["lancedb", "chroma", "faiss"])
 def test_vector_store_parameters_require_storage_path_for_local_providers(
@@ -146,6 +151,7 @@ def test_vector_store_parameters_require_storage_path_for_local_providers(
             }
         )
 
+
 ###############################################################################
 def test_faiss_validate_connection_rejects_relative_storage_path() -> None:
     adapter = get_vector_store_adapter("faiss")
@@ -157,6 +163,7 @@ def test_faiss_validate_connection_rejects_relative_storage_path() -> None:
             index_name="docs", storage_directory="vectorstores/docs"
         )
 
+
 ###############################################################################
 def test_faiss_validate_connection_accepts_absolute_storage_path(
     tmp_path: Path,
@@ -164,6 +171,7 @@ def test_faiss_validate_connection_accepts_absolute_storage_path(
     adapter = get_vector_store_adapter("faiss")
 
     adapter.validate_connection(index_name="docs", storage_directory=str(tmp_path))
+
 
 ###############################################################################
 @pytest.mark.parametrize("provider", ["qdrant", "pinecone", "weaviate", "milvus"])
@@ -179,6 +187,7 @@ def test_vector_store_parameters_require_endpoint_for_remote_providers(
                 "endpoint_url": "",
             }
         )
+
 
 ###############################################################################
 @pytest.mark.parametrize(
@@ -201,10 +210,15 @@ def test_vector_store_capabilities_matrix(
     assert capabilities.backend == backend
     assert capabilities.supports_metadata_filtering is True
     assert capabilities.supported_search_modes == ["vector"]
-    assert ("faiss_augmented" in capabilities.supported_search_engines) is supports_faiss_augmented
+    assert (
+        "faiss_augmented" in capabilities.supported_search_engines
+    ) is supports_faiss_augmented
+
 
 ###############################################################################
-def test_vector_capabilities_fail_closed_for_unsupported_filters_and_namespaces() -> None:
+def test_vector_capabilities_fail_closed_for_unsupported_filters_and_namespaces() -> (
+    None
+):
     pinecone = get_vector_store_adapter("pinecone")
 
     with pytest.raises(VectorStoreError, match="minimum_should_match"):
@@ -223,12 +237,14 @@ def test_vector_capabilities_fail_closed_for_unsupported_filters_and_namespaces(
             index_name="docs", namespace="tenant-a", endpoint_url="https://qdrant"
         )
 
+
 ###############################################################################
 def test_score_contract_is_explicit_for_distance_and_dot_metrics() -> None:
     assert _score_from_metric("cosine", -1.0, raw_semantics="cosine_similarity") == 0.0
     assert _score_from_metric("cosine", 0.25, raw_semantics="distance") == 0.75
     assert _score_from_metric("l2", 3.0, raw_semantics="distance") == 0.25
     assert _score_from_metric("dot", 3.0, raw_semantics="similarity") == 3.0
+
 
 ###############################################################################
 def test_faiss_lifecycle_is_owned_reloadable_and_explicit(tmp_path: Path) -> None:
@@ -253,6 +269,7 @@ def test_faiss_lifecycle_is_owned_reloadable_and_explicit(tmp_path: Path) -> Non
     assert adapter.reload(store=store).metadata["count"] == 1
     removed = adapter.delete_collection(store=store)
     assert removed.affected_ids == ["three"]
+
 
 ###############################################################################
 def test_faiss_search_returns_explicit_score_semantics(tmp_path: Path) -> None:
@@ -282,6 +299,7 @@ def test_faiss_search_returns_explicit_score_semantics(tmp_path: Path) -> None:
     assert hits[0].id == "one"
     assert hits[0].score == 1.0
     assert hits[0].score_semantics == "normalized_similarity"
+
 
 ###############################################################################
 def test_faiss_duplicate_and_compatibility_policies_are_stable(tmp_path: Path) -> None:
@@ -322,6 +340,7 @@ def test_faiss_duplicate_and_compatibility_policies_are_stable(tmp_path: Path) -
         )
     assert adapter.reload(store=store).metadata["count"] == 1
 
+
 ###############################################################################
 def test_faiss_failed_atomic_write_preserves_last_good_store(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -354,6 +373,7 @@ def test_faiss_failed_atomic_write_preserves_last_good_store(
 
     assert adapter.reload(store=store).metadata["count"] == 1
     assert not list(tmp_path.glob(".docs.tmp-*"))
+
 
 ###############################################################################
 def test_runtime_vector_secret_handles_are_redacted_and_disposable() -> None:

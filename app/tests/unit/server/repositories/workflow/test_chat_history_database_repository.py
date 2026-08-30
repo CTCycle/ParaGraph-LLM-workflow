@@ -10,15 +10,16 @@ from server.repositories.database.sqlite import SQLiteRepository
 from server.repositories.schemas import Base
 from server.repositories.workflow import chat_history_database as chat_history_module
 
+
 ###############################################################################
 class InMemorySQLiteRepository(SQLiteRepository):
-
     # -------------------------------------------------------------------------
     def __init__(self) -> None:
         engine = sqlalchemy.create_engine("sqlite:///:memory:", future=True)
         super().__init__(
             SQLiteSettings(insert_batch_size=2), engine=engine, db_path=None
         )
+
 
 ###############################################################################
 def test_database_chat_history_repository_accepts_injected_sqlite_repository() -> None:

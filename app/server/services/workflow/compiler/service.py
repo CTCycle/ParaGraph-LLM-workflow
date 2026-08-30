@@ -26,10 +26,12 @@ MODEL_NODE_TYPES = {"LLM_CHAT", "LLM_STRUCTURED"}
 STRUCTURED_NODE_TYPES = {"LLM_STRUCTURED"}
 CHAT_NODE_TYPES = {"CHAT_INPUT"}
 
+
 ###############################################################################
 def _resolve_provider(parameters: dict[str, object], default: str = "ollama") -> str:
     provider = str(parameters.get("provider", default)).strip().lower()
     return provider or default
+
 
 ###############################################################################
 def _binding_sort_key(connection: WorkflowConnection) -> tuple[str, str, str]:
@@ -37,9 +39,9 @@ def _binding_sort_key(connection: WorkflowConnection) -> tuple[str, str, str]:
     source_name = connection.from_output or connection.from_controller or ""
     return (target_name, connection.from_node, source_name)
 
+
 ###############################################################################
 class CompilerService:
-
     # -------------------------------------------------------------------------
     def _active_definition(
         self, definition: WorkflowDefinition
@@ -203,7 +205,9 @@ class CompilerService:
 
             reachable_terminals = sorted(reachable.intersection(terminal_node_ids))
             if len(reachable_terminals) != 1:
-                count_label = "none" if not reachable_terminals else str(len(reachable_terminals))
+                count_label = (
+                    "none" if not reachable_terminals else str(len(reachable_terminals))
+                )
                 diagnostics.append(
                     CompilerDiagnostic(
                         code="chat_terminal_output_count",
@@ -698,9 +702,9 @@ class CompilerService:
                         filter_spec = parameters.get("metadata_filter")
                         if not isinstance(filter_spec, dict):
                             filter_spec = None
-                        keyword_query = str(
-                            parameters.get("keyword_query") or ""
-                        ).strip() or None
+                        keyword_query = (
+                            str(parameters.get("keyword_query") or "").strip() or None
+                        )
                         try:
                             capabilities = get_vector_store_adapter(
                                 backend
@@ -879,9 +883,7 @@ class CompilerService:
                 diagnostics.append(
                     CompilerDiagnostic(
                         code=code,
-                        level="error"
-                        if manifest.runtime.side_effecting
-                        else "warning",
+                        level="error" if manifest.runtime.side_effecting else "warning",
                         message=f"Node '{node.node_id}' is disconnected",
                         node_id=node.node_id,
                     )

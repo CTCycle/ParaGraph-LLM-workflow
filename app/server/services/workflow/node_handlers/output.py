@@ -4,12 +4,14 @@ from typing import Any
 
 from server.services.workflow.nodes.handler import NodeHandler
 
+
 ###############################################################################
 def _text_output_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
 ) -> dict[str, Any]:
     _ = parameters, inputs
     return {}
+
 
 ###############################################################################
 def _json_output_executor(

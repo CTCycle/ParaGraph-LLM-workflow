@@ -12,6 +12,7 @@ from server.services.workflow.nodes.execution_context import (
     get_execution_context,
 )
 
+
 ###############################################################################
 def _resolve_context_identifiers() -> tuple[str, str]:
     context = get_execution_context()
@@ -24,6 +25,7 @@ def _resolve_context_identifiers() -> tuple[str, str]:
             "CHAT_HISTORY nodes require an execution_session_id in execution context"
         )
     return workflow_id, execution_session_id
+
 
 ###############################################################################
 def execute_chat_history_memory(
@@ -44,6 +46,7 @@ def execute_chat_history_memory(
         storage_backend=None,
     )
     return {"history": handle.model_dump(mode="json")}
+
 
 ###############################################################################
 def execute_chat_history_persisted(
@@ -70,6 +73,7 @@ def execute_chat_history_persisted(
         storage_backend=backend,
     )
     return {"history": handle.model_dump(mode="json")}
+
 
 ###############################################################################
 def execute_chat_input(

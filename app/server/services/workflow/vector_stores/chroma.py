@@ -26,6 +26,7 @@ from server.services.workflow.vector_stores.base import (
     _store_attr,
 )
 
+
 ###############################################################################
 class ChromaVectorStoreAdapter(VectorStoreAdapter):
     backend = "chroma"
@@ -393,7 +394,9 @@ class ChromaVectorStoreAdapter(VectorStoreAdapter):
         self, *, store: VectorStoreHandle | dict[str, Any], document_id: str, **_: Any
     ) -> VectorMutationResult:
         _, collection = self._collection(store)
-        affected = list(collection.get(where={"document_id": document_id}).get("ids") or [])
+        affected = list(
+            collection.get(where={"document_id": document_id}).get("ids") or []
+        )
         collection.delete(where={"document_id": document_id})
         return VectorMutationResult(
             operation="delete_document",

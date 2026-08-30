@@ -12,6 +12,7 @@ from server.services.workflow.node_handlers.ingestion import (
     database_connections as database_connections_module,
 )
 
+
 ###############################################################################
 def test_load_documents_emits_loaded_records_with_text(
     tmp_path: Path,
@@ -38,6 +39,7 @@ def test_load_documents_emits_loaded_records_with_text(
         document["metadata"]["deferred_load"] is False
         for document in payload["documents"]
     )
+
 
 ###############################################################################
 def test_load_documents_respects_recursive_toggle(tmp_path: Path) -> None:
@@ -67,6 +69,7 @@ def test_load_documents_respects_recursive_toggle(tmp_path: Path) -> None:
         Path(document["source_uri"]).name for document in recursive["documents"]
     ) == ["child.txt", "root.txt"]
 
+
 ###############################################################################
 def test_load_documents_rejects_non_canonical_folder_path_keys(tmp_path: Path) -> None:
     source_dir = tmp_path / "source-folder"
@@ -90,6 +93,7 @@ def test_load_documents_rejects_non_canonical_folder_path_keys(tmp_path: Path) -
                 "Expected LOAD_DOCUMENTS to reject non-canonical folder path keys"
             )
 
+
 ###############################################################################
 def test_load_documents_skips_unsupported_doc_extension(tmp_path: Path) -> None:
     source_dir = tmp_path / "docs"
@@ -104,6 +108,7 @@ def test_load_documents_skips_unsupported_doc_extension(tmp_path: Path) -> None:
     )
 
     assert payload["documents"] == []
+
 
 ###############################################################################
 def test_sql_file_database_node_roundtrip(tmp_path: Path) -> None:
@@ -140,6 +145,7 @@ def test_sql_file_database_node_roundtrip(tmp_path: Path) -> None:
     assert connection_payload["connection"]["file_path"] == str(database_path.resolve())
     assert connection_payload["connection"]["read_only"] is False
     assert connection_payload["connection"]["database_name"] == "file_dataset"
+
 
 ###############################################################################
 def test_sql_database_requires_required_fields_before_connect_attempt() -> None:

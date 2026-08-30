@@ -9,6 +9,7 @@ from transformers import AutoTokenizer
 from server.common.utils.values import coerce_text
 from server.contracts.node_handler_core import TokenizerParameters
 
+
 ###############################################################################
 @lru_cache(maxsize=32)
 def _load_tokenizer(tokenizer_name: str, revision: str, use_fast: bool) -> Any:
@@ -16,6 +17,7 @@ def _load_tokenizer(tokenizer_name: str, revision: str, use_fast: bool) -> Any:
     if revision:
         kwargs["revision"] = revision
     return AutoTokenizer.from_pretrained(tokenizer_name, **kwargs)
+
 
 ###############################################################################
 def _payload_text(payload: Any) -> str:
@@ -26,6 +28,7 @@ def _payload_text(payload: Any) -> str:
                 return coerce_text(value)
     return coerce_text(payload)
 
+
 ###############################################################################
 def _payload_id(payload: Any, fallback: str) -> str:
     if isinstance(payload, dict):
@@ -34,6 +37,7 @@ def _payload_id(payload: Any, fallback: str) -> str:
             if value:
                 return value
     return fallback
+
 
 ###############################################################################
 def _collect_tokenizer_inputs(inputs: dict[str, Any]) -> list[dict[str, Any]]:
@@ -67,6 +71,7 @@ def _collect_tokenizer_inputs(inputs: dict[str, Any]) -> list[dict[str, Any]]:
                 }
             )
     return [record for record in records if record["text"].strip()]
+
 
 ###############################################################################
 def _tokenize_executor(
@@ -115,5 +120,6 @@ def _tokenize_executor(
     if parsed.output_format == "string":
         return {"serialized": json.dumps(structured, ensure_ascii=False)}
     return {"tokenized": structured}
+
 
 __all__ = ["_tokenize_executor"]

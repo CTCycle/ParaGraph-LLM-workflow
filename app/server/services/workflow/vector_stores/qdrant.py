@@ -27,6 +27,7 @@ from server.services.workflow.vector_stores.base import (
     validate_vector_request_capabilities,
 )
 
+
 ###############################################################################
 class QdrantVectorStoreAdapter(VectorStoreAdapter):
     backend = "qdrant"
@@ -314,9 +315,7 @@ class QdrantVectorStoreAdapter(VectorStoreAdapter):
                 "l2": "distance",
                 "dot": "similarity",
             }.get(_coerce_metric(metric), "similarity")
-            score = _score_from_metric(
-                metric, raw_score, raw_semantics=raw_semantics
-            )
+            score = _score_from_metric(metric, raw_score, raw_semantics=raw_semantics)
             if score < score_threshold:
                 continue
             results.append(

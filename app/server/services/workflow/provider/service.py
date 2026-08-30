@@ -42,11 +42,14 @@ from server.services.workflow.provider.helpers import (
     _model_basename,
     _normalize_provider,
 )
-from server.services.workflow.provider.huggingface_catalog import HuggingFaceCatalogMixin
+from server.services.workflow.provider.huggingface_catalog import (
+    HuggingFaceCatalogMixin,
+)
 from server.services.workflow.provider.huggingface_downloads import (
     HuggingFaceDownloadMixin,
 )
 from server.services.workflow.provider.ollama import OllamaLibraryCatalogMixin
+
 
 ###############################################################################
 class ProviderService(
@@ -54,7 +57,6 @@ class ProviderService(
     HuggingFaceCatalogMixin,
     HuggingFaceDownloadMixin,
 ):
-
     # -------------------------------------------------------------------------
     def __init__(self) -> None:
         self._cache_lock = Lock()
@@ -685,7 +687,9 @@ class ProviderService(
                     dimensions=dimensions,
                 )
             else:
-                raise ValueError(f"Unsupported embedding provider: {normalized_provider}")
+                raise ValueError(
+                    f"Unsupported embedding provider: {normalized_provider}"
+                )
         except httpx.HTTPError as exc:
             raise ValueError(
                 f"{normalized_provider} embeddings request failed: {exc}"

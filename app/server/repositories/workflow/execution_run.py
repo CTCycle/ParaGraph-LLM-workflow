@@ -22,14 +22,13 @@ from server.repositories.schemas import (
     ExecutionStepRecord,
 )
 
+
 ###############################################################################
 class ExecutionRunRepository:
     """Durable execution state backed by the application database."""
 
     # -------------------------------------------------------------------------
-    def __init__(
-        self, database_repository: SQLiteRepository | None = None
-    ) -> None:
+    def __init__(self, database_repository: SQLiteRepository | None = None) -> None:
         self._database_repository = database_repository
         self._cached_engine = None
         self._engine_lock = threading.Lock()
