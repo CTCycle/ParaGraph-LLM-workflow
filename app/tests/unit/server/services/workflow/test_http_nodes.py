@@ -7,17 +7,24 @@ import httpx
 import pytest
 
 from server.contracts.node_handler_http import HttpRequestParameters
-from server.services.workflow.http_transport import HttpTransportError, SecureHttpTransport
+from server.services.workflow.http_transport import (
+    HttpTransportError,
+    SecureHttpTransport,
+)
 from server.common import path as common_path
 from server.services.workflow import node_registry
 from server.services.workflow.node_handlers import http as http_nodes_module
+
 
 ###############################################################################
 def PUBLIC_RESOLVER(host: str, port: int) -> list[str]:
     return ["93.184.216.34"]
 
+
 ###############################################################################
-def _execute(handler, *, parameters=None, sleep=lambda delay: None, cancelled=lambda: False):
+def _execute(
+    handler, *, parameters=None, sleep=lambda delay: None, cancelled=lambda: False
+):
     parsed = HttpRequestParameters.model_validate(
         {"url": "https://example.test/resource", **(parameters or {})}
     )
@@ -29,8 +36,11 @@ def _execute(handler, *, parameters=None, sleep=lambda delay: None, cancelled=la
         cancelled=cancelled,
     ).execute(parsed, {})
 
+
 ###############################################################################
-@pytest.mark.parametrize("method", ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"])
+@pytest.mark.parametrize(
+    "method", ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"]
+)
 def test_all_supported_methods_use_shared_transport(method: str) -> None:
     seen: list[str] = []
 
@@ -43,6 +53,7 @@ def test_all_supported_methods_use_shared_transport(method: str) -> None:
         parameters["idempotency_key"] = "stable"
     assert _execute(handler, parameters=parameters)["json"] == {"method": method}
     assert seen == [method]
+
 
 ###############################################################################
 @pytest.mark.parametrize(
@@ -70,6 +81,7 @@ def test_request_body_modes(body_mode, parameters, expected: bytes) -> None:
         },
     )
 
+
 ###############################################################################
 def test_binary_invalid_json_and_size_limit() -> None:
     result = _execute(
@@ -90,8 +102,11 @@ def test_binary_invalid_json_and_size_limit() -> None:
         )
     assert too_large.value.code == "response_too_large"
 
+
 ###############################################################################
-def test_file_response_commits_only_an_accepted_response(tmp_path: Path, monkeypatch) -> None:
+def test_file_response_commits_only_an_accepted_response(
+    tmp_path: Path, monkeypatch
+) -> None:
     monkeypatch.setattr(common_path, "ARTIFACT_ROOT", tmp_path)
     destination = tmp_path / "response.bin"
     destination.write_bytes(b"last-good")
@@ -117,6 +132,7 @@ def test_file_response_commits_only_an_accepted_response(tmp_path: Path, monkeyp
     assert result["download_path"] == str(destination)
     assert destination.read_bytes() == b"accepted-response"
     assert not list(tmp_path.glob("*.partial-*"))
+
 
 ###############################################################################
 def test_retry_after_and_idempotency_key_retention() -> None:
@@ -148,12 +164,12 @@ def test_retry_after_and_idempotency_key_retention() -> None:
     assert calls == ["one-key", "one-key", "one-key"]
     assert delays[0] == 1 and 0 <= delays[1] <= 2
 
+
 ###############################################################################
 def test_unsafe_retry_requires_explicit_contract() -> None:
     with pytest.raises(ValueError, match="unsafe HTTP retries"):
-        HttpRequestParameters(
-            url="https://example.test", method="POST", max_attempts=2
-        )
+        HttpRequestParameters(url="https://example.test", method="POST", max_attempts=2)
+
 
 ###############################################################################
 def test_redirect_revalidation_and_loop_limit() -> None:
@@ -169,6 +185,7 @@ def test_redirect_revalidation_and_loop_limit() -> None:
     assert limited.value.code == "redirect_limit"
     assert calls == 2
 
+
 ###############################################################################
 @pytest.mark.parametrize(
     "address",
@@ -179,6 +196,7 @@ def test_ssrf_blocks_private_metadata_and_mapped_addresses(address: str) -> None
     with pytest.raises(HttpTransportError) as blocked:
         transport.execute(HttpRequestParameters(url="http://target.test"), {})
     assert blocked.value.code == "ssrf_blocked"
+
 
 ###############################################################################
 def test_credential_url_dns_rebinding_and_cancellation() -> None:
@@ -215,7 +233,6 @@ def test_method_specific_http_nodes_share_the_transport_executor(
 
     ###############################################################################
     class FakeTransport:
-
         # -------------------------------------------------------------------------
         def execute(self, parameters, inputs):
             seen.append(parameters.method)

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from server.services.workflow import node_registry
 
+
 ###############################################################################
 def _results_payload() -> dict[str, object]:
     return {
@@ -37,6 +38,7 @@ def _results_payload() -> dict[str, object]:
         ],
     }
 
+
 ###############################################################################
 def _execute(
     parameters: dict[str, object], *, query: str | None = None
@@ -46,6 +48,7 @@ def _execute(
         inputs["query"] = query
     return node_registry.execute("RERANK_RESULTS", 1, parameters, inputs)
 
+
 ###############################################################################
 def test_rerank_strategy_original_score_preserves_order_by_score() -> None:
     payload = _execute(
@@ -53,6 +56,7 @@ def test_rerank_strategy_original_score_preserves_order_by_score() -> None:
     )
     hits = payload["results"]["hits"]
     assert [hit["id"] for hit in hits] == ["b", "c", "a"]
+
 
 ###############################################################################
 def test_rerank_strategy_term_overlap() -> None:
@@ -62,6 +66,7 @@ def test_rerank_strategy_term_overlap() -> None:
     hits = payload["results"]["hits"]
     assert [hit["id"] for hit in hits] == ["c", "b", "a"]
 
+
 ###############################################################################
 def test_rerank_strategy_exact_phrase() -> None:
     payload = _execute(
@@ -70,6 +75,7 @@ def test_rerank_strategy_exact_phrase() -> None:
     hits = payload["results"]["hits"]
     assert hits[0]["id"] == "c"
     assert hits[0]["score"] == 1.0
+
 
 ###############################################################################
 def test_rerank_strategy_metadata_match() -> None:
@@ -84,6 +90,7 @@ def test_rerank_strategy_metadata_match() -> None:
     )
     hits = payload["results"]["hits"]
     assert [hit["id"] for hit in hits[:2]] == ["a", "c"]
+
 
 ###############################################################################
 def test_rerank_strategy_weighted_composite() -> None:
@@ -103,6 +110,7 @@ def test_rerank_strategy_weighted_composite() -> None:
     hits = payload["results"]["hits"]
     assert hits[0]["id"] == "c"
 
+
 ###############################################################################
 def test_rerank_score_mode_replace_vs_boost() -> None:
     replace_payload = _execute(
@@ -121,6 +129,7 @@ def test_rerank_score_mode_replace_vs_boost() -> None:
     assert boost_scores["b"] > replace_scores["b"]
     assert boost_scores["c"] > replace_scores["c"]
 
+
 ###############################################################################
 def test_rerank_metadata_match_uses_exact_case_insensitive_equality() -> None:
     payload = _execute(
@@ -136,6 +145,7 @@ def test_rerank_metadata_match_uses_exact_case_insensitive_equality() -> None:
     assert [hit["id"] for hit in hits[:2]] == ["a", "b"]
     assert hits[2]["id"] == "c"
 
+
 ###############################################################################
 def test_rerank_preserves_stable_order_on_exact_ties() -> None:
     payload = _execute(
@@ -150,6 +160,7 @@ def test_rerank_preserves_stable_order_on_exact_ties() -> None:
     hits = payload["results"]["hits"]
     assert [hit["id"] for hit in hits] == ["a", "b", "c"]
 
+
 ###############################################################################
 def test_rerank_uses_results_query_when_query_input_is_missing() -> None:
     payload = _execute(
@@ -158,6 +169,7 @@ def test_rerank_uses_results_query_when_query_input_is_missing() -> None:
     hits = payload["results"]["hits"]
     assert hits[0]["id"] == "c"
     assert payload["results"]["query"] == "fast api workflow"
+
 
 ###############################################################################
 def test_rerank_top_k_zero_and_bounded_truncation() -> None:

@@ -13,9 +13,9 @@ from server.configurations.settings import (
     get_sqlite_settings_from_env,
 )
 
+
 ###############################################################################
 class RuntimeConfigurationManager:
-
     # -------------------------------------------------------------------------
     def __init__(
         self, configuration_file: str | Path = common_path.CONFIGURATION_FILE

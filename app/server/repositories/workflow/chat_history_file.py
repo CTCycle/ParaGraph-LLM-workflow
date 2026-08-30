@@ -7,6 +7,7 @@ from pathlib import Path
 from server.common import path as common_path
 from server.contracts.chat_history import ChatHistoryMessage
 
+
 ###############################################################################
 def _safe_segment(value: str) -> str:
     normalized = "".join(
@@ -14,9 +15,9 @@ def _safe_segment(value: str) -> str:
     )
     return normalized or "default"
 
+
 ###############################################################################
 class FileChatHistoryRepository:
-
     # -------------------------------------------------------------------------
     def __init__(self) -> None:
         self._default_root = common_path.RESOURCES_ROOT / "chat_history"

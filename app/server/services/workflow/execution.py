@@ -30,6 +30,7 @@ from server.common.utils.values import (
     validate_json_against_schema,
 )
 
+
 ###############################################################################
 class ExecutionService:
     SKIP_SENTINEL = "__paragraph_skip__"

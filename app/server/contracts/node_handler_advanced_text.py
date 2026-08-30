@@ -4,6 +4,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+
 ###############################################################################
 class AdvancedTextParameters(BaseModel):
     patterns: list[str] = Field(default_factory=list)

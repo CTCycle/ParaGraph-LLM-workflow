@@ -8,6 +8,7 @@ from typing import Any
 from server.contracts.execution import ExecutionEventEnvelope, EventHistoryResponse
 from server.repositories.workflow.execution_run import execution_run_repository
 
+
 ###############################################################################
 class EventService:
     """Durable history with process-local live subscriber queues."""

@@ -6,9 +6,9 @@ from pathlib import Path
 from server.common import path as common_path
 from server.contracts.node_catalog import NodeManifest
 
+
 ###############################################################################
 class NodeManifestRepository:
-
     # -------------------------------------------------------------------------
     def __init__(self, root: Path | None = None) -> None:
         self._default_root = common_path.RESOURCES_ROOT / "nodes"

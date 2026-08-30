@@ -33,18 +33,18 @@ SENSITIVE_HEADERS = {
 REDIRECT_STATUSES = {301, 302, 303, 307, 308}
 RETRYABLE_METHODS = {"GET", "PUT", "DELETE", "HEAD", "OPTIONS"}
 
+
 ###############################################################################
 class HttpTransportError(ValueError):
-
     # -------------------------------------------------------------------------
     def __init__(self, code: str, message: str, **details: Any) -> None:
         self.code = code
         self.details = details
         super().__init__(message)
 
+
 ###############################################################################
 class SecureHttpTransport:
-
     # -------------------------------------------------------------------------
     def __init__(
         self,
@@ -104,7 +104,9 @@ class SecureHttpTransport:
         port = parsed.port or (443 if parsed.scheme == "https" else 80)
         addresses = self._resolver(parsed.hostname, port)
         if not addresses:
-            raise HttpTransportError("dns_resolution_failed", "Hostname resolved to no addresses")
+            raise HttpTransportError(
+                "dns_resolution_failed", "Hostname resolved to no addresses"
+            )
         for address in addresses:
             self._validate_address(address)
         pinned_address = addresses[0]
@@ -114,7 +116,11 @@ class SecureHttpTransport:
         pinned_url = urlunsplit(
             (parsed.scheme, netloc, parsed.path or "/", parsed.query, parsed.fragment)
         )
-        return pinned_url, parsed.hostname, (parsed.scheme, parsed.hostname.lower(), port)
+        return (
+            pinned_url,
+            parsed.hostname,
+            (parsed.scheme, parsed.hostname.lower(), port),
+        )
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -127,7 +133,11 @@ class SecureHttpTransport:
                 return True
             if "-" in text:
                 start, _, end = text.partition("-")
-                if start.isdigit() and end.isdigit() and int(start) <= status <= int(end):
+                if (
+                    start.isdigit()
+                    and end.isdigit()
+                    and int(start) <= status <= int(end)
+                ):
                     return True
         return False
 
@@ -151,7 +161,9 @@ class SecureHttpTransport:
     @staticmethod
     def _redact_headers(headers: httpx.Headers | dict[str, str]) -> dict[str, str]:
         return {
-            str(key): "[REDACTED]" if str(key).lower() in SENSITIVE_HEADERS else str(value)
+            str(key): "[REDACTED]"
+            if str(key).lower() in SENSITIVE_HEADERS
+            else str(value)
             for key, value in headers.items()
         }
 
@@ -162,12 +174,16 @@ class SecureHttpTransport:
         if not candidate.is_absolute():
             candidate = common_path.ARTIFACT_ROOT / candidate
         return ensure_path_within_root(
-            candidate.resolve(), common_path.ARTIFACT_ROOT.resolve(), label="artifact path"
+            candidate.resolve(),
+            common_path.ARTIFACT_ROOT.resolve(),
+            label="artifact path",
         )
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def _resolve_credentials(parameters: HttpRequestParameters) -> tuple[str, str | None]:
+    def _resolve_credentials(
+        parameters: HttpRequestParameters,
+    ) -> tuple[str, str | None]:
         if parameters.auth_mode == "none":
             return "", None
         access_key = configuration_service.resolve_access_key(
@@ -187,15 +203,21 @@ class SecureHttpTransport:
         if parameters.body_mode == "json":
             return {"json": body if body is not None else parameters.json_body}, opened
         if parameters.body_mode == "text":
-            return {"content": str(body if body is not None else parameters.text_body)}, opened
+            return {
+                "content": str(body if body is not None else parameters.text_body)
+            }, opened
         if parameters.body_mode == "form":
-            return {"data": body if isinstance(body, dict) else parameters.form_body}, opened
+            return {
+                "data": body if isinstance(body, dict) else parameters.form_body
+            }, opened
         if parameters.body_mode == "binary":
             raw = body if body is not None else parameters.text_body
             if isinstance(raw, str):
                 raw = raw.encode("utf-8")
             if not isinstance(raw, bytes):
-                raise HttpTransportError("invalid_body", "Binary body must be bytes or text")
+                raise HttpTransportError(
+                    "invalid_body", "Binary body must be bytes or text"
+                )
             return {"content": raw}, opened
         if parameters.body_mode == "file":
             path = self._resolve_artifact_path(parameters.upload_path)
@@ -217,7 +239,9 @@ class SecureHttpTransport:
     ) -> dict[str, Any]:
         started = time.monotonic()
         secret, profile_base_url = self._resolve_credentials(parameters)
-        initial_url = str(inputs.get("url") or parameters.url or profile_base_url or "").strip()
+        initial_url = str(
+            inputs.get("url") or parameters.url or profile_base_url or ""
+        ).strip()
         if not initial_url:
             raise HttpTransportError("invalid_url", "HTTP request URL is required")
         headers = {str(key): str(value) for key, value in parameters.headers.items()}
@@ -248,15 +272,21 @@ class SecureHttpTransport:
             ) as client:
                 for attempt in range(1, parameters.max_attempts + 1):
                     if self._cancelled():
-                        raise HttpTransportError("cancelled", "HTTP request was cancelled")
+                        raise HttpTransportError(
+                            "cancelled", "HTTP request was cancelled"
+                        )
                     if time.monotonic() - started >= parameters.overall_timeout:
-                        raise HttpTransportError("overall_timeout", "HTTP overall timeout elapsed")
+                        raise HttpTransportError(
+                            "overall_timeout", "HTTP overall timeout elapsed"
+                        )
                     current_url = initial_url
                     current_headers = dict(headers)
                     redirects = 0
                     try:
                         while True:
-                            pinned_url, original_host, origin = self._validate_and_pin(current_url)
+                            pinned_url, original_host, origin = self._validate_and_pin(
+                                current_url
+                            )
                             default_port = 443 if origin[0] == "https" else 80
                             current_headers["Host"] = (
                                 original_host
@@ -274,10 +304,14 @@ class SecureHttpTransport:
                                 **body_kwargs,
                             ) as response:
                                 location = response.headers.get("location")
-                                if response.status_code in REDIRECT_STATUSES and location:
+                                if (
+                                    response.status_code in REDIRECT_STATUSES
+                                    and location
+                                ):
                                     if redirects >= parameters.max_redirects:
                                         raise HttpTransportError(
-                                            "redirect_limit", "HTTP redirect limit exceeded"
+                                            "redirect_limit",
+                                            "HTTP redirect limit exceeded",
                                         )
                                     target = urljoin(current_url, location)
                                     target_parts = urlsplit(target)
@@ -319,7 +353,9 @@ class SecureHttpTransport:
                                 output_handle = None
                                 final_path = None
                                 if parameters.response_mode == "file":
-                                    final_path = self._resolve_artifact_path(parameters.download_path)
+                                    final_path = self._resolve_artifact_path(
+                                        parameters.download_path
+                                    )
                                     final_path.parent.mkdir(parents=True, exist_ok=True)
                                     partial_path = final_path.with_name(
                                         f".{final_path.name}.partial-{uuid4().hex}"
@@ -356,24 +392,35 @@ class SecureHttpTransport:
                                 attempt_meta = {
                                     "attempt": attempt,
                                     "status_code": response.status_code,
-                                    "elapsed_ms": round((time.monotonic() - started) * 1000, 3),
+                                    "elapsed_ms": round(
+                                        (time.monotonic() - started) * 1000, 3
+                                    ),
                                 }
                                 attempts.append(attempt_meta)
                                 if not accepted:
-                                    excerpt = content[:512].decode("utf-8", errors="replace")
+                                    excerpt = content[:512].decode(
+                                        "utf-8", errors="replace"
+                                    )
                                     if secret:
                                         excerpt = excerpt.replace(secret, "[REDACTED]")
                                     if (
-                                        response.status_code in parameters.retry_statuses
+                                        response.status_code
+                                        in parameters.retry_statuses
                                         and attempt < parameters.max_attempts
                                     ):
-                                        delay = self._retry_after(response.headers.get("retry-after"))
+                                        delay = self._retry_after(
+                                            response.headers.get("retry-after")
+                                        )
                                         if delay is None:
-                                            delay = parameters.backoff_seconds * (2 ** (attempt - 1))
+                                            delay = parameters.backoff_seconds * (
+                                                2 ** (attempt - 1)
+                                            )
                                             delay += delay * 0.25 * self._jitter()
                                         delay = min(delay, parameters.max_retry_delay)
                                         attempts[-1]["retry_delay_seconds"] = delay
-                                        attempts[-1]["retry_reason"] = f"HTTP {response.status_code}"
+                                        attempts[-1]["retry_reason"] = (
+                                            f"HTTP {response.status_code}"
+                                        )
                                         if partial_path:
                                             partial_path.unlink(missing_ok=True)
                                             partial_path = None
@@ -399,14 +446,17 @@ class SecureHttpTransport:
                                     except ValueError as exc:
                                         if parameters.response_mode == "json":
                                             raise HttpTransportError(
-                                                "invalid_json", "HTTP response was not valid JSON"
+                                                "invalid_json",
+                                                "HTTP response was not valid JSON",
                                             ) from exc
                                 return {
                                     "ok": True,
                                     "status_code": response.status_code,
                                     "headers": self._redact_headers(response.headers),
                                     "final_url": current_url,
-                                    "text": text if parameters.response_mode != "binary" else "",
+                                    "text": text
+                                    if parameters.response_mode != "binary"
+                                    else "",
                                     "json": json_value,
                                     "binary_base64": (
                                         base64.b64encode(content).decode("ascii")
@@ -414,7 +464,9 @@ class SecureHttpTransport:
                                         else ""
                                     ),
                                     "download_path": (
-                                        str(final_path) if parameters.response_mode == "file" else ""
+                                        str(final_path)
+                                        if parameters.response_mode == "file"
+                                        else ""
                                     ),
                                     "byte_count": byte_count,
                                     "attempts": attempts,

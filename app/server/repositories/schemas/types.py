@@ -4,6 +4,7 @@ from typing import Any
 
 from sqlalchemy.types import JSON, TypeDecorator
 
+
 ###############################################################################
 class JSONSequence(TypeDecorator):
     impl = JSON

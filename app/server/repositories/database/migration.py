@@ -30,21 +30,27 @@ MIGRATION_VERSION_TABLE = "alembic_version"
 MIGRATION_LOCK_TIMEOUT_SECONDS = 120.0
 SQLITE_TIMEOUT_SECONDS = 30.0
 # Frozen normalized signature of the pre-Alembic application schema.
-_BASELINE_SCHEMA_FINGERPRINT = "06a4979ba57eb0a4039c77ddc36442f0770427220f4ea83a7119ace43b044557"
+_BASELINE_SCHEMA_FINGERPRINT = (
+    "06a4979ba57eb0a4039c77ddc36442f0770427220f4ea83a7119ace43b044557"
+)
 _APPLICATION_TABLE_NAMES = frozenset(Base.metadata.tables)
 _LEGACY_APPLICATION_TABLE_NAMES = _APPLICATION_TABLE_NAMES | {"nodes"}
+
 
 ###############################################################################
 class DatabaseMigrationError(RuntimeError):
     """Raised when the internal application schema cannot be synchronized."""
 
+
 ###############################################################################
 def default_database_path() -> Path:
     return common_path.RESOURCES_ROOT / DATABASE_FILENAME
 
+
 ###############################################################################
 def _normalize_type(type_: Any) -> str:
     return str(type_.compile(dialect=sqlite_dialect())).upper()
+
 
 ###############################################################################
 def _metadata_signature(metadata: MetaData) -> dict[str, Any]:
@@ -99,6 +105,7 @@ def _metadata_signature(metadata: MetaData) -> dict[str, Any]:
             }
         )
     return {"tables": tables}
+
 
 ###############################################################################
 def _inspected_signature(
@@ -157,14 +164,17 @@ def _inspected_signature(
         )
     return {"tables": tables}
 
+
 ###############################################################################
 def _fingerprint(signature: dict[str, Any]) -> str:
     payload = json.dumps(signature, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
+
 ###############################################################################
 def metadata_schema_fingerprint() -> str:
     return _fingerprint(_metadata_signature(Base.metadata))
+
 
 ###############################################################################
 def _database_schema_fingerprint(
@@ -173,9 +183,11 @@ def _database_schema_fingerprint(
 ) -> str:
     return _fingerprint(_inspected_signature(connection, table_names))
 
+
 ###############################################################################
 def _sqlite_url(database_path: Path) -> URL:
     return URL.create("sqlite", database=str(database_path))
+
 
 ###############################################################################
 def _migration_engine(database_path: Path) -> Engine:
@@ -191,17 +203,19 @@ def _migration_engine(database_path: Path) -> Engine:
         )
     )
 
+
 ###############################################################################
 def _alembic_config(database_path: Path) -> Config:
     config = Config(toml_file=str(common_path.SERVER_ROOT / "pyproject.toml"))
     config.set_main_option(
         "sqlalchemy.url",
-        _sqlite_url(database_path).render_as_string(hide_password=False).replace(
-            "%", "%%"
-        ),
+        _sqlite_url(database_path)
+        .render_as_string(hide_password=False)
+        .replace("%", "%%"),
     )
     config.attributes["database_path"] = str(database_path)
     return config
+
 
 ###############################################################################
 @contextmanager
@@ -220,6 +234,7 @@ def _migration_lock(database_path: Path) -> Iterator[None]:
             f"{MIGRATION_LOCK_TIMEOUT_SECONDS:.0f}s: {lock_path}"
         ) from exc
 
+
 ###############################################################################
 def _script_directory(config: Config) -> tuple[ScriptDirectory, str]:
     try:
@@ -234,6 +249,7 @@ def _script_directory(config: Config) -> tuple[ScriptDirectory, str]:
         )
     return script, heads[0]
 
+
 ###############################################################################
 def _current_revisions(connection: Connection) -> tuple[str, ...]:
     version_table_exists = inspect(connection).has_table(MIGRATION_VERSION_TABLE)
@@ -243,11 +259,13 @@ def _current_revisions(connection: Connection) -> tuple[str, ...]:
 
     return tuple(MigrationContext.configure(connection).get_current_heads())
 
+
 ###############################################################################
 def _application_tables(connection: Connection) -> set[str]:
     return set(inspect(connection).get_table_names()).intersection(
         _APPLICATION_TABLE_NAMES
     )
+
 
 ###############################################################################
 def _require_complete_application_schema(connection: Connection) -> None:
@@ -259,6 +277,7 @@ def _require_complete_application_schema(connection: Connection) -> None:
         "Versioned application schema is incomplete; missing tables: "
         + ", ".join(missing)
     )
+
 
 ###############################################################################
 def _legacy_schema_state(connection: Connection) -> str:
@@ -289,6 +308,7 @@ def _legacy_schema_state(connection: Connection) -> str:
         "schema. Database initialization stopped without changing the schema."
     )
 
+
 ###############################################################################
 def _validate_current_revision(
     script: ScriptDirectory, current: str, head: str
@@ -306,6 +326,7 @@ def _validate_current_revision(
             f"Database revision {current!r} cannot be upgraded to Alembic head {head!r}"
         )
     return [revision.revision for revision in reversed(pending)]
+
 
 ###############################################################################
 def _upgrade_to_head(
@@ -333,6 +354,7 @@ def _upgrade_to_head(
     config.attributes["connection"] = connection
     command.upgrade(config, head)
 
+
 ###############################################################################
 def _synchronize_locked(database_path: Path) -> None:
     engine: Engine | None = None
@@ -351,7 +373,9 @@ def _synchronize_locked(database_path: Path) -> None:
             if current_revisions == (head,):
                 _require_complete_application_schema(connection)
             has_version_table = inspect(connection).has_table(MIGRATION_VERSION_TABLE)
-            if not current_revisions and (not has_version_table or _application_tables(connection)):
+            if not current_revisions and (
+                not has_version_table or _application_tables(connection)
+            ):
                 legacy_state = _legacy_schema_state(connection)
                 if legacy_state == "baseline":
                     logger.info(
@@ -361,7 +385,9 @@ def _synchronize_locked(database_path: Path) -> None:
                     config.attributes["connection"] = connection
                     command.stamp(config, BASELINE_REVISION)
                 elif legacy_state == "empty":
-                    logger.info("Creating a new application database at Alembic head %s", head)
+                    logger.info(
+                        "Creating a new application database at Alembic head %s", head
+                    )
             _upgrade_to_head(config, connection, script, head)
             if _current_revisions(connection) == (head,):
                 _require_complete_application_schema(connection)
@@ -374,6 +400,7 @@ def _synchronize_locked(database_path: Path) -> None:
     finally:
         if engine is not None:
             engine.dispose()
+
 
 ###############################################################################
 def run_database_migrations(database_path: Path | None = None) -> None:

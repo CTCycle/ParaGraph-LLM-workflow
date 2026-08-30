@@ -15,9 +15,9 @@ from server.repositories.workflow import (
     in_memory_chat_history_repository,
 )
 
+
 ###############################################################################
 class ChatHistoryRepository(Protocol):
-
     # -------------------------------------------------------------------------
     def get_messages(
         self, workflow_id: str, execution_session_id: str, node_id: str
@@ -49,9 +49,9 @@ class ChatHistoryRepository(Protocol):
         self, workflow_id: str, execution_session_id: str, node_id: str
     ) -> None: ...
 
+
 ###############################################################################
 class ChatHistoryService:
-
     # -------------------------------------------------------------------------
     def _repository_for_handle(
         self, handle: ChatHistoryHandle

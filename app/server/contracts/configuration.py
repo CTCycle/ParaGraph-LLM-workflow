@@ -10,6 +10,7 @@ SESSION_NAME_PATTERN = r"^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$"
 PROFILE_NAME_PATTERN = r"^[A-Za-z0-9][A-Za-z0-9._ -]{0,119}$"
 MASKED_API_KEY_VALUE = "__PG_MASKED_API_KEY__"
 
+
 ###############################################################################
 class OllamaConfiguration(BaseModel):
     base_url: str = Field(default="http://127.0.0.1:11434", max_length=512)
@@ -22,6 +23,7 @@ class OllamaConfiguration(BaseModel):
     def normalize_required_text(cls, value: Any) -> str:
         text = str(value or "").strip()
         return text
+
 
 ###############################################################################
 class AccessKeyConfiguration(BaseModel):
@@ -45,12 +47,14 @@ class AccessKeyConfiguration(BaseModel):
         text = str(value).strip()
         return text or None
 
+
 ###############################################################################
 def is_masked_api_key(value: str | None) -> bool:
     if value is None:
         return False
     normalized = value.strip()
     return normalized in {MASKED_API_KEY_VALUE, "********"}
+
 
 ###############################################################################
 class AppConfigurationPayload(BaseModel):
@@ -70,16 +74,19 @@ class AppConfigurationPayload(BaseModel):
             )
         return normalized
 
+
 ###############################################################################
 class ConfigurationProfileSummary(BaseModel):
     profile_name: str
     created_at: str
     updated_at: str
 
+
 ###############################################################################
 class ConfigurationProfileListResponse(BaseModel):
     session_name: str = Field(default=DEFAULT_SESSION_NAME, max_length=120)
     profiles: list[ConfigurationProfileSummary] = Field(default_factory=list)
+
 
 ###############################################################################
 class OllamaPingRequest(BaseModel):
@@ -94,12 +101,14 @@ class OllamaPingRequest(BaseModel):
         text = str(value).strip()
         return text or None
 
+
 ###############################################################################
 class OllamaStatusResponse(BaseModel):
     ok: bool
     message: str
     base_url: str
     model_count: int = 0
+
 
 ###############################################################################
 class ProviderPingRequest(BaseModel):
@@ -121,6 +130,7 @@ class ProviderPingRequest(BaseModel):
             return None
         text = str(value).strip()
         return text or None
+
 
 ###############################################################################
 class ProviderStatusResponse(BaseModel):

@@ -16,6 +16,7 @@ down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
+
 ###############################################################################
 def upgrade() -> None:
     op.create_table(
@@ -36,7 +37,9 @@ def upgrade() -> None:
     )
     op.create_table(
         "nodes",
-        sa.Column("node_configuration_id", sa.Integer(), autoincrement=True, nullable=False),
+        sa.Column(
+            "node_configuration_id", sa.Integer(), autoincrement=True, nullable=False
+        ),
         sa.Column("session_id", sa.Integer(), nullable=False),
         sa.Column("node_key", sa.String(), nullable=False),
         sa.Column("node_type", sa.String(), nullable=False),
@@ -57,7 +60,9 @@ def upgrade() -> None:
 
     op.create_table(
         "configuration_profiles",
-        sa.Column("configuration_profile_id", sa.Integer(), autoincrement=True, nullable=False),
+        sa.Column(
+            "configuration_profile_id", sa.Integer(), autoincrement=True, nullable=False
+        ),
         sa.Column("session_id", sa.Integer(), nullable=False),
         sa.Column("profile_name", sa.String(), nullable=False),
         sa.Column("configuration_json", sa.JSON(), nullable=False),
@@ -104,8 +109,12 @@ def upgrade() -> None:
             "session_id", "provider", name="uq_access_keys_session_provider"
         ),
     )
-    op.create_index("ix_access_keys_session_id", "access_keys", ["session_id"], unique=False)
-    op.create_index("ix_access_keys_provider", "access_keys", ["provider"], unique=False)
+    op.create_index(
+        "ix_access_keys_session_id", "access_keys", ["session_id"], unique=False
+    )
+    op.create_index(
+        "ix_access_keys_provider", "access_keys", ["provider"], unique=False
+    )
 
     op.create_table(
         "chat_history_messages",
@@ -151,13 +160,21 @@ def upgrade() -> None:
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
         sa.PrimaryKeyConstraint("run_id"),
     )
-    op.create_index("ix_execution_runs_request_id", "execution_runs", ["request_id"], unique=False)
-    op.create_index("ix_execution_runs_workflow_id", "execution_runs", ["workflow_id"], unique=False)
-    op.create_index("ix_execution_runs_status", "execution_runs", ["status"], unique=False)
+    op.create_index(
+        "ix_execution_runs_request_id", "execution_runs", ["request_id"], unique=False
+    )
+    op.create_index(
+        "ix_execution_runs_workflow_id", "execution_runs", ["workflow_id"], unique=False
+    )
+    op.create_index(
+        "ix_execution_runs_status", "execution_runs", ["status"], unique=False
+    )
 
     op.create_table(
         "execution_steps",
-        sa.Column("execution_step_id", sa.Integer(), autoincrement=True, nullable=False),
+        sa.Column(
+            "execution_step_id", sa.Integer(), autoincrement=True, nullable=False
+        ),
         sa.Column("run_id", sa.String(), nullable=False),
         sa.Column("step_id", sa.String(), nullable=False),
         sa.Column("node_id", sa.String(), nullable=False),
@@ -178,11 +195,15 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("execution_step_id"),
         sa.UniqueConstraint("run_id", "step_id", name="uq_execution_steps_run_step"),
     )
-    op.create_index("ix_execution_steps_run_id", "execution_steps", ["run_id"], unique=False)
+    op.create_index(
+        "ix_execution_steps_run_id", "execution_steps", ["run_id"], unique=False
+    )
 
     op.create_table(
         "execution_events",
-        sa.Column("execution_event_id", sa.Integer(), autoincrement=True, nullable=False),
+        sa.Column(
+            "execution_event_id", sa.Integer(), autoincrement=True, nullable=False
+        ),
         sa.Column("run_id", sa.String(), nullable=False),
         sa.Column("sequence", sa.Integer(), nullable=False),
         sa.Column("event_type", sa.String(), nullable=False),
@@ -194,9 +215,14 @@ def upgrade() -> None:
             ["run_id"], ["execution_runs.run_id"], ondelete="CASCADE"
         ),
         sa.PrimaryKeyConstraint("execution_event_id"),
-        sa.UniqueConstraint("run_id", "sequence", name="uq_execution_events_run_sequence"),
+        sa.UniqueConstraint(
+            "run_id", "sequence", name="uq_execution_events_run_sequence"
+        ),
     )
-    op.create_index("ix_execution_events_run_id", "execution_events", ["run_id"], unique=False)
+    op.create_index(
+        "ix_execution_events_run_id", "execution_events", ["run_id"], unique=False
+    )
+
 
 ###############################################################################
 def downgrade() -> None:

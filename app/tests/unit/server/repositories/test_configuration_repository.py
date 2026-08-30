@@ -7,6 +7,7 @@ from sqlalchemy import create_engine
 from server.configurations.settings import SQLiteSettings
 from server.repositories.configuration import ConfigurationRepository
 
+
 ###############################################################################
 def test_configuration_repository_accepts_injected_sqlite_repository() -> None:
     engine = create_engine("sqlite:///:memory:")
@@ -15,6 +16,7 @@ def test_configuration_repository_accepts_injected_sqlite_repository() -> None:
     )
 
     assert repository._database_engine() is engine  # noqa: SLF001
+
 
 ###############################################################################
 def test_configuration_repository_uses_the_embedded_sqlite_path(

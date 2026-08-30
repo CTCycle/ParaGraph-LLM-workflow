@@ -5,6 +5,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+
 ###############################################################################
 def _parse_json_value(value: Any, label: str) -> Any:
     if isinstance(value, (dict, list, int, float, bool)) or value is None:
@@ -16,6 +17,7 @@ def _parse_json_value(value: Any, label: str) -> Any:
         return json.loads(text)
     except json.JSONDecodeError as exc:
         raise ValueError(f"{label} must be valid JSON") from exc
+
 
 ###############################################################################
 class FixedSizeChunksParameters(BaseModel):
@@ -38,6 +40,7 @@ class FixedSizeChunksParameters(BaseModel):
         if self.chunk_overlap >= self.chunk_size:
             raise ValueError("chunk_overlap must be smaller than chunk_size")
         return self
+
 
 ###############################################################################
 class ByDelimiterChunksParameters(BaseModel):
@@ -66,6 +69,7 @@ class ByDelimiterChunksParameters(BaseModel):
                 "overflow_strategy must be one of: split_further, discard, emit_as_is"
             )
         return normalized
+
 
 ###############################################################################
 class ByStructureChunksParameters(BaseModel):
@@ -111,6 +115,7 @@ class ByStructureChunksParameters(BaseModel):
             )
         return normalized
 
+
 ###############################################################################
 class RegexSplitChunksParameters(BaseModel):
     regex: str = ""
@@ -123,6 +128,7 @@ class RegexSplitChunksParameters(BaseModel):
         if not normalized:
             raise ValueError("regex must not be empty")
         return normalized
+
 
 ###############################################################################
 class RecursiveSplitChunksParameters(BaseModel):
@@ -173,6 +179,7 @@ class RecursiveSplitChunksParameters(BaseModel):
             raise ValueError("chunk_overlap must be smaller than chunk_size")
         return self
 
+
 ###############################################################################
 class SentenceWindowChunksParameters(BaseModel):
     sentences_per_chunk: int = Field(default=4, ge=1, le=1000)
@@ -199,6 +206,7 @@ class SentenceWindowChunksParameters(BaseModel):
                 "sentence_overlap must be smaller than sentences_per_chunk"
             )
         return self
+
 
 ###############################################################################
 class MergeSmallChunksParameters(BaseModel):

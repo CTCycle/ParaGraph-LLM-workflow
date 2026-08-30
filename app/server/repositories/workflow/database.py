@@ -39,6 +39,7 @@ _MAX_PAGE_SIZE = 1_000
 _credential_lock = threading.Lock()
 _credential_passwords: dict[str, str] = {}
 
+
 ###############################################################################
 def register_database_credential(password: str) -> str:
     reference = uuid.uuid4().hex
@@ -46,26 +47,25 @@ def register_database_credential(password: str) -> str:
         _credential_passwords[reference] = password
     return reference
 
+
 ###############################################################################
 def _resolve_password(payload: dict[str, Any]) -> str:
     if "password" in payload:
-        raise ValueError(
-            "Database connections must use an opaque credential_ref"
-        )
+        raise ValueError("Database connections must use an opaque credential_ref")
     reference = str(payload.get("credential_ref") or "")
     if not reference:
-        raise ValueError(
-            "Server database connections require an opaque credential_ref"
-        )
+        raise ValueError("Server database connections require an opaque credential_ref")
     with _credential_lock:
         password = _credential_passwords.get(reference)
     if password is None:
         raise ValueError("Database credential reference is unavailable")
     return password
 
+
 ###############################################################################
 def _resolve_local_path(path_value: str) -> Path:
     return Path(path_value).expanduser().resolve()
+
 
 ###############################################################################
 def _validate_identifier(value: str, label: str) -> str:
@@ -73,6 +73,7 @@ def _validate_identifier(value: str, label: str) -> str:
     if not _IDENTIFIER.fullmatch(normalized):
         raise ValueError(f"Invalid {label}: {value!r}")
     return normalized
+
 
 ###############################################################################
 def build_database_url(payload: dict[str, Any]) -> tuple[str | URL, dict[str, Any]]:
@@ -115,6 +116,7 @@ def build_database_url(payload: dict[str, Any]) -> tuple[str | URL, dict[str, An
             payload.get("connect_timeout_s", options.get("connect_timeout_s")), 5
         )
     }
+
 
 ###############################################################################
 class EngineRegistry:
@@ -167,15 +169,18 @@ class EngineRegistry:
 
 engine_registry = EngineRegistry()
 
+
 ###############################################################################
 def build_engine_from_connection(connection: dict[str, Any]) -> Engine:
     return engine_registry.get(connection)
+
 
 ###############################################################################
 def reset_database_engines() -> None:
     engine_registry.dispose_all()
     with _credential_lock:
         _credential_passwords.clear()
+
 
 ###############################################################################
 def validate_connection(connection: dict[str, Any]) -> None:
@@ -184,6 +189,7 @@ def validate_connection(connection: dict[str, Any]) -> None:
             session.execute(select(1)).scalar_one()
     except SQLAlchemyError as exc:
         raise ValueError(f"Failed to connect to database: {exc}") from exc
+
 
 ###############################################################################
 def inspect_database_schema(
@@ -248,6 +254,7 @@ def inspect_database_schema(
     except SQLAlchemyError as exc:
         raise ValueError(f"Failed to inspect database schema: {exc}") from exc
 
+
 ###############################################################################
 def _load_table(engine: Engine, table_name: str, schema: str | None = None) -> Table:
     name = _validate_identifier(table_name, "table")
@@ -259,11 +266,13 @@ def _load_table(engine: Engine, table_name: str, schema: str | None = None) -> T
     except SQLAlchemyError as exc:
         raise ValueError(f"Failed to load table '{name}': {exc}") from exc
 
+
 ###############################################################################
 def _validate_columns(table: Table, names: list[str] | set[str], label: str) -> None:
     missing = sorted(name for name in names if name not in table.c)
     if missing:
         raise ValueError(f"Unknown {label} column(s): {', '.join(missing)}")
+
 
 ###############################################################################
 def _apply_filters(statement: Any, table: Table, filters: dict[str, Any]) -> Any:
@@ -272,10 +281,12 @@ def _apply_filters(statement: Any, table: Table, filters: dict[str, Any]) -> Any
         statement = statement.where(table.c[name] == value)
     return statement
 
+
 ###############################################################################
 def _require_writable(connection: dict[str, Any], operation: str) -> None:
     if DatabaseConnectionHandle.model_validate(connection).read_only:
         raise ValueError(f"READ_ONLY_VIOLATION: {operation} is not allowed")
+
 
 ###############################################################################
 def _result(
@@ -307,6 +318,7 @@ def _result(
         "error": None,
     }
 
+
 ###############################################################################
 def execute_create(
     connection: dict[str, Any],
@@ -335,6 +347,7 @@ def execute_create(
     except SQLAlchemyError as exc:
         raise ValueError(f"Create operation failed: {exc}") from exc
 
+
 ###############################################################################
 def execute_bulk_create(
     connection: dict[str, Any],
@@ -356,6 +369,7 @@ def execute_bulk_create(
         return _result("bulk_create", affected_rows=int(result.rowcount or 0))
     except SQLAlchemyError as exc:
         raise ValueError(f"Bulk create operation failed: {exc}") from exc
+
 
 ###############################################################################
 def execute_bulk_update(
@@ -387,6 +401,7 @@ def execute_bulk_update(
     except SQLAlchemyError as exc:
         raise ValueError(f"Bulk update operation failed: {exc}") from exc
 
+
 ###############################################################################
 def execute_bulk_delete(
     connection: dict[str, Any],
@@ -415,6 +430,7 @@ def execute_bulk_delete(
         return _result("bulk_delete", affected_rows=affected)
     except SQLAlchemyError as exc:
         raise ValueError(f"Bulk delete operation failed: {exc}") from exc
+
 
 ###############################################################################
 def execute_read(
@@ -460,6 +476,7 @@ def execute_read(
     except SQLAlchemyError as exc:
         raise ValueError(f"Read operation failed: {exc}") from exc
 
+
 ###############################################################################
 def execute_update(
     connection: dict[str, Any],
@@ -492,6 +509,7 @@ def execute_update(
     except SQLAlchemyError as exc:
         raise ValueError(f"Update operation failed: {exc}") from exc
 
+
 ###############################################################################
 def execute_delete(
     connection: dict[str, Any],
@@ -517,6 +535,7 @@ def execute_delete(
         return _result("delete", affected_rows=int(result.rowcount or 0))
     except SQLAlchemyError as exc:
         raise ValueError(f"Delete operation failed: {exc}") from exc
+
 
 ###############################################################################
 def execute_upsert(
@@ -555,6 +574,7 @@ def execute_upsert(
         return _result("upsert", affected_rows=int(result.rowcount or 0))
     except SQLAlchemyError as exc:
         raise ValueError(f"Upsert operation failed: {exc}") from exc
+
 
 ###############################################################################
 def execute_custom_sql(

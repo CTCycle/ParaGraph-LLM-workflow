@@ -4,13 +4,16 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+
 ###############################################################################
 class HttpRequestParameters(BaseModel):
     url: str = ""
     method: Literal["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"] = "GET"
     headers: dict[str, str] = Field(default_factory=dict)
     query: dict[str, Any] = Field(default_factory=dict)
-    body_mode: Literal["none", "json", "text", "form", "multipart", "binary", "file"] = "none"
+    body_mode: Literal[
+        "none", "json", "text", "form", "multipart", "binary", "file"
+    ] = "none"
     json_body: Any = None
     text_body: str = ""
     form_body: dict[str, Any] = Field(default_factory=dict)

@@ -6,6 +6,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+
 ###############################################################################
 def _parse_json_object(value: Any, label: str) -> dict[str, Any]:
     if value in (None, ""):
@@ -21,6 +22,7 @@ def _parse_json_object(value: Any, label: str) -> dict[str, Any]:
             return parsed
     raise ValueError(f"{label} must be a JSON object")
 
+
 ###############################################################################
 def _parse_columns(value: Any) -> list[str]:
     if value in (None, ""):
@@ -30,6 +32,7 @@ def _parse_columns(value: Any) -> list[str]:
     if isinstance(value, str):
         return [item.strip() for item in value.split(",") if item.strip()]
     raise ValueError("columns must be a comma-separated string or an array of strings")
+
 
 ###############################################################################
 class _TableParameters(BaseModel):
@@ -47,6 +50,7 @@ class _TableParameters(BaseModel):
             raise ValueError("table is required")
         return normalized
 
+
 ###############################################################################
 class CrudCreateParameters(_TableParameters):
     values: dict[str, Any] = Field(default_factory=dict)
@@ -56,6 +60,7 @@ class CrudCreateParameters(_TableParameters):
     @classmethod
     def validate_values(cls, value: Any) -> dict[str, Any]:
         return _parse_json_object(value, "values")
+
 
 ###############################################################################
 class CrudReadParameters(_TableParameters):
@@ -77,6 +82,7 @@ class CrudReadParameters(_TableParameters):
     def validate_filters(cls, value: Any) -> dict[str, Any]:
         return _parse_json_object(value, "filters")
 
+
 ###############################################################################
 class CrudUpdateParameters(_TableParameters):
     values: dict[str, Any] = Field(default_factory=dict)
@@ -97,6 +103,7 @@ class CrudUpdateParameters(_TableParameters):
     def validate_filters(cls, value: Any) -> dict[str, Any]:
         return _parse_json_object(value, "filters")
 
+
 ###############################################################################
 class CrudDeleteParameters(_TableParameters):
     filters: dict[str, Any] = Field(default_factory=dict)
@@ -108,6 +115,7 @@ class CrudDeleteParameters(_TableParameters):
     @classmethod
     def validate_filters(cls, value: Any) -> dict[str, Any]:
         return _parse_json_object(value, "filters")
+
 
 ###############################################################################
 class CustomSqlQueryParameters(BaseModel):
@@ -134,6 +142,7 @@ class CustomSqlQueryParameters(BaseModel):
         if ";" in without_strings.rstrip(";"):
             raise ValueError("sql must contain a single statement")
         return normalized.rstrip(";")
+
 
 ###############################################################################
 class CrudUpsertParameters(_TableParameters):

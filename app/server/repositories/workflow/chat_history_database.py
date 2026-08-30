@@ -10,19 +10,18 @@ from server.contracts.chat_history import ChatHistoryMessage
 from server.repositories.database.sqlite import SQLiteRepository
 from server.repositories.schemas import ChatHistoryMessageRecord
 
+
 ###############################################################################
 def _as_utc(timestamp: datetime) -> datetime:
     if timestamp.tzinfo is None:
         return timestamp.replace(tzinfo=timezone.utc)
     return timestamp.astimezone(timezone.utc)
 
+
 ###############################################################################
 class DatabaseChatHistoryRepository:
-
     # -------------------------------------------------------------------------
-    def __init__(
-        self, database_repository: SQLiteRepository | None = None
-    ) -> None:
+    def __init__(self, database_repository: SQLiteRepository | None = None) -> None:
         self._database_repository = database_repository or SQLiteRepository(
             get_server_settings().database
         )
@@ -138,5 +137,6 @@ class DatabaseChatHistoryRepository:
         with Session(self._database_repository.engine) as db_session:
             db_session.execute(delete(ChatHistoryMessageRecord))
             db_session.commit()
+
 
 database_chat_history_repository = DatabaseChatHistoryRepository()

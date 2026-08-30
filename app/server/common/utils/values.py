@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
+
 ###############################################################################
 def coerce_text(value: Any) -> str:
     if value is None:
@@ -13,6 +14,7 @@ def coerce_text(value: Any) -> str:
         return str(value)
     return json.dumps(value)
 
+
 ###############################################################################
 def coerce_text_list(value: Any) -> list[str]:
     if value is None:
@@ -20,6 +22,7 @@ def coerce_text_list(value: Any) -> list[str]:
     if isinstance(value, list):
         return [coerce_text(item) for item in value]
     return [coerce_text(value)]
+
 
 ###############################################################################
 def coerce_bool(value: Any, default: bool = False) -> bool:
@@ -34,6 +37,7 @@ def coerce_bool(value: Any, default: bool = False) -> bool:
         if lowered in {"0", "false", "no", "off"}:
             return False
     return default
+
 
 ###############################################################################
 def coerce_int(
@@ -51,6 +55,7 @@ def coerce_int(
     if maximum is not None and candidate > maximum:
         candidate = maximum
     return candidate
+
 
 ###############################################################################
 def coerce_float(
@@ -72,12 +77,14 @@ def coerce_float(
         candidate = maximum
     return candidate
 
+
 ###############################################################################
 def coerce_str_or_none(value: Any) -> str | None:
     if isinstance(value, str):
         stripped = value.strip()
         return stripped or None
     return None
+
 
 ###############################################################################
 def parse_json_if_possible(value: Any) -> Any:
@@ -91,6 +98,7 @@ def parse_json_if_possible(value: Any) -> Any:
     except json.JSONDecodeError:
         return value
 
+
 ###############################################################################
 def parse_json_value(value: Any, label: str) -> Any:
     if isinstance(value, (dict, list, int, float, bool)) or value is None:
@@ -103,12 +111,14 @@ def parse_json_value(value: Any, label: str) -> Any:
     except json.JSONDecodeError as exc:
         raise ValueError(f"{label} must be valid JSON") from exc
 
+
 ###############################################################################
 def coerce_json_object(value: Any) -> dict[str, Any]:
     parsed = parse_json_if_possible(value)
     if not isinstance(parsed, dict):
         raise ValueError("value must be a JSON object")
     return parsed
+
 
 ###############################################################################
 def coerce_json_array(value: Any) -> list[Any]:
@@ -117,12 +127,14 @@ def coerce_json_array(value: Any) -> list[Any]:
         raise ValueError("value must be a JSON array")
     return parsed
 
+
 ###############################################################################
 def extract_top_level_json_fields(value: Any) -> dict[str, Any]:
     parsed = parse_json_if_possible(value)
     if isinstance(parsed, dict):
         return dict(parsed)
     return {}
+
 
 ###############################################################################
 def merge_named_variables(*payloads: Any) -> dict[str, Any]:
@@ -139,6 +151,7 @@ def merge_named_variables(*payloads: Any) -> dict[str, Any]:
                     merged[variable_name] = value
     return merged
 
+
 ###############################################################################
 def render_variable_value(value: Any) -> str:
     if value is None:
@@ -149,7 +162,9 @@ def render_variable_value(value: Any) -> str:
         return str(value)
     if isinstance(value, list) and all(isinstance(item, dict) for item in value):
         text_parts = [
-            coerce_text(item.get("text") or item.get("content") or item.get("chunk") or "").strip()
+            coerce_text(
+                item.get("text") or item.get("content") or item.get("chunk") or ""
+            ).strip()
             for item in value
         ]
         text_parts = [item for item in text_parts if item]
@@ -166,10 +181,12 @@ def render_variable_value(value: Any) -> str:
     except Exception:  # noqa: BLE001
         return str(value)
 
+
 ###############################################################################
 def normalize_provider_name(provider: Any, default: str = "ollama") -> str:
     normalized = coerce_text(provider or default).strip().lower()
     return normalized or default
+
 
 ###############################################################################
 def validate_schema_definition(schema: Any, path: str = "$") -> None:
@@ -228,6 +245,7 @@ def validate_schema_definition(schema: Any, path: str = "$") -> None:
     enum = schema.get("enum")
     if enum is not None and not isinstance(enum, list):
         raise ValueError(f"enum at {path} must be an array")
+
 
 ###############################################################################
 def validate_json_against_schema(

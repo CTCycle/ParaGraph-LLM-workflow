@@ -6,6 +6,7 @@ from server.services.workflow.node_handlers.ingestion.documents import (
     _document_text_extractor_executor,
 )
 
+
 ###############################################################################
 def test_document_text_extractor_preserves_pdf_page_metadata(
     monkeypatch,

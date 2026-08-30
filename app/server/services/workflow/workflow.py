@@ -12,18 +12,18 @@ from server.contracts.workflow_model import (
 )
 from server.services.workflow.compiler.service import compiler_service
 
+
 ###############################################################################
 class WorkflowCompilationError(ValueError):
-
     # -------------------------------------------------------------------------
     def __init__(self, diagnostics: list[CompilerDiagnostic]) -> None:
         self.diagnostics = diagnostics
         message = "; ".join(item.message for item in diagnostics)
         super().__init__(message or "Workflow definition failed compilation")
 
+
 ###############################################################################
 class WorkflowService:
-
     # -------------------------------------------------------------------------
     @staticmethod
     def _validate_definition(request_definition) -> None:

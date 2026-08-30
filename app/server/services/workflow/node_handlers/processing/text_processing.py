@@ -7,11 +7,13 @@ from typing import Any
 from server.services.workflow.nodes.handler import NodeHandler
 from server.common.utils.values import coerce_text
 
+
 ###############################################################################
 def _records(value: Any) -> list[Any]:
     if value is None:
         return []
     return value if isinstance(value, list) else [value]
+
 
 ###############################################################################
 def _text_of(value: Any) -> str:
@@ -20,6 +22,7 @@ def _text_of(value: Any) -> str:
             value.get("text") or value.get("content") or value.get("chunk") or ""
         )
     return coerce_text(value)
+
 
 ###############################################################################
 def _normalize_text_executor(
@@ -37,6 +40,7 @@ def _normalize_text_executor(
     if parameters.get("collapse_whitespace", True):
         text = re.sub(r"\s+", " ", text).strip()
     return {"result": text}
+
 
 ###############################################################################
 def _regex_extract_executor(
@@ -56,6 +60,7 @@ def _regex_extract_executor(
         )
     return {"result": matches}
 
+
 ###############################################################################
 def _regex_replace_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
@@ -68,6 +73,7 @@ def _regex_replace_executor(
         )
     }
 
+
 ###############################################################################
 def _join_merge_text_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
@@ -75,6 +81,7 @@ def _join_merge_text_executor(
     separator = coerce_text(parameters.get("separator", "\n"))
     values = _records(inputs.get("items", inputs.get("texts", inputs.get("value", []))))
     return {"result": separator.join(_text_of(item) for item in values)}
+
 
 ###############################################################################
 def _deduplicate_text_executor(
@@ -89,6 +96,7 @@ def _deduplicate_text_executor(
             seen.add(normalized)
             kept.append(line)
     return {"result": "\n".join(kept)}
+
 
 ###############################################################################
 def _metadata_attach_executor(
@@ -114,6 +122,7 @@ def _metadata_attach_executor(
             "result": {**value, "metadata": {**value.get("metadata", {}), **metadata}}
         }
     return {"result": {"text": _text_of(value), "metadata": metadata}}
+
 
 ###############################################################################
 TEXT_PROCESSING_HANDLERS = {

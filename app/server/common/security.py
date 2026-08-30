@@ -15,6 +15,7 @@ _SENSITIVE_KEY_TOKENS = (
     "authorization",
 )
 
+
 ###############################################################################
 def is_cloud_deployment() -> bool:
     return (
@@ -22,6 +23,7 @@ def is_cloud_deployment() -> bool:
         .environment()
         .get_bool("PARAGRAPH_CLOUD_MODE", False)
     )
+
 
 ###############################################################################
 def ensure_path_within_root(path: Path, root: Path, *, label: str) -> Path:
@@ -32,6 +34,7 @@ def ensure_path_within_root(path: Path, root: Path, *, label: str) -> Path:
     except ValueError as exc:
         raise ValueError(f"{label} must resolve inside {resolved_root}") from exc
     return resolved_path
+
 
 ###############################################################################
 def redact_sensitive_payload(value: Any) -> Any:

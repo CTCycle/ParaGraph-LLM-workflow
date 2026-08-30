@@ -21,6 +21,7 @@ from server.repositories.workflow.execution_run import (
 from server.services.workflow.execution import execution_service
 from server.services.workflow.nodes import node_registry
 
+
 ###############################################################################
 def test_if_text_contains_selects_true_and_false_branch() -> None:
     assert (
@@ -32,22 +33,27 @@ def test_if_text_contains_selects_true_and_false_branch() -> None:
         == "false"
     )
 
+
 ###############################################################################
 def test_reduce_chunks_joins_text() -> None:
     assert _reduce_chunks_executor({}, {"chunks": ["a", "b"]})["result"] == "a\nb"
+
 
 ###############################################################################
 def test_cache_node_returns_cached_deterministic_output() -> None:
     assert "cache_key" in _cache_node_executor({}, {"value": "x"})
 
+
 ###############################################################################
 def test_human_review_gate_pauses_run_payload() -> None:
     assert _human_review_gate_executor({}, {"value": "x"})["paused"] is True
+
 
 ###############################################################################
 def test_trace_debug_viewer_redacts_sensitive_payload_fields() -> None:
     result = _trace_debug_viewer_executor({}, {"api_key": "secret"})
     assert result["result"]["inputs"]["api_key"] == "[REDACTED]"
+
 
 ###############################################################################
 def test_execution_skips_unselected_branch_and_pauses_run(monkeypatch) -> None:
@@ -110,6 +116,7 @@ def test_execution_skips_unselected_branch_and_pauses_run(monkeypatch) -> None:
         == "skipped"
     )
 
+
 ###############################################################################
 def test_human_review_pause_survives_reload_and_injects_reviewed_payload(
     job_state_factory, wait_for_job, monkeypatch
@@ -163,8 +170,7 @@ def test_human_review_pause_survives_reload_and_injects_reviewed_payload(
     assert paused.pause_checkpoint is not None
     assert paused.pause_checkpoint.node_id == "gate"
     assert (
-        next(step for step in paused.steps if step.step_id == "gate").status
-        == "paused"
+        next(step for step in paused.steps if step.step_id == "gate").status == "paused"
     )
 
     reloaded = ExecutionRunRepository().get_run("review-run")

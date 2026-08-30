@@ -8,6 +8,7 @@ from server.services.workflow.node_handlers.core import tools as tools_module
 from server.services.workflow.nodes import node_registry
 from server.services.workflow.provider import provider_service
 
+
 ###############################################################################
 def _model() -> dict[str, object]:
     return ProviderModelDefinition(
@@ -15,6 +16,7 @@ def _model() -> dict[str, object]:
         model="test-model",
         label="test-model",
     ).model_dump(mode="json")
+
 
 ###############################################################################
 def _build_collection(code: str, run_id: str) -> ToolCollectionHandle:
@@ -27,10 +29,9 @@ def _build_collection(code: str, run_id: str) -> ToolCollectionHandle:
     )
     return ToolCollectionHandle.model_validate(result["tools"])
 
+
 ###############################################################################
-def _call_tool(
-    handle: ToolCollectionHandle, run_id: str
-) -> dict[str, object]:
+def _call_tool(handle: ToolCollectionHandle, run_id: str) -> dict[str, object]:
     result = node_registry.execute(
         "TOOL_CALL",
         1,
@@ -41,6 +42,7 @@ def _call_tool(
     )
     return result["result"]
 
+
 ###############################################################################
 def test_identically_named_tools_are_scoped_to_their_run(
     monkeypatch,
@@ -48,9 +50,7 @@ def test_identically_named_tools_are_scoped_to_their_run(
     monkeypatch.setattr(
         tools_module,
         "_select_tool_with_structured_model",
-        lambda **_: ToolCallSelection(
-            tool_name="lookup", arguments={"value": "item"}
-        ),
+        lambda **_: ToolCallSelection(tool_name="lookup", arguments={"value": "item"}),
     )
     run_a = "tool-run-a"
     run_b = "tool-run-b"
@@ -76,14 +76,13 @@ def test_identically_named_tools_are_scoped_to_their_run(
         "mode": "prompt_emulated",
     }
 
+
 ###############################################################################
 def test_async_tool_is_awaited(monkeypatch) -> None:
     monkeypatch.setattr(
         tools_module,
         "_select_tool_with_structured_model",
-        lambda **_: ToolCallSelection(
-            tool_name="lookup", arguments={"value": "item"}
-        ),
+        lambda **_: ToolCallSelection(tool_name="lookup", arguments={"value": "item"}),
     )
     run_id = "async-tool-run"
     handle = _build_collection(
@@ -98,14 +97,13 @@ def test_async_tool_is_awaited(monkeypatch) -> None:
     assert result["result"] == "async:item"
     assert result["metadata"]["executed"] is True
 
+
 ###############################################################################
 def test_schema_only_tool_cannot_be_executed(monkeypatch) -> None:
     monkeypatch.setattr(
         tools_module,
         "_select_tool_with_structured_model",
-        lambda **_: ToolCallSelection(
-            tool_name="lookup", arguments={"value": "item"}
-        ),
+        lambda **_: ToolCallSelection(tool_name="lookup", arguments={"value": "item"}),
     )
     run_id = "schema-tool-run"
     collection = node_registry.execute(
@@ -183,8 +181,11 @@ def test_python_tool_collection_is_explicitly_executable() -> None:
     finally:
         tools_module.release_run_tool_resources("python-tool-contract")
 
+
 ###############################################################################
-def test_provider_tool_capabilities_distinguish_selection_from_native_protocol() -> None:
+def test_provider_tool_capabilities_distinguish_selection_from_native_protocol() -> (
+    None
+):
     assert provider_service.supports_tool_selection("openai") is True
     assert provider_service.supports_native_tool_protocol("openai") is False
     assert provider_service.supports_native_tools("openai") is False

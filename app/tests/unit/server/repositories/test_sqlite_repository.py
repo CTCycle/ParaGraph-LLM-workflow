@@ -17,9 +17,11 @@ from server.repositories.schemas import (
     ExecutionStepRecord,
 )
 
+
 ###############################################################################
 def _build_settings() -> SQLiteSettings:
     return SQLiteSettings(insert_batch_size=1000)
+
 
 ###############################################################################
 def _build_memory_repository() -> sqlite_module.SQLiteRepository:
@@ -27,6 +29,7 @@ def _build_memory_repository() -> sqlite_module.SQLiteRepository:
         SQLiteSettings(insert_batch_size=2),
         engine=sqlalchemy.create_engine("sqlite:///:memory:", future=True),
     )
+
 
 ###############################################################################
 def test_sqlite_repository_uses_resources_root_for_default_path(
@@ -37,6 +40,7 @@ def test_sqlite_repository_uses_resources_root_for_default_path(
     repository = sqlite_module.SQLiteRepository(_build_settings())
 
     assert repository.db_path == str(tmp_path / "database.db")
+
 
 ###############################################################################
 def test_initialize_sqlite_database_creates_application_schema(
@@ -58,12 +62,14 @@ def test_initialize_sqlite_database_creates_application_schema(
         "user_sessions",
     }
 
+
 ###############################################################################
 def test_sqlite_repository_enables_foreign_keys() -> None:
     repository = _build_memory_repository()
 
     with repository.engine.connect() as connection:
         assert connection.exec_driver_sql("PRAGMA foreign_keys").scalar_one() == 1
+
 
 ###############################################################################
 def test_sqlite_repository_cascades_execution_children() -> None:
@@ -114,6 +120,7 @@ def test_sqlite_repository_cascades_execution_children() -> None:
         assert db_session.query(ExecutionStepRecord).count() == 0
         assert db_session.query(ExecutionEventRecord).count() == 0
 
+
 ###############################################################################
 def test_sqlite_repository_save_load_and_count_rows(
     tmp_path: Path, monkeypatch
@@ -133,6 +140,7 @@ def test_sqlite_repository_save_load_and_count_rows(
     assert list(loaded["name"]) == ["dataset-a", "dataset-b"]
     assert repository.count_rows("datasets") == 2
 
+
 ###############################################################################
 def test_sqlite_repository_load_missing_table_returns_empty_frame(
     tmp_path: Path, monkeypatch
@@ -145,6 +153,7 @@ def test_sqlite_repository_load_missing_table_returns_empty_frame(
     assert loaded.empty
     assert loaded.shape == (0, 0)
 
+
 ###############################################################################
 def test_sqlite_repository_count_rows_raises_for_missing_table(
     tmp_path: Path, monkeypatch
@@ -154,6 +163,7 @@ def test_sqlite_repository_count_rows_raises_for_missing_table(
 
     with pytest.raises(ValueError, match="does not exist"):
         repository.count_rows("missing_table")
+
 
 ###############################################################################
 def test_sqlite_repository_save_load_and_count_dynamic_table() -> None:
@@ -171,6 +181,7 @@ def test_sqlite_repository_save_load_and_count_dynamic_table() -> None:
     assert repository.count_rows("dynamic_datasets") == 2
     assert list(loaded.columns) == ["name", "row_count", "score", "enabled"]
     assert len(loaded) == 2
+
 
 ###############################################################################
 def test_sqlite_repository_save_replaces_existing_dynamic_table_rows() -> None:

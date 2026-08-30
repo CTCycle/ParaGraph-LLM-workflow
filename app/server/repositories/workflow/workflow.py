@@ -13,9 +13,9 @@ from server.contracts.workflow_model import (
     WorkflowListItem,
 )
 
+
 ###############################################################################
 class WorkflowRepository:
-
     # -------------------------------------------------------------------------
     def __init__(self) -> None:
         self._default_root = common_path.RESOURCES_ROOT / "workflows"

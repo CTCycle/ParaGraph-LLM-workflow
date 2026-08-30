@@ -8,6 +8,7 @@ from sqlalchemy.engine import Engine
 
 _CONFIGURED_ATTRIBUTE = "_paragraph_sqlite_foreign_keys_configured"
 
+
 ###############################################################################
 def _enable_foreign_keys(dbapi_connection: Any) -> None:
     autocommit = getattr(dbapi_connection, "autocommit", None)
@@ -23,6 +24,7 @@ def _enable_foreign_keys(dbapi_connection: Any) -> None:
         if autocommit is not None:
             dbapi_connection.autocommit = autocommit
 
+
 ###############################################################################
 def _enable_foreign_keys_on_checkout(
     dbapi_connection: Any,
@@ -30,6 +32,7 @@ def _enable_foreign_keys_on_checkout(
     _connection_proxy: Any,
 ) -> None:
     _enable_foreign_keys(dbapi_connection)
+
 
 ###############################################################################
 def configure_sqlite_engine(engine: Engine) -> Engine:
