@@ -550,7 +550,7 @@ function Remove-AllData {
     $allRemoved = $true
 
     foreach ($relativePath in @(
-        'artifacts', 'chat_history', 'checkpoints', 'logs', 'models', 'tokenizers', 'workflows'
+        'artifacts', 'logs', 'models'
     )) {
         $dataPath = Join-Path $resourceRoot $relativePath
         if (-not (Clear-CacheDirectory -Path $dataPath -PreserveNames @('.gitkeep'))) {

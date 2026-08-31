@@ -43,4 +43,3 @@ RESOURCES_ROOT = resolve_resources_root()
 ARTIFACT_ROOT = RESOURCES_ROOT / "artifacts"
 LOGS_ROOT = RESOURCES_ROOT / "logs"
 MODELS_ROOT = RESOURCES_ROOT / "models"
-CHECKPOINTS_ROOT = RESOURCES_ROOT / "checkpoints"
