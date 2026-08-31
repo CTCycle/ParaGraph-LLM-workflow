@@ -1,5 +1,5 @@
 # Configuration
-Last updated: 2026-08-20
+Last updated: 2026-08-31
 
 ## Shared Configuration Sources
 - Shared environment keys are loaded from `settings/.env`.
@@ -23,8 +23,11 @@ Last updated: 2026-08-20
   - `settings/.env` for the internal SQLite batch-size setting.
   - `settings/configurations.json` for non-database runtime settings such as `global.seed` and `jobs.polling_interval`.
 - Internal application persistence always uses embedded SQLite. PostgreSQL settings belong only to user-configured workflow database nodes and are not used for application records.
-- Provider credentials and endpoint overrides are persisted as configuration access key records.
-- Ollama settings remain first-class session fields; DeepSeek, LM Studio, and llama.cpp use access key records with `provider`, optional `api_key`, optional `base_url`, and local default model metadata.
+- Provider credentials and endpoint overrides are persisted as canonical
+  `provider_configurations` records.
+- Ollama is represented by one provider configuration with an optional
+  `base_url` and `metadata.chat_model` / `metadata.embedding_model`. DeepSeek,
+  LM Studio, and llama.cpp use the same provider-configuration contract.
 - Default provider endpoints:
   - DeepSeek: `https://api.deepseek.com`
   - LM Studio: `http://localhost:1234/v1`
@@ -37,6 +40,6 @@ Last updated: 2026-08-20
 - The Windows launcher starts uvicorn, waits for `/docs`, then starts Vite preview and opens the UI URL.
 
 ## Shared Runtime Data
-- Shared persistence lives under `PARAGRAPH_RESOURCES_DIR` when configured, or under `app/resources` by default. This includes workflows, database files, logs, artifacts, and model assets.
-- The launcher imports `settings/.env` into the process environment before starting either process. Its fallback values are `FASTAPI_PORT=8000` and `UI_PORT=8001` only when individual keys are absent; the checked-in template overrides them to `5002` and `8002`.
+- Shared runtime data lives under `PARAGRAPH_RESOURCES_DIR` when configured, or under `app/resources` by default. This includes the SQLite database, logs, artifacts, node assets, workflow templates, and model assets. The active workflow graph remains in browser storage and JSON exports.
+- The launcher imports `settings/.env` into the process environment before starting either process. `FASTAPI_HOST`, `FASTAPI_PORT`, `UI_HOST`, `UI_PORT`, `RELOAD`, and `BACKEND_LOGS_VISIBLE` are required; missing or invalid runtime values fail fast rather than selecting hidden port fallbacks.
 - Runtime caches are kept under `runtimes/cache`, while test/tool caches and generated test/build artifacts are kept under `app/tests/cache`. These are separate from application runtime data and user resources.

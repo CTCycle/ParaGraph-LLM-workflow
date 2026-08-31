@@ -1,11 +1,18 @@
 # Execution And Data Flow
-Last updated: 2026-08-27
+Last updated: 2026-08-31
 
 ## Layered Backend Flow
 Typical backend flow follows endpoint to service to repository:
 
-- Workflows:
-  - `api/workflows.py` -> `services/workflow/workflow.py` -> `repositories/workflow/workflow.py`
+- Workflow editing and execution:
+  - `client/src/pages/WorkflowPage.tsx` and
+    `client/src/workflow/hooks/workflowPersistence.ts` own the browser graph
+    and JSON interchange.
+  - `client/src/app/services/workflowsApi.ts` sends the graph to
+    `api/executions.py` for compile and execution.
+- Workflow templates:
+  - `api/workflow_templates.py` -> `services/workflow/templates.py` -> JSON
+    manifests under `app/resources/workflow_templates`.
 - Execution lifecycle:
   - `api/executions.py` -> `services/workflow/compiler/service.py` and `services/workflow/execution.py` -> SQLAlchemy-backed run, step, and event repositories
 - Configurations:
@@ -21,9 +28,9 @@ Typical backend flow follows endpoint to service to repository:
 - `server/api/*`
   - HTTP and WebSocket boundary, request validation, and HTTP status mapping.
 - `server/contracts/*`
-  - Portable request and response models, workflow schema, node catalog
-    contracts, and execution payloads. This layer does not depend on API,
-    service, repository, or SQLAlchemy implementation modules.
+  - Portable request and response models, workflow schema, node catalog,
+    provider configuration, and execution payloads. This layer does not depend
+    on API, service, repository, or SQLAlchemy implementation modules.
 - `server/configurations/settings.py`
   - Environment-backed settings and runtime configuration models.
 - `server/services/workflow/compiler/service.py`
@@ -67,8 +74,6 @@ Typical backend flow follows endpoint to service to repository:
   - Thread-based background job management.
 - `server/services/runtime/events.py`
   - Durable per-run event history plus process-local live subscriber queues.
-- `server/repositories/workflow/workflow.py`
-  - Filesystem workflow storage and indexing.
 - `server/repositories/workflow/node_manifest.py`
   - Filesystem node manifest loading, import persistence, test storage overrides, and rollback deletion.
 - `server/repositories/workflow/database.py`
@@ -78,7 +83,8 @@ Typical backend flow follows endpoint to service to repository:
     consumption. Reviewed payload validation and output shaping stay in the
     execution service.
 - `server/repositories/configuration.py`
-  - Session, profile, and access-key persistence in the application database.
+  - Session, profile, and provider-configuration persistence in the application
+    database.
 - `server/repositories/database/sqlite.py`
   - Embedded SQLite engine, application schema access, and dataframe/tabular persistence behavior.
 - `client/src/pages/WorkflowPage.tsx`

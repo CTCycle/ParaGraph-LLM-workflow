@@ -1,5 +1,5 @@
 # System Overview
-Last updated: 2026-08-20
+Last updated: 2026-08-31
 
 ## System Summary
 ParaGraph is a local-first workflow platform composed of:
@@ -29,16 +29,14 @@ The repository contains source code plus generated and runtime-heavy folders. Th
 |  |- server/
 |  |  |- app.py
 |  |  |- api/                      (FastAPI routers)
-|  |  |- configurations/           (env and runtime config loading)
 |  |  |- contracts/                (portable API, workflow, and node contracts)
-|  |  |- configurations/           (env and runtime config loading)
 |  |  |- services/                 (business logic)
 |  |  |- repositories/
 |  |  |  |- database/              (shared tabular persistence and engine adapters)
 |  |  |  |- schemas/               (SQLAlchemy ORM models)
-|  |  |  `- workflow/              (workflow JSON and runtime repositories)
+|  |  |  `- workflow/              (node manifests, database integrations, and chat history adapters)
 |  |  `- common/                   (constants, security, logging)
-|  `- resources/                   (db, logs, models, nodes, workflows, artifacts)
+|  `- resources/                   (db, logs, models, nodes, templates, artifacts)
 |- settings/                       (.env and configurations.json)
 |- runtimes/                       (portable Python, uv, Node, .venv, uv.lock)
 |- start_on_windows.ps1            (Windows launcher and maintenance menu)
@@ -60,4 +58,7 @@ repository, or SQLAlchemy implementation modules.
 ## Runtime Topology
 - In web mode, the frontend and backend run as separate processes with API traffic routed through the configured base path.
 - Shared runtime artifacts live under `app/resources`, regardless of whether the app is started through the launcher or manually.
+- The active workflow graph is browser-local and can be exchanged as JSON. The
+  backend reads validated graph payloads for compilation and execution; it does
+  not maintain a workflow CRUD store.
 - Workflow runs are durable application-database records: the frontend can reload or reconnect to a run, recover queued or interrupted work after backend startup, and resume paused human-review steps with a resume token.

@@ -1,16 +1,20 @@
 # Models And Configurations
-Last updated: 2026-06-18
+Last updated: 2026-08-31
 
 ## Configurations Page
 Manage:
 
 - Ollama base URL and connectivity checks
-- Cloud provider keys such as OpenAI, Gemini, Claude, and DeepSeek when enabled in the UI
+- Cloud provider keys for OpenAI, Gemini, Claude, and DeepSeek
 - OpenAI-compatible local provider endpoints for LM Studio and llama.cpp, including optional API keys and default chat or embedding model metadata
-- Hugging Face access keys
+- Hugging Face API key
 - Named configuration profiles through save and load flows
 
-Configuration APIs are backed by `/configurations` and `/configurations/profiles`.
+The provider catalog at `/providers/catalog` defines the supported providers,
+configuration kinds, defaults, and capabilities. Configuration APIs are backed
+by `/configurations` and `/configurations/profiles`, using a canonical
+`provider_configurations` list. Reads redact API keys and return `has_api_key`
+so the UI can preserve a saved secret without exposing it.
 Provider status checks use `/configurations/ollama/ping` for Ollama and `/configurations/providers/ping` for OpenAI-compatible local providers.
 
 ## Models Page
