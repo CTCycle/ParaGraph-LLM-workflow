@@ -40,7 +40,13 @@ import {
 } from '../app/services/nodesApi'
 import { compileWorkflow } from '../app/services/workflowsApi'
 import { fetchProviderModels } from '../app/services/providersApi'
-import { cancelExecution, pollExecution, startExecution, subscribeExecutionEvents } from '../app/services/executionsApi'
+import {
+    cancelExecution,
+    DEFAULT_EXECUTION_POLL_INTERVAL_SECONDS,
+    pollExecution,
+    startExecution,
+    subscribeExecutionEvents,
+} from '../app/services/executionsApi'
 import { fetchChatHistory, resetChatHistory } from '../app/services/chatHistoryApi'
 import { usePageMetadata } from '../app/hooks/usePageMetadata'
 import { EDITOR_TOUR_STEPS, GUIDANCE_CONTENT_VERSIONS } from '../guidance/guidanceContent'
@@ -3767,7 +3773,10 @@ function WorkflowEditor() {
 
         void (async () => {
             try {
-                const finalState = await monitorExecutionRun(snapshot.run_id, snapshot.poll_interval)
+                const finalState = await monitorExecutionRun(
+                    snapshot.run_id,
+                    DEFAULT_EXECUTION_POLL_INTERVAL_SECONDS,
+                )
                 if (!finalState) {
                     keepRunTracking = true
                     return
@@ -3864,13 +3873,12 @@ function WorkflowEditor() {
             )
             const runSnapshot: PersistedActiveExecution = {
                 run_id: execution.run_id,
-                poll_interval: execution.poll_interval,
             }
             setActiveRun(runSnapshot)
             const requestLabel = execution.request_id ? `, request ${execution.request_id}` : ''
             setStatusText(`Running workflow ${execution.run_id}${requestLabel}...`)
 
-            const finalState = await monitorExecutionRun(runSnapshot.run_id, runSnapshot.poll_interval)
+            const finalState = await monitorExecutionRun(runSnapshot.run_id, execution.poll_interval)
             if (!finalState) {
                 keepRunTracking = true
                 return
@@ -3953,11 +3961,6 @@ function WorkflowEditor() {
         const maxMessages = typeof rawMaxMessages === 'number' && Number.isFinite(rawMaxMessages)
             ? Math.max(1, Math.trunc(rawMaxMessages))
             : 20
-        const rawStorageBackend = coerceTextPayload(historySource.data.parameters.storage_backend).trim()
-        const storageBackend = rawStorageBackend === 'database' || rawStorageBackend === 'file'
-            ? rawStorageBackend
-            : null
-
         return {
             node_type: sourceId,
             node_id: chatNodeId,
@@ -3966,7 +3969,6 @@ function WorkflowEditor() {
             max_messages: maxMessages,
             separator: coerceTextPayload(historySource.data.parameters.separator),
             keep_prompt_type: Boolean(historySource.data.parameters.keep_prompt_type ?? true),
-            storage_backend: sourceId === 'CHAT_HISTORY_PERSISTED' ? storageBackend : null,
             execution_owned: true,
         }
     }

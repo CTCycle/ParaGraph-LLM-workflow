@@ -7,7 +7,6 @@ from fastapi import APIRouter, Query
 from server.contracts.chat_history import (
     ChatHistoryHandle,
     ChatHistoryResponse,
-    ChatHistoryStorageBackend,
 )
 from server.services.workflow.chat_history import chat_history_service
 
@@ -25,7 +24,6 @@ def get_chat_history(
     max_messages: Annotated[int, Query(ge=1, le=10_000)] = 20,
     separator: str = "\n",
     keep_prompt_type: bool = True,
-    storage_backend: ChatHistoryStorageBackend | None = None,
 ) -> ChatHistoryResponse:
     handle = ChatHistoryHandle(
         node_type=node_type,  # type: ignore[arg-type]
@@ -35,7 +33,6 @@ def get_chat_history(
         max_messages=max_messages,
         separator=separator,
         keep_prompt_type=keep_prompt_type,
-        storage_backend=storage_backend,
     )
     return ChatHistoryResponse(messages=chat_history_service.load_messages(handle))
 

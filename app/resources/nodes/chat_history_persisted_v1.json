@@ -3,7 +3,7 @@
   "version": 1,
   "name": "Persisted Chat History",
   "category": "memory",
-  "description": "Build a persisted chat history controller that stores conversation context on disk by default for connected LLM nodes.",
+  "description": "Build a persisted chat history controller that stores conversation context in SQLite for connected LLM nodes.",
   "inputs": [],
   "outputs": [],
   "controllers": [
@@ -40,19 +40,6 @@
       "default": true,
       "ui_control": "toggle",
       "description": "When enabled, prefixes each history line with system/user/assistant role."
-    },
-    {
-      "name": "storage_backend",
-      "data_type": "TEXT",
-      "default": "file",
-      "constraints": {
-        "options": [
-          "file",
-          "database"
-        ]
-      },
-      "ui_control": "select",
-      "description": "Persistence backend used for chat history storage."
     }
   ],
   "ui": {
