@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field, model_validator
@@ -78,16 +77,6 @@ class VisualGraph(BaseModel):
 
 
 ###############################################################################
-class WorkflowDocument(BaseModel):
-    workflow_id: str
-    name: str
-    definition: WorkflowDefinition
-    visual_graph: VisualGraph
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-
-
-###############################################################################
 class CompilerDiagnostic(BaseModel):
     code: str
     message: str
@@ -109,26 +98,3 @@ class CompileWorkflowResponse(BaseModel):
 
 
 ###############################################################################
-class CreateWorkflowRequest(BaseModel):
-    name: str
-    definition: WorkflowDefinition
-    visual_graph: VisualGraph = Field(default_factory=VisualGraph)
-
-
-###############################################################################
-class UpdateWorkflowRequest(BaseModel):
-    name: str | None = None
-    definition: WorkflowDefinition
-    visual_graph: VisualGraph
-
-
-###############################################################################
-class WorkflowListItem(BaseModel):
-    workflow_id: str
-    name: str
-    updated_at: datetime
-
-
-###############################################################################
-class WorkflowListResponse(BaseModel):
-    workflows: list[WorkflowListItem] = Field(default_factory=list)

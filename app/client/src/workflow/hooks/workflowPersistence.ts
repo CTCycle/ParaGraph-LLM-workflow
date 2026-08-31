@@ -26,7 +26,6 @@ export type PersistedWorkflowEdge = {
 
 export type PersistedActiveExecution = {
     run_id: string
-    poll_interval: number
 }
 
 export type PersistedWorkflowState = {
@@ -131,11 +130,8 @@ export function readPersistedWorkflowState(): PersistedWorkflowState | null {
         const activeRun = isRecord(parsed.active_run)
             && typeof parsed.active_run.run_id === 'string'
             && parsed.active_run.run_id.trim().length > 0
-            && isFiniteNumber(parsed.active_run.poll_interval)
-            && parsed.active_run.poll_interval > 0
             ? {
                 run_id: parsed.active_run.run_id,
-                poll_interval: parsed.active_run.poll_interval,
             }
             : null
 

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 from typing import Any
 
 import pytest
@@ -10,7 +9,6 @@ from server.contracts.chat_history import ChatHistoryHandle
 from server.contracts.node_catalog import ProviderModelDefinition
 from server.repositories.workflow import (
     database_chat_history_repository,
-    file_chat_history_repository,
     in_memory_chat_history_repository,
 )
 from server.services.workflow import node_registry, provider_service
@@ -177,58 +175,6 @@ def test_in_memory_history_trims_max_messages_and_keeps_labels(
 
 
 ###############################################################################
-def test_file_persisted_history_saves_reloads_and_trims(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setattr(
-        provider_service, "validate_model_request", lambda **kwargs: None
-    )
-    monkeypatch.setattr(provider_service, "chat", lambda **kwargs: "file-reply")
-
-    handle = _build_history_handle(
-        node_type="CHAT_HISTORY_PERSISTED",
-        parameters={
-            "max_messages": 2,
-            "separator": "\n",
-            "keep_prompt_type": True,
-            "storage_backend": "file",
-        },
-        context=_history_context(
-            workflow_id="wf-file",
-            session_id="file-session",
-            run_id="run-file",
-            node_id="history_file_node",
-        ),
-    )
-
-    node_registry.execute(
-        "LLM_CHAT",
-        1,
-        {"context_window": 0, "max_tokens": 16, "use_reasoning": False},
-        {"user_prompt": "first"},
-        {"model": _model_handle(), "history": handle.model_dump(mode="json")},
-    )
-    node_registry.execute(
-        "LLM_CHAT",
-        1,
-        {"context_window": 0, "max_tokens": 16, "use_reasoning": False},
-        {"user_prompt": "second"},
-        {"model": _model_handle(), "history": handle.model_dump(mode="json")},
-    )
-
-    messages = file_chat_history_repository.get_messages(
-        "wf-file", "file-session", "history_file_node"
-    )
-    assert len(messages) == 2
-    assert messages[0].content == "second"
-    assert messages[1].content == "file-reply"
-
-    root = Path(getattr(file_chat_history_repository, "_root"))
-    expected_file = root / "wf-file" / "file-session" / "history_file_node.json"
-    assert expected_file.exists()
-
-
-###############################################################################
 def test_database_persisted_history_saves_reloads_and_trims(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -243,7 +189,6 @@ def test_database_persisted_history_saves_reloads_and_trims(
             "max_messages": 2,
             "separator": "\n",
             "keep_prompt_type": True,
-            "storage_backend": "database",
         },
         context=_history_context(
             workflow_id="wf-db",

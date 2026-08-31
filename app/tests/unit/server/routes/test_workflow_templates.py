@@ -5,7 +5,7 @@ from fastapi.testclient import TestClient
 
 ###############################################################################
 def test_list_workflow_templates_returns_expected_templates(client: TestClient) -> None:
-    response = client.get("/workflows/templates")
+    response = client.get("/workflow-templates")
 
     assert response.status_code == 200
     payload = response.json()

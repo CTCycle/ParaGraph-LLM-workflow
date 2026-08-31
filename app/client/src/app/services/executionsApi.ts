@@ -6,6 +6,8 @@ import {
 } from '../../workflow/schema/types'
 import { getApiBase, requestJson } from './api'
 
+export const DEFAULT_EXECUTION_POLL_INTERVAL_SECONDS = 1
+
 export function startExecution(
   plan: CompiledExecutionPlan,
   workflowId?: string,

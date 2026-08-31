@@ -15,7 +15,6 @@ export type NodeCategory =
     | 'control'
 
 export type ChatHistoryNodeType = 'CHAT_HISTORY_MEMORY' | 'CHAT_HISTORY_PERSISTED'
-export type ChatHistoryStorageBackend = 'file' | 'database'
 
 export interface ChatHistoryMessage {
     role: 'system' | 'user' | 'assistant'
@@ -31,7 +30,6 @@ export interface ChatHistoryHandle {
     max_messages: number
     separator: string
     keep_prompt_type: boolean
-    storage_backend?: ChatHistoryStorageBackend | null
     execution_owned?: boolean
 }
 export type NodeDataType =
@@ -195,15 +193,6 @@ export interface VisualGraph {
     nodes: VisualNodeState[]
     groups: Record<string, unknown>[]
     comments: Record<string, unknown>[]
-}
-
-export interface WorkflowDocument {
-    workflow_id: string
-    name: string
-    definition: WorkflowDefinition
-    visual_graph: VisualGraph
-    created_at: string
-    updated_at: string
 }
 
 export interface WorkflowShareBundle {

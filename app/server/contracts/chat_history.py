@@ -7,8 +7,6 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 ChatHistoryRole = Literal["system", "user", "assistant"]
-ChatHistoryStorageBackend = Literal["file", "database"]
-DEFAULT_CHAT_HISTORY_STORAGE_BACKEND: ChatHistoryStorageBackend = "file"
 
 
 ###############################################################################
@@ -36,7 +34,6 @@ class ChatHistoryHandle(BaseModel):
     max_messages: int = Field(ge=1)
     separator: str
     keep_prompt_type: bool
-    storage_backend: ChatHistoryStorageBackend | None = None
     execution_owned: bool = False
 
 

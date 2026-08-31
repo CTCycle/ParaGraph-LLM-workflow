@@ -1,7 +1,6 @@
 # Project-specific generated/runtime artifacts
 app/resources/artifacts/**
 app/resources/models/**
-app/resources/workflows/**
 app/resources/tokenizers/**
 app/resources/logs/**
 app/client/node_modules/

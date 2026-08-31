@@ -164,7 +164,7 @@ class InMemoryChatHistoryParameters(BaseModel):
 
 ###############################################################################
 class PersistedChatHistoryParameters(InMemoryChatHistoryParameters):
-    storage_backend: Literal["file", "database"] = "file"
+    pass
 
 
 ###############################################################################

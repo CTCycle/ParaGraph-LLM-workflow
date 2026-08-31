@@ -7,11 +7,9 @@ from typing import Protocol
 from server.contracts.chat_history import (
     ChatHistoryHandle,
     ChatHistoryMessage,
-    DEFAULT_CHAT_HISTORY_STORAGE_BACKEND,
 )
 from server.repositories.workflow import (
     database_chat_history_repository,
-    file_chat_history_repository,
     in_memory_chat_history_repository,
 )
 
@@ -58,10 +56,7 @@ class ChatHistoryService:
     ) -> ChatHistoryRepository:
         if handle.node_type == "CHAT_HISTORY_MEMORY":
             return in_memory_chat_history_repository
-        backend = handle.storage_backend or DEFAULT_CHAT_HISTORY_STORAGE_BACKEND
-        if backend == "database":
-            return database_chat_history_repository
-        return file_chat_history_repository
+        return database_chat_history_repository
 
     # -------------------------------------------------------------------------
     def _trim_to_limit(

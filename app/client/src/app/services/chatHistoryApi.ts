@@ -18,9 +18,6 @@ export function fetchChatHistory(handle: ChatHistoryHandle): Promise<ChatHistory
         separator: handle.separator,
         keep_prompt_type: String(handle.keep_prompt_type),
     })
-    if (handle.storage_backend) {
-        query.set('storage_backend', handle.storage_backend)
-    }
     return requestJson<ChatHistoryResponse>(`/chat-history?${query.toString()}`)
 }
 

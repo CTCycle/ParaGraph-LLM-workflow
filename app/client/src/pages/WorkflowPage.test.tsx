@@ -96,7 +96,6 @@ describe('WorkflowPage manifest-driven provider and retrieval behavior', () => {
             'max_messages',
             'separator',
             'keep_prompt_type',
-            'storage_backend',
         ])
     })
 

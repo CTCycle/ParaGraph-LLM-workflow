@@ -1,12 +1,8 @@
 from __future__ import annotations
 
-from typing import Any, cast
+from typing import Any
 
-from server.contracts.chat_history import (
-    ChatHistoryHandle,
-    ChatHistoryStorageBackend,
-    DEFAULT_CHAT_HISTORY_STORAGE_BACKEND,
-)
+from server.contracts.chat_history import ChatHistoryHandle
 from server.contracts.node_handler_core import ChatInputParameters
 from server.services.workflow.nodes.execution_context import (
     get_execution_context,
@@ -43,7 +39,6 @@ def execute_chat_history_memory(
         max_messages=int(parameters.get("max_messages", 20)),
         separator=str(parameters.get("separator", "\n")),
         keep_prompt_type=bool(parameters.get("keep_prompt_type", True)),
-        storage_backend=None,
     )
     return {"history": handle.model_dump(mode="json")}
 
@@ -56,12 +51,6 @@ def execute_chat_history_persisted(
     context = get_execution_context()
     workflow_id, execution_session_id = _resolve_context_identifiers()
     node_id = (context.get("node_id") or "").strip() or "node"
-    backend = cast(
-        ChatHistoryStorageBackend,
-        str(parameters.get("storage_backend", DEFAULT_CHAT_HISTORY_STORAGE_BACKEND))
-        .strip()
-        .lower(),
-    )
     handle = ChatHistoryHandle(
         node_type="CHAT_HISTORY_PERSISTED",
         workflow_id=workflow_id,
@@ -70,7 +59,6 @@ def execute_chat_history_persisted(
         max_messages=int(parameters.get("max_messages", 20)),
         separator=str(parameters.get("separator", "\n")),
         keep_prompt_type=bool(parameters.get("keep_prompt_type", True)),
-        storage_backend=backend,
     )
     return {"history": handle.model_dump(mode="json")}
 

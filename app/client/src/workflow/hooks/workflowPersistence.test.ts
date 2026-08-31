@@ -45,7 +45,7 @@ describe('workflow persistence', () => {
             search: 'text',
             selected_manifest_key: 'core.text@1',
             execution_session_id: 'session-1',
-            active_run: { run_id: 'run-1', poll_interval: 1500 },
+            active_run: { run_id: 'run-1' },
         }
 
         persistWorkflowState(state)
@@ -57,7 +57,7 @@ describe('workflow persistence', () => {
         window.localStorage.setItem('paragraph.workflow.state.v1', JSON.stringify({
             nodes: [{ id: 'missing-position' }],
             edges: [{ source: 'node-1', target: 'node-2' }],
-            active_run: { run_id: '', poll_interval: 0 },
+            active_run: { run_id: '' },
         }))
 
         expect(readPersistedWorkflowState()).toEqual({

@@ -17,7 +17,7 @@ from server.api.executions import router as executions_router
 from server.api.nodes import router as nodes_router
 from server.api.providers import router as providers_router
 from server.api.request_id import request_id_middleware
-from server.api.workflows import router as workflows_router
+from server.api.workflow_templates import router as workflow_templates_router
 from server.api.ws import router as ws_router
 from server.configurations.startup import get_server_settings
 from server.repositories.database.initializer import initialize_database
@@ -90,7 +90,7 @@ def create_app() -> FastAPI:
 
     app.middleware("http")(request_id_middleware)
 
-    app.include_router(workflows_router)
+    app.include_router(workflow_templates_router)
     app.include_router(executions_router)
     app.include_router(nodes_router)
     app.include_router(providers_router)
