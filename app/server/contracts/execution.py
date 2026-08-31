@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 ExecutionStatus = Literal[
@@ -70,6 +70,7 @@ class CompiledExecutionPlan(BaseModel):
 
 ###############################################################################
 class PauseCheckpoint(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     node_id: str
     step_id: str
     resume_token: str

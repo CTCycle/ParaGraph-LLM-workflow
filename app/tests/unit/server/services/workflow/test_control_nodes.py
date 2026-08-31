@@ -12,7 +12,9 @@ from server.services.workflow.node_handlers.control import (
 from server.contracts.execution import (
     CompiledExecutionPlan,
     ExecutionBinding,
+    ExecutionRunState,
     ExecutionStepPlan,
+    ExecutionStepState,
 )
 from server.repositories.workflow.execution_run import (
     ExecutionRunRepository,
@@ -47,6 +49,32 @@ def test_cache_node_returns_cached_deterministic_output() -> None:
 ###############################################################################
 def test_human_review_gate_pauses_run_payload() -> None:
     assert _human_review_gate_executor({}, {"value": "x"})["paused"] is True
+
+
+###############################################################################
+def test_invalid_persisted_pause_state_fails_closed() -> None:
+    plan = CompiledExecutionPlan(plan_id="invalid-pause-plan")
+    execution_run_repository.create_run(
+        ExecutionRunState(
+            run_id="invalid-pause-run",
+            plan_id=plan.plan_id,
+            plan=plan,
+            status="paused",
+            pause_payload={"reason": "legacy"},
+            resume_token="resume-token",
+            steps=[
+                ExecutionStepState(
+                    step_id="review",
+                    node_id="review",
+                    node_type="HUMAN_REVIEW_GATE",
+                    status="paused",
+                )
+            ],
+        )
+    )
+
+    with pytest.raises(ValueError, match="Persisted pause checkpoint is invalid"):
+        ExecutionRunRepository().get_run("invalid-pause-run")
 
 
 ###############################################################################
