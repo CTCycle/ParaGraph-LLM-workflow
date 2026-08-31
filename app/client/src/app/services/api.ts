@@ -1,9 +1,9 @@
 const ABSOLUTE_URL_PATTERN = /^[a-zA-Z][a-zA-Z\d+\-.]*:\/\//
 
 function normalizeApiBase(rawValue: string | undefined): string {
-    const candidate = (rawValue || '/api').trim()
+    const candidate = rawValue?.trim()
     if (!candidate) {
-        return '/api'
+        throw new Error('VITE_API_BASE_URL must be set in settings/.env.')
     }
     if (ABSOLUTE_URL_PATTERN.test(candidate)) {
         throw new Error('VITE_API_BASE_URL must be a relative path (for example /api). Absolute URLs are not allowed.')

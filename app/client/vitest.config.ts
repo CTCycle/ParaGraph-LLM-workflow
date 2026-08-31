@@ -12,6 +12,7 @@ const testSetupFile = relative(
 
 export default defineConfig({
     root: clientRoot,
+    envDir: resolve(clientRoot, '../../settings'),
     cacheDir: resolve(cacheRoot, 'vitest'),
     plugins: [react()],
     test: {

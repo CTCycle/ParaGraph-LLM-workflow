@@ -180,7 +180,7 @@ def test_application_database_settings_reject_non_positive_batch_size(
 
 
 ###############################################################################
-def test_runtime_settings_ignore_database_block_from_json(tmp_path: Path) -> None:
+def test_runtime_settings_reject_obsolete_database_block_from_json(tmp_path: Path) -> None:
     config_path = tmp_path / "configurations.json"
     env_path = tmp_path / ".env"
     _write_json(
@@ -196,13 +196,35 @@ def test_runtime_settings_ignore_database_block_from_json(tmp_path: Path) -> Non
     _write_env(env_path, ["DATABASE_INSERT_BATCH_SIZE=1000"])
 
     runtime = ConfigurationRuntime(environment_loader=EnvironmentLoader(env_path))
-    runtime.initialize(force=True, configuration_file=config_path)
+    with pytest.raises(RuntimeError, match="database"):
+        runtime.initialize(force=True, configuration_file=config_path)
 
-    runtime_settings = runtime.get_runtime_settings()
-    assert runtime_settings.model_dump(by_alias=True) == {
-        "global": {"seed": 7},
-        "jobs": {"polling_interval": 2.5},
-    }
+
+###############################################################################
+def test_invalid_numeric_environment_value_fails_fast(
+    tmp_path: Path,
+) -> None:
+    config_path = tmp_path / "configurations.json"
+    env_path = tmp_path / ".env"
+    _write_json(config_path, {"global": {"seed": 42}, "jobs": {"polling_interval": 1.0}})
+    _write_env(env_path, ["DATABASE_INSERT_BATCH_SIZE=not-a-number"])
+
+    runtime = ConfigurationRuntime(environment_loader=EnvironmentLoader(env_path))
+
+    with pytest.raises(ValueError, match="DATABASE_INSERT_BATCH_SIZE must be an integer"):
+        runtime.get_server_settings(config_path=config_path)
+
+
+###############################################################################
+def test_invalid_llm_timeout_environment_value_fails_fast(
+    tmp_path: Path,
+) -> None:
+    env_path = tmp_path / ".env"
+    _write_env(env_path, ["LLM_TIMEOUT_S=not-a-number"])
+    loader = EnvironmentLoader(env_path)
+
+    with pytest.raises(ValueError, match="LLM_TIMEOUT_S must be a number"):
+        loader.get_float("LLM_TIMEOUT_S", 30.0)
 
 
 ###############################################################################

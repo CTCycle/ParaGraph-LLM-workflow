@@ -23,8 +23,8 @@ def _env_int(key: str, default: int) -> int:
         return default
     try:
         return int(value)
-    except ValueError:
-        return default
+    except ValueError as exc:
+        raise ValueError(f"{key} must be an integer, got {value!r}.") from exc
 
 
 ###############################################################################
@@ -62,22 +62,25 @@ class ServerSettings:
 
 ###############################################################################
 class JsonSQLiteSettings(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     insert_batch_size: int = Field(default=1000, ge=1)
 
 
 ###############################################################################
 class JsonGlobalSettings(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     seed: int = 42
 
 
 ###############################################################################
 class JsonJobsSettings(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     polling_interval: float = 1.0
 
 
 ###############################################################################
 class RuntimeConfigurationSettings(BaseModel):
-    model_config = ConfigDict(extra="ignore", populate_by_name=True)
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
     global_settings: JsonGlobalSettings = Field(
         default_factory=JsonGlobalSettings, alias="global"
     )

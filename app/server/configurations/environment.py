@@ -79,8 +79,8 @@ class EnvironmentLoader:
             return default
         try:
             return int(value.strip())
-        except (TypeError, ValueError):
-            return default
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"{key} must be an integer, got {value!r}.") from exc
 
     # -------------------------------------------------------------------------
     def get_float(self, key: str, default: float) -> float:
@@ -89,8 +89,8 @@ class EnvironmentLoader:
             return default
         try:
             return float(value.strip())
-        except (TypeError, ValueError):
-            return default
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"{key} must be a number, got {value!r}.") from exc
 
     # -------------------------------------------------------------------------
     def get_bool(self, key: str, default: bool) -> bool:
