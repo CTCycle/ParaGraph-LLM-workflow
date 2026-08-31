@@ -87,16 +87,182 @@ function buildTextOutputManifest(): AnyRecord {
 function buildConfigurationPayload(): AnyRecord {
     return {
         session_name: 'default',
-        access_keys: [
-            { provider: 'openai', api_key: 'sk-test', base_url: null, metadata: {} },
-            { provider: 'huggingface', api_key: 'hf-test', base_url: null, metadata: {} },
+        provider_configurations: [
+            {
+                provider: 'openai',
+                api_key: 'sk-test',
+                has_api_key: true,
+                base_url: null,
+                metadata: {},
+            },
+            {
+                provider: 'huggingface',
+                api_key: 'hf-test',
+                has_api_key: true,
+                base_url: null,
+                metadata: {},
+            },
+            {
+                provider: 'ollama',
+                api_key: null,
+                has_api_key: false,
+                base_url: 'http://127.0.0.1:11434',
+                metadata: {
+                    chat_model: 'llama3.2',
+                    embedding_model: 'nomic-embed-text',
+                },
+            },
         ],
-        ollama: {
-            base_url: 'http://127.0.0.1:11434',
-            chat_model: 'llama3.2',
-            embedding_model: 'nomic-embed-text',
-        },
     }
+}
+
+function buildProviderCatalog(): AnyRecord[] {
+    return [
+        {
+            provider: 'ollama',
+            label: 'Ollama',
+            configuration_kind: 'local',
+            model_source: 'live',
+            default_base_url: 'http://127.0.0.1:11434',
+            default_chat_model: 'llama3.2',
+            default_embedding_model: 'nomic-embed-text',
+            requires_api_key: false,
+            supports_status_check: true,
+            supports_chat: true,
+            supports_embeddings: true,
+            supports_structured_output: true,
+            supports_streaming: true,
+            supports_tool_calling: false,
+            supports_tool_selection: true,
+            supports_native_tool_protocol: false,
+        },
+        {
+            provider: 'openai',
+            label: 'OpenAI',
+            configuration_kind: 'cloud',
+            model_source: 'hosted_registry',
+            default_base_url: 'https://api.openai.com/v1',
+            default_chat_model: null,
+            default_embedding_model: null,
+            requires_api_key: true,
+            supports_status_check: false,
+            supports_chat: true,
+            supports_embeddings: true,
+            supports_structured_output: true,
+            supports_streaming: true,
+            supports_tool_calling: false,
+            supports_tool_selection: true,
+            supports_native_tool_protocol: false,
+        },
+        {
+            provider: 'gemini',
+            label: 'Google Gemini',
+            configuration_kind: 'cloud',
+            model_source: 'hosted_registry',
+            default_base_url: 'https://generativelanguage.googleapis.com/v1beta',
+            default_chat_model: null,
+            default_embedding_model: null,
+            requires_api_key: true,
+            supports_status_check: false,
+            supports_chat: true,
+            supports_embeddings: true,
+            supports_structured_output: true,
+            supports_streaming: true,
+            supports_tool_calling: false,
+            supports_tool_selection: true,
+            supports_native_tool_protocol: false,
+        },
+        {
+            provider: 'claude',
+            label: 'Anthropic Claude',
+            configuration_kind: 'cloud',
+            model_source: 'hosted_registry',
+            default_base_url: 'https://api.anthropic.com/v1',
+            default_chat_model: null,
+            default_embedding_model: null,
+            requires_api_key: true,
+            supports_status_check: false,
+            supports_chat: true,
+            supports_embeddings: false,
+            supports_structured_output: true,
+            supports_streaming: true,
+            supports_tool_calling: false,
+            supports_tool_selection: true,
+            supports_native_tool_protocol: false,
+        },
+        {
+            provider: 'deepseek',
+            label: 'DeepSeek',
+            configuration_kind: 'cloud',
+            model_source: 'hosted_registry',
+            default_base_url: 'https://api.deepseek.com',
+            default_chat_model: null,
+            default_embedding_model: null,
+            requires_api_key: true,
+            supports_status_check: false,
+            supports_chat: true,
+            supports_embeddings: false,
+            supports_structured_output: true,
+            supports_streaming: true,
+            supports_tool_calling: false,
+            supports_tool_selection: true,
+            supports_native_tool_protocol: false,
+        },
+        {
+            provider: 'huggingface',
+            label: 'Hugging Face',
+            configuration_kind: 'remote',
+            model_source: 'downloaded_filesystem',
+            default_base_url: null,
+            default_chat_model: null,
+            default_embedding_model: null,
+            requires_api_key: true,
+            supports_status_check: false,
+            supports_chat: true,
+            supports_embeddings: true,
+            supports_structured_output: true,
+            supports_streaming: false,
+            supports_tool_calling: false,
+            supports_tool_selection: true,
+            supports_native_tool_protocol: false,
+        },
+        {
+            provider: 'lmstudio',
+            label: 'LM Studio',
+            configuration_kind: 'local',
+            model_source: 'live',
+            default_base_url: 'http://localhost:1234/v1',
+            default_chat_model: 'local-model',
+            default_embedding_model: 'local-embedding-model',
+            requires_api_key: false,
+            supports_status_check: true,
+            supports_chat: true,
+            supports_embeddings: true,
+            supports_structured_output: true,
+            supports_streaming: true,
+            supports_tool_calling: false,
+            supports_tool_selection: true,
+            supports_native_tool_protocol: false,
+        },
+        {
+            provider: 'llama',
+            label: 'llama.cpp',
+            configuration_kind: 'local',
+            model_source: 'live',
+            default_base_url: 'http://localhost:8080/v1',
+            default_chat_model: 'local-model',
+            default_embedding_model: 'local-embedding-model',
+            requires_api_key: false,
+            supports_status_check: true,
+            supports_chat: true,
+            supports_embeddings: true,
+            supports_structured_output: true,
+            supports_streaming: true,
+            supports_tool_calling: false,
+            supports_tool_selection: true,
+            supports_native_tool_protocol: false,
+        },
+    ]
 }
 
 function extractJsonPayload(raw: string | null): AnyRecord {
@@ -127,6 +293,7 @@ export async function setupMockBackend(page: Page, workflowOutputText = 'Hello f
     }
 
     const configurationPayload = buildConfigurationPayload()
+    const providerCatalog = buildProviderCatalog()
     const profiles = new Map<string, AnyRecord>([
         ['workstation', buildConfigurationPayload()],
         ['travel', buildConfigurationPayload()],
@@ -199,6 +366,10 @@ export async function setupMockBackend(page: Page, workflowOutputText = 'Hello f
                     },
                 ],
             })
+        }
+
+        if (normalizedPath === '/providers/catalog' && method === 'GET') {
+            return reply(route, 200, { providers: providerCatalog })
         }
 
         if (normalizedPath === '/nodes/catalog' && method === 'GET') {
