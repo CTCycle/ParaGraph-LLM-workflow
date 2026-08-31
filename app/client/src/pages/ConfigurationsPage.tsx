@@ -14,103 +14,59 @@ import {
     pingProvider,
     saveConfigurationProfile,
 } from '../app/services/configurationsApi'
+import { fetchProviderCatalog } from '../app/services/providersApi'
 import ModalActionButtons from '../components/ModalActionButtons'
 import ModalDialog from '../components/ModalDialog'
-import { AccessKeyConfiguration, AppConfigurationPayload, ConfigurationProfileSummary } from '../workflow/schema/types'
+import {
+    AppConfigurationPayload,
+    ConfigurationProfileSummary,
+    ProviderCapability,
+} from '../workflow/schema/types'
 import './ConfigurationsPage.css'
-
-type CloudProvider = 'openai' | 'gemini' | 'claude' | 'deepseek'
-type LocalProvider = 'lmstudio' | 'llama'
 
 type ProviderCredential = {
     apiKey: string
     baseUrl: string
+    hasApiKey: boolean
+    apiKeyDirty: boolean
 }
 
-type LocalProviderSettings = {
-    apiKey: string
-    baseUrl: string
+type LocalProviderSettings = ProviderCredential & {
     chatModel: string
     embeddingModel: string
 }
 
 type ConfigurationFormValues = {
-    cloudCredentials: Record<CloudProvider, ProviderCredential>
-    localProviders: Record<LocalProvider, LocalProviderSettings>
+    cloudCredentials: Record<string, ProviderCredential>
+    localProviders: Record<string, LocalProviderSettings>
     huggingFaceKey: string
+    huggingFaceHasApiKey: boolean
+    huggingFaceKeyDirty: boolean
     ollamaBaseUrl: string
     ollamaChatModel: string
     ollamaEmbeddingModel: string
-    selectedCloudProvider: CloudProvider
+    selectedCloudProvider: string
+    selectedLocalProvider: string
 }
 
 type InlineStatusTone = 'neutral' | 'success' | 'error'
 
 const DEFAULT_SESSION_NAME = 'default'
-const MASKED_API_KEY_VALUE = '__PG_MASKED_API_KEY__'
-const MASKED_API_KEY_DISPLAY = '********'
-const CLOUD_PROVIDER_OPTIONS: Array<{ value: CloudProvider; label: string }> = [
-    { value: 'openai', label: 'OpenAI' },
-    { value: 'gemini', label: 'Gemini' },
-    { value: 'claude', label: 'Claude' },
-    { value: 'deepseek', label: 'DeepSeek' },
-]
-
-const LOCAL_PROVIDER_OPTIONS: Array<{ value: LocalProvider; label: string; defaultBaseUrl: string; defaultChatModel: string; defaultEmbeddingModel: string }> = [
-    {
-        value: 'lmstudio',
-        label: 'LM Studio',
-        defaultBaseUrl: 'http://localhost:1234/v1',
-        defaultChatModel: 'local-model',
-        defaultEmbeddingModel: 'local-embedding-model',
-    },
-    {
-        value: 'llama',
-        label: 'llama.cpp',
-        defaultBaseUrl: 'http://localhost:8080/v1',
-        defaultChatModel: 'local-model',
-        defaultEmbeddingModel: 'local-embedding-model',
-    },
-]
-
-const EMPTY_CLOUD_CREDENTIALS: Record<CloudProvider, ProviderCredential> = {
-    openai: { apiKey: '', baseUrl: '' },
-    gemini: { apiKey: '', baseUrl: '' },
-    claude: { apiKey: '', baseUrl: '' },
-    deepseek: { apiKey: '', baseUrl: '' },
+function emptyProviderCredential(): ProviderCredential {
+    return { apiKey: '', baseUrl: '', hasApiKey: false, apiKeyDirty: false }
 }
 
-const DEFAULT_LOCAL_PROVIDERS: Record<LocalProvider, LocalProviderSettings> = {
-    lmstudio: {
-        apiKey: '',
-        baseUrl: 'http://localhost:1234/v1',
-        chatModel: 'local-model',
-        embeddingModel: 'local-embedding-model',
-    },
-    llama: {
-        apiKey: '',
-        baseUrl: 'http://localhost:8080/v1',
-        chatModel: 'local-model',
-        embeddingModel: 'local-embedding-model',
-    },
+function localProviderDefaults(metadata: ProviderCapability): LocalProviderSettings {
+    return {
+        ...emptyProviderCredential(),
+        baseUrl: metadata.default_base_url || '',
+        chatModel: metadata.default_chat_model || '',
+        embeddingModel: metadata.default_embedding_model || '',
+    }
 }
 
 function normalizeText(value: string | null | undefined): string {
     return (value || '').trim()
-}
-
-function toCloudProvider(value: string): CloudProvider {
-    if (value === 'openai' || value === 'gemini' || value === 'claude' || value === 'deepseek') {
-        return value
-    }
-    return 'openai'
-}
-
-function toLocalProvider(value: string): LocalProvider {
-    if (value === 'lmstudio' || value === 'llama') {
-        return value
-    }
-    return 'lmstudio'
 }
 
 function metadataText(metadata: Record<string, unknown>, key: string): string {
@@ -119,23 +75,13 @@ function metadataText(metadata: Record<string, unknown>, key: string): string {
 }
 
 function normalizeApiKeyField(value: string | null | undefined): string {
-    const normalized = normalizeText(value)
-    if (!normalized) {
-        return ''
-    }
-    if (normalized === MASKED_API_KEY_VALUE) {
-        return MASKED_API_KEY_DISPLAY
-    }
-    return normalized
+    return normalizeText(value)
 }
 
 function toApiKeyPayload(value: string): string | null {
     const normalized = normalizeText(value)
     if (!normalized) {
         return null
-    }
-    if (normalized === MASKED_API_KEY_DISPLAY) {
-        return MASKED_API_KEY_VALUE
     }
     return normalized
 }
@@ -151,56 +97,98 @@ function formatOllamaStatusMessage(message: string, baseUrl: string): string {
     return `Ollama unreachable. Check that Ollama is running at ${target}.`
 }
 
-function mapPayloadToForm(payload: AppConfigurationPayload): ConfigurationFormValues {
-    const cloudCredentials: Record<CloudProvider, ProviderCredential> = {
-        openai: { ...EMPTY_CLOUD_CREDENTIALS.openai },
-        gemini: { ...EMPTY_CLOUD_CREDENTIALS.gemini },
-        claude: { ...EMPTY_CLOUD_CREDENTIALS.claude },
-        deepseek: { ...EMPTY_CLOUD_CREDENTIALS.deepseek },
-    }
-    const localProviders: Record<LocalProvider, LocalProviderSettings> = {
-        lmstudio: { ...DEFAULT_LOCAL_PROVIDERS.lmstudio },
-        llama: { ...DEFAULT_LOCAL_PROVIDERS.llama },
+function mapPayloadToForm(
+    payload: AppConfigurationPayload,
+    catalog: ProviderCapability[],
+): ConfigurationFormValues {
+    const cloudCredentials: Record<string, ProviderCredential> = {}
+    const localProviders: Record<string, LocalProviderSettings> = {}
+    const ollamaMetadata = catalog.find((item) => item.provider === 'ollama')
+    let ollamaDefaults = ollamaMetadata
+        ? localProviderDefaults(ollamaMetadata)
+        : { ...emptyProviderCredential(), chatModel: '', embeddingModel: '' }
+
+    for (const item of catalog) {
+        if (item.configuration_kind === 'cloud') {
+            cloudCredentials[item.provider] = emptyProviderCredential()
+        }
+        if (item.configuration_kind === 'local' && item.provider !== 'ollama') {
+            localProviders[item.provider] = localProviderDefaults(item)
+        }
     }
 
     let huggingFaceKey = ''
-    let selectedCloudProvider: CloudProvider = 'openai'
+    let huggingFaceHasApiKey = false
+    let huggingFaceKeyDirty = false
+    let selectedCloudProvider = catalog.find(
+        (item) => item.configuration_kind === 'cloud',
+    )?.provider || ''
+    const selectedLocalProvider = catalog.find(
+        (item) => item.configuration_kind === 'local' && item.provider !== 'ollama',
+    )?.provider || ''
 
-    payload.access_keys.forEach((item) => {
+    for (const item of payload.provider_configurations) {
+        const hasApiKey = Boolean(item.api_key) || item.has_api_key
+        const apiKey = normalizeApiKeyField(item.api_key)
         if (item.provider === 'huggingface') {
-            huggingFaceKey = normalizeApiKeyField(item.api_key)
-            return
+            huggingFaceKey = apiKey
+            huggingFaceHasApiKey = hasApiKey
+            continue
         }
 
-        const provider = toCloudProvider(item.provider)
-        if (item.provider === 'lmstudio' || item.provider === 'llama') {
-            const localProvider = toLocalProvider(item.provider)
-            localProviders[localProvider] = {
-                apiKey: normalizeApiKeyField(item.api_key),
-                baseUrl: normalizeText(item.base_url) || DEFAULT_LOCAL_PROVIDERS[localProvider].baseUrl,
-                chatModel: metadataText(item.metadata, 'chat_model') || DEFAULT_LOCAL_PROVIDERS[localProvider].chatModel,
-                embeddingModel: metadataText(item.metadata, 'embedding_model') || DEFAULT_LOCAL_PROVIDERS[localProvider].embeddingModel,
+        const metadata = catalog.find((candidate) => candidate.provider === item.provider)
+        if (!metadata) {
+            continue
+        }
+        if (metadata.configuration_kind === 'local' && item.provider !== 'ollama') {
+            const defaults = localProviders[item.provider] || localProviderDefaults(metadata)
+            localProviders[item.provider] = {
+                ...defaults,
+                apiKey,
+                hasApiKey,
+                baseUrl: normalizeText(item.base_url) || defaults.baseUrl,
+                chatModel: metadataText(item.metadata, 'chat_model') || defaults.chatModel,
+                embeddingModel:
+                    metadataText(item.metadata, 'embedding_model') || defaults.embeddingModel,
             }
-            return
+            continue
         }
-
-        cloudCredentials[provider] = {
-            apiKey: normalizeApiKeyField(item.api_key),
-            baseUrl: normalizeText(item.base_url),
+        if (item.provider === 'ollama') {
+            ollamaDefaults = {
+                ...ollamaDefaults,
+                apiKey,
+                hasApiKey,
+                baseUrl: normalizeText(item.base_url) || ollamaDefaults.baseUrl,
+                chatModel: metadataText(item.metadata, 'chat_model') || ollamaDefaults.chatModel,
+                embeddingModel:
+                    metadataText(item.metadata, 'embedding_model') || ollamaDefaults.embeddingModel,
+            }
+            continue
         }
-        if (normalizeApiKeyField(item.api_key)) {
-            selectedCloudProvider = provider
+        if (metadata.configuration_kind === 'cloud') {
+            cloudCredentials[item.provider] = {
+                apiKey,
+                hasApiKey,
+                baseUrl: normalizeText(item.base_url),
+                apiKeyDirty: false,
+            }
+            if (hasApiKey) {
+                selectedCloudProvider = item.provider
+            }
         }
-    })
+    }
 
     return {
         cloudCredentials,
         localProviders,
         huggingFaceKey,
-        ollamaBaseUrl: normalizeText(payload.ollama.base_url),
-        ollamaChatModel: normalizeText(payload.ollama.chat_model),
-        ollamaEmbeddingModel: normalizeText(payload.ollama.embedding_model),
+        huggingFaceHasApiKey,
+        huggingFaceKeyDirty,
+        ollamaBaseUrl: ollamaDefaults.baseUrl,
+        ollamaChatModel: ollamaDefaults.chatModel,
+        ollamaEmbeddingModel: ollamaDefaults.embeddingModel,
         selectedCloudProvider,
+        selectedLocalProvider,
     }
 }
 
@@ -208,19 +196,22 @@ export default function ConfigurationsPage() {
     usePageMetadata({
         title: 'Configurations',
         description:
-            'Configure Ollama defaults and provider access keys for ParaGraph workflow execution in your current session.',
+            'Configure provider endpoints and credentials for ParaGraph workflow execution in your current session.',
     })
     const { shouldShow, markSeen, markDismissed } = useGuidance()
-    const [selectedCloudProvider, setSelectedCloudProvider] = useState<CloudProvider>('openai')
-    const [selectedLocalProvider, setSelectedLocalProvider] = useState<LocalProvider>('lmstudio')
+    const [providerCatalog, setProviderCatalog] = useState<ProviderCapability[]>([])
+    const [selectedCloudProvider, setSelectedCloudProvider] = useState('')
+    const [selectedLocalProvider, setSelectedLocalProvider] = useState('')
     const [cloudCredentials, setCloudCredentials] =
-        useState<Record<CloudProvider, ProviderCredential>>(EMPTY_CLOUD_CREDENTIALS)
+        useState<Record<string, ProviderCredential>>({})
     const [localProviders, setLocalProviders] =
-        useState<Record<LocalProvider, LocalProviderSettings>>(DEFAULT_LOCAL_PROVIDERS)
+        useState<Record<string, LocalProviderSettings>>({})
     const [huggingFaceKey, setHuggingFaceKey] = useState('')
-    const [ollamaBaseUrl, setOllamaBaseUrl] = useState('http://127.0.0.1:11434')
-    const [ollamaChatModel, setOllamaChatModel] = useState('llama3.2')
-    const [ollamaEmbeddingModel, setOllamaEmbeddingModel] = useState('nomic-embed-text')
+    const [huggingFaceHasApiKey, setHuggingFaceHasApiKey] = useState(false)
+    const [huggingFaceKeyDirty, setHuggingFaceKeyDirty] = useState(false)
+    const [ollamaBaseUrl, setOllamaBaseUrl] = useState('')
+    const [ollamaChatModel, setOllamaChatModel] = useState('')
+    const [ollamaEmbeddingModel, setOllamaEmbeddingModel] = useState('')
     const [statusMessage, setStatusMessage] = useState<string | null>(null)
     const [ollamaStatus, setOllamaStatus] = useState<string | null>(null)
     const [ollamaStatusTone, setOllamaStatusTone] = useState<InlineStatusTone>('neutral')
@@ -228,6 +219,7 @@ export default function ConfigurationsPage() {
     const [localStatusTone, setLocalStatusTone] = useState<InlineStatusTone>('neutral')
     const [isPingingLocal, setIsPingingLocal] = useState(false)
     const [isLoading, setIsLoading] = useState(true)
+    const [isLoadingCatalog, setIsLoadingCatalog] = useState(true)
     const [isSavingProfile, setIsSavingProfile] = useState(false)
     const [isPingingOllama, setIsPingingOllama] = useState(false)
     const getErrorMessage = useErrorMessage()
@@ -243,34 +235,76 @@ export default function ConfigurationsPage() {
     const [isSetupTipVisible, setIsSetupTipVisible] = useState(false)
 
     const currentCloudCredentials = useMemo(
-        () => cloudCredentials[selectedCloudProvider],
+        () => cloudCredentials[selectedCloudProvider] || emptyProviderCredential(),
         [cloudCredentials, selectedCloudProvider],
     )
     const currentLocalProvider = useMemo(
-        () => localProviders[selectedLocalProvider],
+        () => localProviders[selectedLocalProvider] || {
+            ...emptyProviderCredential(),
+            chatModel: '',
+            embeddingModel: '',
+        },
         [localProviders, selectedLocalProvider],
     )
 
+    const cloudProviderOptions = useMemo(
+        () => providerCatalog.filter((item) => item.configuration_kind === 'cloud'),
+        [providerCatalog],
+    )
+    const localProviderOptions = useMemo(
+        () => providerCatalog.filter(
+            (item) => item.configuration_kind === 'local' && item.provider !== 'ollama',
+        ),
+        [providerCatalog],
+    )
+    const ollamaProvider = useMemo(
+        () => providerCatalog.find((item) => item.provider === 'ollama'),
+        [providerCatalog],
+    )
+    const huggingFaceProvider = useMemo(
+        () => providerCatalog.find((item) => item.provider === 'huggingface'),
+        [providerCatalog],
+    )
+
     function applyPayload(payload: AppConfigurationPayload): void {
-        const mapped = mapPayloadToForm(payload)
+        const mapped = mapPayloadToForm(payload, providerCatalog)
         setCloudCredentials(mapped.cloudCredentials)
         setLocalProviders(mapped.localProviders)
         setHuggingFaceKey(mapped.huggingFaceKey)
-        setOllamaBaseUrl(mapped.ollamaBaseUrl || 'http://127.0.0.1:11434')
-        setOllamaChatModel(mapped.ollamaChatModel || 'llama3.2')
-        setOllamaEmbeddingModel(mapped.ollamaEmbeddingModel || 'nomic-embed-text')
+        setHuggingFaceHasApiKey(mapped.huggingFaceHasApiKey)
+        setHuggingFaceKeyDirty(mapped.huggingFaceKeyDirty)
+        setOllamaBaseUrl(mapped.ollamaBaseUrl)
+        setOllamaChatModel(mapped.ollamaChatModel)
+        setOllamaEmbeddingModel(mapped.ollamaEmbeddingModel)
         setSelectedCloudProvider(mapped.selectedCloudProvider)
+        setSelectedLocalProvider(mapped.selectedLocalProvider)
     }
 
     async function loadCurrentConfiguration(): Promise<void> {
         setIsLoading(true)
+        setIsLoadingCatalog(true)
         try {
-            const payload = await fetchConfigurations(DEFAULT_SESSION_NAME)
-            applyPayload(payload)
+            const [catalog, payload] = await Promise.all([
+                fetchProviderCatalog(),
+                fetchConfigurations(DEFAULT_SESSION_NAME),
+            ])
+            setProviderCatalog(catalog.providers)
+            const mapped = mapPayloadToForm(payload, catalog.providers)
+            setCloudCredentials(mapped.cloudCredentials)
+            setLocalProviders(mapped.localProviders)
+            setHuggingFaceKey(mapped.huggingFaceKey)
+            setHuggingFaceHasApiKey(mapped.huggingFaceHasApiKey)
+            setHuggingFaceKeyDirty(mapped.huggingFaceKeyDirty)
+            setOllamaBaseUrl(mapped.ollamaBaseUrl)
+            setOllamaChatModel(mapped.ollamaChatModel)
+            setOllamaEmbeddingModel(mapped.ollamaEmbeddingModel)
+            setSelectedCloudProvider(mapped.selectedCloudProvider)
+            setSelectedLocalProvider(mapped.selectedLocalProvider)
             setStatusMessage('Configuration loaded')
         } catch (error) {
             setStatusMessage(getErrorMessage(error, 'Unable to load configuration'))
         } finally {
+            setIsLoadingCatalog(false)
             setIsLoading(false)
         }
     }
@@ -288,41 +322,66 @@ export default function ConfigurationsPage() {
     }, [isLoading, markSeen, shouldShow, statusMessage])
 
     function buildPayload(): AppConfigurationPayload {
-        const accessKeys: AccessKeyConfiguration[] = CLOUD_PROVIDER_OPTIONS.map((option) => ({
-            provider: option.value,
-            api_key: toApiKeyPayload(cloudCredentials[option.value].apiKey),
-            base_url: normalizeText(cloudCredentials[option.value].baseUrl) || null,
-            metadata: {},
-        }))
-
-        LOCAL_PROVIDER_OPTIONS.forEach((option) => {
-            const settings = localProviders[option.value]
-            accessKeys.push({
-                provider: option.value,
-                api_key: toApiKeyPayload(settings.apiKey),
-                base_url: normalizeText(settings.baseUrl) || option.defaultBaseUrl,
-                metadata: {
-                    chat_model: normalizeText(settings.chatModel) || option.defaultChatModel,
-                    embedding_model: normalizeText(settings.embeddingModel) || option.defaultEmbeddingModel,
-                },
-            })
-        })
-
-        accessKeys.push({
-            provider: 'huggingface',
-            api_key: toApiKeyPayload(huggingFaceKey),
+        const huggingFaceApiKey = toApiKeyPayload(huggingFaceKey)
+        const huggingFaceConfiguration = {
+            provider: huggingFaceProvider?.provider || 'huggingface',
+            api_key: huggingFaceKeyDirty ? huggingFaceApiKey : null,
+            has_api_key: huggingFaceKeyDirty
+                ? Boolean(huggingFaceApiKey)
+                : huggingFaceHasApiKey,
             base_url: null,
             metadata: {},
+        }
+        const providerConfigurations = providerCatalog.map((metadata) => {
+            if (metadata.provider === 'ollama') {
+                return {
+                    provider: metadata.provider,
+                    api_key: null,
+                    has_api_key: false,
+                    base_url: normalizeText(ollamaBaseUrl) || null,
+                    metadata: {
+                        ...(normalizeText(ollamaChatModel)
+                            ? { chat_model: normalizeText(ollamaChatModel) }
+                            : {}),
+                        ...(normalizeText(ollamaEmbeddingModel)
+                            ? { embedding_model: normalizeText(ollamaEmbeddingModel) }
+                            : {}),
+                    },
+                }
+            }
+            if (metadata.provider === huggingFaceConfiguration.provider) {
+                return huggingFaceConfiguration
+            }
+
+            const credential = cloudCredentials[metadata.provider]
+            const localSettings = localProviders[metadata.provider]
+            const fields = localSettings || credential
+            const apiKey = fields ? toApiKeyPayload(fields.apiKey) : null
+            return {
+                provider: metadata.provider,
+                api_key: fields?.apiKeyDirty ? apiKey : null,
+                has_api_key: fields?.apiKeyDirty ? Boolean(apiKey) : Boolean(fields?.hasApiKey),
+                base_url: normalizeText(fields?.baseUrl) || null,
+                metadata: localSettings
+                    ? {
+                        ...(normalizeText(localSettings.chatModel)
+                            ? { chat_model: normalizeText(localSettings.chatModel) }
+                            : {}),
+                        ...(normalizeText(localSettings.embeddingModel)
+                            ? { embedding_model: normalizeText(localSettings.embeddingModel) }
+                            : {}),
+                    }
+                    : {},
+            }
         })
+
+        if (!providerConfigurations.some((item) => item.provider === huggingFaceConfiguration.provider)) {
+            providerConfigurations.push(huggingFaceConfiguration)
+        }
 
         return {
             session_name: DEFAULT_SESSION_NAME,
-            access_keys: accessKeys,
-            ollama: {
-                base_url: normalizeText(ollamaBaseUrl) || 'http://127.0.0.1:11434',
-                chat_model: normalizeText(ollamaChatModel) || 'llama3.2',
-                embedding_model: normalizeText(ollamaEmbeddingModel) || 'nomic-embed-text',
-            },
+            provider_configurations: providerConfigurations,
         }
     }
 
@@ -406,7 +465,11 @@ export default function ConfigurationsPage() {
 
     async function handlePingLocalProvider(): Promise<void> {
         const provider = selectedLocalProvider
-        const settings = localProviders[provider]
+        const settings = localProviders[provider] || {
+            ...emptyProviderCredential(),
+            chatModel: '',
+            embeddingModel: '',
+        }
         setIsPingingLocal(true)
         setLocalStatus(null)
         setLocalStatusTone('neutral')
@@ -432,31 +495,48 @@ export default function ConfigurationsPage() {
         saveModal.open()
     }
 
-    function updateCurrentCloudCredential(field: keyof ProviderCredential, value: string): void {
+    function updateCurrentCloudCredential(
+        field: 'apiKey' | 'baseUrl',
+        value: string,
+    ): void {
         setCloudCredentials((current) => ({
             ...current,
             [selectedCloudProvider]: {
-                ...current[selectedCloudProvider],
+                ...(current[selectedCloudProvider] || emptyProviderCredential()),
                 [field]: value,
+                ...(field === 'apiKey' ? { apiKeyDirty: true } : {}),
             },
         }))
     }
 
-    function updateCurrentLocalProvider(field: keyof LocalProviderSettings, value: string): void {
+    function updateCurrentLocalProvider(
+        field: 'apiKey' | 'baseUrl' | 'chatModel' | 'embeddingModel',
+        value: string,
+    ): void {
         setLocalProviders((current) => ({
             ...current,
             [selectedLocalProvider]: {
-                ...current[selectedLocalProvider],
+                ...(current[selectedLocalProvider] || {
+                    ...emptyProviderCredential(),
+                    chatModel: '',
+                    embeddingModel: '',
+                }),
                 [field]: value,
+                ...(field === 'apiKey' ? { apiKeyDirty: true } : {}),
             },
         }))
+    }
+
+    function updateHuggingFaceKey(value: string): void {
+        setHuggingFaceKey(value)
+        setHuggingFaceKeyDirty(true)
     }
 
     return (
         <section className="config-page">
             <header className="config-page-header">
-                <h1>Runtime and Access Settings</h1>
-                <p className="config-page-lede">Manage local Ollama defaults and cloud credentials used by this ParaGraph session.</p>
+                <h1>Runtime and Provider Settings</h1>
+                <p className="config-page-lede">Manage provider endpoints and credentials used by this ParaGraph session.</p>
                 {isSetupTipVisible && (
                     <FeatureTip
                         title="Set up a provider before running"
@@ -483,7 +563,7 @@ export default function ConfigurationsPage() {
                             <p>Set the local runtime endpoint used for model discovery and execution.</p>
                         </div>
                         <div className="config-panel-actions">
-                            <button type="button" onClick={() => void handlePingOllama()} disabled={isPingingOllama || isLoading}>
+                            <button type="button" onClick={() => void handlePingOllama()} disabled={isPingingOllama || isLoading || !ollamaProvider}>
                                 {isPingingOllama ? 'Checking...' : 'Check Status'}
                             </button>
                         </div>
@@ -501,7 +581,7 @@ export default function ConfigurationsPage() {
                                 type="text"
                                 value={ollamaBaseUrl}
                                 onChange={(event) => setOllamaBaseUrl(event.target.value)}
-                                placeholder="http://127.0.0.1:11434"
+                                placeholder={ollamaProvider?.default_base_url || 'Provider default'}
                             />
                         </label>
                     </form>
@@ -524,11 +604,11 @@ export default function ConfigurationsPage() {
                 <section className="config-panel config-panel-column">
                     <div className="config-panel-header">
                         <div>
-                            <h2>Access Keys</h2>
-                            <p>Manage API keys for cloud providers and Hugging Face.</p>
+                            <h2>Provider Configurations</h2>
+                            <p>Manage API keys and endpoints from the backend provider catalog.</p>
                         </div>
                         <div className="config-panel-actions">
-                            <button type="button" onClick={() => void openLoadModal()} disabled={isLoading || isLoadingProfiles}>
+                            <button type="button" onClick={() => void openLoadModal()} disabled={isLoading || isLoadingProfiles || isLoadingCatalog}>
                                 Load
                             </button>
                             <button
@@ -536,7 +616,7 @@ export default function ConfigurationsPage() {
                                 onClick={() => {
                                     openSaveModal()
                                 }}
-                                disabled={isLoading || isSavingProfile}
+                                disabled={isLoading || isSavingProfile || isLoadingCatalog}
                             >
                                 Save
                             </button>
@@ -554,10 +634,10 @@ export default function ConfigurationsPage() {
                             <span>Cloud Provider</span>
                             <select
                                 value={selectedCloudProvider}
-                                onChange={(event) => setSelectedCloudProvider(toCloudProvider(event.target.value))}
+                                onChange={(event) => setSelectedCloudProvider(event.target.value)}
                             >
-                                {CLOUD_PROVIDER_OPTIONS.map((option) => (
-                                    <option key={option.value} value={option.value}>
+                                {cloudProviderOptions.map((option) => (
+                                    <option key={option.provider} value={option.provider}>
                                         {option.label}
                                     </option>
                                 ))}
@@ -569,7 +649,7 @@ export default function ConfigurationsPage() {
                             <input
                                 type="password"
                                 value={currentCloudCredentials.apiKey}
-                                placeholder="sk-..."
+                                placeholder={currentCloudCredentials.hasApiKey ? 'Saved API key — leave blank to keep' : 'Enter API key'}
                                 autoComplete="new-password"
                                 onChange={(event) => updateCurrentCloudCredential('apiKey', event.target.value)}
                             />
@@ -580,7 +660,7 @@ export default function ConfigurationsPage() {
                             <input
                                 type="text"
                                 value={currentCloudCredentials.baseUrl}
-                                placeholder={selectedCloudProvider === 'deepseek' ? 'https://api.deepseek.com' : 'Provider default'}
+                                placeholder={cloudProviderOptions.find((item) => item.provider === selectedCloudProvider)?.default_base_url || 'Provider default'}
                                 onChange={(event) => updateCurrentCloudCredential('baseUrl', event.target.value)}
                             />
                         </label>
@@ -590,9 +670,9 @@ export default function ConfigurationsPage() {
                             <input
                                 type="password"
                                 value={huggingFaceKey}
-                                placeholder="hf_..."
+                                placeholder={huggingFaceHasApiKey ? 'Saved API key — leave blank to keep' : 'Enter Hugging Face API key'}
                                 autoComplete="new-password"
-                                onChange={(event) => setHuggingFaceKey(event.target.value)}
+                                onChange={(event) => updateHuggingFaceKey(event.target.value)}
                             />
                         </label>
                     </form>
@@ -607,7 +687,7 @@ export default function ConfigurationsPage() {
                             <p>Configure LM Studio and llama.cpp endpoints for local model execution.</p>
                         </div>
                         <div className="config-panel-actions">
-                            <button type="button" onClick={() => void handlePingLocalProvider()} disabled={isPingingLocal || isLoading}>
+                            <button type="button" onClick={() => void handlePingLocalProvider()} disabled={isPingingLocal || isLoading || !selectedLocalProvider}>
                                 {isPingingLocal ? 'Checking...' : 'Check Status'}
                             </button>
                         </div>
@@ -624,10 +704,10 @@ export default function ConfigurationsPage() {
                             <span>Provider</span>
                             <select
                                 value={selectedLocalProvider}
-                                onChange={(event) => setSelectedLocalProvider(toLocalProvider(event.target.value))}
+                                onChange={(event) => setSelectedLocalProvider(event.target.value)}
                             >
-                                {LOCAL_PROVIDER_OPTIONS.map((option) => (
-                                    <option key={option.value} value={option.value}>
+                                {localProviderOptions.map((option) => (
+                                    <option key={option.provider} value={option.provider}>
                                         {option.label}
                                     </option>
                                 ))}
@@ -639,7 +719,7 @@ export default function ConfigurationsPage() {
                             <input
                                 type="text"
                                 value={currentLocalProvider.baseUrl}
-                                placeholder={DEFAULT_LOCAL_PROVIDERS[selectedLocalProvider].baseUrl}
+                                placeholder={localProviderOptions.find((item) => item.provider === selectedLocalProvider)?.default_base_url || 'Provider default'}
                                 onChange={(event) => updateCurrentLocalProvider('baseUrl', event.target.value)}
                             />
                         </label>
@@ -660,7 +740,7 @@ export default function ConfigurationsPage() {
                             <input
                                 type="text"
                                 value={currentLocalProvider.chatModel}
-                                placeholder="local-model"
+                                placeholder={localProviderOptions.find((item) => item.provider === selectedLocalProvider)?.default_chat_model || 'Provider default'}
                                 onChange={(event) => updateCurrentLocalProvider('chatModel', event.target.value)}
                             />
                         </label>
@@ -670,7 +750,7 @@ export default function ConfigurationsPage() {
                             <input
                                 type="text"
                                 value={currentLocalProvider.embeddingModel}
-                                placeholder="local-embedding-model"
+                                placeholder={localProviderOptions.find((item) => item.provider === selectedLocalProvider)?.default_embedding_model || 'Provider default'}
                                 onChange={(event) => updateCurrentLocalProvider('embeddingModel', event.target.value)}
                             />
                         </label>
