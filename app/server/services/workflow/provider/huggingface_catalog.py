@@ -606,10 +606,12 @@ class HuggingFaceCatalogMixin:
 
     # -------------------------------------------------------------------------
     def _get_huggingface_token(self, session_name: str) -> str | None:
-        access_key = self._get_access_key("huggingface", session_name)
-        if access_key is None or not access_key.api_key:
+        provider_configuration = self._get_provider_configuration(
+            "huggingface", session_name
+        )
+        if provider_configuration is None or not provider_configuration.api_key:
             return None
-        token = access_key.api_key.strip()
+        token = provider_configuration.api_key.strip()
         return token or None
 
     # -------------------------------------------------------------------------
