@@ -1,5 +1,5 @@
 # Findings And Remediation
-Last updated: 2026-08-27
+Last updated: 2026-08-31
 
 ## Review Scope
 The architecture review covered backend layering, SQLite lifecycle, manifest
@@ -23,6 +23,19 @@ and the size of `client/src/pages/WorkflowPage.tsx`.
   implementation layers.
 - Workflow localStorage parsing and persistence moved from the route page to
   `client/src/workflow/hooks/workflowPersistence.ts` with focused unit tests.
+- Backend workflow CRUD and filesystem workflow indexing were removed. The
+  browser is the active-graph owner; read-only templates remain under the
+  resource root and execution accepts validated graph payloads.
+- Provider configuration records and the provider/model catalog now share one
+  registry-backed contract. Legacy access-key and nested Ollama persistence
+  paths were removed.
+- Runtime configuration rejects obsolete JSON and invalid numeric environment
+  values, frontend/backend ports are explicit, and unversioned application
+  databases fail closed instead of being adopted heuristically.
+- Frontend API DTOs are generated from the FastAPI OpenAPI schema and checked
+  for freshness in the backend test suite.
+- Persisted pause checkpoints reject unknown fields and malformed or
+  status-inconsistent payloads instead of returning legacy state.
 - Vector adapter capabilities now have one typed contract consumed by the
   catalog, editor, compiler, and runtime. Unsupported retrieval options fail
   closed, and score semantics and recursive overlap behavior are explicit.
@@ -39,6 +52,8 @@ and the size of `client/src/pages/WorkflowPage.tsx`.
 - Contract-boundary, frontend-contract, job, and provider route tests pass.
 - Frontend type-check/build, lint, and the existing unit suite pass; the
   persistence module has an additional focused test.
+- The browser mock backend uses the canonical provider configuration and
+  provider-catalog responses.
 
 ## Follow-Up Work
 - Continue decomposing `WorkflowPage.tsx` into execution control, graph I/O,

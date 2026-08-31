@@ -1,17 +1,19 @@
 # Backend API
-Last updated: 2026-08-21
+Last updated: 2026-08-31
 
 ## Root
 - `GET /`
   - Redirects to `/docs` when not in cloud mode.
   - Returns JSON health information in cloud mode.
 
-## Workflows
-- `GET /workflows`
-- `POST /workflows`
-- `GET /workflows/templates`
-- `GET /workflows/{workflow_id}`
-- `PUT /workflows/{workflow_id}`
+## Workflow Templates
+- `GET /workflow-templates`
+  - Returns validated, read-only workflow template manifests from the configured
+    resource root.
+
+The browser owns the active workflow graph. The frontend sends that graph to
+`POST /executions/compile`; the backend does not expose workflow CRUD or a
+server-side workflow graph index.
 
 ## Executions
 - `POST /executions/compile`
@@ -50,6 +52,10 @@ Last updated: 2026-08-21
 - `POST /configurations/ollama/ping`
 - `POST /configurations/providers/ping`
 
+Configuration payloads use `provider_configurations`. Public reads redact API
+keys and expose `has_api_key`; the provider catalog is the authoritative list
+of supported providers and defaults.
+
 ## Chat History
 - `GET /chat-history`
   - Reads one history scope using `workflow_id`, `execution_session_id`,
@@ -62,6 +68,9 @@ Chat history scopes are keyed by workflow, execution session, and Chat node.
 The `execution_owned` flag is carried by runtime handles so the execution
 service can distinguish Chat history from standalone memory-node history; it
 does not change the reset endpoint's scope selection.
+
+`CHAT_HISTORY_MEMORY` is process-local. `CHAT_HISTORY_PERSISTED` uses the
+application SQLite database. There is no filesystem chat-history API.
 
 ## Boundary Rules
 - HTTP and WebSocket handlers live under `app/server/api`.
