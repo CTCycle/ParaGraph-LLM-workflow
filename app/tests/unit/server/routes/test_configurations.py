@@ -3,12 +3,11 @@ from __future__ import annotations
 from fastapi.testclient import TestClient
 
 from server.contracts.configuration import (
-    AccessKeyConfiguration,
     AppConfigurationPayload,
     ConfigurationProfileListResponse,
     ConfigurationProfileSummary,
-    OllamaConfiguration,
     OllamaStatusResponse,
+    ProviderConfiguration,
     ProviderStatusResponse,
 )
 from server.services.configuration import configuration_service
@@ -18,19 +17,22 @@ from server.services.configuration import configuration_service
 def _payload(session_name: str = "default") -> AppConfigurationPayload:
     return AppConfigurationPayload(
         session_name=session_name,
-        access_keys=[
-            AccessKeyConfiguration(
+        provider_configurations=[
+            ProviderConfiguration(
                 provider="openai", api_key="sk-test", base_url=None, metadata={}
             ),
-            AccessKeyConfiguration(
+            ProviderConfiguration(
                 provider="huggingface", api_key="hf-test", base_url=None, metadata={}
             ),
+            ProviderConfiguration(
+                provider="ollama",
+                base_url="http://127.0.0.1:11434",
+                metadata={
+                    "chat_model": "llama3.2",
+                    "embedding_model": "nomic-embed-text",
+                },
+            ),
         ],
-        ollama=OllamaConfiguration(
-            base_url="http://127.0.0.1:11434",
-            chat_model="llama3.2",
-            embedding_model="nomic-embed-text",
-        ),
     )
 
 

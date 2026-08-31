@@ -5,7 +5,7 @@ from pathlib import Path
 from sqlalchemy import Integer, String, create_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
 
-from server.contracts.configuration import AccessKeyConfiguration
+from server.contracts.configuration import ProviderConfiguration
 from server.services.configuration import configuration_service
 from server.services.workflow import node_registry
 from server.services.workflow.node_handlers.ingestion import (
@@ -180,8 +180,8 @@ def test_sql_database_emits_only_an_opaque_credential_reference(monkeypatch) -> 
     captured: dict[str, object] = {}
     monkeypatch.setattr(
         configuration_service,
-        "resolve_access_key",
-        lambda *, profile_name, provider: AccessKeyConfiguration(
+        "resolve_provider_configuration",
+        lambda *, profile_name, provider: ProviderConfiguration(
             provider=provider,
             api_key="database-secret",
         ),

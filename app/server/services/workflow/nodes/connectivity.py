@@ -70,12 +70,14 @@ class NodeConnectivityService:
             resolved_api_key = ""
             resolved_endpoint = parsed.endpoint_url
             if parsed.credential_profile:
-                access_key = configuration_service.resolve_access_key(
+                provider_configuration = configuration_service.resolve_provider_configuration(
                     profile_name=parsed.credential_profile,
                     provider=parsed.provider,
                 )
-                resolved_api_key = access_key.api_key or ""
-                resolved_endpoint = resolved_endpoint or access_key.base_url or ""
+                resolved_api_key = provider_configuration.api_key or ""
+                resolved_endpoint = (
+                    resolved_endpoint or provider_configuration.base_url or ""
+                )
             adapter.validate_connection(
                 index_name=parsed.index_name,
                 storage_directory=parsed.storage_path,

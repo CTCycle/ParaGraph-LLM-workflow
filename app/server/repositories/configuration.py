@@ -4,7 +4,7 @@ import re
 from datetime import datetime, timezone
 from typing import Any
 
-from sqlalchemy import delete, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from server.configurations.startup import get_server_settings
@@ -14,8 +14,8 @@ from server.contracts.configuration import (
 )
 from server.repositories.database.sqlite import SQLiteRepository
 from server.repositories.schemas import (
-    AccessKey,
     ConfigurationProfile,
+    ProviderConfiguration,
     UserSession,
 )
 
@@ -71,36 +71,41 @@ class ConfigurationRepository:
         return created, True
 
     # -------------------------------------------------------------------------
+    @staticmethod
+    def _get_session(db_session: Session, session_name: str) -> UserSession | None:
+        return db_session.execute(
+            select(UserSession).where(UserSession.session_name == session_name)
+        ).scalar_one_or_none()
+
+    # -------------------------------------------------------------------------
     def _serialize_configuration(
-        self, session_row: UserSession, access_rows: list[AccessKey]
+        self,
+        session_row: UserSession,
+        provider_rows: list[ProviderConfiguration],
     ) -> dict[str, Any]:
         return {
             "session_name": session_row.session_name,
-            "access_keys": [
+            "provider_configurations": [
                 {
                     "provider": row.provider,
                     "api_key": row.api_key,
                     "base_url": row.base_url,
                     "metadata": row.metadata_json or {},
                 }
-                for row in access_rows
+                for row in provider_rows
             ],
-            "ollama": {
-                "base_url": session_row.ollama_base_url,
-                "chat_model": session_row.ollama_chat_model,
-                "embedding_model": session_row.ollama_embedding_model,
-            },
         }
 
     # -------------------------------------------------------------------------
-    def _load_access_keys(
-        self, db_session: Session, session_id: int
-    ) -> list[AccessKey]:
+    @staticmethod
+    def _load_provider_configurations(
+        db_session: Session, session_id: int
+    ) -> list[ProviderConfiguration]:
         return list(
             db_session.execute(
-                select(AccessKey)
-                .where(AccessKey.session_id == session_id)
-                .order_by(AccessKey.provider.asc())
+                select(ProviderConfiguration)
+                .where(ProviderConfiguration.session_id == session_id)
+                .order_by(ProviderConfiguration.provider.asc())
             ).scalars()
         )
 
@@ -124,21 +129,22 @@ class ConfigurationRepository:
             if created:
                 db_session.commit()
                 db_session.refresh(session_row)
-            access_rows = self._load_access_keys(db_session, session_row.session_id)
-            return self._serialize_configuration(session_row, access_rows)
+            provider_rows = self._load_provider_configurations(
+                db_session, session_row.session_id
+            )
+            return self._serialize_configuration(session_row, provider_rows)
 
     # -------------------------------------------------------------------------
     def save_configuration(
         self,
         *,
         session_name: str | None,
-        access_keys: list[dict[str, Any]],
-        ollama: dict[str, Any],
+        provider_configurations: list[dict[str, Any]],
     ) -> dict[str, Any]:
         normalized_session_name = self._normalize_session_name(session_name)
 
         provider_map: dict[str, dict[str, Any]] = {}
-        for item in access_keys:
+        for item in provider_configurations:
             provider = str(item.get("provider") or "").strip().lower()
             if not provider:
                 continue
@@ -155,19 +161,8 @@ class ConfigurationRepository:
             session_row, _ = self._get_or_create_session(
                 db_session, normalized_session_name
             )
-            session_row.ollama_base_url = str(
-                ollama.get("base_url") or session_row.ollama_base_url
-            )
-            session_row.ollama_chat_model = str(
-                ollama.get("chat_model") or session_row.ollama_chat_model
-            )
-            session_row.ollama_embedding_model = str(
-                ollama.get("embedding_model") or session_row.ollama_embedding_model
-            )
-
-            db_session.execute(
-                delete(AccessKey).where(AccessKey.session_id == session_row.session_id)
-            )
+            for row in list(session_row.provider_configurations):
+                db_session.delete(row)
 
             for payload in provider_map.values():
                 has_value = bool(
@@ -176,7 +171,7 @@ class ConfigurationRepository:
                 if not has_value:
                     continue
                 db_session.add(
-                    AccessKey(
+                    ProviderConfiguration(
                         session_id=session_row.session_id,
                         provider=payload["provider"],
                         api_key=payload["api_key"],
@@ -187,8 +182,10 @@ class ConfigurationRepository:
 
             db_session.commit()
             db_session.refresh(session_row)
-            access_rows = self._load_access_keys(db_session, session_row.session_id)
-            return self._serialize_configuration(session_row, access_rows)
+            provider_rows = self._load_provider_configurations(
+                db_session, session_row.session_id
+            )
+            return self._serialize_configuration(session_row, provider_rows)
 
     # -------------------------------------------------------------------------
     def list_configuration_profiles(
@@ -196,12 +193,9 @@ class ConfigurationRepository:
     ) -> dict[str, Any]:
         normalized_session_name = self._normalize_session_name(session_name)
         with Session(self._database_engine()) as db_session:
-            session_row, created = self._get_or_create_session(
-                db_session, normalized_session_name
-            )
-            if created:
-                db_session.commit()
-                db_session.refresh(session_row)
+            session_row = self._get_session(db_session, normalized_session_name)
+            if session_row is None:
+                return {"session_name": normalized_session_name, "profiles": []}
 
             profile_rows = list(
                 db_session.execute(
@@ -228,9 +222,11 @@ class ConfigurationRepository:
         normalized_profile_name = self._normalize_profile_name(profile_name)
 
         with Session(self._database_engine()) as db_session:
-            session_row, _ = self._get_or_create_session(
-                db_session, normalized_session_name
-            )
+            session_row = self._get_session(db_session, normalized_session_name)
+            if session_row is None:
+                raise KeyError(
+                    f"Configuration profile '{normalized_profile_name}' was not found"
+                )
             profile_row = db_session.execute(
                 select(ConfigurationProfile).where(
                     ConfigurationProfile.session_id == session_row.session_id,
@@ -248,18 +244,15 @@ class ConfigurationRepository:
                 raise ValueError(
                     f"Configuration profile '{normalized_profile_name}' is invalid"
                 )
-
-            access_keys = payload.get("access_keys")
-            if not isinstance(access_keys, list):
-                access_keys = []
-            ollama = (
-                payload.get("ollama") if isinstance(payload.get("ollama"), dict) else {}
-            )
+            provider_configurations = payload.get("provider_configurations")
+            if not isinstance(provider_configurations, list):
+                raise ValueError(
+                    f"Configuration profile '{normalized_profile_name}' is invalid"
+                )
 
             return {
                 "session_name": normalized_session_name,
-                "access_keys": access_keys,
-                "ollama": ollama,
+                "provider_configurations": provider_configurations,
             }
 
     # -------------------------------------------------------------------------

@@ -1,11 +1,8 @@
 from __future__ import annotations
 
-from collections.abc import Collection, Iterator
+from collections.abc import Iterator
 from contextlib import contextmanager
-import hashlib
-import json
 from pathlib import Path
-from typing import Any
 
 import portalocker
 from alembic import command
@@ -15,8 +12,6 @@ from alembic.util.exc import CommandError
 from sqlalchemy import inspect
 from sqlalchemy.engine import Connection, Engine, URL, create_engine
 from sqlalchemy.pool import NullPool
-from sqlalchemy.sql.schema import MetaData
-from sqlalchemy.dialects.sqlite import dialect as sqlite_dialect
 
 from server.common import path as common_path
 from server.common.constants import DATABASE_FILENAME
@@ -25,16 +20,10 @@ from server.repositories.database.sqlite_policy import configure_sqlite_engine
 from server.repositories.schemas import Base
 
 
-BASELINE_REVISION = "0001_initial"
 MIGRATION_VERSION_TABLE = "alembic_version"
 MIGRATION_LOCK_TIMEOUT_SECONDS = 120.0
 SQLITE_TIMEOUT_SECONDS = 30.0
-# Frozen normalized signature of the pre-Alembic application schema.
-_BASELINE_SCHEMA_FINGERPRINT = (
-    "06a4979ba57eb0a4039c77ddc36442f0770427220f4ea83a7119ace43b044557"
-)
 _APPLICATION_TABLE_NAMES = frozenset(Base.metadata.tables)
-_LEGACY_APPLICATION_TABLE_NAMES = _APPLICATION_TABLE_NAMES | {"nodes"}
 
 
 ###############################################################################
@@ -45,143 +34,6 @@ class DatabaseMigrationError(RuntimeError):
 ###############################################################################
 def default_database_path() -> Path:
     return common_path.RESOURCES_ROOT / DATABASE_FILENAME
-
-
-###############################################################################
-def _normalize_type(type_: Any) -> str:
-    return str(type_.compile(dialect=sqlite_dialect())).upper()
-
-
-###############################################################################
-def _metadata_signature(metadata: MetaData) -> dict[str, Any]:
-    tables: list[dict[str, Any]] = []
-    for table in sorted(metadata.tables.values(), key=lambda item: item.name):
-        columns = [
-            {
-                "name": column.name,
-                "type": _normalize_type(column.type),
-                "nullable": bool(column.nullable),
-                "primary_key": bool(column.primary_key),
-            }
-            for column in table.columns
-        ]
-        indexes = sorted(
-            (
-                {
-                    "name": index.name,
-                    "columns": [column.name for column in index.columns],
-                    "unique": bool(index.unique),
-                }
-                for index in table.indexes
-            ),
-            key=lambda item: (item["name"] or "", item["columns"]),
-        )
-        unique_constraints = sorted(
-            tuple(column.name for column in constraint.columns)
-            for constraint in table.constraints
-            if constraint.__class__.__name__ == "UniqueConstraint"
-        )
-        foreign_keys = sorted(
-            (
-                tuple(constraint.column_keys),
-                tuple(
-                    (
-                        foreign_key.target_fullname.split(".")[-2],
-                        foreign_key.target_fullname.split(".")[-1],
-                        foreign_key.ondelete,
-                    )
-                    for foreign_key in constraint.elements
-                ),
-            )
-            for constraint in table.foreign_key_constraints
-        )
-        tables.append(
-            {
-                "name": table.name,
-                "columns": columns,
-                "indexes": indexes,
-                "unique_constraints": unique_constraints,
-                "foreign_keys": foreign_keys,
-            }
-        )
-    return {"tables": tables}
-
-
-###############################################################################
-def _inspected_signature(
-    connection: Connection,
-    table_names: Collection[str] = _APPLICATION_TABLE_NAMES,
-) -> dict[str, Any]:
-    inspector = inspect(connection)
-    tables: list[dict[str, Any]] = []
-    for table_name in sorted(table_names):
-        columns = inspector.get_columns(table_name)
-        indexes = sorted(
-            (
-                {
-                    "name": index.get("name"),
-                    "columns": list(index.get("column_names") or []),
-                    "unique": bool(index.get("unique")),
-                }
-                for index in inspector.get_indexes(table_name)
-            ),
-            key=lambda item: (item["name"] or "", item["columns"]),
-        )
-        unique_constraints = sorted(
-            tuple(constraint.get("column_names") or [])
-            for constraint in inspector.get_unique_constraints(table_name)
-        )
-        foreign_keys = sorted(
-            (
-                tuple(foreign_key.get("constrained_columns") or []),
-                tuple(
-                    (
-                        foreign_key.get("referred_table"),
-                        referred_column,
-                        (foreign_key.get("options") or {}).get("ondelete"),
-                    )
-                    for referred_column in foreign_key.get("referred_columns") or []
-                ),
-            )
-            for foreign_key in inspector.get_foreign_keys(table_name)
-        )
-        tables.append(
-            {
-                "name": table_name,
-                "columns": [
-                    {
-                        "name": column["name"],
-                        "type": _normalize_type(column["type"]),
-                        "nullable": bool(column["nullable"]),
-                        "primary_key": bool(column.get("primary_key")),
-                    }
-                    for column in columns
-                ],
-                "indexes": indexes,
-                "unique_constraints": unique_constraints,
-                "foreign_keys": foreign_keys,
-            }
-        )
-    return {"tables": tables}
-
-
-###############################################################################
-def _fingerprint(signature: dict[str, Any]) -> str:
-    payload = json.dumps(signature, sort_keys=True, separators=(",", ":"))
-    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
-
-
-###############################################################################
-def metadata_schema_fingerprint() -> str:
-    return _fingerprint(_metadata_signature(Base.metadata))
-
-
-###############################################################################
-def _database_schema_fingerprint(
-    connection: Connection,
-    table_names: Collection[str] = _APPLICATION_TABLE_NAMES,
-) -> str:
-    return _fingerprint(_inspected_signature(connection, table_names))
 
 
 ###############################################################################
@@ -280,36 +132,6 @@ def _require_complete_application_schema(connection: Connection) -> None:
 
 
 ###############################################################################
-def _legacy_schema_state(connection: Connection) -> str:
-    application_tables = _application_tables(connection)
-    legacy_application_tables = set(inspect(connection).get_table_names()).intersection(
-        _LEGACY_APPLICATION_TABLE_NAMES
-    )
-    if legacy_application_tables == _LEGACY_APPLICATION_TABLE_NAMES:
-        observed = _database_schema_fingerprint(
-            connection, _LEGACY_APPLICATION_TABLE_NAMES
-        )
-        if observed == _BASELINE_SCHEMA_FINGERPRINT:
-            return "baseline"
-    if not application_tables:
-        return "empty"
-    if application_tables != _APPLICATION_TABLE_NAMES:
-        missing = sorted(_APPLICATION_TABLE_NAMES - application_tables)
-        raise DatabaseMigrationError(
-            "Existing application schema is incomplete; missing tables: "
-            + ", ".join(missing)
-        )
-
-    observed = _database_schema_fingerprint(connection)
-    if observed == _BASELINE_SCHEMA_FINGERPRINT:
-        return "baseline"
-    raise DatabaseMigrationError(
-        "Existing application tables do not match the supported pre-Alembic "
-        "schema. Database initialization stopped without changing the schema."
-    )
-
-
-###############################################################################
 def _validate_current_revision(
     script: ScriptDirectory, current: str, head: str
 ) -> list[str]:
@@ -372,22 +194,17 @@ def _synchronize_locked(database_path: Path) -> None:
                 )
             if current_revisions == (head,):
                 _require_complete_application_schema(connection)
-            has_version_table = inspect(connection).has_table(MIGRATION_VERSION_TABLE)
-            if not current_revisions and (
-                not has_version_table or _application_tables(connection)
-            ):
-                legacy_state = _legacy_schema_state(connection)
-                if legacy_state == "baseline":
-                    logger.info(
-                        "Adopting the legacy application schema at revision %s",
-                        BASELINE_REVISION,
-                    )
-                    config.attributes["connection"] = connection
-                    command.stamp(config, BASELINE_REVISION)
-                elif legacy_state == "empty":
-                    logger.info(
-                        "Creating a new application database at Alembic head %s", head
-                    )
+            table_names = set(inspect(connection).get_table_names())
+            table_names.discard(MIGRATION_VERSION_TABLE)
+            if not current_revisions and table_names:
+                raise DatabaseMigrationError(
+                    "Database has application tables but no Alembic revision; "
+                    "refusing to adopt an unsupported unversioned schema."
+                )
+            if not current_revisions:
+                logger.info(
+                    "Creating a new application database at Alembic head %s", head
+                )
             _upgrade_to_head(config, connection, script, head)
             if _current_revisions(connection) == (head,):
                 _require_complete_application_schema(connection)

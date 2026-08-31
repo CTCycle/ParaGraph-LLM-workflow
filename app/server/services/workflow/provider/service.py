@@ -34,13 +34,7 @@ from server.services.workflow.provider.constants import (
 )
 from server.services.workflow.provider.errors import ProviderApiError
 from server.services.workflow.provider.helpers import (
-    CURATED_MODELS,
-    PROVIDER_CAPABILITIES,
-    _infer_huggingface_metadata,
-    _infer_openai_compatible_local_metadata,
-    _infer_ollama_metadata,
     _model_basename,
-    _normalize_provider,
 )
 from server.services.workflow.provider.huggingface_catalog import (
     HuggingFaceCatalogMixin,
@@ -49,6 +43,14 @@ from server.services.workflow.provider.huggingface_downloads import (
     HuggingFaceDownloadMixin,
 )
 from server.services.workflow.provider.ollama import OllamaLibraryCatalogMixin
+from server.services.workflow.provider.registry import (
+    _infer_huggingface_metadata,
+    _infer_openai_compatible_local_metadata,
+    _infer_ollama_metadata,
+    _normalize_provider,
+    provider_registry_entries,
+    provider_registry_entry,
+)
 
 
 ###############################################################################
@@ -76,10 +78,12 @@ class ProviderService(
         return configuration_service.load_configuration(session_name=session_name)
 
     # -------------------------------------------------------------------------
-    def _get_access_key(self, provider: str, session_name: str = DEFAULT_SESSION_NAME):
+    def _get_provider_configuration(
+        self, provider: str, session_name: str = DEFAULT_SESSION_NAME
+    ):
         config = self._load_configuration(session_name)
         normalized_provider = _normalize_provider(provider)
-        for item in config.access_keys:
+        for item in config.provider_configurations:
             candidate = _normalize_provider(item.provider)
             if candidate == normalized_provider:
                 return item
@@ -87,42 +91,39 @@ class ProviderService(
 
     # -------------------------------------------------------------------------
     def _ollama_client(self, session_name: str = DEFAULT_SESSION_NAME) -> OllamaClient:
-        config = self._load_configuration(session_name)
-        return OllamaClient(base_url=config.ollama.base_url)
+        configuration = self._get_provider_configuration("ollama", session_name)
+        metadata = provider_registry_entry("ollama")
+        return OllamaClient(
+            base_url=(
+                configuration.base_url
+                if configuration and configuration.base_url
+                else metadata.default_base_url
+            )
+        )
 
     # -------------------------------------------------------------------------
     def list_catalog(self) -> ProviderCatalogResponse:
-        ordered = [
-            "ollama",
-            "openai",
-            "gemini",
-            "claude",
-            "deepseek",
-            "huggingface",
-            "lmstudio",
-            "llama",
-        ]
         return ProviderCatalogResponse(
             providers=[
                 ProviderCapability(
-                    provider=PROVIDER_CAPABILITIES[name].name,
-                    supports_chat=PROVIDER_CAPABILITIES[name].supports_chat,
-                    supports_embeddings=PROVIDER_CAPABILITIES[name].supports_embeddings,
-                    supports_structured_output=PROVIDER_CAPABILITIES[
-                        name
-                    ].supports_structured_output,
-                    supports_streaming=PROVIDER_CAPABILITIES[name].supports_streaming,
-                    supports_tool_calling=PROVIDER_CAPABILITIES[
-                        name
-                    ].supports_tool_calling,
-                    supports_tool_selection=PROVIDER_CAPABILITIES[
-                        name
-                    ].supports_tool_selection,
-                    supports_native_tool_protocol=PROVIDER_CAPABILITIES[
-                        name
-                    ].supports_native_tool_protocol,
+                    provider=metadata.name,
+                    label=metadata.label,
+                    configuration_kind=metadata.configuration_kind,
+                    model_source=metadata.model_source,
+                    default_base_url=metadata.default_base_url,
+                    default_chat_model=metadata.default_chat_model,
+                    default_embedding_model=metadata.default_embedding_model,
+                    requires_api_key=metadata.requires_api_key,
+                    supports_status_check=metadata.supports_status_check,
+                    supports_chat=metadata.supports_chat,
+                    supports_embeddings=metadata.supports_embeddings,
+                    supports_structured_output=metadata.supports_structured_output,
+                    supports_streaming=metadata.supports_streaming,
+                    supports_tool_calling=metadata.supports_tool_calling,
+                    supports_tool_selection=metadata.supports_tool_selection,
+                    supports_native_tool_protocol=metadata.supports_native_tool_protocol,
                 )
-                for name in ordered
+                for metadata in provider_registry_entries()
             ]
         )
 
@@ -134,9 +135,7 @@ class ProviderService(
         structured_output: bool = False,
         embeddings: bool = False,
     ) -> None:
-        metadata = PROVIDER_CAPABILITIES.get(_normalize_provider(provider))
-        if metadata is None:
-            raise ValueError(f"Unsupported provider: {provider}")
+        metadata = provider_registry_entry(provider)
         if structured_output and not metadata.supports_structured_output:
             raise ValueError(
                 f"Provider '{provider}' does not support structured output"
@@ -149,19 +148,17 @@ class ProviderService(
         self, session_name: str = DEFAULT_SESSION_NAME
     ) -> ProviderModelCatalogResponse:
         metadata_rows: list[ModelMetadata] = []
-        metadata_rows.extend(self._ollama_models(session_name))
-        metadata_rows.extend(CURATED_MODELS.get("ollama", ()))
-
-        for provider in ("openai", "gemini", "claude", "deepseek"):
-            metadata_rows.extend(CURATED_MODELS.get(provider, ()))
-
-        metadata_rows.extend(CURATED_MODELS.get("huggingface", ()))
-        metadata_rows.extend(self._downloaded_huggingface_models())
-        for provider in ("lmstudio", "llama"):
-            metadata_rows.extend(
-                self._openai_compatible_local_models(provider, session_name)
-            )
-            metadata_rows.extend(CURATED_MODELS.get(provider, ()))
+        for metadata in provider_registry_entries():
+            if metadata.name == "ollama":
+                metadata_rows.extend(self._ollama_models(session_name))
+            elif metadata.name == "huggingface":
+                metadata_rows.extend(self._downloaded_huggingface_models())
+            elif metadata.model_source == "hosted_registry":
+                metadata_rows.extend(metadata.curated_models)
+            elif metadata.model_source == "live":
+                metadata_rows.extend(
+                    self._openai_compatible_local_models(metadata.name, session_name)
+                )
 
         deduped: dict[tuple[str, str], ModelMetadata] = {}
         for row in metadata_rows:
@@ -307,11 +304,6 @@ class ProviderService(
         except OllamaError:
             names = []
 
-        if not names:
-            config = self._load_configuration(session_name)
-            fallback = config.ollama.chat_model.strip()
-            if fallback:
-                names = [fallback]
         return tuple(_infer_ollama_metadata(name) for name in names)
 
     # -------------------------------------------------------------------------
@@ -354,7 +346,9 @@ class ProviderService(
             for item in self._ollama_models(session_name):
                 if item.model == model:
                     return item
-            return _infer_ollama_metadata(model)
+            raise ValueError(
+                f"Unknown model '{model}' for provider '{normalized_provider}'"
+            )
 
         if normalized_provider == "huggingface":
             for item in self._downloaded_huggingface_models():
@@ -368,7 +362,8 @@ class ProviderService(
                 if item.model == model:
                     return item
 
-        for item in CURATED_MODELS.get(normalized_provider, ()):  # pragma: no branch
+        metadata = provider_registry_entry(normalized_provider)
+        for item in metadata.curated_models:
             if item.model == model:
                 return item
 
@@ -376,7 +371,9 @@ class ProviderService(
             return _infer_huggingface_metadata(model)
 
         if normalized_provider in {"lmstudio", "llama"}:
-            return _infer_openai_compatible_local_metadata(normalized_provider, model)
+            raise ValueError(
+                f"Unknown model '{model}' for provider '{normalized_provider}'"
+            )
 
         raise ValueError(
             f"Unknown model '{model}' for provider '{normalized_provider}'"
@@ -391,7 +388,7 @@ class ProviderService(
         structured_output: bool,
         requires_image: bool,
         use_reasoning: bool,
-        require_access_key: bool = True,
+        require_provider_configuration: bool = True,
         session_name: str = DEFAULT_SESSION_NAME,
     ) -> None:
         normalized_provider = _normalize_provider(provider)
@@ -399,29 +396,29 @@ class ProviderService(
             normalized_provider, structured_output=structured_output
         )
 
-        if require_access_key and normalized_provider in {
-            "openai",
-            "gemini",
-            "claude",
-            "deepseek",
-        }:
-            access_key = self._get_access_key(normalized_provider, session_name)
-            if access_key is None or not access_key.api_key:
-                raise ValueError(
-                    f"Provider '{normalized_provider}' requires an access key in Configurations"
-                )
-        elif require_access_key and normalized_provider == "huggingface":
+        metadata = provider_registry_entry(normalized_provider)
+        if require_provider_configuration and normalized_provider == "huggingface":
             if requires_image:
                 raise ValueError(
                     "Provider 'huggingface' does not support image input in the current local runtime path"
                 )
             is_local_model = model in self._downloaded_huggingface_repo_ids()
             if not is_local_model:
-                access_key = self._get_access_key(normalized_provider, session_name)
-                if access_key is None or not access_key.api_key:
+                provider_configuration = self._get_provider_configuration(
+                    normalized_provider, session_name
+                )
+                if provider_configuration is None or not provider_configuration.api_key:
                     raise ValueError(
-                        "Provider 'huggingface' requires an access key in Configurations for remote models"
+                        "Provider 'huggingface' requires an API key in Configurations for remote models"
                     )
+        elif require_provider_configuration and metadata.requires_api_key:
+            provider_configuration = self._get_provider_configuration(
+                normalized_provider, session_name
+            )
+            if provider_configuration is None or not provider_configuration.api_key:
+                raise ValueError(
+                    f"Provider '{normalized_provider}' requires an API key in Configurations"
+                )
 
         if normalized_provider == "huggingface" and requires_image:
             raise ValueError(
@@ -455,15 +452,31 @@ class ProviderService(
                 raise ValueError("timeout_s must be greater than zero")
             kwargs["timeout_s"] = timeout_s
         if normalized_provider == "ollama":
-            kwargs["base_url"] = self._load_configuration(session_name).ollama.base_url
-        elif normalized_provider in {"openai", "gemini", "claude", "deepseek"}:
-            access_key = self._get_access_key(normalized_provider, session_name)
-            kwargs["api_key"] = access_key.api_key if access_key else None
-            kwargs["base_url"] = access_key.base_url if access_key else None
-        elif normalized_provider in {"lmstudio", "llama"}:
-            access_key = self._get_access_key(normalized_provider, session_name)
-            kwargs["api_key"] = access_key.api_key if access_key else None
-            kwargs["base_url"] = access_key.base_url if access_key else None
+            configuration = self._get_provider_configuration("ollama", session_name)
+            kwargs["base_url"] = (
+                configuration.base_url
+                if configuration and configuration.base_url
+                else provider_registry_entry("ollama").default_base_url
+            )
+        elif normalized_provider in {
+            "openai",
+            "gemini",
+            "claude",
+            "deepseek",
+            "lmstudio",
+            "llama",
+        }:
+            provider_configuration = self._get_provider_configuration(
+                normalized_provider, session_name
+            )
+            kwargs["api_key"] = (
+                provider_configuration.api_key if provider_configuration else None
+            )
+            kwargs["base_url"] = (
+                provider_configuration.base_url
+                if provider_configuration
+                else None
+            )
         else:
             raise ValueError(f"Unsupported chat provider: {provider}")
 
@@ -479,27 +492,31 @@ class ProviderService(
     def supports_tool_selection(self, provider: str, model: str = "") -> bool:
         _ = model
         normalized_provider = _normalize_provider(provider)
-        metadata = PROVIDER_CAPABILITIES.get(normalized_provider)
-        return bool(metadata and metadata.supports_tool_selection)
+        try:
+            metadata = provider_registry_entry(normalized_provider)
+        except ValueError:
+            return False
+        return metadata.supports_tool_selection
 
     # -------------------------------------------------------------------------
     def supports_native_tool_protocol(self, provider: str, model: str = "") -> bool:
         _ = model
         normalized_provider = _normalize_provider(provider)
-        metadata = PROVIDER_CAPABILITIES.get(normalized_provider)
-        return bool(metadata and metadata.supports_native_tool_protocol)
-
-    # -------------------------------------------------------------------------
-    def supports_native_tools(self, provider: str, model: str = "") -> bool:
-        """Compatibility alias for the explicit native protocol capability."""
-        return self.supports_native_tool_protocol(provider, model)
+        try:
+            metadata = provider_registry_entry(normalized_provider)
+        except ValueError:
+            return False
+        return metadata.supports_native_tool_protocol
 
     # -------------------------------------------------------------------------
     def supports_structured_output(self, provider: str, model: str = "") -> bool:
         _ = model
         normalized_provider = _normalize_provider(provider)
-        metadata = PROVIDER_CAPABILITIES.get(normalized_provider)
-        return bool(metadata and metadata.supports_structured_output)
+        try:
+            metadata = provider_registry_entry(normalized_provider)
+        except ValueError:
+            return False
+        return metadata.supports_structured_output
 
     # -------------------------------------------------------------------------
     def chat_structured(
@@ -547,7 +564,12 @@ class ProviderService(
 
     # -------------------------------------------------------------------------
     def _ollama_embed(self, *, model: str, text: str, session_name: str) -> list[float]:
-        base_url = self._load_configuration(session_name).ollama.base_url.rstrip("/")
+        configuration = self._get_provider_configuration("ollama", session_name)
+        base_url = (
+            configuration.base_url
+            if configuration and configuration.base_url
+            else provider_registry_entry("ollama").default_base_url
+        ).rstrip("/")
         try:
             response = httpx.post(
                 f"{base_url}/api/embed",
@@ -577,16 +599,18 @@ class ProviderService(
         session_name: str,
         dimensions: int | None,
     ) -> list[float]:
-        access_key = self._get_access_key("openai", session_name)
-        api_key = access_key.api_key if access_key else None
+        provider_configuration = self._get_provider_configuration(
+            "openai", session_name
+        )
+        api_key = provider_configuration.api_key if provider_configuration else None
         base_url = (
-            access_key.base_url
-            if access_key and access_key.base_url
-            else "https://api.openai.com/v1"
+            provider_configuration.base_url
+            if provider_configuration and provider_configuration.base_url
+            else provider_registry_entry("openai").default_base_url
         ).rstrip("/")
         if not api_key:
             raise ValueError(
-                "Provider 'openai' requires an access key in Configurations"
+                "Provider 'openai' requires an API key in Configurations"
             )
         payload: dict[str, Any] = {"model": model, "input": text}
         if dimensions is not None:
@@ -615,9 +639,11 @@ class ProviderService(
     def _openai_compatible_local_models(
         self, provider: str, session_name: str = DEFAULT_SESSION_NAME
     ) -> tuple[ModelMetadata, ...]:
-        access_key = self._get_access_key(provider, session_name)
-        base_url = access_key.base_url if access_key else None
-        api_key = access_key.api_key if access_key else None
+        provider_configuration = self._get_provider_configuration(provider, session_name)
+        base_url = (
+            provider_configuration.base_url if provider_configuration else None
+        )
+        api_key = provider_configuration.api_key if provider_configuration else None
         try:
             names = OpenAICompatibleLocalClient(
                 provider=provider,
@@ -628,11 +654,6 @@ class ProviderService(
         except (ValueError, LLMError):
             names = []
 
-        default_model = None
-        if access_key and isinstance(access_key.metadata, dict):
-            default_model = access_key.metadata.get("chat_model")
-        if not names and isinstance(default_model, str) and default_model.strip():
-            names = [default_model.strip()]
         return tuple(
             _infer_openai_compatible_local_metadata(provider, name) for name in names
         )
@@ -647,11 +668,19 @@ class ProviderService(
         session_name: str,
         dimensions: int | None,
     ) -> list[float]:
-        access_key = self._get_access_key(provider, session_name)
+        provider_configuration = self._get_provider_configuration(provider, session_name)
         return OpenAICompatibleLocalClient(
             provider=provider,
-            base_url=access_key.base_url if access_key else None,
-            api_key=access_key.api_key if access_key else None,
+            base_url=(
+                provider_configuration.base_url
+                if provider_configuration
+                else None
+            ),
+            api_key=(
+                provider_configuration.api_key
+                if provider_configuration
+                else None
+            ),
         ).embed(model=model, text=text, dimensions=dimensions)
 
     # -------------------------------------------------------------------------

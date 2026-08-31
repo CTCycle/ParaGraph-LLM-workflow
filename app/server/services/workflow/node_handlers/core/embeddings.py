@@ -35,6 +35,7 @@ from server.services.workflow.node_handlers.ingestion import (
     resolve_local_path,
 )
 from server.services.workflow.provider import provider_service
+from server.services.workflow.provider.registry import provider_registry_entry
 from server.services.workflow.vector_stores import get_vector_store_adapter
 from server.services.workflow.vector_stores.base import (
     validate_vector_request_capabilities,
@@ -77,22 +78,22 @@ def _load_document_text_content(
 ###############################################################################
 def _embed_text_with_gemini(*, model_name: str, text: str) -> list[float]:
     config = configuration_service.load_configuration()
-    access_key = next(
+    provider_configuration = next(
         (
             item
-            for item in config.access_keys
+            for item in config.provider_configurations
             if normalize_provider_name(item.provider, default="") == "gemini"
         ),
         None,
     )
-    api_key = access_key.api_key if access_key else None
+    api_key = provider_configuration.api_key if provider_configuration else None
     base_url = (
-        access_key.base_url
-        if access_key and access_key.base_url
-        else "https://generativelanguage.googleapis.com/v1beta"
+        provider_configuration.base_url
+        if provider_configuration and provider_configuration.base_url
+        else provider_registry_entry("gemini").default_base_url
     ).rstrip("/")
     if not api_key:
-        raise ValueError("Provider 'gemini' requires an access key in Configurations")
+        raise ValueError("Provider 'gemini' requires an API key in Configurations")
 
     response = httpx.post(
         f"{base_url}/models/{model_name}:embedContent",
@@ -118,15 +119,19 @@ def _embed_text_with_huggingface(
 ) -> list[float]:
     torch_module, auto_model, auto_tokenizer = load_huggingface_embedding_modules()
     config = configuration_service.load_configuration()
-    access_key = next(
+    provider_configuration = next(
         (
             item
-            for item in config.access_keys
+            for item in config.provider_configurations
             if normalize_provider_name(item.provider, default="") == "huggingface"
         ),
         None,
     )
-    access_token = access_key.api_key if access_key and access_key.api_key else None
+    access_token = (
+        provider_configuration.api_key
+        if provider_configuration and provider_configuration.api_key
+        else None
+    )
 
     tokenizer_model_name = tokenizer_name.strip() or model_name
     cache_key = f"{model_name}\u0000{tokenizer_model_name}"
@@ -392,12 +397,12 @@ def _vector_store_executor(
     resolved_api_key = ""
     resolved_endpoint = parsed.endpoint_url
     if parsed.credential_profile:
-        access_key = configuration_service.resolve_access_key(
+        provider_configuration = configuration_service.resolve_provider_configuration(
             profile_name=parsed.credential_profile,
             provider=parsed.provider,
         )
-        resolved_api_key = access_key.api_key or ""
-        resolved_endpoint = resolved_endpoint or access_key.base_url or ""
+        resolved_api_key = provider_configuration.api_key or ""
+        resolved_endpoint = resolved_endpoint or provider_configuration.base_url or ""
     store = adapter.write_points(
         index_name=parsed.index_name,
         storage_directory=parsed.storage_path,

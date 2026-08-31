@@ -5,9 +5,10 @@ from collections.abc import Callable
 from fastapi.testclient import TestClient
 import pytest
 
-from server.contracts.configuration import AccessKeyConfiguration
+from server.contracts.configuration import ProviderConfiguration
 from server.contracts.node_catalog import ProviderModelDefinition
 from server.services.workflow import provider_service
+from server.services.workflow.provider.models import ModelMetadata
 
 
 ###############################################################################
@@ -600,7 +601,7 @@ def test_compile_allows_tokenless_local_huggingface_model(
     )
     monkeypatch.setattr(
         provider_service,
-        "_get_access_key",
+        "_get_provider_configuration",
         lambda provider, session_name="default": None,
     )
 
@@ -624,7 +625,7 @@ def test_compile_rejects_remote_huggingface_model_without_token(
     )
     monkeypatch.setattr(
         provider_service,
-        "_get_access_key",
+        "_get_provider_configuration",
         lambda provider, session_name="default": None,
     )
 
@@ -638,7 +639,7 @@ def test_compile_rejects_remote_huggingface_model_without_token(
     assert payload["valid"] is False
     assert any(
         item["code"] == "provider_capability_error"
-        and "requires an access key" in item["message"]
+        and "requires an API key" in item["message"]
         and "remote models" in item["message"]
         for item in payload["diagnostics"]
     )
@@ -654,8 +655,8 @@ def test_compile_allows_remote_huggingface_model_with_token(
     )
     monkeypatch.setattr(
         provider_service,
-        "_get_access_key",
-        lambda provider, session_name="default": AccessKeyConfiguration(
+        "_get_provider_configuration",
+        lambda provider, session_name="default": ProviderConfiguration(
             provider="huggingface", api_key="hf_test", base_url=None, metadata={}
         ),
     )
@@ -692,6 +693,14 @@ def test_execute_returns_run_and_persists_output_payload(
     wait_for_job: Callable[[str, float], dict[str, object]],
 ) -> None:
     captured: dict[str, object] = {}
+
+    monkeypatch.setattr(
+        provider_service,
+        "_ollama_models",
+        lambda session_name="default": (
+            ModelMetadata(provider="ollama", model="llama3.2", label="llama3.2"),
+        ),
+    )
 
     def fake_chat(**kwargs):
         captured.update(kwargs)
@@ -743,6 +752,13 @@ def test_execute_structured_node_rejects_invalid_output(
     monkeypatch,
     wait_for_job: Callable[[str, float], dict[str, object]],
 ) -> None:
+    monkeypatch.setattr(
+        provider_service,
+        "_ollama_models",
+        lambda session_name="default": (
+            ModelMetadata(provider="ollama", model="llama3.2", label="llama3.2"),
+        ),
+    )
     monkeypatch.setattr(provider_service, "chat", lambda **kwargs: '{"name": 12}')
     monkeypatch.setattr(
         provider_service, "validate_model_request", lambda **kwargs: None
@@ -788,6 +804,13 @@ def test_execute_structured_node_emits_json_output_payload(
     monkeypatch,
     wait_for_job: Callable[[str, float], dict[str, object]],
 ) -> None:
+    monkeypatch.setattr(
+        provider_service,
+        "_ollama_models",
+        lambda session_name="default": (
+            ModelMetadata(provider="ollama", model="llama3.2", label="llama3.2"),
+        ),
+    )
     monkeypatch.setattr(provider_service, "chat", lambda **kwargs: '{"name":"Ada"}')
     monkeypatch.setattr(
         provider_service, "validate_model_request", lambda **kwargs: None

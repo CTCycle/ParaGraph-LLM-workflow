@@ -52,13 +52,13 @@ def test_initialize_sqlite_database_creates_application_schema(
 
     repository = sqlite_module.SQLiteRepository(_build_settings())
     assert set(inspect(repository.engine).get_table_names()) == {
-        "access_keys",
         "alembic_version",
         "chat_history_messages",
         "configuration_profiles",
         "execution_events",
         "execution_runs",
         "execution_steps",
+        "provider_configurations",
         "user_sessions",
     }
 

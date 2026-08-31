@@ -34,7 +34,12 @@ def test_ollama_chat_uses_provider_abstraction(monkeypatch) -> None:
         service,
         "_load_configuration",
         lambda session_name="default": SimpleNamespace(
-            ollama=SimpleNamespace(base_url="http://127.0.0.1:11434")
+            provider_configurations=[
+                SimpleNamespace(
+                    provider="ollama",
+                    base_url="http://127.0.0.1:11434",
+                )
+            ]
         ),
     )
 
@@ -56,7 +61,7 @@ def test_validate_model_request_accepts_openai_gemini_and_claude(monkeypatch) ->
     service = ProviderService()
     monkeypatch.setattr(
         service,
-        "_get_access_key",
+        "_get_provider_configuration",
         lambda provider, session_name="default": SimpleNamespace(
             api_key=f"{provider}-key", base_url=None
         ),
@@ -111,7 +116,7 @@ def test_validate_model_request_allows_huggingface_structured_output(
     monkeypatch.setattr(service, "_downloaded_huggingface_repo_ids", lambda: set())
     monkeypatch.setattr(
         service,
-        "_get_access_key",
+        "_get_provider_configuration",
         lambda provider, session_name="default": SimpleNamespace(
             api_key="hf-key", base_url=None
         ),
@@ -191,7 +196,12 @@ def test_ollama_embedding_uses_current_endpoint_only(monkeypatch) -> None:
         service,
         "_load_configuration",
         lambda session_name="default": SimpleNamespace(
-            ollama=SimpleNamespace(base_url="http://127.0.0.1:11434")
+            provider_configurations=[
+                SimpleNamespace(
+                    provider="ollama",
+                    base_url="http://127.0.0.1:11434",
+                )
+            ]
         ),
     )
 

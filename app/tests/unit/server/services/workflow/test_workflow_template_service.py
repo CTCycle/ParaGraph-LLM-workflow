@@ -132,7 +132,9 @@ def test_template_service_rejects_non_compiling_definition(
 
 
 ###############################################################################
-def test_bundled_templates_do_not_require_access_keys_to_list(monkeypatch) -> None:
+def test_bundled_templates_do_not_require_provider_configuration_to_list(
+    monkeypatch,
+) -> None:
     monkeypatch.setattr(
         provider_service, "_get_access_key", lambda *args, **kwargs: None
     )

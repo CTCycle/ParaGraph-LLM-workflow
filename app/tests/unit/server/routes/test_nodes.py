@@ -5,7 +5,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import Integer, String, create_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
-from server.contracts.configuration import AccessKeyConfiguration
+from server.contracts.configuration import ProviderConfiguration
 from server.services.workflow.nodes import connectivity as node_connectivity_module
 
 
@@ -113,8 +113,8 @@ def test_check_vector_store_connection_resolves_saved_credential(
     )
     monkeypatch.setattr(
         node_connectivity_module.configuration_service,
-        "resolve_access_key",
-        lambda *, profile_name, provider: AccessKeyConfiguration(
+        "resolve_provider_configuration",
+        lambda *, profile_name, provider: ProviderConfiguration(
             provider=provider,
             api_key="pinecone-secret",
             base_url="https://configured-vector.example",

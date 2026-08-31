@@ -73,14 +73,14 @@ class CompilerService:
         self,
         definition: WorkflowDefinition,
         *,
-        require_access_keys: bool = True,
+        require_provider_configuration: bool = True,
     ) -> CompileWorkflowResponse:
         active_definition, skipped_node_ids = self._active_definition(definition)
         effective_definition = active_definition
 
         diagnostics, validated_parameters = self._collect_diagnostics(
             effective_definition,
-            require_access_keys=require_access_keys,
+            require_provider_configuration=require_provider_configuration,
         )
         chat_terminal_outputs = self._collect_chat_terminal_outputs(
             effective_definition, diagnostics
@@ -229,7 +229,7 @@ class CompilerService:
         self,
         definition: WorkflowDefinition,
         *,
-        require_access_keys: bool,
+        require_provider_configuration: bool,
     ) -> tuple[list[CompilerDiagnostic], dict[str, dict[str, object]]]:
         diagnostics: list[CompilerDiagnostic] = []
         validated_parameters_by_node: dict[str, dict[str, object]] = {}
@@ -635,7 +635,7 @@ class CompilerService:
                         structured_output=node.node_type in STRUCTURED_NODE_TYPES,
                         requires_image=image_count > 0,
                         use_reasoning=bool(parameters.get("use_reasoning", False)),
-                        require_access_key=require_access_keys,
+                        require_provider_configuration=require_provider_configuration,
                     )
                 except ValueError as exc:
                     diagnostics.append(
