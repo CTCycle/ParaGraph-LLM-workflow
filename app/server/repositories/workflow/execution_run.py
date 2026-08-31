@@ -104,14 +104,20 @@ class ExecutionRunRepository:
     def _checkpoint_from_payload(
         payload: Any, resume_token: str | None
     ) -> PauseCheckpoint | None:
-        if not isinstance(payload, dict) or not resume_token:
+        if payload is None and resume_token is None:
             return None
+        if (
+            not isinstance(payload, dict)
+            or not isinstance(resume_token, str)
+            or not resume_token
+        ):
+            raise ValueError("Persisted pause checkpoint is invalid")
         try:
             checkpoint = PauseCheckpoint.model_validate(payload)
-        except ValueError:
-            return None
+        except ValueError as exc:
+            raise ValueError("Persisted pause checkpoint is invalid") from exc
         if checkpoint.resume_token != resume_token:
-            return None
+            raise ValueError("Persisted pause checkpoint is invalid")
         return checkpoint
 
     # -------------------------------------------------------------------------
@@ -130,11 +136,11 @@ class ExecutionRunRepository:
             checkpoint = self._checkpoint_from_payload(
                 row.pause_payload_json, row.resume_token
             )
-            pause_payload = (
-                checkpoint.pause_payload
-                if checkpoint is not None
-                else row.pause_payload_json
-            )
+            if row.status == "paused" and checkpoint is None:
+                raise ValueError("Persisted pause checkpoint is invalid")
+            if row.status != "paused" and checkpoint is not None:
+                raise ValueError("Persisted pause checkpoint is invalid")
+            pause_payload = checkpoint.pause_payload if checkpoint is not None else None
             return ExecutionRunState(
                 run_id=row.run_id,
                 request_id=row.request_id,
@@ -221,7 +227,7 @@ class ExecutionRunRepository:
                 run.pause_payload_json, run.resume_token
             )
             if checkpoint is None:
-                raise ValueError("legacy_pause_state_not_resumable")
+                raise ValueError("Persisted pause checkpoint is invalid")
             if checkpoint.resume_token != resume_token:
                 raise ValueError("Run is not paused or resume token is invalid")
 
@@ -233,7 +239,7 @@ class ExecutionRunRepository:
                 )
             ).scalar_one_or_none()
             if step is None:
-                raise ValueError("legacy_pause_state_not_resumable")
+                raise ValueError("Persisted pause checkpoint is invalid")
 
             step.output_json = resumed_output
             step.status = "completed"

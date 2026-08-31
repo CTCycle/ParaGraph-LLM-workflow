@@ -351,7 +351,7 @@ class ExecutionService:
             None,
         )
         if step is None:
-            raise ValueError("legacy_pause_state_not_resumable")
+            raise ValueError("Persisted pause checkpoint is invalid")
 
         output = dict(step.output or {})
         ports = dict(output.get("ports") or {})
@@ -377,7 +377,7 @@ class ExecutionService:
             raise ValueError("Run is not paused or resume token is invalid")
         checkpoint = run.pause_checkpoint
         if checkpoint is None:
-            raise ValueError("legacy_pause_state_not_resumable")
+            raise ValueError("Persisted pause checkpoint is invalid")
 
         payload = reviewed_payload or {}
         self._validate_reviewed_payload(payload, checkpoint)
