@@ -1,20 +1,20 @@
 import { useEffect, useState } from 'react'
 
 import { fetchWorkflowTemplates } from '../../app/services/workflowsApi'
-import { type WorkflowTemplate } from '../../workflow/schema/types'
+import { type WorkflowTemplateManifest } from '../../workflow/schema/types'
 
 type UseWorkflowTemplatesParams = {
     getErrorMessage: (error: unknown, fallback: string) => string
 }
 
 type UseWorkflowTemplatesResult = {
-    templates: WorkflowTemplate[]
+    templates: WorkflowTemplateManifest[]
     templatesLoading: boolean
     templatesError: string | null
 }
 
 export function useWorkflowTemplates({ getErrorMessage }: UseWorkflowTemplatesParams): UseWorkflowTemplatesResult {
-    const [templates, setTemplates] = useState<WorkflowTemplate[]>([])
+    const [templates, setTemplates] = useState<WorkflowTemplateManifest[]>([])
     const [templatesLoading, setTemplatesLoading] = useState(false)
     const [templatesError, setTemplatesError] = useState<string | null>(null)
 

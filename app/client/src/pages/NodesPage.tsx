@@ -24,7 +24,7 @@ import SectionHeading from '../components/SectionHeading'
 import StatusBanner from '../components/StatusBanner'
 import { useNodeCatalog } from '../workflow/hooks/useNodeCatalog'
 import { NODE_CATEGORY_LABELS, NODE_CATEGORY_ORDER } from '../workflow/schema/nodeCategory'
-import { NodeCategory, NodeManifest, WorkflowNavigationState, WorkflowOpenIntent, WorkflowTemplate } from '../workflow/schema/types'
+import { NodeCategory, NodeManifest, WorkflowNavigationState, WorkflowOpenIntent, WorkflowTemplateManifest } from '../workflow/schema/types'
 import NodeCategoryFilterOption from './nodes/NodeCategoryFilterOption'
 import NodePreviewCard from './nodes/NodePreviewCard'
 import { type NodePreviewDetailItem } from './nodes/types'
@@ -101,7 +101,7 @@ function getNodeControllers(node: NodeManifest): string[] {
     return (node.controllers ?? []).map((controller) => controller.name)
 }
 
-function buildTemplateFlowPreview(template: WorkflowTemplate): string[] {
+function buildTemplateFlowPreview(template: WorkflowTemplateManifest): string[] {
     const nameByNodeType = new Map(template.required_nodes.map((manifest) => [manifest.id, manifest.name]))
     const previewSteps = template.definition.nodes.slice(0, 5).map((node) => nameByNodeType.get(node.node_type) ?? node.node_type)
     const remaining = template.definition.nodes.length - previewSteps.length

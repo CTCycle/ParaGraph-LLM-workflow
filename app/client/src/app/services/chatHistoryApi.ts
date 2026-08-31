@@ -1,12 +1,8 @@
 import type {
     ChatHistoryHandle,
-    ChatHistoryMessage,
+    ChatHistoryResponse,
 } from '../../workflow/schema/types'
 import { requestJson } from './api'
-
-export interface ChatHistoryResponse {
-    messages: ChatHistoryMessage[]
-}
 
 export function fetchChatHistory(handle: ChatHistoryHandle): Promise<ChatHistoryResponse> {
     const query = new URLSearchParams({

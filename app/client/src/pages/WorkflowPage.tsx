@@ -74,7 +74,7 @@ import {
     WorkflowNavigationState,
     WorkflowOpenIntent,
     WorkflowShareBundle,
-    WorkflowTemplate,
+    WorkflowTemplateManifest,
     VectorStoreCapabilities,
 } from '../workflow/schema/types'
 import { WorkflowParameterPathActions } from '../workflow/components/WorkflowParameterPathActions'
@@ -1252,7 +1252,7 @@ function isVisualGraphPayload(value: unknown): value is VisualGraph {
     )
 }
 
-function isWorkflowTemplatePayload(value: unknown): value is WorkflowTemplate {
+function isWorkflowTemplatePayload(value: unknown): value is WorkflowTemplateManifest {
     if (!isRecord(value) || !Array.isArray(value.tags) || !Array.isArray(value.required_nodes)) {
         return false
     }
@@ -3319,6 +3319,7 @@ function WorkflowEditor() {
                 node_type: node.data.manifest.id,
                 node_version: node.data.manifest.version,
                 parameters,
+                retries: 0,
                 skipped: node.data.skipped,
             }
         })

@@ -1,7 +1,7 @@
-import { type WorkflowOpenIntent, type WorkflowTemplate } from '../../workflow/schema/types'
+import { type WorkflowOpenIntent, type WorkflowTemplateManifest } from '../../workflow/schema/types'
 
 type WorkflowTemplateCardProps = {
-    template: WorkflowTemplate
+    template: WorkflowTemplateManifest
     flowPreview: string[]
     onUseTemplate: (intent: WorkflowOpenIntent) => void
 }
