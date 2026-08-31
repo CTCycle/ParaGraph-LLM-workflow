@@ -10,7 +10,7 @@ Last updated: 2026-08-31
 - If APIs are unreachable, verify host and port values in `settings/.env`.
 - If model operations fail, verify provider credentials and network reachability.
 - If compile fails, inspect diagnostics and fix missing inputs, controller mismatches, or type mismatches.
-- To reset local user data, use launcher option 10 (`Remove All Data`), confirm with `REMOVE`, and restart the application so a fresh database can be initialized.
+- To reset local user data, use launcher option 10 (`Remove All Data`), give an affirmative response at the `[y/N]` confirmation prompt, and restart the application so a fresh database can be initialized.
 
 ## Data Location
 Runtime data is stored under `app/resources` by default. Set `PARAGRAPH_RESOURCES_DIR` in `settings/.env` to use another absolute or repository-relative location. Stored data includes:
