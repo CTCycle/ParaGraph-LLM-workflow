@@ -8,7 +8,7 @@ PowerShell:
 .\start_on_windows.ps1
 ```
 
-The menu can launch the application, install dependencies, initialize the database, run tests, clear logs or caches, and uninstall local runtime files.
+The menu can launch the application, install dependencies, initialize the database, run tests, clear logs or caches, and uninstall local runtime files. Cache and data removal attempts one bulk operation per target, then uses deterministic deepest-first item recovery only when the bulk operation fails.
 
 The interactive menu provides these options:
 
@@ -21,7 +21,7 @@ The interactive menu provides these options:
 - `7` Check for a different `origin/main` revision without downloading or applying changes.
 - `8` Remove application log files.
 - `9` Clear runtime caches under `runtimes/cache` and test/tool caches plus generated test/build artifacts under `app/tests/cache`.
-- `10` Remove user data and the embedded database, including database sidecars, while preserving application files and settings. This requires typing `REMOVE` to confirm.
+- `10` Remove user data and the embedded database, including database sidecars, while preserving application files and settings. This requires an affirmative response at a `[y/N]` confirmation prompt.
 - `11` Uninstall local runtimes, dependencies, caches, and build output while preserving dependency lockfiles, settings, and user data.
 - `12` Exit without changing the workspace.
 
