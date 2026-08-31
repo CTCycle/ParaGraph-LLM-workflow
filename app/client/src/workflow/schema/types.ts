@@ -367,6 +367,14 @@ export interface ExecutionEventEnvelope {
 
 export interface ProviderCapability {
     provider: string
+    label: string
+    configuration_kind: 'local' | 'cloud' | 'remote'
+    model_source: 'live' | 'hosted_registry' | 'downloaded_filesystem'
+    default_base_url: string | null
+    default_chat_model: string | null
+    default_embedding_model: string | null
+    requires_api_key: boolean
+    supports_status_check: boolean
     supports_chat: boolean
     supports_embeddings: boolean
     supports_structured_output: boolean
@@ -535,23 +543,17 @@ export interface RetrievalResults {
     query: string
     hits: RetrievalHit[]
 }
-export interface AccessKeyConfiguration {
+export interface ProviderConfiguration {
     provider: string
     api_key: string | null
+    has_api_key: boolean
     base_url: string | null
     metadata: Record<string, unknown>
 }
 
-export interface OllamaConfiguration {
-    base_url: string
-    chat_model: string
-    embedding_model: string
-}
-
 export interface AppConfigurationPayload {
     session_name: string
-    access_keys: AccessKeyConfiguration[]
-    ollama: OllamaConfiguration
+    provider_configurations: ProviderConfiguration[]
 }
 
 export interface ConfigurationProfileSummary {

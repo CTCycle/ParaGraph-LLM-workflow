@@ -8,6 +8,7 @@ import {
   OllamaLibraryCatalogResponse,
   OllamaModelPullResponse,
   ProviderModelCatalogResponse,
+  ProviderCatalogResponse,
 } from '../../workflow/schema/types'
 import { requestJson } from './api'
 
@@ -28,6 +29,10 @@ export interface HuggingFaceModelQueryOptions {
   page?: number
   pageSize?: number
   refresh?: boolean
+}
+
+export function fetchProviderCatalog(): Promise<ProviderCatalogResponse> {
+  return requestJson<ProviderCatalogResponse>('/providers/catalog')
 }
 
 export function fetchProviderModels(sessionName = 'default'): Promise<ProviderModelCatalogResponse> {

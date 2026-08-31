@@ -3,8 +3,9 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 
 import * as workflowApi from '../app/services/configurationsApi'
+import * as providersApi from '../app/services/providersApi'
 import ConfigurationsPage from './ConfigurationsPage'
-import { createConfigurationPayload } from '../test/fixtures'
+import { createConfigurationPayload, createProviderCatalog } from '../test/fixtures'
 
 vi.mock('../app/services/configurationsApi', () => ({
     fetchConfigurations: vi.fn(),
@@ -15,6 +16,10 @@ vi.mock('../app/services/configurationsApi', () => ({
     pingProvider: vi.fn(),
 }))
 
+vi.mock('../app/services/providersApi', () => ({
+    fetchProviderCatalog: vi.fn(),
+}))
+
 describe('ConfigurationsPage profile modal flows', () => {
     it('loads profiles, loads a selected profile, and saves a named profile', async () => {
         const fetchConfigurationsMock = vi.mocked(workflowApi.fetchConfigurations)
@@ -23,8 +28,10 @@ describe('ConfigurationsPage profile modal flows', () => {
         const saveConfigurationProfileMock = vi.mocked(workflowApi.saveConfigurationProfile)
         const pingOllamaMock = vi.mocked(workflowApi.pingOllama)
         const pingProviderMock = vi.mocked(workflowApi.pingProvider)
+        const fetchProviderCatalogMock = vi.mocked(providersApi.fetchProviderCatalog)
 
         fetchConfigurationsMock.mockResolvedValue(createConfigurationPayload())
+        fetchProviderCatalogMock.mockResolvedValue(createProviderCatalog())
         listConfigurationProfilesMock.mockResolvedValue({
             session_name: 'default',
             profiles: [
@@ -42,9 +49,9 @@ describe('ConfigurationsPage profile modal flows', () => {
         })
         loadConfigurationProfileMock.mockResolvedValue(
             createConfigurationPayload({
-                access_keys: [
-                    { provider: 'openai', api_key: 'sk-loaded', base_url: null, metadata: {} },
-                    { provider: 'huggingface', api_key: 'hf-loaded', base_url: null, metadata: {} },
+                provider_configurations: [
+                    { provider: 'openai', api_key: 'sk-loaded', has_api_key: true, base_url: null, metadata: {} },
+                    { provider: 'huggingface', api_key: 'hf-loaded', has_api_key: true, base_url: null, metadata: {} },
                 ],
             }),
         )
@@ -103,13 +110,33 @@ describe('ConfigurationsPage profile modal flows', () => {
         await waitFor(() => {
             expect(saveConfigurationProfileMock).toHaveBeenCalledWith('team profile', expect.any(Object))
         })
+        expect(saveConfigurationProfileMock).toHaveBeenCalledWith(
+            'team profile',
+            expect.objectContaining({
+                provider_configurations: expect.arrayContaining([
+                    expect.objectContaining({
+                        provider: 'openai',
+                        api_key: null,
+                        has_api_key: true,
+                    }),
+                    expect.objectContaining({
+                        provider: 'huggingface',
+                        api_key: null,
+                        has_api_key: true,
+                    }),
+                ]),
+            }),
+        )
+        expect(saveConfigurationProfileMock.mock.calls[0]?.[1]).not.toHaveProperty('access_keys')
     }, 15_000)
 
     it('renders ollama connectivity failures with strong error styling and alert semantics', async () => {
         const fetchConfigurationsMock = vi.mocked(workflowApi.fetchConfigurations)
         const pingOllamaMock = vi.mocked(workflowApi.pingOllama)
+        const fetchProviderCatalogMock = vi.mocked(providersApi.fetchProviderCatalog)
 
         fetchConfigurationsMock.mockResolvedValue(createConfigurationPayload())
+        fetchProviderCatalogMock.mockResolvedValue(createProviderCatalog())
         pingOllamaMock.mockRejectedValue(new Error('Unable to reach Ollama at http://127.0.0.1:1'))
 
         render(<ConfigurationsPage />)
