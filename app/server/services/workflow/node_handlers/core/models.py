@@ -29,6 +29,7 @@ from server.services.workflow.node_handlers.core.huggingface_runtime import (
     load_huggingface_modules,
 )
 from server.services.workflow.provider import provider_service
+from server.services.workflow.provider.registry import provider_registry_entry
 
 
 _HF_MODEL_CACHE: dict[str, tuple[Any, Any]] = {}
@@ -228,9 +229,11 @@ def _execute_model_node(
     )
 
     if provider == "huggingface":
-        access_keys = configuration_service.load_configuration().access_keys
+        provider_configurations = (
+            configuration_service.load_configuration().provider_configurations
+        )
         hf_token = ""
-        for item in access_keys:
+        for item in provider_configurations:
             if item.provider.lower() == "huggingface" and item.api_key:
                 hf_token = item.api_key
                 break
@@ -305,15 +308,10 @@ def _model_provider_executor(
     provider = normalize_provider_name(parsed.provider, default="ollama")
     model_name = coerce_text(parsed.model_name).strip()
     timeout_seconds = float(parsed.timeout_seconds)
-    if not model_name and provider == "ollama":
+    if not model_name:
         model_name = coerce_text(
-            configuration_service.load_configuration().ollama.chat_model
+            provider_registry_entry(provider).default_chat_model
         ).strip()
-    if not model_name and provider in {"lmstudio", "llama"}:
-        for item in configuration_service.load_configuration().access_keys:
-            if item.provider == provider and isinstance(item.metadata, dict):
-                model_name = coerce_text(item.metadata.get("chat_model")).strip()
-                break
     if not model_name:
         raise ValueError("MODEL_PROVIDER requires a model_name")
     return {

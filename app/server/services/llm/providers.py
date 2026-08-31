@@ -9,6 +9,7 @@ from typing import Any, Protocol
 import httpx
 
 from server.configurations.startup import get_configuration_runtime
+from server.services.workflow.provider.registry import provider_registry_entry
 
 
 ###############################################################################
@@ -201,7 +202,8 @@ class OllamaClient:
     def __init__(
         self, base_url: str | None = None, timeout_s: float | None = None
     ) -> None:
-        self.base_url = (base_url or "http://127.0.0.1:11434").rstrip("/")
+        default_base_url = provider_registry_entry("ollama").default_base_url
+        self.base_url = (base_url or default_base_url).rstrip("/")
         self.timeout = _get_timeout(timeout_s)
 
     # -------------------------------------------------------------------------
@@ -291,14 +293,8 @@ class CloudLLMClient:
         self.provider = CloudProvider(normalized_provider)
         self.timeout = _get_timeout(timeout_s)
 
-        default_base_url = {
-            CloudProvider.OPENAI: "https://api.openai.com/v1",
-            CloudProvider.GEMINI: "https://generativelanguage.googleapis.com/v1beta",
-            CloudProvider.CLAUDE: "https://api.anthropic.com/v1",
-            CloudProvider.DEEPSEEK: "https://api.deepseek.com",
-        }
-
-        self.base_url = (base_url or default_base_url[self.provider]).rstrip("/")
+        default_base_url = provider_registry_entry(self.provider.value).default_base_url
+        self.base_url = (base_url or default_base_url).rstrip("/")
         self.api_key = api_key
 
     # -------------------------------------------------------------------------
@@ -614,15 +610,12 @@ class OpenAICompatibleLocalClient:
     ) -> None:
         normalized = provider.strip().lower()
         self.provider = LocalOpenAICompatibleProvider(normalized)
-        default_base_url = {
-            LocalOpenAICompatibleProvider.LMSTUDIO: "http://localhost:1234/v1",
-            LocalOpenAICompatibleProvider.LLAMA: "http://localhost:8080/v1",
-        }
         default_api_key = {
             LocalOpenAICompatibleProvider.LMSTUDIO: "lm-studio",
             LocalOpenAICompatibleProvider.LLAMA: "sk-no-key-required",
         }
-        self.base_url = (base_url or default_base_url[self.provider]).rstrip("/")
+        default_base_url = provider_registry_entry(self.provider.value).default_base_url
+        self.base_url = (base_url or default_base_url).rstrip("/")
         self.api_key = api_key or default_api_key[self.provider]
         self.timeout = _get_timeout(timeout_s)
 

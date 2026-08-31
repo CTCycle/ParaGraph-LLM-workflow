@@ -116,18 +116,10 @@ def test_provider_models_include_embedding_capabilities(
     assert by_provider["gemini"], (
         "Gemini embedding models should be exposed by /providers/models"
     )
-    assert by_provider["ollama"], (
-        "Ollama embedding models should be exposed by /providers/models"
-    )
-    assert by_provider["huggingface"], (
-        "Hugging Face embedding models should be exposed by /providers/models"
-    )
-    assert by_provider["lmstudio"], (
-        "LM Studio embedding models should be exposed by /providers/models"
-    )
-    assert by_provider["llama"], (
-        "llama.cpp embedding models should be exposed by /providers/models"
-    )
+    assert not by_provider["ollama"]
+    assert not by_provider["huggingface"]
+    assert not by_provider["lmstudio"]
+    assert not by_provider["llama"]
     assert not [
         item
         for item in models

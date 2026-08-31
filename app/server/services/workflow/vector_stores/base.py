@@ -540,12 +540,12 @@ def _resolve_runtime_secret(config: dict[str, Any]) -> str:
     from server.services.configuration import configuration_service
 
     try:
-        access_key = configuration_service.resolve_access_key(
+        provider_configuration = configuration_service.resolve_provider_configuration(
             profile_name=profile_name, provider=provider
         )
     except (KeyError, ValueError):
         return ""
-    return access_key.api_key or ""
+    return provider_configuration.api_key or ""
 
 
 ###############################################################################

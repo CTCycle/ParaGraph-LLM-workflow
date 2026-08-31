@@ -240,6 +240,14 @@ class NodeCatalogResponse(BaseModel):
 ###############################################################################
 class ProviderCapability(BaseModel):
     provider: str
+    label: str
+    configuration_kind: Literal["local", "cloud", "remote"]
+    model_source: Literal["live", "hosted_registry", "downloaded_filesystem"]
+    default_base_url: str | None = None
+    default_chat_model: str | None = None
+    default_embedding_model: str | None = None
+    requires_api_key: bool = False
+    supports_status_check: bool = False
     supports_chat: bool = True
     supports_embeddings: bool = False
     supports_structured_output: bool = False

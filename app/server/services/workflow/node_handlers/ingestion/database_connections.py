@@ -75,11 +75,11 @@ def _sql_database_executor(
 ) -> dict[str, Any]:
     _ = inputs
     parsed = SQLDatabaseParameters.model_validate(parameters)
-    access_key = configuration_service.resolve_access_key(
+    provider_configuration = configuration_service.resolve_provider_configuration(
         profile_name=parsed.credential_profile,
         provider=parsed.db_engine,
     )
-    credential_ref = register_database_credential(access_key.api_key or "")
+    credential_ref = register_database_credential(provider_configuration.api_key or "")
     connection_payload = {
         "engine": parsed.db_engine,
         "database_name": parsed.db_name,

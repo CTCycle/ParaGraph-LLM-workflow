@@ -186,11 +186,11 @@ class SecureHttpTransport:
     ) -> tuple[str, str | None]:
         if parameters.auth_mode == "none":
             return "", None
-        access_key = configuration_service.resolve_access_key(
+        provider_configuration = configuration_service.resolve_provider_configuration(
             profile_name=parameters.credential_profile,
             provider=parameters.credential_provider,
         )
-        return access_key.api_key or "", access_key.base_url
+        return provider_configuration.api_key or "", provider_configuration.base_url
 
     # -------------------------------------------------------------------------
     def _request_content(

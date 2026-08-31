@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Literal
 
 
 ###############################################################################
@@ -22,6 +22,14 @@ class OllamaLibraryCachePayload:
 @dataclass(frozen=True)
 class ProviderMetadata:
     name: str
+    label: str
+    configuration_kind: Literal["local", "cloud", "remote"]
+    model_source: Literal["live", "hosted_registry", "downloaded_filesystem"]
+    default_base_url: str | None
+    default_chat_model: str | None
+    default_embedding_model: str | None
+    requires_api_key: bool
+    supports_status_check: bool
     supports_chat: bool
     supports_embeddings: bool
     supports_structured_output: bool
@@ -29,6 +37,7 @@ class ProviderMetadata:
     supports_tool_calling: bool
     supports_tool_selection: bool = False
     supports_native_tool_protocol: bool = False
+    curated_models: tuple[ModelMetadata, ...] = ()
 
 
 ###############################################################################

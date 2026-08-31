@@ -7,10 +7,6 @@ from server.services.workflow.provider.errors import ProviderApiError
 from server.services.workflow.provider.huggingface_downloads import (
     HuggingFaceDownloadMixin,
 )
-from server.services.workflow.provider.service import (
-    ProviderService,
-    provider_service,
-)
 
 __all__ = [
     "HuggingFaceDownloadMixin",
@@ -19,3 +15,17 @@ __all__ = [
     "ProviderService",
     "provider_service",
 ]
+
+
+def __getattr__(name: str):
+    if name in {"ProviderService", "provider_service"}:
+        from server.services.workflow.provider.service import (
+            ProviderService,
+            provider_service,
+        )
+
+        return {
+            "ProviderService": ProviderService,
+            "provider_service": provider_service,
+        }[name]
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

@@ -25,13 +25,6 @@ class UserSession(Base):
 
     session_id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     session_name: Mapped[str] = mapped_column(nullable=False, unique=True)
-    ollama_base_url: Mapped[str] = mapped_column(
-        nullable=False, default="http://127.0.0.1:11434"
-    )
-    ollama_chat_model: Mapped[str] = mapped_column(nullable=False, default="llama3.2")
-    ollama_embedding_model: Mapped[str] = mapped_column(
-        nullable=False, default="nomic-embed-text"
-    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=utcnow
     )
@@ -39,8 +32,8 @@ class UserSession(Base):
         DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow
     )
 
-    access_keys: Mapped[list[AccessKey]] = relationship(
-        "AccessKey",
+    provider_configurations: Mapped[list[ProviderConfiguration]] = relationship(
+        "ProviderConfiguration",
         back_populates="session",
         cascade="all, delete-orphan",
         passive_deletes=True,
@@ -87,10 +80,12 @@ class ConfigurationProfile(Base):
 
 
 ###############################################################################
-class AccessKey(Base):
-    __tablename__ = "access_keys"
+class ProviderConfiguration(Base):
+    __tablename__ = "provider_configurations"
 
-    access_key_id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    provider_configuration_id: Mapped[int] = mapped_column(
+        primary_key=True, autoincrement=True
+    )
     session_id: Mapped[int] = mapped_column(
         ForeignKey("user_sessions.session_id", ondelete="CASCADE"),
         nullable=False,
@@ -110,14 +105,14 @@ class AccessKey(Base):
     )
 
     session: Mapped[UserSession] = relationship(
-        "UserSession", back_populates="access_keys"
+        "UserSession", back_populates="provider_configurations"
     )
 
     __table_args__ = (
         UniqueConstraint(
-            "session_id", "provider", name="uq_access_keys_session_provider"
+            "session_id", "provider", name="uq_provider_configurations_session_provider"
         ),
-        Index("ix_access_keys_provider", "provider"),
+        Index("ix_provider_configurations_provider", "provider"),
     )
 
 

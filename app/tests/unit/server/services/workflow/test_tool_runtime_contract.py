@@ -188,4 +188,3 @@ def test_provider_tool_capabilities_distinguish_selection_from_native_protocol()
 ):
     assert provider_service.supports_tool_selection("openai") is True
     assert provider_service.supports_native_tool_protocol("openai") is False
-    assert provider_service.supports_native_tools("openai") is False

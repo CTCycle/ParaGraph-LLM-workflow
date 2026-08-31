@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
+import json
 from pathlib import Path
 import shutil
 
@@ -14,7 +15,7 @@ from server.common import path as common_path
 from server.configurations.settings import SQLiteSettings
 from server.repositories.database import migration
 from server.repositories.database.initializer import initialize_sqlite_database
-from server.repositories.schemas import Base, UserSession
+from server.repositories.schemas import Base, ProviderConfiguration, UserSession
 
 
 ###############################################################################
@@ -31,36 +32,6 @@ def _engine(database_path: Path) -> sa.Engine:
 
 
 ###############################################################################
-def _add_legacy_node_table(engine: sa.Engine) -> None:
-    metadata = sa.MetaData()
-    sa.Table(
-        "user_sessions",
-        metadata,
-        sa.Column("session_id", sa.Integer(), primary_key=True),
-    )
-    nodes = sa.Table(
-        "nodes",
-        metadata,
-        sa.Column("node_configuration_id", sa.Integer(), primary_key=True),
-        sa.Column(
-            "session_id",
-            sa.Integer(),
-            sa.ForeignKey("user_sessions.session_id", ondelete="CASCADE"),
-            nullable=False,
-        ),
-        sa.Column("node_key", sa.String(), nullable=False),
-        sa.Column("node_type", sa.String(), nullable=False),
-        sa.Column("node_version", sa.Integer(), nullable=False),
-        sa.Column("configuration_json", sa.JSON(), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
-        sa.UniqueConstraint("session_id", "node_key", name="uq_nodes_session_node_key"),
-    )
-    sa.Index("ix_nodes_session_id", nodes.c.session_id)
-    sa.Index("ix_nodes_session_type", nodes.c.session_id, nodes.c.node_type)
-    metadata.create_all(engine)
-
-
 ###############################################################################
 def _version(database_path: Path) -> str | None:
     engine = _engine(database_path)
@@ -85,16 +56,16 @@ def test_empty_database_is_created_and_migrated_to_head(tmp_path: Path) -> None:
     engine = _engine(database_path)
     try:
         assert set(inspect(engine).get_table_names()) == {
-            "access_keys",
             "alembic_version",
             "chat_history_messages",
             "configuration_profiles",
             "execution_events",
             "execution_runs",
             "execution_steps",
+            "provider_configurations",
             "user_sessions",
         }
-        assert _version(database_path) == "0002_remove_node_configuration_mirror"
+        assert _version(database_path) == "0003_canonical_provider_configuration"
     finally:
         engine.dispose()
 
@@ -110,37 +81,24 @@ def test_migration_engine_enables_foreign_keys(tmp_path: Path) -> None:
 
 
 ###############################################################################
-def test_legacy_schema_is_adopted_without_losing_data(tmp_path: Path) -> None:
-    database_path = tmp_path / "legacy.db"
+def test_populated_unversioned_schema_fails_closed(tmp_path: Path) -> None:
+    database_path = tmp_path / "unversioned.db"
     engine = _engine(database_path)
-    # Test fixture only: emulate the schema created by the pre-Alembic release.
     Base.metadata.create_all(engine)
-    _add_legacy_node_table(engine)
     with sa.orm.Session(engine) as session:
         session.add(
-            UserSession(
-                session_name="legacy-session",
-                ollama_base_url="http://localhost:11434",
-                ollama_chat_model="llama3.2",
-                ollama_embedding_model="nomic-embed-text",
-            )
+            UserSession(session_name="unversioned-session")
         )
         session.commit()
     engine.dispose()
 
-    initialize_sqlite_database(_settings(), db_path=database_path)
+    with pytest.raises(migration.DatabaseMigrationError, match="no Alembic revision"):
+        initialize_sqlite_database(_settings(), db_path=database_path)
 
     engine = _engine(database_path)
     try:
-        assert _version(database_path) == "0002_remove_node_configuration_mirror"
-        assert "nodes" not in inspect(engine).get_table_names()
-        with engine.connect() as connection:
-            assert (
-                connection.execute(
-                    text("select session_name from user_sessions")
-                ).scalar_one()
-                == "legacy-session"
-            )
+        assert _version(database_path) is None
+        assert "user_sessions" in inspect(engine).get_table_names()
     finally:
         engine.dispose()
 
@@ -152,13 +110,133 @@ def test_partial_unversioned_schema_fails_closed(tmp_path: Path) -> None:
     Base.metadata.tables["user_sessions"].create(engine)
     engine.dispose()
 
-    with pytest.raises(migration.DatabaseMigrationError, match="incomplete"):
+    with pytest.raises(migration.DatabaseMigrationError, match="no Alembic revision"):
         initialize_sqlite_database(_settings(), db_path=database_path)
 
     engine = _engine(database_path)
     try:
         assert "alembic_version" not in inspect(engine).get_table_names()
         assert "user_sessions" in inspect(engine).get_table_names()
+    finally:
+        engine.dispose()
+
+
+###############################################################################
+def test_0002_schema_migrates_provider_data_to_canonical_shape(
+    tmp_path: Path,
+) -> None:
+    database_path = tmp_path / "provider-migration.db"
+    _apply_revision(database_path, "0002_remove_node_configuration_mirror")
+
+    engine = _engine(database_path)
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                "INSERT INTO user_sessions "
+                "(session_name, ollama_base_url, ollama_chat_model, "
+                "ollama_embedding_model, created_at, updated_at) "
+                "VALUES (:session_name, :ollama_base_url, :ollama_chat_model, "
+                ":ollama_embedding_model, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
+            ),
+            {
+                "session_name": "migrated-session",
+                "ollama_base_url": "http://localhost:11434",
+                "ollama_chat_model": "llama3.2",
+                "ollama_embedding_model": "nomic-embed-text",
+            },
+        )
+        session_id = connection.execute(
+            text(
+                "SELECT session_id FROM user_sessions "
+                "WHERE session_name = 'migrated-session'"
+            )
+        ).scalar_one()
+        connection.execute(
+            text(
+                "INSERT INTO access_keys "
+                "(session_id, provider, api_key, base_url, metadata_json, "
+                "created_at, updated_at) "
+                "VALUES (:session_id, 'openai', 'sk-test', NULL, :metadata, "
+                "CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
+            ),
+            {"session_id": session_id, "metadata": json.dumps({})},
+        )
+        connection.execute(
+            text(
+                "INSERT INTO configuration_profiles "
+                "(session_id, profile_name, configuration_json, created_at, updated_at) "
+                "VALUES (:session_id, 'workbench', :configuration_json, "
+                "CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
+            ),
+            {
+                "session_id": session_id,
+                "configuration_json": json.dumps(
+                    {
+                        "session_name": "migrated-session",
+                        "access_keys": [
+                            {
+                                "provider": "openai",
+                                "api_key": "sk-profile",
+                                "base_url": None,
+                                "metadata": {},
+                            }
+                        ],
+                        "ollama": {
+                            "base_url": "http://localhost:11434",
+                            "chat_model": "llama3.2",
+                            "embedding_model": "nomic-embed-text",
+                        },
+                    },
+                    separators=(",", ":"),
+                ),
+            },
+        )
+    engine.dispose()
+
+    initialize_sqlite_database(_settings(), db_path=database_path)
+
+    engine = _engine(database_path)
+    try:
+        assert _version(database_path) == "0003_canonical_provider_configuration"
+        assert "access_keys" not in inspect(engine).get_table_names()
+        columns = {
+            column["name"] for column in inspect(engine).get_columns("user_sessions")
+        }
+        assert not {
+            "ollama_base_url",
+            "ollama_chat_model",
+            "ollama_embedding_model",
+        }.intersection(columns)
+        with engine.connect() as connection:
+            providers = {
+                row.provider: row
+                for row in connection.execute(
+                    text(
+                        "SELECT provider, api_key, base_url, metadata_json "
+                        "FROM provider_configurations "
+                        "WHERE session_id = :session_id"
+                    ),
+                    {"session_id": session_id},
+                ).mappings()
+            }
+            assert providers["openai"]["api_key"] == "sk-test"
+            assert providers["ollama"]["base_url"] == "http://localhost:11434"
+            assert json.loads(providers["ollama"]["metadata_json"])["chat_model"] == (
+                "llama3.2"
+            )
+            profile = connection.execute(
+                text(
+                    "SELECT configuration_json FROM configuration_profiles "
+                    "WHERE profile_name = 'workbench'"
+                )
+            ).scalar_one()
+            profile_payload = json.loads(profile)
+            assert "access_keys" not in profile_payload
+            assert "ollama" not in profile_payload
+            assert {item["provider"] for item in profile_payload["provider_configurations"]} == {
+                "openai",
+                "ollama",
+            }
     finally:
         engine.dispose()
 
@@ -227,8 +305,8 @@ def _add_marker_revision(migration_root: Path, *, failing: bool = False) -> None
         '''"""Add a marker column for migration integration tests."""\n\n'''
         "from alembic import op\n"
         "import sqlalchemy as sa\n\n"
-        "revision = '0003_marker'\n"
-        "down_revision = '0002_remove_node_configuration_mirror'\n"
+        "revision = '0004_marker'\n"
+        "down_revision = '0003_canonical_provider_configuration'\n"
         "branch_labels = None\n"
         "depends_on = None\n\n"
         "def upgrade():\n"
@@ -243,8 +321,8 @@ def _add_marker_revision(migration_root: Path, *, failing: bool = False) -> None
             '''"""Fail after issuing DDL to verify rollback."""\n\n'''
             "from alembic import op\n"
             "import sqlalchemy as sa\n\n"
-            "revision = '0004_failure'\n"
-            "down_revision = '0003_marker'\n"
+            "revision = '0005_failure'\n"
+            "down_revision = '0004_marker'\n"
             "branch_labels = None\n"
             "depends_on = None\n\n"
             "def upgrade():\n"
@@ -287,20 +365,27 @@ def test_outdated_database_is_upgraded_to_head(
         session.add(
             UserSession(
                 session_name="behind-session",
-                ollama_base_url="http://localhost:11434",
-                ollama_chat_model="llama3.2",
-                ollama_embedding_model="nomic-embed-text",
+                provider_configurations=[
+                    ProviderConfiguration(
+                        provider="ollama",
+                        base_url="http://localhost:11434",
+                        metadata_json={
+                            "chat_model": "llama3.2",
+                            "embedding_model": "nomic-embed-text",
+                        },
+                    )
+                ],
             )
         )
         session.commit()
     engine.dispose()
 
-    _apply_revision(database_path, migration.BASELINE_REVISION, downgrade=True)
+    _apply_revision(database_path, "0001_initial", downgrade=True)
     initialize_sqlite_database(_settings(), db_path=database_path)
 
     engine = _engine(database_path)
     try:
-        assert _version(database_path) == "0003_marker"
+        assert _version(database_path) == "0004_marker"
         assert "migration_marker" in {
             column["name"] for column in inspect(engine).get_columns("user_sessions")
         }
@@ -323,7 +408,7 @@ def test_failed_migration_rolls_back_ddl_and_revision(
     _add_marker_revision(migration_root, failing=True)
     database_path = tmp_path / "rollback.db"
 
-    _apply_revision(database_path, "0003_marker")
+    _apply_revision(database_path, "0004_marker")
 
     with pytest.raises(migration.DatabaseMigrationError, match="failed"):
         migration.run_database_migrations(database_path)
@@ -334,7 +419,7 @@ def test_failed_migration_rolls_back_ddl_and_revision(
             column["name"] for column in inspect(engine).get_columns("user_sessions")
         }
         assert "failure_marker" not in columns
-        assert _version(database_path) == "0003_marker"
+        assert _version(database_path) == "0004_marker"
     finally:
         engine.dispose()
 
@@ -355,7 +440,7 @@ def test_concurrent_initialization_is_serialized(tmp_path: Path) -> None:
         for future in futures:
             future.result()
 
-    assert _version(database_path) == "0002_remove_node_configuration_mirror"
+    assert _version(database_path) == "0003_canonical_provider_configuration"
 
 
 ###############################################################################

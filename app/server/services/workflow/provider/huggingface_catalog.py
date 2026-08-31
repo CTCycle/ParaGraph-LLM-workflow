@@ -34,11 +34,11 @@ from server.services.workflow.provider.helpers import (
     _extract_huggingface_tag_values,
     _huggingface_model_dir_name,
     _huggingface_repo_id_from_dir_name,
-    _infer_huggingface_metadata,
     _payload_value,
     _resolve_visibility,
     _safe_int,
 )
+from server.services.workflow.provider.registry import _infer_huggingface_metadata
 from server.contracts.configuration import DEFAULT_SESSION_NAME
 from server.contracts.node_catalog import (
     HuggingFaceModelCatalogResponse,

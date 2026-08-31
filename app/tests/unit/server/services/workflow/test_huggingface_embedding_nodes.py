@@ -65,7 +65,7 @@ def test_huggingface_embedding_uses_eos_token_when_tokenizer_has_no_pad_token(
     monkeypatch.setattr(
         embeddings_module.configuration_service,
         "load_configuration",
-        lambda: SimpleNamespace(access_keys=[]),
+        lambda: SimpleNamespace(provider_configurations=[]),
     )
     monkeypatch.setattr(
         embeddings_module,
@@ -131,7 +131,7 @@ def test_huggingface_embedding_can_use_explicit_tokenizer_repo(monkeypatch) -> N
     monkeypatch.setattr(
         embeddings_module.configuration_service,
         "load_configuration",
-        lambda: SimpleNamespace(access_keys=[]),
+        lambda: SimpleNamespace(provider_configurations=[]),
     )
     monkeypatch.setattr(
         embeddings_module,

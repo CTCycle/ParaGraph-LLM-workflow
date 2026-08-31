@@ -66,7 +66,9 @@ def _connection(
 
 ###############################################################################
 def _codes(definition: WorkflowDefinition) -> tuple[bool, set[str]]:
-    compiled = compiler_service.compile(definition, require_access_keys=False)
+    compiled = compiler_service.compile(
+        definition, require_provider_configuration=False
+    )
     return compiled.valid, {item.code for item in compiled.diagnostics}
 
 
@@ -112,7 +114,9 @@ def test_disconnected_side_effecting_node_blocks_plan_creation() -> None:
         connections=[_connection("prompt", "output")],
     )
 
-    compiled = compiler_service.compile(definition, require_access_keys=False)
+    compiled = compiler_service.compile(
+        definition, require_provider_configuration=False
+    )
 
     assert compiled.valid is False
     assert compiled.plan is None
@@ -213,7 +217,9 @@ def test_idempotent_side_effect_carries_effect_metadata_into_plan() -> None:
         ],
     )
 
-    compiled = compiler_service.compile(definition, require_access_keys=False)
+    compiled = compiler_service.compile(
+        definition, require_provider_configuration=False
+    )
 
     assert compiled.valid is True
     assert compiled.plan is not None
@@ -235,7 +241,9 @@ def test_timeout_and_retries_are_copied_to_execution_plan() -> None:
         ],
         connections=[_connection("prompt", "output")],
     )
-    compiled = compiler_service.compile(definition, require_access_keys=False)
+    compiled = compiler_service.compile(
+        definition, require_provider_configuration=False
+    )
     assert compiled.valid is True
     assert compiled.plan is not None
     prompt_step = next(step for step in compiled.plan.steps if step.node_id == "prompt")
@@ -260,7 +268,9 @@ def test_chat_requires_one_reachable_terminal_output_and_records_it() -> None:
         ],
     )
 
-    compiled = compiler_service.compile(definition, require_access_keys=False)
+    compiled = compiler_service.compile(
+        definition, require_provider_configuration=False
+    )
 
     assert compiled.valid is True
     assert compiled.plan is not None
