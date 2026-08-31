@@ -25,6 +25,7 @@ export function createNodeManifest(overrides: Partial<NodeManifest> = {}): NodeM
                 description: 'Prompt text',
             },
         ],
+        controllers: [],
         parameters: [
             {
                 name: 'prompt_text',
@@ -45,6 +46,8 @@ export function createNodeManifest(overrides: Partial<NodeManifest> = {}): NodeM
             cacheable: false,
             deterministic: true,
             side_effecting: false,
+            destructive: false,
+            idempotent: false,
             plugin: null,
         },
         ...overrides,

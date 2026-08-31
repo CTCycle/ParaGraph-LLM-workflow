@@ -304,7 +304,7 @@ export default function ModelsPage() {
                 setHfModels(merged)
                 setHfHasMore(cachedPage.has_more)
                 setHfUsingToken(cachedPage.using_token)
-                setHfWarning(cachedPage.warning)
+                setHfWarning(cachedPage.warning ?? null)
                 setHfTaskOptions(mergeFilterOptions(cachedPage.available_tasks, hfTask))
                 setHfLibraryOptions(mergeFilterOptions(cachedPage.available_libraries, hfLibrary))
                 setHfPage(targetPage)
@@ -342,7 +342,7 @@ export default function ModelsPage() {
                 setHfModels(merged)
                 setHfHasMore(payload.has_more)
                 setHfUsingToken(payload.using_token)
-                setHfWarning(payload.warning)
+                setHfWarning(payload.warning ?? null)
                 setHfTaskOptions(mergeFilterOptions(payload.available_tasks, hfTask))
                 setHfLibraryOptions(mergeFilterOptions(payload.available_libraries, hfLibrary))
                 setHfPage(targetPage)
@@ -443,8 +443,8 @@ export default function ModelsPage() {
                                     status: payload.status,
                                     progress: payload.progress,
                                     downloadedBytes: payload.downloaded_bytes,
-                                    totalBytes: payload.total_bytes,
-                                    message: payload.message,
+                                    totalBytes: payload.total_bytes ?? null,
+                                    message: payload.message ?? null,
                                 },
                             }
                         })
@@ -527,8 +527,8 @@ export default function ModelsPage() {
                     status: payload.status,
                     progress: payload.progress,
                     downloadedBytes: payload.downloaded_bytes,
-                    totalBytes: payload.total_bytes,
-                    message: payload.message,
+                    totalBytes: payload.total_bytes ?? null,
+                    message: payload.message ?? null,
                 },
             }))
 
@@ -609,7 +609,7 @@ export default function ModelsPage() {
                         {!ollamaLoading &&
                             filteredOllamaModels.map((model) => {
                                 const isPulling = hasPullingModel(model.model)
-                                const trimmedDescription = trimOllamaDescription(model.model, model.description)
+                                const trimmedDescription = trimOllamaDescription(model.model, model.description ?? null)
                                 return (
                                     <article
                                         key={model.model}
@@ -745,9 +745,9 @@ export default function ModelsPage() {
                                                 <span>{model.library || 'No library tag'}</span>
                                             </div>
                                             <div className="models-meta-line">
-                                                <span>Likes: {formatMetric(model.likes)}</span>
-                                                <span>Downloads: {formatMetric(model.downloads)}</span>
-                                                <span>{formatModelSize(model.size_bytes)}</span>
+                                                <span>Likes: {formatMetric(model.likes ?? null)}</span>
+                                                <span>Downloads: {formatMetric(model.downloads ?? null)}</span>
+                                                <span>{formatModelSize(model.size_bytes ?? null)}</span>
                                             </div>
                                             {downloadState && (
                                                 <div

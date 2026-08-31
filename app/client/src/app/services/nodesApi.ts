@@ -3,15 +3,10 @@ import {
   DatabaseSchemaResponse,
   NodeCatalogResponse,
   NodeManifest,
+  UploadedDirectoryResponse,
   VectorStoreConnectionCheckResponse,
 } from '../../workflow/schema/types'
 import { getApiBase, requestJson } from './api'
-
-export interface UploadedDirectoryResponse {
-  path: string
-  file_count: number
-  files: string[]
-}
 
 async function extractApiErrorDetail(response: Response): Promise<string> {
   let detail = `${response.status} ${response.statusText}`
