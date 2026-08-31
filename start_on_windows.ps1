@@ -41,6 +41,8 @@ $script:PythonVersion = '3.14.2'
 $script:NodeVersion = '22.12.0'
 $script:SkippedCacheCount = 0
 $script:FirstSkippedCachePath = $null
+$script:NextProgressId = 1
+$script:ActiveProgressIds = [Collections.Generic.HashSet[int]]::new()
 
 #region Console and menu helpers
 
@@ -49,6 +51,63 @@ function Write-Ok([string]$Message) { Write-Host "[OK] $Message" -ForegroundColo
 function Write-Info([string]$Message) { Write-Host "[INFO] $Message" -ForegroundColor DarkCyan }
 function Write-Warn([string]$Message) { Write-Host "[WARN] $Message" -ForegroundColor Yellow }
 function Write-Fatal([string]$Message) { Write-Host "[FATAL] $Message" -ForegroundColor Red }
+
+function Start-LauncherProgress {
+    param([Parameter(Mandatory = $true)][string]$Activity, [string]$Status = 'Starting')
+    $id = $script:NextProgressId++
+    [void]$script:ActiveProgressIds.Add($id)
+    Write-Progress -Id $id -Activity $Activity -Status $Status
+    return $id
+}
+
+function Update-LauncherProgress {
+    param(
+        [Parameter(Mandatory = $true)][int]$Id,
+        [Parameter(Mandatory = $true)][string]$Activity,
+        [Parameter(Mandatory = $true)][string]$Status,
+        [Nullable[int]]$PercentComplete
+    )
+    if (-not $script:ActiveProgressIds.Contains($Id)) { return }
+    $progress = @{ Id = $Id; Activity = $Activity; Status = $Status }
+    if ($null -ne $PercentComplete) { $progress.PercentComplete = $PercentComplete }
+    Write-Progress @progress
+}
+
+function Complete-LauncherProgress([int]$Id) {
+    if ($script:ActiveProgressIds.Contains($Id)) {
+        Write-Progress -Id $Id -Activity 'ParaGraph launcher' -Completed
+        [void]$script:ActiveProgressIds.Remove($Id)
+    }
+}
+
+function Clear-LauncherProgress {
+    foreach ($id in @($script:ActiveProgressIds)) {
+        Write-Progress -Id $id -Activity 'ParaGraph launcher' -Completed
+        [void]$script:ActiveProgressIds.Remove($id)
+    }
+}
+
+function Invoke-TrackedLauncherAction {
+    param(
+        [Parameter(Mandatory = $true)][string]$Name,
+        [Parameter(Mandatory = $true)][scriptblock]$Action
+    )
+    $activity = "ParaGraph: $Name"
+    $progressId = Start-LauncherProgress -Activity $activity -Status 'Starting'
+    Write-Step "Starting $Name"
+    try {
+        Update-LauncherProgress -Id $progressId -Activity $activity -Status 'Running'
+        & $Action
+        Write-Ok "$Name completed"
+    }
+    catch {
+        Write-Fatal "$Name failed: $($_.Exception.Message)"
+        throw
+    }
+    finally {
+        Complete-LauncherProgress $progressId
+    }
+}
 
 function Write-MenuDivider {
     Write-Host ('-' * 70) -ForegroundColor DarkGray
@@ -163,11 +222,19 @@ function Invoke-DownloadAndExtract {
         [Parameter(Mandatory = $true)][string]$ArchivePath,
         [Parameter(Mandatory = $true)][string]$DestinationPath
     )
-    New-Item -ItemType Directory -Path (Split-Path -Parent $ArchivePath) -Force | Out-Null
-    New-Item -ItemType Directory -Path $DestinationPath -Force | Out-Null
-    Invoke-WebRequest -Uri $Uri -OutFile $ArchivePath
-    Expand-Archive -LiteralPath $ArchivePath -DestinationPath $DestinationPath -Force
-    Remove-Item -LiteralPath $ArchivePath -Force
+    $activity = "ParaGraph: download and extract $([IO.Path]::GetFileName($ArchivePath))"
+    $progressId = Start-LauncherProgress -Activity $activity -Status "Downloading $Uri"
+    try {
+        New-Item -ItemType Directory -Path (Split-Path -Parent $ArchivePath) -Force | Out-Null
+        New-Item -ItemType Directory -Path $DestinationPath -Force | Out-Null
+        Invoke-WebRequest -Uri $Uri -OutFile $ArchivePath
+        Update-LauncherProgress -Id $progressId -Activity $activity -Status 'Extracting archive'
+        Expand-Archive -LiteralPath $ArchivePath -DestinationPath $DestinationPath -Force
+    }
+    finally {
+        Remove-Item -LiteralPath $ArchivePath -Force -ErrorAction SilentlyContinue
+        Complete-LauncherProgress $progressId
+    }
 }
 
 function Invoke-PatchPth {
@@ -198,14 +265,22 @@ function Invoke-HealthCheck {
         [int]$Attempts = 60,
         [int]$IntervalSeconds = 1
     )
-    for ($attempt = 1; $attempt -le $Attempts; $attempt++) {
-        try {
-            $response = Invoke-WebRequest -UseBasicParsing -Uri $Url -TimeoutSec 2
-            if ($response.StatusCode -ge 200 -and $response.StatusCode -lt 300) { return $true }
-        } catch { }
-        if ($attempt -lt $Attempts) { Start-Sleep -Seconds $IntervalSeconds }
+    $activity = "ParaGraph: wait for health $Url"
+    $progressId = Start-LauncherProgress -Activity $activity -Status "Waiting up to $Attempts attempts"
+    try {
+        for ($attempt = 1; $attempt -le $Attempts; $attempt++) {
+            Update-LauncherProgress -Id $progressId -Activity $activity -Status "Attempt $attempt of $Attempts"
+            try {
+                $response = Invoke-WebRequest -UseBasicParsing -Uri $Url -TimeoutSec 2
+                if ($response.StatusCode -ge 200 -and $response.StatusCode -lt 300) { return $true }
+            } catch { }
+            if ($attempt -lt $Attempts) { Start-Sleep -Seconds $IntervalSeconds }
+        }
+        return $false
     }
-    return $false
+    finally {
+        Complete-LauncherProgress $progressId
+    }
 }
 
 function Ensure-PortableRuntimes {
@@ -706,13 +781,13 @@ function Uninstall-Application {
 #region Source control
 
 function Get-CurrentGitBranch {
-    $branch = (& git branch --show-current 2>$null | Out-String).Trim()
+    $branch = (& git -C $script:RepoRoot branch --show-current 2>$null | Out-String).Trim()
     if ($LASTEXITCODE -ne 0) { throw 'Unable to determine the current Git branch.' }
     return $branch
 }
 
 function Get-CurrentGitRevision {
-    $revision = (& git rev-parse HEAD 2>$null | Out-String).Trim()
+    $revision = (& git -C $script:RepoRoot rev-parse HEAD 2>$null | Out-String).Trim()
     if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($revision)) {
         throw 'Unable to determine the current Git revision.'
     }
@@ -725,20 +800,28 @@ function Update-Application {
         throw "Update from main requires the main branch to be checked out. Current branch: $branch"
     }
 
-    $status = (& git status --porcelain 2>$null | Out-String).Trim()
+    $status = (& git -C $script:RepoRoot status --porcelain 2>$null | Out-String).Trim()
     if (-not [string]::IsNullOrWhiteSpace($status)) {
         throw 'Update requires a clean Git working tree. Commit or safely preserve local changes before retrying.'
     }
 
-    Write-Step 'Updating application from origin/main with git pull'
-    & git pull origin main
-    if ($LASTEXITCODE -ne 0) { throw "Git pull failed with exit code $LASTEXITCODE" }
+    $activity = 'ParaGraph: update application from origin/main'
+    $progressId = Start-LauncherProgress -Activity $activity -Status 'Pulling origin/main'
+    try {
+        Write-Step 'Updating application from origin/main with git pull (fast-forward only)'
+        & git -C $script:RepoRoot pull --ff-only origin main
+        $exitCode = if ($null -eq $LASTEXITCODE) { 0 } else { [int]$LASTEXITCODE }
+        if ($exitCode -ne 0) { throw "Git pull failed with exit code $exitCode" }
+    }
+    finally {
+        Complete-LauncherProgress $progressId
+    }
     Write-Ok 'Application update completed.'
 }
 
 function Check-ForUpdates {
     $localRevision = Get-CurrentGitRevision
-    $remoteLine = (& git ls-remote origin refs/heads/main 2>$null | Select-Object -First 1)
+    $remoteLine = (& git -C $script:RepoRoot ls-remote origin refs/heads/main 2>$null | Select-Object -First 1)
     if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace([string]$remoteLine)) {
         throw 'Unable to check origin/main for updates.'
     }
@@ -774,28 +857,31 @@ while ($true) {
     }
     if ($selection -eq '12') { break }
     try {
-        switch ($selection) {
-            '1' { Invoke-Launch; exit 0 }
-            '2' {
-                Ensure-PortableRuntimes
-                $installationType = Read-InstallationType
-                Import-DotEnv | Out-Null
-                Sync-Dependencies -PruneCache -InstallationType $installationType
-                Invoke-DatabaseInitialization
-                Build-Frontend
+        Invoke-TrackedLauncherAction -Name "menu option $selection" -Action {
+            switch ($selection) {
+                '1' { Invoke-Launch; exit 0 }
+                '2' {
+                    Ensure-PortableRuntimes
+                    $installationType = Read-InstallationType
+                    Import-DotEnv | Out-Null
+                    Sync-Dependencies -PruneCache -InstallationType $installationType
+                    Invoke-DatabaseInitialization
+                    Build-Frontend
+                }
+                '3' { Invoke-FrontendRebuild }
+                '4' { Invoke-DatabaseInitialization }
+                '5' { Invoke-TestSuite }
+                '6' { Update-Application }
+                '7' { Check-ForUpdates }
+                '8' { Remove-LogFiles }
+                '9' { Clear-ApplicationCache }
+                '10' { Remove-AllData }
+                '11' { Uninstall-Application }
             }
-            '3' { Invoke-FrontendRebuild }
-            '4' { Invoke-DatabaseInitialization }
-            '5' { Invoke-TestSuite }
-            '6' { Update-Application }
-            '7' { Check-ForUpdates }
-            '8' { Remove-LogFiles }
-            '9' { Clear-ApplicationCache }
-            '10' { Remove-AllData }
-            '11' { Uninstall-Application }
         }
     } catch {
         Write-Fatal $_.Exception.Message
     }
     Wait-ForMenu
 }
+Clear-LauncherProgress
