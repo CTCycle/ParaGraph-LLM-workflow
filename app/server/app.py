@@ -3,6 +3,7 @@ from __future__ import annotations
 import warnings
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from importlib.metadata import version as package_version
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -10,7 +11,7 @@ from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from server.common import path as common_path
-from server.common.constants import FASTAPI_DESCRIPTION, FASTAPI_TITLE, FASTAPI_VERSION
+from server.common.constants import FASTAPI_DESCRIPTION, FASTAPI_TITLE
 from server.api.chat_history import router as chat_history_router
 from server.api.configurations import router as configurations_router
 from server.api.executions import router as executions_router
@@ -26,6 +27,7 @@ from server.services.startup_validation import run_startup_validations
 from server.services.workflow.execution import execution_service
 
 warnings.filterwarnings("ignore", category=FutureWarning)
+APP_VERSION = package_version("paragraph")
 
 
 ###############################################################################
@@ -83,7 +85,7 @@ async def app_lifespan(application: FastAPI) -> AsyncIterator[None]:
 def create_app() -> FastAPI:
     app = FastAPI(
         title=FASTAPI_TITLE,
-        version=FASTAPI_VERSION,
+        version=APP_VERSION,
         description=FASTAPI_DESCRIPTION,
         lifespan=app_lifespan,
     )

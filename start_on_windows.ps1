@@ -22,7 +22,6 @@ $script:VenvDir = Join-Path $ServerDir '.venv'
 $script:VenvPython = Join-Path $VenvDir 'Scripts\python.exe'
 $script:RuntimeCacheDir = Join-Path $RuntimesDir 'cache'
 $script:TestCacheDir = Join-Path $TestsDir 'cache'
-$script:LegacyCacheDir = Join-Path $RepoRoot 'assets\cache'
 $script:UvCacheDir = Join-Path $RuntimeCacheDir 'uv'
 $script:PythonCacheDir = Join-Path $RuntimeCacheDir 'pycache'
 $script:NpmCacheDir = Join-Path $RuntimeCacheDir 'npm'
@@ -249,14 +248,7 @@ function Ensure-PortableRuntimes {
 }
 
 function Import-DotEnv {
-    $values = [ordered]@{
-        FASTAPI_HOST = '127.0.0.1'
-        FASTAPI_PORT = '8000'
-        UI_HOST = '127.0.0.1'
-        UI_PORT = '8001'
-        RELOAD = 'false'
-        BACKEND_LOGS_VISIBLE = 'true'
-    }
+    $values = [ordered]@{}
     if (-not (Test-Path -LiteralPath $DotEnv)) {
         if (-not (Test-Path -LiteralPath $DotEnvExample)) {
             throw "Missing environment template: $DotEnvExample"
@@ -273,6 +265,13 @@ function Import-DotEnv {
         $value = $line.Substring($separator + 1).Trim().Trim('"').Trim("'")
         $values[$key] = $value
         [Environment]::SetEnvironmentVariable($key, $value, 'Process')
+    }
+    foreach ($requiredKey in @(
+        'FASTAPI_HOST', 'FASTAPI_PORT', 'UI_HOST', 'UI_PORT', 'RELOAD', 'BACKEND_LOGS_VISIBLE'
+    )) {
+        if (-not $values.Contains($requiredKey) -or [string]::IsNullOrWhiteSpace([string]$values[$requiredKey])) {
+            throw "Environment file is missing required setting: $requiredKey"
+        }
     }
     return $values
 }
@@ -655,9 +654,6 @@ function Clear-DeveloperCache {
     $allRemoved = $true
     foreach ($cacheRoot in @($RuntimeCacheDir, $TestCacheDir)) {
         if (-not (Clear-CacheDirectory -Path $cacheRoot)) { $allRemoved = $false }
-    }
-    if (Test-Path -LiteralPath $LegacyCacheDir -ErrorAction SilentlyContinue) {
-        if (-not (Remove-PathBestEffort -Path $LegacyCacheDir)) { $allRemoved = $false }
     }
     return $allRemoved
 }

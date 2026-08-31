@@ -3,18 +3,39 @@ import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 
 const normalizeApiBase = (value: string) => {
-    if (!value) {
-        return '/api'
+    const candidate = value.trim()
+    if (!candidate) {
+        throw new Error('VITE_API_BASE_URL must be set in settings/.env.')
     }
-    if (/^[a-zA-Z][a-zA-Z\d+\-.]*:\/\//.test(value)) {
+    if (/^[a-zA-Z][a-zA-Z\d+\-.]*:\/\//.test(candidate)) {
         throw new Error('VITE_API_BASE_URL must be a relative path (for example /api).')
     }
 
-    const withLeadingSlash = value.startsWith('/') ? value : `/${value}`
+    const withLeadingSlash = candidate.startsWith('/') ? candidate : `/${candidate}`
     if (withLeadingSlash.length > 1 && withLeadingSlash.endsWith('/')) {
         return withLeadingSlash.slice(0, -1)
     }
     return withLeadingSlash
+}
+
+const requiredEnv = (env: Record<string, string | undefined>, key: string): string => {
+    const value = env[key]?.trim()
+    if (!value) {
+        throw new Error(`${key} must be set in settings/.env.`)
+    }
+    return value
+}
+
+const requiredPort = (env: Record<string, string | undefined>, key: string): number => {
+    const value = requiredEnv(env, key)
+    if (!/^\d+$/.test(value)) {
+        throw new Error(`${key} must be an integer between 1 and 65535.`)
+    }
+    const port = Number(value)
+    if (!Number.isInteger(port) || port < 1 || port > 65535) {
+        throw new Error(`${key} must be an integer between 1 and 65535.`)
+    }
+    return port
 }
 
 const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -37,12 +58,12 @@ export default defineConfig(({ mode }) => {
     const settingsEnv = loadEnv(mode, envDir, '')
     const env = { ...process.env, ...clientEnv, ...settingsEnv }
 
-    const apiHost = env.FASTAPI_HOST || '127.0.0.1'
-    const apiPort = env.FASTAPI_PORT || '8000'
+    const apiHost = requiredEnv(env, 'FASTAPI_HOST')
+    const apiPort = requiredEnv(env, 'FASTAPI_PORT')
     const apiTarget = `http://${apiHost}:${apiPort}`
-    const uiHost = env.UI_HOST || '127.0.0.1'
-    const uiPort = Number.parseInt(env.UI_PORT || '5173', 10)
-    const apiBase = normalizeApiBase(env.VITE_API_BASE_URL || '/api')
+    const uiHost = requiredEnv(env, 'UI_HOST')
+    const uiPort = requiredPort(env, 'UI_PORT')
+    const apiBase = normalizeApiBase(requiredEnv(env, 'VITE_API_BASE_URL'))
     const cacheRoot = path.resolve(__dirname, '../../app/tests/cache')
     const cacheDir = path.join(cacheRoot, 'vite')
     const buildOutDir = path.join(cacheRoot, 'frontend-dist')
@@ -58,13 +79,13 @@ export default defineConfig(({ mode }) => {
         server: {
             host: uiHost,
             port: uiPort,
-            strictPort: false,
+            strictPort: true,
             proxy: buildProxy(apiBase, apiTarget),
         },
         preview: {
             host: uiHost,
             port: uiPort,
-            strictPort: false,
+            strictPort: true,
             proxy: buildProxy(apiBase, apiTarget),
         },
     }
