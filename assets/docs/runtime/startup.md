@@ -1,5 +1,5 @@
 # Startup
-Last updated: 2026-08-31
+Last updated: 2026-09-01
 
 ## Local Launcher
 PowerShell:
@@ -8,7 +8,7 @@ PowerShell:
 .\start_on_windows.ps1
 ```
 
-The menu can launch the application, install dependencies, initialize the database, run tests, clear logs or caches, and uninstall local runtime files. Cache and data removal attempts one bulk operation per target, then uses deterministic deepest-first item recovery only when the bulk operation fails.
+The menu can launch the application, install dependencies, initialize the database, run tests, clear logs or caches, and uninstall local runtime files. Cache and data removal uses deterministic deepest-first individual deletion so locked or protected entries can be reported without issuing a recursive delete.
 
 The interactive menu provides these options:
 
@@ -17,8 +17,8 @@ The interactive menu provides these options:
 - `3` Rebuild the frontend only, using the existing frontend dependencies.
 - `4` Initialize or upgrade the application database with Alembic.
 - `5` Run the project test suite.
-- `6` Update from `origin/main` with `git pull`; this requires a clean worktree and the `main` branch to be checked out.
-- `7` Check for a different `origin/main` revision without downloading or applying changes.
+- `6` Check for a different `origin/main` revision without downloading or applying changes.
+- `7` Update from `origin/main` with `git pull`; this requires a clean worktree and the `main` branch to be checked out.
 - `8` Remove application log files.
 - `9` Clear runtime caches under `runtimes/cache` and test/tool caches plus generated test/build artifacts under `app/tests/cache`.
 - `10` Remove user data and the embedded database, including database sidecars, while preserving application files and settings. This requires an affirmative response at a `[y/N]` confirmation prompt.
