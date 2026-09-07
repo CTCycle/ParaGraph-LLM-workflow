@@ -4,7 +4,6 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
-
 ###############################################################################
 def build_fragmentation_definition(
     source_path: str, output_path: str
@@ -87,7 +86,6 @@ def build_fragmentation_definition(
         ],
         "metadata": {},
     }
-
 
 ###############################################################################
 def test_execute_fragmentation_pipeline_returns_serialization_artifact(

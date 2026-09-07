@@ -11,29 +11,25 @@ import httpx
 from server.configurations.startup import get_configuration_runtime
 from server.services.workflow.provider.registry import provider_registry_entry
 
-
 ###############################################################################
 class OllamaError(RuntimeError):
     pass
-
 
 ###############################################################################
 class OllamaTimeout(OllamaError):
     pass
 
-
 ###############################################################################
 class LLMError(RuntimeError):
     pass
-
 
 ###############################################################################
 class LLMTimeout(LLMError):
     pass
 
-
 ###############################################################################
 class SupportsChat(Protocol):
+
     # -------------------------------------------------------------------------
     def chat(
         self,
@@ -43,7 +39,6 @@ class SupportsChat(Protocol):
         options: dict[str, Any] | None = None,
     ) -> str: ...
 
-
 ###############################################################################
 class CloudProvider(str, Enum):
     OPENAI = "openai"
@@ -51,19 +46,16 @@ class CloudProvider(str, Enum):
     CLAUDE = "claude"
     DEEPSEEK = "deepseek"
 
-
 ###############################################################################
 class LocalOpenAICompatibleProvider(str, Enum):
     LMSTUDIO = "lmstudio"
     LLAMA = "llama"
-
 
 ###############################################################################
 def _get_timeout(timeout_s: float | None) -> float:
     if timeout_s is not None:
         return timeout_s
     return get_configuration_runtime().environment().get_float("LLM_TIMEOUT_S", 30.0)
-
 
 ###############################################################################
 def _read_image_payload(path_value: str) -> dict[str, str]:
@@ -79,7 +71,6 @@ def _read_image_payload(path_value: str) -> dict[str, str]:
         "data": encoded,
         "data_url": f"data:{media_type};base64,{encoded}",
     }
-
 
 ###############################################################################
 def _flatten_content(content: Any) -> str:
@@ -99,7 +90,6 @@ def _flatten_content(content: Any) -> str:
         return "\n".join(part for part in parts if part)
     return str(content)
 
-
 ###############################################################################
 def _content_blocks(value: Any) -> list[dict[str, Any]]:
     if isinstance(value, list):
@@ -110,7 +100,6 @@ def _content_blocks(value: Any) -> list[dict[str, Any]]:
     if not text:
         return []
     return [{"type": "text", "text": text}]
-
 
 ###############################################################################
 def _to_openai_content(value: Any) -> str | list[dict[str, Any]]:
@@ -132,7 +121,6 @@ def _to_openai_content(value: Any) -> str | list[dict[str, Any]]:
             )
     return content
 
-
 ###############################################################################
 def _to_ollama_message(message: dict[str, Any]) -> dict[str, Any]:
     text_parts: list[str] = []
@@ -150,7 +138,6 @@ def _to_ollama_message(message: dict[str, Any]) -> dict[str, Any]:
     if images:
         payload["images"] = images
     return payload
-
 
 ###############################################################################
 def _to_gemini_parts(value: Any) -> list[dict[str, Any]]:
@@ -171,7 +158,6 @@ def _to_gemini_parts(value: Any) -> list[dict[str, Any]]:
                 }
             )
     return parts
-
 
 ###############################################################################
 def _to_claude_blocks(value: Any) -> list[dict[str, Any]]:
@@ -195,9 +181,9 @@ def _to_claude_blocks(value: Any) -> list[dict[str, Any]]:
             )
     return blocks
 
-
 ###############################################################################
 class OllamaClient:
+
     # -------------------------------------------------------------------------
     def __init__(
         self, base_url: str | None = None, timeout_s: float | None = None
@@ -278,9 +264,9 @@ class OllamaClient:
             return text
         raise OllamaError("Invalid /api/chat response shape")
 
-
 ###############################################################################
 class CloudLLMClient:
+
     # -------------------------------------------------------------------------
     def __init__(
         self,
@@ -597,9 +583,9 @@ class CloudLLMClient:
             )
         raise LLMError(f"Unsupported cloud provider: {self.provider.value}")
 
-
 ###############################################################################
 class OpenAICompatibleLocalClient:
+
     # -------------------------------------------------------------------------
     def __init__(
         self,
@@ -722,7 +708,6 @@ class OpenAICompatibleLocalClient:
         ):
             raise LLMError(f"Invalid {self.provider.value} embeddings response")
         return [float(item) for item in items[0]["embedding"]]
-
 
 ###############################################################################
 def select_llm_provider(provider: str, **kwargs: Any) -> SupportsChat:

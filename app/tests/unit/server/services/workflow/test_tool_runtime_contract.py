@@ -8,7 +8,6 @@ from server.services.workflow.node_handlers.core import tools as tools_module
 from server.services.workflow.nodes import node_registry
 from server.services.workflow.provider import provider_service
 
-
 ###############################################################################
 def _model() -> dict[str, object]:
     return ProviderModelDefinition(
@@ -16,7 +15,6 @@ def _model() -> dict[str, object]:
         model="test-model",
         label="test-model",
     ).model_dump(mode="json")
-
 
 ###############################################################################
 def _build_collection(code: str, run_id: str) -> ToolCollectionHandle:
@@ -29,7 +27,6 @@ def _build_collection(code: str, run_id: str) -> ToolCollectionHandle:
     )
     return ToolCollectionHandle.model_validate(result["tools"])
 
-
 ###############################################################################
 def _call_tool(handle: ToolCollectionHandle, run_id: str) -> dict[str, object]:
     result = node_registry.execute(
@@ -41,7 +38,6 @@ def _call_tool(handle: ToolCollectionHandle, run_id: str) -> dict[str, object]:
         context={"run_id": run_id},
     )
     return result["result"]
-
 
 ###############################################################################
 def test_identically_named_tools_are_scoped_to_their_run(
@@ -76,7 +72,6 @@ def test_identically_named_tools_are_scoped_to_their_run(
         "mode": "prompt_emulated",
     }
 
-
 ###############################################################################
 def test_async_tool_is_awaited(monkeypatch) -> None:
     monkeypatch.setattr(
@@ -96,7 +91,6 @@ def test_async_tool_is_awaited(monkeypatch) -> None:
 
     assert result["result"] == "async:item"
     assert result["metadata"]["executed"] is True
-
 
 ###############################################################################
 def test_schema_only_tool_cannot_be_executed(monkeypatch) -> None:
@@ -131,7 +125,6 @@ def test_schema_only_tool_cannot_be_executed(monkeypatch) -> None:
     finally:
         tools_module.release_run_tool_resources(run_id)
 
-
 ###############################################################################
 def test_schema_tool_collection_is_deterministic_and_has_no_runtime_registry() -> None:
     parameters = {
@@ -160,7 +153,6 @@ def test_schema_tool_collection_is_deterministic_and_has_no_runtime_registry() -
     assert first.tools[0].runtime_tool_id.startswith("schema_tool_")
     assert "uuid" not in first.tools[0].runtime_tool_id
 
-
 ###############################################################################
 def test_python_tool_collection_is_explicitly_executable() -> None:
     result = node_registry.execute(
@@ -180,7 +172,6 @@ def test_python_tool_collection_is_explicitly_executable() -> None:
         assert handle.tools[0].execution_state == "executable"
     finally:
         tools_module.release_run_tool_resources("python-tool-contract")
-
 
 ###############################################################################
 def test_provider_tool_capabilities_distinguish_selection_from_native_protocol() -> (

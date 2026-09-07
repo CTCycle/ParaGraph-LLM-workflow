@@ -14,7 +14,6 @@ down_revision: Union[str, None] = "0002_remove_node_configuration_mirror"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
-
 ###############################################################################
 def _json_object(value: Any, description: str) -> dict[str, Any]:
     if isinstance(value, str):
@@ -25,7 +24,6 @@ def _json_object(value: Any, description: str) -> dict[str, Any]:
     if not isinstance(value, dict):
         raise RuntimeError(f"Invalid {description}: expected an object")
     return value
-
 
 ###############################################################################
 def _canonical_profile_payload(value: Any, profile_name: str) -> dict[str, Any]:
@@ -72,7 +70,6 @@ def _canonical_profile_payload(value: Any, profile_name: str) -> dict[str, Any]:
         "provider_configurations": providers,
     }
 
-
 ###############################################################################
 def _migrate_profiles(connection: sa.Connection) -> None:
     rows = connection.execute(
@@ -98,7 +95,6 @@ def _migrate_profiles(connection: sa.Connection) -> None:
                 "profile_id": row["configuration_profile_id"],
             },
         )
-
 
 ###############################################################################
 def _migrate_ollama_configurations(connection: sa.Connection) -> None:
@@ -157,7 +153,6 @@ def _migrate_ollama_configurations(connection: sa.Connection) -> None:
             },
         )
 
-
 ###############################################################################
 def _rename_provider_indexes_to_canonical() -> None:
     op.drop_index(
@@ -177,7 +172,6 @@ def _rename_provider_indexes_to_canonical() -> None:
         unique=False,
     )
 
-
 ###############################################################################
 def _preserve_dependent_rows(connection: sa.Connection) -> None:
     connection.execute(
@@ -192,7 +186,6 @@ def _preserve_dependent_rows(connection: sa.Connection) -> None:
             "SELECT * FROM configuration_profiles"
         )
     )
-
 
 ###############################################################################
 def _restore_dependent_rows(connection: sa.Connection) -> None:
@@ -210,7 +203,6 @@ def _restore_dependent_rows(connection: sa.Connection) -> None:
             "SELECT * FROM _configuration_profiles_backup"
         )
     )
-
 
 ###############################################################################
 def upgrade() -> None:
@@ -235,7 +227,6 @@ def upgrade() -> None:
         batch_op.drop_column("ollama_chat_model")
         batch_op.drop_column("ollama_embedding_model")
     _restore_dependent_rows(connection)
-
 
 ###############################################################################
 def _restore_legacy_profile_payload(value: Any, profile_name: str) -> dict[str, Any]:
@@ -265,7 +256,6 @@ def _restore_legacy_profile_payload(value: Any, profile_name: str) -> dict[str, 
         "access_keys": access_keys,
         "ollama": ollama,
     }
-
 
 ###############################################################################
 def downgrade() -> None:

@@ -14,7 +14,6 @@ from server.contracts.node_handler_http import (
 from server.services.workflow.http_transport import SecureHttpTransport
 from server.services.workflow.nodes.handler import NodeHandler
 
-
 ###############################################################################
 def _http_request_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
@@ -26,7 +25,6 @@ def _http_request_executor(
         "json": result.get("json"),
         "text": result.get("text", ""),
     }
-
 
 ###############################################################################
 def _http_method_executor(

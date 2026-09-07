@@ -21,7 +21,6 @@ from server.services.workflow.node_handlers.ingestion import (
     resolve_local_path,
 )
 
-
 ###############################################################################
 def _resolve_storage_path(
     raw_path: Any,
@@ -49,7 +48,6 @@ def _resolve_storage_path(
         return ensure_path_within_root(resolved, artifact_root, label=label)
     return resolved
 
-
 ###############################################################################
 def _to_artifact_path(path: Path) -> str:
     artifact_root = common_path.ARTIFACT_ROOT.resolve()
@@ -58,12 +56,10 @@ def _to_artifact_path(path: Path) -> str:
     except ValueError:
         return str(path.resolve())
 
-
 ###############################################################################
 def _safe_file_stem(raw_name: str, fallback: str) -> str:
     cleaned = re.sub(r"[^A-Za-z0-9._-]+", "_", raw_name).strip("._-")
     return cleaned or fallback
-
 
 ###############################################################################
 def _derive_item_name_from_source(source_uri: str, fallback: str) -> str:
@@ -74,7 +70,6 @@ def _derive_item_name_from_source(source_uri: str, fallback: str) -> str:
     if candidate.name:
         return candidate.stem or candidate.name
     return fallback
-
 
 ###############################################################################
 def _extract_text_from_payload(
@@ -98,7 +93,6 @@ def _extract_text_from_payload(
         if text_value.strip():
             return text_value
     return ""
-
 
 ###############################################################################
 def _collect_save_items(inputs: dict[str, Any]) -> list[dict[str, str]]:
@@ -156,7 +150,6 @@ def _collect_save_items(inputs: dict[str, Any]) -> list[dict[str, str]]:
 
     return items
 
-
 ###############################################################################
 def _ensure_extension(path: Path, extension: str) -> Path:
     if path.suffix.lower() == extension:
@@ -165,20 +158,17 @@ def _ensure_extension(path: Path, extension: str) -> Path:
         return path.with_suffix(extension)
     return Path(f"{path.as_posix()}{extension}")
 
-
 ###############################################################################
 def _prepare_directory(path: Path) -> None:
     if path.exists() and path.is_file():
         path.unlink()
     path.mkdir(parents=True, exist_ok=True)
 
-
 ###############################################################################
 def _prepare_file_destination(path: Path) -> None:
     if path.exists() and path.is_dir():
         shutil.rmtree(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-
 
 ###############################################################################
 def _build_client_side_save_as_file_artifact(
@@ -200,7 +190,6 @@ def _build_client_side_save_as_file_artifact(
             "item_texts": item_texts,
         }
     }
-
 
 ###############################################################################
 def _save_as_file_executor(
@@ -238,7 +227,6 @@ def _save_as_file_executor(
         }
     }
 
-
 ###############################################################################
 def _build_client_side_save_as_folder_artifact(
     parsed: SaveAsFolderParameters,
@@ -267,7 +255,6 @@ def _build_client_side_save_as_folder_artifact(
             "item_texts": item_texts,
         }
     }
-
 
 ###############################################################################
 def _save_as_folder_executor(
@@ -310,7 +297,6 @@ def _save_as_folder_executor(
             "extension": parsed.extension,
         }
     }
-
 
 ###############################################################################
 def _load_text_executor(

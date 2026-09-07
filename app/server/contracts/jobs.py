@@ -7,7 +7,6 @@ from pydantic import BaseModel
 
 JOB_ID_PATTERN = r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"
 
-
 ###############################################################################
 class JobStartResponse(BaseModel):
     job_id: str
@@ -15,7 +14,6 @@ class JobStartResponse(BaseModel):
     status: str
     message: str
     poll_interval: float = 1.0
-
 
 ###############################################################################
 class JobStatusResponse(BaseModel):
@@ -25,7 +23,6 @@ class JobStatusResponse(BaseModel):
     progress: float
     result: dict[str, Any] | None = None
     error: str | None = None
-
 
 ###############################################################################
 class JobCancelResponse(BaseModel):

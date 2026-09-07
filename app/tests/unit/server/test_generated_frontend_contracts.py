@@ -5,7 +5,6 @@ from pathlib import Path
 import subprocess
 import sys
 
-
 ###############################################################################
 def test_generated_frontend_api_contracts_match_fastapi_openapi() -> None:
     root = Path(__file__).resolve().parents[4]

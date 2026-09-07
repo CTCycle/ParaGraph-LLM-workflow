@@ -8,6 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 DEFAULT_SESSION_NAME = "default"
 SESSION_NAME_PATTERN = r"^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$"
 PROFILE_NAME_PATTERN = r"^[A-Za-z0-9][A-Za-z0-9._ -]{0,119}$"
+
 ###############################################################################
 class ProviderConfiguration(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -34,6 +35,7 @@ class ProviderConfiguration(BaseModel):
         return text or None
 
 
+###############################################################################
 class AppConfigurationPayload(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -52,19 +54,16 @@ class AppConfigurationPayload(BaseModel):
             )
         return normalized
 
-
 ###############################################################################
 class ConfigurationProfileSummary(BaseModel):
     profile_name: str
     created_at: str
     updated_at: str
 
-
 ###############################################################################
 class ConfigurationProfileListResponse(BaseModel):
     session_name: str = Field(default=DEFAULT_SESSION_NAME, max_length=120)
     profiles: list[ConfigurationProfileSummary] = Field(default_factory=list)
-
 
 ###############################################################################
 class OllamaPingRequest(BaseModel):
@@ -79,14 +78,12 @@ class OllamaPingRequest(BaseModel):
         text = str(value).strip()
         return text or None
 
-
 ###############################################################################
 class OllamaStatusResponse(BaseModel):
     ok: bool
     message: str
     base_url: str
     model_count: int = 0
-
 
 ###############################################################################
 class ProviderPingRequest(BaseModel):
@@ -108,7 +105,6 @@ class ProviderPingRequest(BaseModel):
             return None
         text = str(value).strip()
         return text or None
-
 
 ###############################################################################
 class ProviderStatusResponse(BaseModel):

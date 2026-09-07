@@ -21,9 +21,9 @@ from server.services.llm.providers import (
 )
 from server.services.workflow.provider.registry import provider_registry_entry
 
-
 ###############################################################################
 class ConfigurationService:
+
     # -------------------------------------------------------------------------
     def __init__(self, repository: ConfigurationRepository | None = None) -> None:
         self._repository = repository or configuration_repository

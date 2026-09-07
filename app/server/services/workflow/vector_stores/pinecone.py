@@ -32,7 +32,6 @@ _PINECONE_METRIC_MAP = {
     "dot": "dotproduct",
 }
 
-
 ###############################################################################
 class PineconeVectorStoreAdapter(VectorStoreAdapter):
     backend = "pinecone"

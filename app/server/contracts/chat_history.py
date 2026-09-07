@@ -8,11 +8,9 @@ from pydantic import BaseModel, ConfigDict, Field
 
 ChatHistoryRole = Literal["system", "user", "assistant"]
 
-
 ###############################################################################
 def utc_now() -> datetime:
     return datetime.now(timezone.utc)
-
 
 ###############################################################################
 class ChatHistoryMessage(BaseModel):
@@ -21,7 +19,6 @@ class ChatHistoryMessage(BaseModel):
     role: ChatHistoryRole
     content: str
     timestamp: datetime = Field(default_factory=utc_now)
-
 
 ###############################################################################
 class ChatHistoryHandle(BaseModel):
@@ -35,7 +32,6 @@ class ChatHistoryHandle(BaseModel):
     separator: str
     keep_prompt_type: bool
     execution_owned: bool = False
-
 
 ###############################################################################
 class ChatHistoryResponse(BaseModel):

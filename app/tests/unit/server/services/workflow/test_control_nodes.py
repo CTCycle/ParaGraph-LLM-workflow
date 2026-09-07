@@ -23,7 +23,6 @@ from server.repositories.workflow.execution_run import (
 from server.services.workflow.execution import execution_service
 from server.services.workflow.nodes import node_registry
 
-
 ###############################################################################
 def test_if_text_contains_selects_true_and_false_branch() -> None:
     assert (
@@ -35,21 +34,17 @@ def test_if_text_contains_selects_true_and_false_branch() -> None:
         == "false"
     )
 
-
 ###############################################################################
 def test_reduce_chunks_joins_text() -> None:
     assert _reduce_chunks_executor({}, {"chunks": ["a", "b"]})["result"] == "a\nb"
-
 
 ###############################################################################
 def test_cache_node_returns_cached_deterministic_output() -> None:
     assert "cache_key" in _cache_node_executor({}, {"value": "x"})
 
-
 ###############################################################################
 def test_human_review_gate_pauses_run_payload() -> None:
     assert _human_review_gate_executor({}, {"value": "x"})["paused"] is True
-
 
 ###############################################################################
 def test_invalid_persisted_pause_state_fails_closed() -> None:
@@ -76,12 +71,10 @@ def test_invalid_persisted_pause_state_fails_closed() -> None:
     with pytest.raises(ValueError, match="Persisted pause checkpoint is invalid"):
         ExecutionRunRepository().get_run("invalid-pause-run")
 
-
 ###############################################################################
 def test_trace_debug_viewer_redacts_sensitive_payload_fields() -> None:
     result = _trace_debug_viewer_executor({}, {"api_key": "secret"})
     assert result["result"]["inputs"]["api_key"] == "[REDACTED]"
-
 
 ###############################################################################
 def test_execution_skips_unselected_branch_and_pauses_run(monkeypatch) -> None:
@@ -143,7 +136,6 @@ def test_execution_skips_unselected_branch_and_pauses_run(monkeypatch) -> None:
         next(step for step in run.steps if step.step_id == "false_step").status
         == "skipped"
     )
-
 
 ###############################################################################
 def test_human_review_pause_survives_reload_and_injects_reviewed_payload(
