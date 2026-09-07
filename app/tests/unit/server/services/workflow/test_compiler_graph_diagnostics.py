@@ -7,7 +7,6 @@ from server.contracts.workflow_model import (
 )
 from server.services.workflow.compiler.service import compiler_service
 
-
 ###############################################################################
 def _prompt(node_id: str, **overrides: object) -> WorkflowNodeInstance:
     return WorkflowNodeInstance(
@@ -18,7 +17,6 @@ def _prompt(node_id: str, **overrides: object) -> WorkflowNodeInstance:
         **overrides,
     )
 
-
 ###############################################################################
 def _text_output(node_id: str = "output") -> WorkflowNodeInstance:
     return WorkflowNodeInstance(
@@ -26,7 +24,6 @@ def _text_output(node_id: str = "output") -> WorkflowNodeInstance:
         node_type="TEXT_OUTPUT",
         node_version=1,
     )
-
 
 ###############################################################################
 def _chat(node_id: str = "chat") -> WorkflowNodeInstance:
@@ -37,7 +34,6 @@ def _chat(node_id: str = "chat") -> WorkflowNodeInstance:
         parameters={"message": "hello"},
     )
 
-
 ###############################################################################
 def _memory(node_id: str = "memory") -> WorkflowNodeInstance:
     return WorkflowNodeInstance(
@@ -46,7 +42,6 @@ def _memory(node_id: str = "memory") -> WorkflowNodeInstance:
         node_version=1,
         parameters={"max_messages": 10, "separator": "\n", "keep_prompt_type": True},
     )
-
 
 ###############################################################################
 def _connection(
@@ -63,14 +58,12 @@ def _connection(
         to_input=input_name,
     )
 
-
 ###############################################################################
 def _codes(definition: WorkflowDefinition) -> tuple[bool, set[str]]:
     compiled = compiler_service.compile(
         definition, require_provider_configuration=False
     )
     return compiled.valid, {item.code for item in compiled.diagnostics}
-
 
 ###############################################################################
 def test_missing_terminal_output_is_a_non_blocking_diagnostic() -> None:
@@ -79,7 +72,6 @@ def test_missing_terminal_output_is_a_non_blocking_diagnostic() -> None:
     )
     assert valid is True
     assert {"missing_terminal_output", "disconnected_node"} <= codes
-
 
 ###############################################################################
 def test_non_contributing_node_is_reported() -> None:
@@ -95,7 +87,6 @@ def test_non_contributing_node_is_reported() -> None:
         "disconnected_node",
         "node_not_contributing_to_output",
     } <= codes
-
 
 ###############################################################################
 def test_disconnected_side_effecting_node_blocks_plan_creation() -> None:
@@ -126,7 +117,6 @@ def test_disconnected_side_effecting_node_blocks_plan_creation() -> None:
         "disconnected_side_effecting_node",
     } <= codes
 
-
 ###############################################################################
 def test_conditional_branch_connection_is_reported() -> None:
     definition = WorkflowDefinition(
@@ -150,7 +140,6 @@ def test_conditional_branch_connection_is_reported() -> None:
     assert valid is True
     assert "conditional_output_connection" in codes
 
-
 ###############################################################################
 def test_invalid_timeout_and_retry_values_block_compilation() -> None:
     definition = WorkflowDefinition(
@@ -164,7 +153,6 @@ def test_invalid_timeout_and_retry_values_block_compilation() -> None:
     valid, codes = _codes(definition)
     assert valid is False
     assert {"invalid_timeout", "invalid_retries"} <= codes
-
 
 ###############################################################################
 def test_side_effect_retry_requires_an_idempotency_contract() -> None:
@@ -185,7 +173,6 @@ def test_side_effect_retry_requires_an_idempotency_contract() -> None:
     valid, codes = _codes(definition)
     assert valid is False
     assert "unsafe_side_effect_retry" in codes
-
 
 ###############################################################################
 def test_idempotent_side_effect_carries_effect_metadata_into_plan() -> None:
@@ -230,7 +217,6 @@ def test_idempotent_side_effect_carries_effect_metadata_into_plan() -> None:
     assert lifecycle.destructive is True
     assert lifecycle.idempotent is True
 
-
 ###############################################################################
 def test_timeout_and_retries_are_copied_to_execution_plan() -> None:
     definition = WorkflowDefinition(
@@ -249,7 +235,6 @@ def test_timeout_and_retries_are_copied_to_execution_plan() -> None:
     prompt_step = next(step for step in compiled.plan.steps if step.node_id == "prompt")
     assert prompt_step.timeout_ms == 2500
     assert prompt_step.retries == 2
-
 
 ###############################################################################
 def test_chat_requires_one_reachable_terminal_output_and_records_it() -> None:
@@ -276,7 +261,6 @@ def test_chat_requires_one_reachable_terminal_output_and_records_it() -> None:
     assert compiled.plan is not None
     assert compiled.plan.metadata["chat_terminal_outputs"] == {"chat": "output"}
 
-
 ###############################################################################
 def test_chat_without_terminal_output_is_a_blocking_diagnostic() -> None:
     definition = WorkflowDefinition(
@@ -297,7 +281,6 @@ def test_chat_without_terminal_output_is_a_blocking_diagnostic() -> None:
 
     assert valid is False
     assert "chat_terminal_output_count" in codes
-
 
 ###############################################################################
 def test_chat_with_multiple_reachable_terminal_outputs_is_a_blocking_diagnostic() -> (

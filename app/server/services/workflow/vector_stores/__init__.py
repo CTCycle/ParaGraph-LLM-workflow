@@ -24,7 +24,6 @@ from server.services.workflow.vector_stores.weaviate import (
     WeaviateVectorStoreAdapter,
 )
 
-
 ###############################################################################
 class FaissVectorStoreAdapter(VectorStoreAdapter):
     pass
@@ -40,14 +39,12 @@ VECTOR_STORE_ADAPTERS = {
     "chroma": ChromaVectorStoreAdapter(),
 }
 
-
 ###############################################################################
 def get_vector_store_adapter(backend: str) -> VectorStoreAdapter:
     adapter = VECTOR_STORE_ADAPTERS.get(backend.lower().strip())
     if adapter is None:
         raise VectorStoreError(f"Unsupported vector store backend: {backend}")
     return adapter
-
 
 ###############################################################################
 def get_vector_store_capabilities() -> list[VectorStoreCapabilities]:

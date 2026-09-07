@@ -26,12 +26,10 @@ MODEL_NODE_TYPES = {"LLM_CHAT", "LLM_STRUCTURED"}
 STRUCTURED_NODE_TYPES = {"LLM_STRUCTURED"}
 CHAT_NODE_TYPES = {"CHAT_INPUT"}
 
-
 ###############################################################################
 def _resolve_provider(parameters: dict[str, object], default: str = "ollama") -> str:
     provider = str(parameters.get("provider", default)).strip().lower()
     return provider or default
-
 
 ###############################################################################
 def _binding_sort_key(connection: WorkflowConnection) -> tuple[str, str, str]:
@@ -39,9 +37,9 @@ def _binding_sort_key(connection: WorkflowConnection) -> tuple[str, str, str]:
     source_name = connection.from_output or connection.from_controller or ""
     return (target_name, connection.from_node, source_name)
 
-
 ###############################################################################
 class CompilerService:
+
     # -------------------------------------------------------------------------
     def _active_definition(
         self, definition: WorkflowDefinition

@@ -6,7 +6,6 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
-
 ###############################################################################
 def _env_text(key: str) -> str | None:
     value = os.getenv(key)
@@ -14,7 +13,6 @@ def _env_text(key: str) -> str | None:
         return None
     normalized = value.strip()
     return normalized or None
-
 
 ###############################################################################
 def _env_int(key: str, default: int) -> int:
@@ -26,31 +24,26 @@ def _env_int(key: str, default: int) -> int:
     except ValueError as exc:
         raise ValueError(f"{key} must be an integer, got {value!r}.") from exc
 
-
 ###############################################################################
 def load_sqlite_settings_from_env() -> dict[str, Any]:
     return {
         "insert_batch_size": _env_int("DATABASE_INSERT_BATCH_SIZE", 1000),
     }
 
-
 ###############################################################################
 @dataclass(frozen=True)
 class SQLiteSettings:
     insert_batch_size: int
-
 
 ###############################################################################
 @dataclass(frozen=True)
 class GlobalSettings:
     seed: int
 
-
 ###############################################################################
 @dataclass(frozen=True)
 class JobsSettings:
     polling_interval: float
-
 
 ###############################################################################
 @dataclass(frozen=True)
@@ -59,24 +52,20 @@ class ServerSettings:
     global_settings: GlobalSettings
     jobs: JobsSettings
 
-
 ###############################################################################
 class JsonSQLiteSettings(BaseModel):
     model_config = ConfigDict(extra="forbid")
     insert_batch_size: int = Field(default=1000, ge=1)
-
 
 ###############################################################################
 class JsonGlobalSettings(BaseModel):
     model_config = ConfigDict(extra="forbid")
     seed: int = 42
 
-
 ###############################################################################
 class JsonJobsSettings(BaseModel):
     model_config = ConfigDict(extra="forbid")
     polling_interval: float = 1.0
-
 
 ###############################################################################
 class RuntimeConfigurationSettings(BaseModel):
@@ -93,7 +82,6 @@ class RuntimeConfigurationSettings(BaseModel):
             global_settings=GlobalSettings(seed=self.global_settings.seed),
             jobs=JobsSettings(polling_interval=self.jobs.polling_interval),
         )
-
 
 ###############################################################################
 def get_sqlite_settings_from_env() -> SQLiteSettings:

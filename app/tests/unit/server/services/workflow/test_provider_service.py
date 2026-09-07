@@ -6,7 +6,6 @@ import server.services.workflow.provider.service as provider_service_module
 from server.services.llm.providers import OllamaClient
 from server.services.workflow.provider import ProviderService
 
-
 ###############################################################################
 def test_ollama_chat_uses_provider_abstraction(monkeypatch) -> None:
     service = ProviderService()
@@ -14,6 +13,7 @@ def test_ollama_chat_uses_provider_abstraction(monkeypatch) -> None:
 
     ###############################################################################
     class FakeClient:
+
         # -------------------------------------------------------------------------
         def chat(self, *, model, messages, format=None, options=None):  # noqa: A002
             captured["model"] = model
@@ -55,7 +55,6 @@ def test_ollama_chat_uses_provider_abstraction(monkeypatch) -> None:
     assert captured["kwargs"] == {"base_url": "http://127.0.0.1:11434"}
     assert captured["model"] == "llama3.2"
 
-
 ###############################################################################
 def test_validate_model_request_accepts_openai_gemini_and_claude(monkeypatch) -> None:
     service = ProviderService()
@@ -89,7 +88,6 @@ def test_validate_model_request_accepts_openai_gemini_and_claude(monkeypatch) ->
         use_reasoning=False,
     )
 
-
 ###############################################################################
 def test_validate_model_request_rejects_huggingface_image_input() -> None:
     service = ProviderService()
@@ -106,7 +104,6 @@ def test_validate_model_request_rejects_huggingface_image_input() -> None:
         assert "does not support image input" in str(exc)
     else:
         raise AssertionError("Expected ValueError")
-
 
 ###############################################################################
 def test_validate_model_request_allows_huggingface_structured_output(
@@ -130,7 +127,6 @@ def test_validate_model_request_allows_huggingface_structured_output(
         use_reasoning=False,
     )
 
-
 ###############################################################################
 def test_claude_embeddings_are_rejected() -> None:
     service = ProviderService()
@@ -141,7 +137,6 @@ def test_claude_embeddings_are_rejected() -> None:
         assert "does not support embeddings" in str(exc)
     else:
         raise AssertionError("Expected ValueError")
-
 
 ###############################################################################
 def test_ollama_client_chat_uses_chat_endpoint_only(monkeypatch) -> None:
@@ -169,7 +164,6 @@ def test_ollama_client_chat_uses_chat_endpoint_only(monkeypatch) -> None:
     assert result == "ok"
     assert calls == [("POST", "/api/chat")]
 
-
 ###############################################################################
 def test_ollama_embedding_uses_current_endpoint_only(monkeypatch) -> None:
     service = ProviderService()
@@ -177,6 +171,7 @@ def test_ollama_embedding_uses_current_endpoint_only(monkeypatch) -> None:
 
     ###############################################################################
     class FakeResponse:
+
         # -------------------------------------------------------------------------
         @staticmethod
         def raise_for_status() -> None:
@@ -218,7 +213,6 @@ def test_ollama_embedding_uses_current_endpoint_only(monkeypatch) -> None:
             {"json": {"model": "nomic-embed-text", "input": "hello"}, "timeout": 30.0},
         )
     ]
-
 
 ###############################################################################
 def test_embedding_rejects_unsupported_provider_without_fallback() -> None:

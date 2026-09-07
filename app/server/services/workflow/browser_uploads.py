@@ -9,7 +9,6 @@ from server.common import path as common_path
 
 UPLOAD_ROOT = common_path.ARTIFACT_ROOT / "browser_uploads"
 
-
 ###############################################################################
 class UploadedFile(Protocol):
     filename: str | None
@@ -22,9 +21,9 @@ class UploadedFile(Protocol):
     async def close(self) -> None:
         raise NotImplementedError
 
-
 ###############################################################################
 class BrowserUploadService:
+
     # -------------------------------------------------------------------------
     def __init__(self, upload_root: Path) -> None:
         self._upload_root = upload_root

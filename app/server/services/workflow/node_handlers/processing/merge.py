@@ -11,7 +11,6 @@ from server.services.workflow.node_handlers.processing.sources import (
     _resolve_max_chunk_size,
 )
 
-
 ###############################################################################
 def _flush_current_merged_chunk(
     *,
@@ -67,7 +66,6 @@ def _flush_current_merged_chunk(
         }
     )
     return [], 0, {}, "", 0
-
 
 ###############################################################################
 def _merge_small_chunks_executor(

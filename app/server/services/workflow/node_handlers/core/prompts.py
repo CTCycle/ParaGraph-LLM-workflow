@@ -8,7 +8,6 @@ from jinja2.sandbox import SandboxedEnvironment
 from server.contracts.node_handler_core import PromptTemplateParameters
 from server.common.utils.values import coerce_text, merge_named_variables
 
-
 ###############################################################################
 def _prompt_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
@@ -16,14 +15,12 @@ def _prompt_executor(
     _ = inputs
     return {"text": coerce_text(parameters.get("prompt_text", "")).strip()}
 
-
 ###############################################################################
 def _extract_template_record_text(record: dict[str, Any]) -> str:
     candidate = coerce_text(
         record.get("text") or record.get("content") or record.get("chunk") or ""
     )
     return candidate
-
 
 ###############################################################################
 def _build_prompt_template_context(
@@ -41,7 +38,6 @@ def _build_prompt_template_context(
                 context.update(value)
     context["blocks"] = dict(parameters.reusable_blocks)
     return context
-
 
 ###############################################################################
 def _render_jinja_template(
@@ -61,7 +57,6 @@ def _render_jinja_template(
         raise ValueError(
             f"PROMPT_TEMPLATE failed to render Jinja template: {exc}"
         ) from exc
-
 
 ###############################################################################
 def _prompt_template_executor(

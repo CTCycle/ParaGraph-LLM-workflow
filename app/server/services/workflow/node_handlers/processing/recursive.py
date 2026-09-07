@@ -10,7 +10,6 @@ from server.services.workflow.node_handlers.processing.sources import (
     _measure_text_size,
 )
 
-
 ###############################################################################
 def _recursive_split_chunks_executor(
     parameters: dict[str, object], inputs: dict[str, object]

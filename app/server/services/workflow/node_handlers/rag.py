@@ -8,13 +8,11 @@ from server.common.utils.values import coerce_text
 from server.contracts.node_handler_rag import RagParameters
 from server.services.workflow.nodes.handler import NodeHandler
 
-
 ###############################################################################
 def _items(value: Any) -> list[Any]:
     if value is None:
         return []
     return value if isinstance(value, list) else [value]
-
 
 ###############################################################################
 def _text(item: Any) -> str:
@@ -24,7 +22,6 @@ def _text(item: Any) -> str:
         )
     return coerce_text(item)
 
-
 ###############################################################################
 def _strip_html(text: str) -> str:
     soup = BeautifulSoup(text, "html.parser")
@@ -32,14 +29,12 @@ def _strip_html(text: str) -> str:
         tag.decompose()
     return " ".join(soup.get_text(" ").split())
 
-
 ###############################################################################
 def _html_to_text_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
 ) -> dict[str, Any]:
     _ = parameters
     return {"result": _strip_html(_text(inputs.get("html", inputs.get("text", ""))))}
-
 
 ###############################################################################
 def _chunk_enricher_executor(
@@ -63,7 +58,6 @@ def _chunk_enricher_executor(
         enriched.append(record)
     return {"chunks": enriched}
 
-
 ###############################################################################
 def _context_builder_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
@@ -76,7 +70,6 @@ def _context_builder_executor(
                 break
             words.append(word)
     return {"result": " ".join(words)}
-
 
 ###############################################################################
 def _citation_formatter_executor(

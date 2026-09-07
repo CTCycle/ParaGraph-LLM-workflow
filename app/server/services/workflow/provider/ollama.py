@@ -21,9 +21,9 @@ from server.services.workflow.provider.helpers import (
     _normalize_ollama_library_slug,
 )
 
-
 ###############################################################################
 class OllamaLibraryCatalogMixin:
+
     # -------------------------------------------------------------------------
     def _load_ollama_library_catalog(
         self, *, refresh: bool

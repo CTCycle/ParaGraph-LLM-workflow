@@ -273,11 +273,9 @@ PROVIDER_REGISTRY: tuple[ProviderMetadata, ...] = (
 
 PROVIDER_REGISTRY_BY_ID = {item.name: item for item in PROVIDER_REGISTRY}
 
-
 ###############################################################################
 def provider_registry_entries() -> tuple[ProviderMetadata, ...]:
     return PROVIDER_REGISTRY
-
 
 ###############################################################################
 def provider_registry_entry(provider: str) -> ProviderMetadata:
@@ -287,11 +285,9 @@ def provider_registry_entry(provider: str) -> ProviderMetadata:
     except KeyError as exc:
         raise ValueError(f"Unsupported provider: {provider}") from exc
 
-
 ###############################################################################
 def _normalize_provider(provider: str) -> str:
     return provider.lower().strip()
-
 
 ###############################################################################
 def _infer_ollama_metadata(model_name: str) -> ModelMetadata:
@@ -311,7 +307,6 @@ def _infer_ollama_metadata(model_name: str) -> ModelMetadata:
         supports_structured_output=True,
     )
 
-
 ###############################################################################
 def _infer_huggingface_metadata(repo_id: str) -> ModelMetadata:
     normalized = repo_id.lower()
@@ -330,7 +325,6 @@ def _infer_huggingface_metadata(repo_id: str) -> ModelMetadata:
         supports_reasoning=supports_reasoning,
         supports_structured_output=True,
     )
-
 
 ###############################################################################
 def _infer_openai_compatible_local_metadata(

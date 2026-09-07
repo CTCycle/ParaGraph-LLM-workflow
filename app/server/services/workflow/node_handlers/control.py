@@ -12,7 +12,6 @@ from server.common.utils.values import coerce_text
 
 _CACHE: dict[str, Any] = {}
 
-
 ###############################################################################
 def _if_text_contains_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
@@ -29,7 +28,6 @@ def _if_text_contains_executor(
         "false": text if not matched else None,
         "selected": "true" if matched else "false",
     }
-
 
 ###############################################################################
 def _reduce_chunks_executor(
@@ -50,7 +48,6 @@ def _reduce_chunks_executor(
         )
     }
 
-
 ###############################################################################
 def _cache_node_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
@@ -63,7 +60,6 @@ def _cache_node_executor(
         _CACHE[key] = inputs.get("value", inputs)
     return {"result": _CACHE[key], "cache_key": key}
 
-
 ###############################################################################
 def _human_review_gate_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
@@ -72,7 +68,6 @@ def _human_review_gate_executor(
         "paused": True,
         "pause_payload": {"parameters": parameters, "inputs": inputs},
     }
-
 
 ###############################################################################
 def _trace_debug_viewer_executor(

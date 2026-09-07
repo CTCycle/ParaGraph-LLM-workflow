@@ -9,11 +9,9 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
 from server.services.workflow import node_registry
 from server.repositories.workflow.database import inspect_database_schema
 
-
 ###############################################################################
 class DatabaseBase(DeclarativeBase):
     pass
-
 
 ###############################################################################
 class User(DatabaseBase):
@@ -23,7 +21,6 @@ class User(DatabaseBase):
     name: Mapped[str] = mapped_column(String, nullable=False)
     status: Mapped[str] = mapped_column(String, nullable=False, default="active")
 
-
 ###############################################################################
 class Post(DatabaseBase):
     __tablename__ = "posts"
@@ -31,7 +28,6 @@ class Post(DatabaseBase):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
     title: Mapped[str] = mapped_column(String, nullable=False)
-
 
 ###############################################################################
 def _database_connection(tmp_path: Path) -> dict[str, object]:
@@ -51,7 +47,6 @@ def _database_connection(tmp_path: Path) -> dict[str, object]:
     )
     return payload["connection"]
 
-
 ###############################################################################
 def test_database_schema_inspection_reports_tables_columns_and_foreign_keys(
     tmp_path: Path,
@@ -66,7 +61,6 @@ def test_database_schema_inspection_reports_tables_columns_and_foreign_keys(
         for column in tables["users"]["columns"]
     )
     assert tables["posts"]["foreign_keys"][0]["referred_table"] == "users"
-
 
 ###############################################################################
 def test_crud_nodes_create_read_update_and_delete_rows(tmp_path: Path) -> None:
@@ -119,7 +113,6 @@ def test_crud_nodes_create_read_update_and_delete_rows(tmp_path: Path) -> None:
     )
     assert deleted["dataset"]["affected_rows"] == 1
 
-
 ###############################################################################
 def test_crud_update_and_delete_require_filters(tmp_path: Path) -> None:
     connection = _database_connection(tmp_path)
@@ -139,7 +132,6 @@ def test_crud_update_and_delete_require_filters(tmp_path: Path) -> None:
             assert "filters are required" in str(exc)
         else:
             raise AssertionError(f"Expected {node_type} to reject empty filters")
-
 
 ###############################################################################
 def test_custom_sql_query_returns_rows_and_rejects_invalid_sql(tmp_path: Path) -> None:
@@ -165,7 +157,6 @@ def test_custom_sql_query_returns_rows_and_rejects_invalid_sql(tmp_path: Path) -
         else:
             raise AssertionError("Expected invalid SQL to fail validation")
 
-
 ###############################################################################
 def test_database_query_nodes_keep_one_typed_controller_contract() -> None:
     expected = ("CRUD_READ", "CUSTOM_SQL_QUERY")
@@ -176,7 +167,6 @@ def test_database_query_nodes_keep_one_typed_controller_contract() -> None:
         assert len(manifest.controllers) == 1
         assert manifest.controllers[0].name == "connection"
         assert manifest.controllers[0].data_type == "DATABASE_CONNECTION"
-
 
 ###############################################################################
 def test_database_parameters_reject_unknown_fields() -> None:

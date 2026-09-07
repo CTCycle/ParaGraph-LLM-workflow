@@ -4,7 +4,6 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-
 ###############################################################################
 class HttpRequestParameters(BaseModel):
     url: str = ""
@@ -65,27 +64,22 @@ class HttpRequestParameters(BaseModel):
                 )
         return self
 
-
 ###############################################################################
 class HttpGetParameters(HttpRequestParameters):
     method: Literal["GET"] = "GET"
     body_mode: Literal["none"] = "none"
 
-
 ###############################################################################
 class HttpPostParameters(HttpRequestParameters):
     method: Literal["POST"] = "POST"
-
 
 ###############################################################################
 class HttpPutParameters(HttpRequestParameters):
     method: Literal["PUT"] = "PUT"
 
-
 ###############################################################################
 class HttpPatchParameters(HttpRequestParameters):
     method: Literal["PATCH"] = "PATCH"
-
 
 ###############################################################################
 class HttpDeleteParameters(HttpRequestParameters):

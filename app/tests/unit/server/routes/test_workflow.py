@@ -10,7 +10,6 @@ from server.contracts.node_catalog import ProviderModelDefinition
 from server.services.workflow import provider_service
 from server.services.workflow.provider.models import ModelMetadata
 
-
 ###############################################################################
 def build_simple_definition(prompt_text: str) -> dict[str, object]:
     return {
@@ -39,7 +38,6 @@ def build_simple_definition(prompt_text: str) -> dict[str, object]:
         ],
         "metadata": {},
     }
-
 
 ###############################################################################
 def build_provider_chat_definition() -> dict[str, object]:
@@ -111,7 +109,6 @@ def build_provider_chat_definition() -> dict[str, object]:
         "metadata": {},
     }
 
-
 ###############################################################################
 def build_provider_structured_definition(schema: object) -> dict[str, object]:
     return {
@@ -158,7 +155,6 @@ def build_provider_structured_definition(schema: object) -> dict[str, object]:
         ],
         "metadata": {},
     }
-
 
 ###############################################################################
 def build_provider_structured_with_json_output_definition(
@@ -221,7 +217,6 @@ def build_provider_structured_with_json_output_definition(
         "metadata": {},
     }
 
-
 ###############################################################################
 def test_compile_returns_plan_for_prompt_graph(client: TestClient) -> None:
     response = client.post(
@@ -233,7 +228,6 @@ def test_compile_returns_plan_for_prompt_graph(client: TestClient) -> None:
     assert payload["valid"] is True
     assert payload["plan"]["step_order"] == ["prompt_1", "output_1"]
     assert payload["plan"]["steps"][0]["node_type"] == "PROMPT"
-
 
 ###############################################################################
 def test_compile_rejects_cycles(client: TestClient) -> None:
@@ -280,7 +274,6 @@ def test_compile_rejects_cycles(client: TestClient) -> None:
     assert payload["valid"] is False
     assert any(item["code"] == "graph_cycle" for item in payload["diagnostics"])
 
-
 ###############################################################################
 def test_compile_rejects_invalid_structured_schema(client: TestClient) -> None:
     response = client.post(
@@ -298,7 +291,6 @@ def test_compile_rejects_invalid_structured_schema(client: TestClient) -> None:
     assert any(
         item["code"] == "invalid_response_schema" for item in payload["diagnostics"]
     )
-
 
 ###############################################################################
 def test_compile_rejects_llm_without_model_controller(client: TestClient) -> None:
@@ -343,7 +335,6 @@ def test_compile_rejects_llm_without_model_controller(client: TestClient) -> Non
     assert payload["valid"] is False
     codes = {item["code"] for item in payload["diagnostics"]}
     assert "missing_required_controller" in codes or "missing_model_selection" in codes
-
 
 ###############################################################################
 def test_compile_excludes_skipped_nodes_from_plan(client: TestClient) -> None:
@@ -393,7 +384,6 @@ def test_compile_excludes_skipped_nodes_from_plan(client: TestClient) -> None:
     assert "prompt_2" not in payload["plan"]["step_order"]
     assert payload["plan"]["metadata"]["skipped_node_ids"] == ["prompt_2"]
 
-
 ###############################################################################
 def test_compile_skipped_connection_is_excluded_from_required_input_resolution(
     client: TestClient,
@@ -438,7 +428,6 @@ def test_compile_skipped_connection_is_excluded_from_required_input_resolution(
     assert "missing_required_input" in codes
     assert "missing_source_node" not in codes
 
-
 ###############################################################################
 def test_compile_requires_explicit_controller_edge_even_with_global_metadata(
     client: TestClient,
@@ -467,7 +456,6 @@ def test_compile_requires_explicit_controller_edge_even_with_global_metadata(
         item["code"] == "unsupported_global_connector_metadata"
         for item in payload["diagnostics"]
     )
-
 
 ###############################################################################
 @pytest.mark.parametrize(
@@ -504,7 +492,6 @@ def test_compile_rejects_removed_node_type_aliases(
         for item in payload["diagnostics"]
     )
 
-
 ###############################################################################
 @pytest.mark.parametrize("unsupported_provider", ["anthropic", "local"])
 def test_compile_rejects_removed_provider_aliases(
@@ -540,7 +527,6 @@ def test_compile_rejects_removed_provider_aliases(
         and "ollama, openai, gemini, claude, deepseek, huggingface, lmstudio, llama"
         for item in payload["diagnostics"]
     )
-
 
 ###############################################################################
 def build_huggingface_chat_definition(model_name: str) -> dict[str, object]:
@@ -588,7 +574,6 @@ def build_huggingface_chat_definition(model_name: str) -> dict[str, object]:
         "metadata": {},
     }
 
-
 ###############################################################################
 def test_compile_allows_tokenless_local_huggingface_model(
     client: TestClient, monkeypatch
@@ -613,7 +598,6 @@ def test_compile_allows_tokenless_local_huggingface_model(
     assert response.status_code == 200
     payload = response.json()
     assert payload["valid"] is True
-
 
 ###############################################################################
 def test_compile_rejects_remote_huggingface_model_without_token(
@@ -644,7 +628,6 @@ def test_compile_rejects_remote_huggingface_model_without_token(
         for item in payload["diagnostics"]
     )
 
-
 ###############################################################################
 def test_compile_allows_remote_huggingface_model_with_token(
     client: TestClient, monkeypatch
@@ -670,7 +653,6 @@ def test_compile_allows_remote_huggingface_model_with_token(
     payload = response.json()
     assert payload["valid"] is True
 
-
 ###############################################################################
 def build_stub_model_definition(
     provider: str, model: str, timeout_s: float | None = None
@@ -684,7 +666,6 @@ def build_stub_model_definition(
         supports_structured_output=True,
         timeout_s=timeout_s,
     )
-
 
 ###############################################################################
 def test_execute_returns_run_and_persists_output_payload(
@@ -745,7 +726,6 @@ def test_execute_returns_run_and_persists_output_payload(
         {"role": "user", "content": "Say hello"},
     ]
 
-
 ###############################################################################
 def test_execute_structured_node_rejects_invalid_output(
     client: TestClient,
@@ -796,7 +776,6 @@ def test_execute_structured_node_rejects_invalid_output(
     assert final_status["status"] == "failed"
     assert "must be a string" in str(final_status["error"])
     assert run_payload["steps"][2]["status"] == "failed"
-
 
 ###############################################################################
 def test_execute_structured_node_emits_json_output_payload(

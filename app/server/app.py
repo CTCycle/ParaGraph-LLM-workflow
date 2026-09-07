@@ -29,11 +29,9 @@ from server.services.workflow.execution import execution_service
 warnings.filterwarnings("ignore", category=FutureWarning)
 APP_VERSION = package_version("paragraph")
 
-
 ###############################################################################
 def _client_build_available() -> bool:
     return (common_path.FRONTEND_DIST_ROOT / "index.html").is_file()
-
 
 ###############################################################################
 def _resolve_client_file(full_path: str) -> Path | None:
@@ -48,11 +46,9 @@ def _resolve_client_file(full_path: str) -> Path | None:
 
     return None
 
-
 ###############################################################################
 def serve_client_root() -> FileResponse:
     return FileResponse(common_path.FRONTEND_DIST_ROOT / "index.html")
-
 
 ###############################################################################
 def serve_client_path(full_path: str) -> FileResponse:
@@ -61,11 +57,9 @@ def serve_client_path(full_path: str) -> FileResponse:
         return FileResponse(client_file)
     return FileResponse(common_path.FRONTEND_DIST_ROOT / "index.html")
 
-
 ###############################################################################
 def redirect_root_to_docs() -> RedirectResponse:
     return RedirectResponse("/docs")
-
 
 ###############################################################################
 @asynccontextmanager
@@ -79,7 +73,6 @@ async def app_lifespan(application: FastAPI) -> AsyncIterator[None]:
         yield
     finally:
         reset_database_engines()
-
 
 ###############################################################################
 def create_app() -> FastAPI:

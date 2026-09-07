@@ -52,13 +52,13 @@ from server.services.workflow.provider.registry import (
     provider_registry_entry,
 )
 
-
 ###############################################################################
 class ProviderService(
     OllamaLibraryCatalogMixin,
     HuggingFaceCatalogMixin,
     HuggingFaceDownloadMixin,
 ):
+
     # -------------------------------------------------------------------------
     def __init__(self) -> None:
         self._cache_lock = Lock()
