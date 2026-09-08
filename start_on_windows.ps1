@@ -602,7 +602,21 @@ function Invoke-TestSuite {
 
 #region Maintenance and data management
 
+function Confirm-DestructiveAction([string]$Description) {
+    if (-not $script:LauncherInteractive) {
+        throw "The destructive action '$Description' requires an interactive console; no files were changed."
+    }
+    Clear-LauncherProgress
+    $confirmation = ([string](Read-Host "Continue to $($Description)? [y/N]")).Trim()
+    if ($confirmation -notmatch '^(?i:y|yes)$') {
+        Write-Info 'Operation cancelled. No changes were made.'
+        return $false
+    }
+    return $true
+}
+
 function Remove-LogFiles {
+    if (-not (Confirm-DestructiveAction 'remove application log files')) { return }
     $logDir = Join-Path $AppDir 'resources\logs'
     if (-not (Test-Path -LiteralPath $logDir)) { Write-Info "Log directory not found: $logDir"; return }
     $logs = @(Get-ChildItem -LiteralPath $logDir -Filter '*.log' -File -ErrorAction SilentlyContinue |
@@ -634,18 +648,12 @@ function Resolve-ResourcesRoot {
     return [IO.Path]::GetFullPath($expandedRoot)
 }
 
-function Confirm-DataRemoval {
-    Clear-LauncherProgress
-    $confirmation = ([string](Read-Host '  Continue removing all user data? [y/N]')).Trim()
-    return $confirmation -match '^(?i:y|yes)$'
-}
-
 function Remove-AllData {
     $settings = Import-DotEnv
     $resourceRoot = Resolve-ResourcesRoot -Settings $settings
     Write-Warn "This removes user data under $resourceRoot and the application database."
     Write-Info 'Built-in node definitions, workflow templates, settings, and application source files will be preserved.'
-    if (-not (Confirm-DataRemoval)) {
+    if (-not (Confirm-DestructiveAction 'remove all user data')) {
         Write-Info 'Remove All Data cancelled.'
         return
     }
@@ -890,6 +898,7 @@ function Clear-DeveloperCache {
 }
 
 function Clear-ApplicationCache {
+    if (-not (Confirm-DestructiveAction 'clear runtime and test/tool caches')) { return }
     $script:SkippedCacheCount = 0
     $script:FirstSkippedCachePath = $null
     $allRemoved = Remove-PythonCaches
@@ -914,6 +923,7 @@ function Remove-RepoItem([string]$RelativePath) {
 }
 
 function Uninstall-Application {
+    if (-not (Confirm-DestructiveAction 'remove local runtimes, dependencies, caches, and build outputs')) { return }
     $script:SkippedCacheCount = 0
     $script:FirstSkippedCachePath = $null
     $allRemoved = $true
