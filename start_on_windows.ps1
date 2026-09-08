@@ -35,6 +35,18 @@ $script:PlaywrightBrowsersDir = Join-Path $PlaywrightDir 'browsers'
 $script:ViteCacheDir = Join-Path $TestCacheDir 'vite'
 $script:VitestCacheDir = Join-Path $TestCacheDir 'vitest'
 $script:FrontendBuildDir = Join-Path $TestCacheDir 'frontend-dist'
+$script:LegacyCachePaths = @(
+    (Join-Path $RepoRoot '.uv-cache'),
+    (Join-Path $RepoRoot '.pytest_cache'),
+    (Join-Path $RepoRoot '.ruff_cache'),
+    (Join-Path $RepoRoot '.mypy_cache'),
+    (Join-Path $RepoRoot '.pyright'),
+    (Join-Path $AppDir '.uv-cache'),
+    (Join-Path $ServerDir '.uv-cache'),
+    (Join-Path $ClientDir '.uv-cache'),
+    (Join-Path $TestsDir '.uv-cache'),
+    (Join-Path $RepoRoot 'assets\cache')
+)
 $script:DotEnv = Join-Path $SettingsDir '.env'
 $script:DotEnvExample = Join-Path $SettingsDir '.env.example'
 $script:PythonVersion = '3.14.2'
@@ -891,7 +903,7 @@ function Remove-PythonCaches {
 
 function Clear-DeveloperCache {
     $allRemoved = $true
-    foreach ($cacheRoot in @($RuntimeCacheDir, $TestCacheDir)) {
+    foreach ($cacheRoot in @($RuntimeCacheDir, $TestCacheDir) + $script:LegacyCachePaths) {
         if (-not (Clear-CacheDirectory -Path $cacheRoot)) { $allRemoved = $false }
     }
     return $allRemoved
