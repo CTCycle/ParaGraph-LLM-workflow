@@ -34,7 +34,6 @@ class ProviderConfiguration(BaseModel):
         text = str(value).strip()
         return text or None
 
-
 ###############################################################################
 class AppConfigurationPayload(BaseModel):
     model_config = ConfigDict(extra="forbid")
