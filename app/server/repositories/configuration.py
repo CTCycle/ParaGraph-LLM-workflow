@@ -7,6 +7,8 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from server.common import path as common_path
+from server.common.constants import DATABASE_FILENAME
 from server.configurations.startup import get_server_settings
 from server.contracts.configuration import (
     DEFAULT_SESSION_NAME,
@@ -19,6 +21,26 @@ from server.repositories.schemas import (
     UserSession,
 )
 
+_default_database_repositories: dict[str, SQLiteRepository] = {}
+
+###############################################################################
+def _default_database_repository() -> SQLiteRepository:
+    database_key = str((common_path.RESOURCES_ROOT / DATABASE_FILENAME).resolve())
+    repository = _default_database_repositories.get(database_key)
+    if repository is None:
+        repository = SQLiteRepository(
+            get_server_settings().database, db_path=database_key
+        )
+        _default_database_repositories[database_key] = repository
+    return repository
+
+###############################################################################
+def reset_configuration_database_repositories() -> None:
+    repositories = list(_default_database_repositories.values())
+    _default_database_repositories.clear()
+    for repository in repositories:
+        repository.engine.dispose()
+
 ###############################################################################
 class ConfigurationRepository:
 
@@ -30,7 +52,7 @@ class ConfigurationRepository:
     def _database_engine(self):
         if self._database_repository is not None:
             return self._database_repository.engine
-        return SQLiteRepository(get_server_settings().database).engine
+        return _default_database_repository().engine
 
     # -------------------------------------------------------------------------
     def _normalize_session_name(self, session_name: str | None) -> str:
