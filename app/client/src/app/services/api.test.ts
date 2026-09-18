@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { getApiBase, requestJson } from './api'
+import { ApiError, getApiBase, requestJson } from './api'
 
 function createJsonResponse(body: unknown, init: ResponseInit): Response {
     return new Response(JSON.stringify(body), {
@@ -38,6 +38,36 @@ describe('api requestJson', () => {
         vi.stubGlobal('fetch', fetchMock)
 
         await expect(requestJson('/demo')).rejects.toThrow('502 Bad Gateway')
+    })
+
+    it('preserves structured FastAPI validation issues', async () => {
+        const fetchMock = vi.fn().mockResolvedValue(
+            createJsonResponse(
+                {
+                    detail: [
+                        { loc: ['body', 'name'], msg: 'Field required', type: 'missing' },
+                        { loc: ['body', 'count'], msg: 'Input should be a valid integer', type: 'int_parsing' },
+                    ],
+                },
+                { status: 422, statusText: 'Unprocessable Entity' },
+            ),
+        )
+        vi.stubGlobal('fetch', fetchMock)
+
+        try {
+            await requestJson('/demo')
+        } catch (error) {
+            expect(error).toBeInstanceOf(ApiError)
+            expect(error).toMatchObject({
+                status: 422,
+                validationIssues: [
+                    { loc: ['body', 'name'], msg: 'Field required', type: 'missing' },
+                    { loc: ['body', 'count'], msg: 'Input should be a valid integer', type: 'int_parsing' },
+                ],
+            })
+            expect((error as Error).message).toContain('body.name: Field required')
+            expect((error as Error).message).toContain('body.count: Input should be a valid integer')
+        }
     })
 
     it('returns parsed JSON payload for successful responses', async () => {

@@ -6,22 +6,7 @@ import {
   UploadedDirectoryResponse,
   VectorStoreConnectionCheckResponse,
 } from '../../workflow/schema/types'
-import { getApiBase, requestJson } from './api'
-
-async function extractApiErrorDetail(response: Response): Promise<string> {
-  let detail = `${response.status} ${response.statusText}`
-  try {
-    const payload = (await response.json()) as { detail?: string | string[] }
-    if (Array.isArray(payload.detail)) {
-      detail = payload.detail.join('; ')
-    } else if (payload.detail) {
-      detail = payload.detail
-    }
-  } catch {
-    // Use default HTTP status detail.
-  }
-  return detail
-}
+import { createApiError, getApiBase, requestJson } from './api'
 
 export function fetchNodeCatalog(): Promise<NodeCatalogResponse> {
   return requestJson<NodeCatalogResponse>('/nodes/catalog')
@@ -51,7 +36,7 @@ export async function uploadNodeDirectory(files: File[]): Promise<UploadedDirect
   })
 
   if (!response.ok) {
-    throw new Error(await extractApiErrorDetail(response))
+    throw await createApiError(response)
   }
 
   return (await response.json()) as UploadedDirectoryResponse
