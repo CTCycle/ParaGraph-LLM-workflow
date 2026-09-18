@@ -89,6 +89,8 @@ class DatabaseConnectionParameters(BaseModel):
     port: int | None = 5432
     username: str = ""
     credential_ref: str = ""
+    credential_profile: str = ""
+    credential_provider: str = ""
     file_path: str = ""
     options: dict[str, Any] = Field(default_factory=dict)
     connect_timeout_s: float = Field(default=5.0, ge=1.0, le=60.0)
@@ -128,8 +130,12 @@ class DatabaseConnectionParameters(BaseModel):
             raise ValueError(f"{self.engine} connections require username")
         if self.port is None:
             raise ValueError(f"{self.engine} connections require port")
-        if not self.credential_ref.strip():
-            raise ValueError(f"{self.engine} connections require credential_ref")
+        if not self.credential_ref.strip() and not (
+            self.credential_profile.strip() and self.credential_provider.strip()
+        ):
+            raise ValueError(
+                f"{self.engine} connections require credential_ref or stable credential metadata"
+            )
         return self
 
 ###############################################################################
