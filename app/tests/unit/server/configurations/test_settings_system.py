@@ -148,6 +148,7 @@ def test_application_database_settings_are_sqlite_only(
     settings = runtime.get_server_settings(config_path=config_path)
 
     assert settings.database.insert_batch_size == 37
+    assert settings.jobs.retention_days == 30
     assert not hasattr(settings.database, "engine")
 
 ###############################################################################

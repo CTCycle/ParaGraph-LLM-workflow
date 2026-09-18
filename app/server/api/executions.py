@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Path, Request, status
+from fastapi import APIRouter, HTTPException, Path, Query, Request, status
 
 from server.contracts.execution import (
     ExecutionActionResponse,
@@ -67,12 +67,18 @@ def get_execution(run_id: RunIdPath) -> ExecutionRunState:
 
 ###############################################################################
 @router.get("/{run_id}/events", response_model=EventHistoryResponse)
-def get_execution_events(run_id: RunIdPath) -> EventHistoryResponse:
+def get_execution_events(
+    run_id: RunIdPath,
+    after_sequence: int = Query(default=0, ge=0),
+    limit: int = Query(default=1000, ge=1, le=5000),
+) -> EventHistoryResponse:
     if execution_service.get_run(run_id) is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=f"Run not found: {run_id}"
         )
-    return execution_event_service.get_history(run_id)
+    return execution_event_service.get_history(
+        run_id, after_sequence=after_sequence, limit=limit
+    )
 
 ###############################################################################
 @router.post("/{run_id}/cancel", response_model=ExecutionActionResponse)

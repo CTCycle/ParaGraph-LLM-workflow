@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 import threading
 from typing import Any
@@ -120,6 +121,57 @@ class ExecutionRunRepository:
         return checkpoint
 
     # -------------------------------------------------------------------------
+    def _state_from_records(
+        self,
+        row: ExecutionRunRecord,
+        steps: list[ExecutionStepRecord],
+    ) -> ExecutionRunState:
+        checkpoint = self._checkpoint_from_payload(
+            row.pause_payload_json, row.resume_token
+        )
+        if row.status == "paused" and checkpoint is None:
+            raise ValueError("Persisted pause checkpoint is invalid")
+        if row.status != "paused" and checkpoint is not None:
+            raise ValueError("Persisted pause checkpoint is invalid")
+        pause_payload = checkpoint.pause_payload if checkpoint is not None else None
+        return ExecutionRunState(
+            run_id=row.run_id,
+            request_id=row.request_id,
+            workflow_id=row.workflow_id,
+            execution_session_id=row.execution_session_id,
+            plan_id=row.plan_id,
+            plan=CompiledExecutionPlan.model_validate(row.plan_json),
+            status=row.status,
+            created_at=self._aware(row.created_at),
+            updated_at=self._aware(row.updated_at),
+            progress=row.progress,
+            outputs=row.outputs_json or {},
+            error=row.error,
+            pause_payload=pause_payload,
+            resume_token=row.resume_token,
+            pause_checkpoint=checkpoint,
+            cancellation_requested=row.cancellation_requested,
+            steps=[
+                ExecutionStepState(
+                    step_id=item.step_id,
+                    node_id=item.node_id,
+                    node_type=item.node_type,
+                    position=item.position,
+                    status=item.status,
+                    attempt_count=item.attempt_count,
+                    started_at=self._aware(item.started_at),
+                    completed_at=self._aware(item.completed_at),
+                    output=item.output_json or {},
+                    error=item.error,
+                    blocked_reason=item.blocked_reason,
+                    pause_payload=item.pause_payload_json,
+                    resume_token=item.resume_token,
+                )
+                for item in steps
+            ],
+        )
+
+    # -------------------------------------------------------------------------
     def get_run(self, run_id: str) -> ExecutionRunState | None:
         with Session(self._engine()) as session:
             row = session.get(ExecutionRunRecord, run_id)
@@ -132,50 +184,7 @@ class ExecutionRunRepository:
                     .order_by(ExecutionStepRecord.position)
                 ).scalars()
             )
-            checkpoint = self._checkpoint_from_payload(
-                row.pause_payload_json, row.resume_token
-            )
-            if row.status == "paused" and checkpoint is None:
-                raise ValueError("Persisted pause checkpoint is invalid")
-            if row.status != "paused" and checkpoint is not None:
-                raise ValueError("Persisted pause checkpoint is invalid")
-            pause_payload = checkpoint.pause_payload if checkpoint is not None else None
-            return ExecutionRunState(
-                run_id=row.run_id,
-                request_id=row.request_id,
-                workflow_id=row.workflow_id,
-                execution_session_id=row.execution_session_id,
-                plan_id=row.plan_id,
-                plan=CompiledExecutionPlan.model_validate(row.plan_json),
-                status=row.status,
-                created_at=self._aware(row.created_at),
-                updated_at=self._aware(row.updated_at),
-                progress=row.progress,
-                outputs=row.outputs_json or {},
-                error=row.error,
-                pause_payload=pause_payload,
-                resume_token=row.resume_token,
-                pause_checkpoint=checkpoint,
-                cancellation_requested=row.cancellation_requested,
-                steps=[
-                    ExecutionStepState(
-                        step_id=item.step_id,
-                        node_id=item.node_id,
-                        node_type=item.node_type,
-                        position=item.position,
-                        status=item.status,
-                        attempt_count=item.attempt_count,
-                        started_at=self._aware(item.started_at),
-                        completed_at=self._aware(item.completed_at),
-                        output=item.output_json or {},
-                        error=item.error,
-                        blocked_reason=item.blocked_reason,
-                        pause_payload=item.pause_payload_json,
-                        resume_token=item.resume_token,
-                    )
-                    for item in steps
-                ],
-            )
+            return self._state_from_records(row, steps)
 
     # -------------------------------------------------------------------------
     def pause_run(
@@ -351,15 +360,29 @@ class ExecutionRunRepository:
         )
 
     # -------------------------------------------------------------------------
-    def get_events(self, run_id: str) -> list[ExecutionEventEnvelope]:
+    def get_events(
+        self,
+        run_id: str,
+        *,
+        after_sequence: int = 0,
+        limit: int | None = None,
+    ) -> list[ExecutionEventEnvelope]:
+        if after_sequence < 0:
+            raise ValueError("after_sequence must be non-negative")
+        if limit is not None and limit < 1:
+            raise ValueError("limit must be positive")
         with Session(self._engine()) as session:
-            rows = list(
-                session.execute(
-                    select(ExecutionEventRecord)
-                    .where(ExecutionEventRecord.run_id == run_id)
-                    .order_by(ExecutionEventRecord.sequence)
-                ).scalars()
+            statement = (
+                select(ExecutionEventRecord)
+                .where(
+                    ExecutionEventRecord.run_id == run_id,
+                    ExecutionEventRecord.sequence > after_sequence,
+                )
+                .order_by(ExecutionEventRecord.sequence)
             )
+            if limit is not None:
+                statement = statement.limit(limit)
+            rows = list(session.execute(statement).scalars())
             return [
                 ExecutionEventEnvelope(
                     event_type=row.event_type,
@@ -376,14 +399,30 @@ class ExecutionRunRepository:
     # -------------------------------------------------------------------------
     def list_recoverable(self) -> list[ExecutionRunState]:
         with Session(self._engine()) as session:
-            ids = list(
+            rows = list(
                 session.execute(
-                    select(ExecutionRunRecord.run_id).where(
+                    select(ExecutionRunRecord).where(
                         ExecutionRunRecord.status.in_(("queued", "running"))
                     )
                 ).scalars()
             )
-        return [run for run_id in ids if (run := self.get_run(run_id)) is not None]
+            if not rows:
+                return []
+            run_ids = [row.run_id for row in rows]
+            step_rows = list(
+                session.execute(
+                    select(ExecutionStepRecord)
+                    .where(ExecutionStepRecord.run_id.in_(run_ids))
+                    .order_by(
+                        ExecutionStepRecord.run_id,
+                        ExecutionStepRecord.position,
+                    )
+                ).scalars()
+            )
+        steps_by_run: dict[str, list[ExecutionStepRecord]] = defaultdict(list)
+        for step in step_rows:
+            steps_by_run[step.run_id].append(step)
+        return [self._state_from_records(row, steps_by_run[row.run_id]) for row in rows]
 
     # -------------------------------------------------------------------------
     def cleanup_completed_before(self, cutoff: datetime) -> int:

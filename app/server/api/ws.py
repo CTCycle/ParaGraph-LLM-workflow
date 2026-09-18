@@ -14,6 +14,7 @@ from server.services.workflow import execution_service
 
 router = APIRouter(tags=["execution-ws"])
 RUN_ID_PATTERN_RE = re.compile(RUN_ID_PATTERN)
+EVENT_REPLAY_PAGE_SIZE = 1000
 
 ###############################################################################
 @router.websocket("/executions/ws/runs/{run_id}")
@@ -32,18 +33,27 @@ async def execution_run_events(
     try:
         replay_high_water_mark = 0
         if replay:
-            history = execution_event_service.get_history(run_id)
-            replay_high_water_mark = (
-                history.events[-1].sequence if history.events else 0
-            )
-            for event in history.events:
-                if subscription_queue.overflowed:
-                    await websocket.close(
-                        code=1013,
-                        reason="Event buffer overflowed; reconnect to replay",
-                    )
-                    return
-                await websocket.send_json(event.model_dump(mode="json"))
+            replay_after_sequence = 0
+            while True:
+                history = execution_event_service.get_history(
+                    run_id,
+                    after_sequence=replay_after_sequence,
+                    limit=EVENT_REPLAY_PAGE_SIZE,
+                )
+                if not history.events:
+                    break
+                replay_high_water_mark = history.events[-1].sequence
+                for event in history.events:
+                    if subscription_queue.overflowed:
+                        await websocket.close(
+                            code=1013,
+                            reason="Event buffer overflowed; reconnect to replay",
+                        )
+                        return
+                    await websocket.send_json(event.model_dump(mode="json"))
+                if len(history.events) < EVENT_REPLAY_PAGE_SIZE:
+                    break
+                replay_after_sequence = replay_high_water_mark
 
             # Events published after the history snapshot are already durable
             # and may also be waiting in the live queue. Drop only events that

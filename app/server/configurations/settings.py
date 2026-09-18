@@ -44,6 +44,7 @@ class GlobalSettings:
 @dataclass(frozen=True)
 class JobsSettings:
     polling_interval: float
+    retention_days: int
 
 ###############################################################################
 @dataclass(frozen=True)
@@ -66,6 +67,7 @@ class JsonGlobalSettings(BaseModel):
 class JsonJobsSettings(BaseModel):
     model_config = ConfigDict(extra="forbid")
     polling_interval: float = 1.0
+    retention_days: int = Field(default=30, ge=1)
 
 ###############################################################################
 class RuntimeConfigurationSettings(BaseModel):
@@ -80,7 +82,10 @@ class RuntimeConfigurationSettings(BaseModel):
         return ServerSettings(
             database=database,
             global_settings=GlobalSettings(seed=self.global_settings.seed),
-            jobs=JobsSettings(polling_interval=self.jobs.polling_interval),
+            jobs=JobsSettings(
+                polling_interval=self.jobs.polling_interval,
+                retention_days=self.jobs.retention_days,
+            ),
         )
 
 ###############################################################################

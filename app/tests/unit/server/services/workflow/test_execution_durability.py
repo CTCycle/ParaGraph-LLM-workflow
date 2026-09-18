@@ -67,6 +67,37 @@ def test_run_steps_and_events_survive_repository_reinstantiation() -> None:
     assert [event.sequence for event in fresh_events.events] == [1]
 
 ###############################################################################
+def test_list_recoverable_batches_run_and_step_loading(monkeypatch) -> None:
+    plan = _plan()
+    for run_id, status in (("recoverable-queued", "queued"), ("recoverable-running", "running")):
+        execution_run_repository.create_run(
+            ExecutionRunState(
+                run_id=run_id,
+                plan_id=plan.plan_id,
+                plan=plan,
+                status=status,
+                steps=[
+                    ExecutionStepState(
+                        step_id="step", node_id="node", node_type="PROMPT"
+                    )
+                ],
+            )
+        )
+
+    def unexpected_get_run(*args, **kwargs):
+        raise AssertionError("list_recoverable must batch-load run state")
+
+    monkeypatch.setattr(execution_run_repository, "get_run", unexpected_get_run)
+
+    recoverable = execution_run_repository.list_recoverable()
+
+    assert {run.run_id for run in recoverable} == {
+        "recoverable-queued",
+        "recoverable-running",
+    }
+    assert all(len(run.steps) == 1 for run in recoverable)
+
+###############################################################################
 def test_retry_succeeds_without_restarting_prior_steps(
     job_state_factory, monkeypatch
 ) -> None:
