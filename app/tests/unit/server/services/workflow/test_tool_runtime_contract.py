@@ -174,6 +174,25 @@ def test_python_tool_collection_is_explicitly_executable() -> None:
         tools_module.release_run_tool_resources("python-tool-contract")
 
 ###############################################################################
+@pytest.mark.parametrize("node_type", ["PYTHON_TOOL_COLLECTION", "TOOL_COLLECTION"])
+def test_python_tool_collection_is_disabled_in_cloud_mode(
+    monkeypatch, node_type: str
+) -> None:
+    monkeypatch.setattr(tools_module, "is_cloud_deployment", lambda: True)
+
+    with pytest.raises(ValueError, match="disabled in cloud deployments"):
+        node_registry.execute(
+            node_type,
+            1,
+            {
+                "source_type": "inline_python",
+                "inline_code": "def lookup(value: str):\n    return value\n",
+            },
+            {},
+            context={"run_id": "cloud-python-tool"},
+        )
+
+###############################################################################
 def test_provider_tool_capabilities_distinguish_selection_from_native_protocol() -> (
     None
 ):

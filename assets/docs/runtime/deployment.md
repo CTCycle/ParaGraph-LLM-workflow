@@ -1,5 +1,5 @@
 # Deployment
-Last updated: 2026-07-11
+Last updated: 2026-09-18
 
 ## Supported Operation Model
 - ParaGraph is run locally as separate FastAPI and Vite processes.
@@ -9,6 +9,7 @@ Last updated: 2026-07-11
 ## Limitations And Constraints
 - No installer, standalone executable, or container image is produced by this repository.
 - Long-running workflow execution uses background threads with poll and event-stream status updates.
+- `PARAGRAPH_CLOUD_MODE=true` is a restricted deployment mode: executable Python tool collections are disabled. Use schema-only tool collections when workflows must run in that mode.
 - Runtime-heavy folders such as `runtimes`, `app/server/.venv`, and `app/client/node_modules` are operational artifacts, not source-of-truth code.
 
 ## Operational Guidance
