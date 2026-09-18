@@ -68,6 +68,10 @@ def get_execution(run_id: RunIdPath) -> ExecutionRunState:
 ###############################################################################
 @router.get("/{run_id}/events", response_model=EventHistoryResponse)
 def get_execution_events(run_id: RunIdPath) -> EventHistoryResponse:
+    if execution_service.get_run(run_id) is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"Run not found: {run_id}"
+        )
     return execution_event_service.get_history(run_id)
 
 ###############################################################################

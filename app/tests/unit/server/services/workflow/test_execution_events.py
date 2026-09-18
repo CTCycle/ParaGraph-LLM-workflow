@@ -9,7 +9,7 @@ from server.contracts.execution import (
     ExecutionStepPlan,
 )
 from server.repositories.workflow.execution_run import execution_run_repository
-from server.services.runtime.events import execution_event_service
+from server.services.runtime.events import EventService, execution_event_service
 from server.services.workflow.execution import execution_service
 
 ###############################################################################
@@ -127,10 +127,72 @@ def test_execution_service_emits_expected_event_order_for_prompt_to_output_plan(
         "execution.completed",
     ]
     assert [event.sequence for event in history] == list(range(1, len(history) + 1))
+    assert event_types.count("execution.started") == 1
     step_completed = [
         event for event in history if event.event_type == "execution.step.completed"
     ]
     assert [event.payload.get("progress") for event in step_completed] == [50.0, 99.0]
+
+###############################################################################
+def test_live_event_delivery_keeps_sequence_order_for_concurrent_publishers() -> None:
+    _create_event_run("run-live-order")
+    service = EventService()
+    subscriber = service.subscribe("run-live-order")
+
+    def publish(index: int):
+        return service.publish(
+            run_id="run-live-order",
+            event_type="execution.step.progress",
+            payload={"index": index},
+        )
+
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        published = list(executor.map(publish, range(32)))
+
+    delivered = [subscriber.get_nowait().sequence for _ in published]
+    assert delivered == [event.sequence for event in sorted(published, key=lambda item: item.sequence)]
+
+###############################################################################
+def test_replay_handoff_drops_only_snapshot_events() -> None:
+    _create_event_run("run-replay-handoff")
+    service = EventService()
+    subscriber = service.subscribe("run-replay-handoff")
+    first = service.publish(
+        run_id="run-replay-handoff",
+        event_type="execution.queued",
+        payload={},
+    )
+    history = service.get_history("run-replay-handoff")
+    second = service.publish(
+        run_id="run-replay-handoff",
+        event_type="execution.started",
+        payload={},
+    )
+
+    replay_high_water_mark = history.events[-1].sequence
+    live = []
+    while not subscriber.empty():
+        event = subscriber.get_nowait()
+        if event.sequence > replay_high_water_mark:
+            live.append(event)
+
+    assert [event.sequence for event in history.events] == [first.sequence]
+    assert [event.sequence for event in live] == [second.sequence]
+
+###############################################################################
+def test_live_subscriber_queue_marks_overflow_for_replay_recovery() -> None:
+    _create_event_run("run-overflow")
+    service = EventService(max_subscriber_queue_size=1)
+    subscriber = service.subscribe("run-overflow")
+    service.publish(
+        run_id="run-overflow", event_type="execution.queued", payload={}
+    )
+    service.publish(
+        run_id="run-overflow", event_type="execution.started", payload={}
+    )
+
+    assert subscriber.overflowed is True
+    assert subscriber.qsize() == 1
 
 ###############################################################################
 def test_redact_output_state_masks_nested_sensitive_fields() -> None:
