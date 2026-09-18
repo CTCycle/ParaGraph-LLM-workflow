@@ -55,6 +55,7 @@ $script:SkippedCacheCount = 0
 $script:FirstSkippedCachePath = $null
 $script:NextProgressId = 1
 $script:ActiveProgressActivities = [Collections.Generic.Dictionary[int, string]]::new()
+$script:BackendTerminalTitle = 'ParaGraph Backend Logs'
 $script:LauncherProgressEnabled = -not [Console]::IsOutputRedirected
 $script:LauncherInteractive = -not [Console]::IsInputRedirected -and -not [Console]::IsOutputRedirected
 
@@ -134,6 +135,7 @@ function Write-MenuDivider {
 function Get-LauncherMenuEntries {
     return @(
         [pscustomobject]@{ Section = 'APPLICATION'; Title = 'Launch application'; Description = 'Start the backend and frontend'; Key = 'Launch'; Destructive = $false }
+        [pscustomobject]@{ Section = 'APPLICATION'; Title = 'Kill all app processes'; Description = 'Stop the backend, frontend, and terminal'; Key = 'KillProcesses'; Destructive = $true }
         [pscustomobject]@{ Section = 'SETUP & VALIDATION'; Title = 'Install or update dependencies'; Description = 'Sync runtimes, database, and UI build'; Key = 'Install'; Destructive = $false }
         [pscustomobject]@{ Section = 'SETUP & VALIDATION'; Title = 'Rebuild frontend'; Description = 'Build the frontend only'; Key = 'Rebuild'; Destructive = $false }
         [pscustomobject]@{ Section = 'SETUP & VALIDATION'; Title = 'Initialize or upgrade database'; Description = 'Apply SQLite/Alembic migrations'; Key = 'Database'; Destructive = $false }
@@ -372,9 +374,7 @@ function Import-DotEnv {
         $values[$key] = $value
         [Environment]::SetEnvironmentVariable($key, $value, 'Process')
     }
-    foreach ($requiredKey in @(
-        'FASTAPI_HOST', 'FASTAPI_PORT', 'UI_HOST', 'UI_PORT', 'RELOAD', 'BACKEND_LOGS_VISIBLE'
-    )) {
+    foreach ($requiredKey in @('FASTAPI_HOST', 'FASTAPI_PORT', 'UI_HOST', 'UI_PORT', 'RELOAD')) {
         if (-not $values.Contains($requiredKey) -or [string]::IsNullOrWhiteSpace([string]$values[$requiredKey])) {
             throw "Environment file is missing required setting: $requiredKey"
         }
@@ -502,13 +502,22 @@ function Test-FrontendBuildReady {
     return Test-Path -LiteralPath (Join-Path $FrontendBuildDir 'index.html')
 }
 
-function Stop-PortListeners([int]$Port) {
-    $pids = netstat -ano | ForEach-Object {
+function Get-ListenerPids([int]$Port) {
+    return @(netstat -ano | ForEach-Object {
         if ($_ -match "^\s*TCP\s+\S+:$Port\s+\S+\s+LISTENING\s+(\d+)\s*$") { [int]$Matches[1] }
-    } | Sort-Object -Unique
+    } | Sort-Object -Unique)
+}
+
+function Stop-ProcessTree([int]$ProcessId) {
+    if ($ProcessId -le 0 -or $ProcessId -eq $PID) { return }
+    & taskkill.exe /PID $ProcessId /T /F | Out-Null
+}
+
+function Stop-PortListeners([int]$Port) {
+    $pids = @(Get-ListenerPids -Port $Port)
     foreach ($processId in $pids) {
         Write-Info "Releasing port $Port from PID $processId."
-        & taskkill.exe /PID $processId /F | Out-Null
+        Stop-ProcessTree -ProcessId $processId
     }
     for ($attempt = 1; $attempt -le 20; $attempt++) {
         $stillListening = netstat -ano | Select-String -Pattern "^\s*TCP\s+\S+:$Port\s+\S+\s+LISTENING\s+\d+\s*$"
@@ -516,6 +525,43 @@ function Stop-PortListeners([int]$Port) {
         Start-Sleep -Seconds 1
     }
     throw "Port $Port is still occupied after 20 seconds."
+}
+
+function Get-BackendTerminalProcessIds {
+    return @(Get-Process -Name 'cmd' -ErrorAction SilentlyContinue |
+        Where-Object { $_.MainWindowTitle -eq $script:BackendTerminalTitle } |
+        Select-Object -ExpandProperty Id)
+}
+
+function Stop-ApplicationProcesses {
+    param(
+        [Parameter(Mandatory = $true)][System.Collections.IDictionary]$Settings
+    )
+
+    $ports = @([int]$Settings.FASTAPI_PORT, [int]$Settings.UI_PORT) | Sort-Object -Unique
+    $processIds = [Collections.Generic.HashSet[int]]::new()
+    foreach ($port in $ports) {
+        foreach ($processId in @(Get-ListenerPids -Port $port)) {
+            [void]$processIds.Add([int]$processId)
+        }
+    }
+    foreach ($processId in @(Get-BackendTerminalProcessIds)) {
+        [void]$processIds.Add([int]$processId)
+    }
+
+    if ($processIds.Count -eq 0) {
+        Write-Info 'No running ParaGraph application processes were found.'
+        return
+    }
+
+    foreach ($processId in $processIds) {
+        Write-Info "Stopping application process tree rooted at PID $processId."
+        Stop-ProcessTree -ProcessId $processId
+    }
+    foreach ($port in $ports) {
+        Stop-PortListeners -Port $port
+    }
+    Write-Ok "Stopped $($processIds.Count) ParaGraph application process tree(s)."
 }
 
 function Get-ListenerPid([int]$Port) {
@@ -554,28 +600,21 @@ function Invoke-Launch {
 
     $backendPort = [int]$settings.FASTAPI_PORT
     $uiPort = [int]$settings.UI_PORT
-    Stop-PortListeners -Port $backendPort
-    Stop-PortListeners -Port $uiPort
+    Stop-ApplicationProcesses -Settings $settings
     Clear-PythonEnvironment
 
     $backendArgs = @('-m', 'uvicorn', 'server.app:app', '--host', [string]$settings.FASTAPI_HOST, '--port', [string]$backendPort, '--log-level', 'info')
     if ([string]$settings.RELOAD -ieq 'true') { $backendArgs += '--reload' }
     Write-Step "Launching backend on $($settings.FASTAPI_HOST):$backendPort"
-    if ([string]$settings.BACKEND_LOGS_VISIBLE -ieq 'true') {
-        $quotedPython = '"' + $VenvPython + '"'
-        $backendCommand = "$quotedPython $($backendArgs -join ' ')"
-        Start-Process -FilePath 'cmd.exe' -ArgumentList @('/d', '/c', 'start', '"ParaGraph Backend Logs"', 'cmd.exe', '/k', $backendCommand) -WorkingDirectory $AppDir | Out-Null
-    } else {
-        $stdout = Join-Path $env:TEMP 'paragraph-backend.stdout.log'
-        $stderr = Join-Path $env:TEMP 'paragraph-backend.stderr.log'
-        Remove-Item -LiteralPath $stdout, $stderr -Force -ErrorAction SilentlyContinue
-        Start-Process -FilePath $VenvPython -ArgumentList $backendArgs -WorkingDirectory $AppDir -WindowStyle Hidden -RedirectStandardOutput $stdout -RedirectStandardError $stderr | Out-Null
-    }
+    $quotedPython = '"' + $VenvPython + '"'
+    $backendCommand = "$quotedPython $($backendArgs -join ' ')"
+    $windowTitleArgument = '"' + $script:BackendTerminalTitle + '"'
+    Start-Process -FilePath 'cmd.exe' -ArgumentList @('/d', '/c', 'start', $windowTitleArgument, 'cmd.exe', '/k', $backendCommand) -WorkingDirectory $AppDir | Out-Null
 
     $healthUrl = "http://$($settings.FASTAPI_HOST):$backendPort/docs"
     Write-Info "Waiting for $healthUrl"
     if (-not (Invoke-HealthCheck -Url $healthUrl -Attempts 60 -IntervalSeconds 1)) {
-        Stop-PortListeners -Port $backendPort
+        Stop-ApplicationProcesses -Settings $settings
         throw "Backend did not become healthy at $healthUrl within 60 seconds."
     }
 
@@ -1037,6 +1076,7 @@ while ($true) {
         Invoke-TrackedLauncherAction -Name $entry.Title -Action {
             switch ($entry.Key) {
                 'Launch' { Invoke-Launch; exit 0 }
+                'KillProcesses' { Stop-ApplicationProcesses -Settings (Import-DotEnv) }
                 'Install' {
                     Ensure-PortableRuntimes
                     $installationType = Read-InstallationType
