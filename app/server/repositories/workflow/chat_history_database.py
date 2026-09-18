@@ -75,6 +75,65 @@ class DatabaseChatHistoryRepository:
         return self.get_messages(workflow_id, execution_session_id, node_id)
 
     # -------------------------------------------------------------------------
+    def append_and_trim(
+        self,
+        workflow_id: str,
+        execution_session_id: str,
+        node_id: str,
+        messages: list[ChatHistoryMessage],
+        max_messages: int,
+    ) -> list[ChatHistoryMessage]:
+        if max_messages < 1:
+            raise ValueError("max_messages must be positive")
+        with Session(self._database_repository.engine) as db_session:
+            for item in messages:
+                db_session.add(
+                    ChatHistoryMessageRecord(
+                        workflow_id=workflow_id,
+                        execution_session_id=execution_session_id,
+                        node_id=node_id,
+                        role=item.role,
+                        content=item.content,
+                        created_at=_as_utc(item.timestamp),
+                    )
+                )
+            db_session.flush()
+            rows = list(
+                db_session.execute(
+                    select(ChatHistoryMessageRecord)
+                    .where(
+                        ChatHistoryMessageRecord.workflow_id == workflow_id,
+                        ChatHistoryMessageRecord.execution_session_id
+                        == execution_session_id,
+                        ChatHistoryMessageRecord.node_id == node_id,
+                    )
+                    .order_by(ChatHistoryMessageRecord.chat_history_message_id.asc())
+                ).scalars()
+            )
+            retained_rows = rows[-max_messages:]
+            removed_ids = [
+                row.chat_history_message_id for row in rows[:-max_messages]
+            ]
+            if removed_ids:
+                db_session.execute(
+                    delete(ChatHistoryMessageRecord).where(
+                        ChatHistoryMessageRecord.chat_history_message_id.in_(
+                            removed_ids
+                        )
+                    )
+                )
+            retained = [
+                ChatHistoryMessage(
+                    role=str(row.role),
+                    content=str(row.content),
+                    timestamp=_as_utc(row.created_at),
+                )
+                for row in retained_rows
+            ]
+            db_session.commit()
+            return retained
+
+    # -------------------------------------------------------------------------
     def clear_session(self, workflow_id: str, execution_session_id: str) -> None:
         with Session(self._database_repository.engine) as db_session:
             db_session.execute(

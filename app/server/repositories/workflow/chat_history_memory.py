@@ -35,6 +35,26 @@ class InMemoryChatHistoryRepository:
             return [item.model_copy(deep=True) for item in current]
 
     # -------------------------------------------------------------------------
+    def append_and_trim(
+        self,
+        workflow_id: str,
+        execution_session_id: str,
+        node_id: str,
+        messages: list[ChatHistoryMessage],
+        max_messages: int,
+    ) -> list[ChatHistoryMessage]:
+        if max_messages < 1:
+            raise ValueError("max_messages must be positive")
+        key = (workflow_id, execution_session_id, node_id)
+        with self._lock:
+            current = self._store.setdefault(key, [])
+            current.extend(item.model_copy(deep=True) for item in messages)
+            if len(current) > max_messages:
+                self._store[key] = current[-max_messages:]
+                current = self._store[key]
+            return [item.model_copy(deep=True) for item in current]
+
+    # -------------------------------------------------------------------------
     def set_messages(
         self,
         workflow_id: str,

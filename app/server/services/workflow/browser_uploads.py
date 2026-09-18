@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import shutil
+import time
 from pathlib import Path, PurePosixPath
 from typing import Protocol
 from uuid import uuid4
@@ -8,6 +10,10 @@ from server.common import path as common_path
 
 
 UPLOAD_ROOT = common_path.ARTIFACT_ROOT / "browser_uploads"
+DEFAULT_MAX_UPLOAD_FILES = 1000
+DEFAULT_MAX_UPLOAD_FILE_BYTES = 100_000_000
+DEFAULT_MAX_UPLOAD_TOTAL_BYTES = 1_000_000_000
+DEFAULT_STAGING_RETENTION_SECONDS = 24 * 60 * 60
 
 ###############################################################################
 class UploadedFile(Protocol):
@@ -25,8 +31,38 @@ class UploadedFile(Protocol):
 class BrowserUploadService:
 
     # -------------------------------------------------------------------------
-    def __init__(self, upload_root: Path) -> None:
+    def __init__(
+        self,
+        upload_root: Path,
+        *,
+        max_files: int = DEFAULT_MAX_UPLOAD_FILES,
+        max_file_bytes: int = DEFAULT_MAX_UPLOAD_FILE_BYTES,
+        max_total_bytes: int = DEFAULT_MAX_UPLOAD_TOTAL_BYTES,
+        staging_retention_seconds: float = DEFAULT_STAGING_RETENTION_SECONDS,
+    ) -> None:
+        if max_files < 1 or max_file_bytes < 1 or max_total_bytes < 1:
+            raise ValueError("Upload limits must be positive")
+        if staging_retention_seconds <= 0:
+            raise ValueError("Staging retention must be positive")
         self._upload_root = upload_root
+        self._max_files = max_files
+        self._max_file_bytes = max_file_bytes
+        self._max_total_bytes = max_total_bytes
+        self._staging_retention_seconds = staging_retention_seconds
+
+    # -------------------------------------------------------------------------
+    def cleanup_stale_uploads(self, *, now: float | None = None) -> None:
+        if not self._upload_root.exists():
+            return
+        cutoff = (time.time() if now is None else now) - self._staging_retention_seconds
+        for entry in self._upload_root.iterdir():
+            if entry.is_symlink() or not entry.is_dir():
+                continue
+            try:
+                if entry.stat().st_mtime < cutoff:
+                    shutil.rmtree(entry)
+            except FileNotFoundError:
+                continue
 
     # -------------------------------------------------------------------------
     def sanitize_relative_upload_path(self, file_name: str) -> Path:
@@ -52,11 +88,17 @@ class BrowserUploadService:
     ) -> tuple[str, int, list[str]]:
         if not files:
             raise ValueError("No files were provided for upload")
+        if len(files) > self._max_files:
+            raise ValueError(
+                f"Uploads may contain at most {self._max_files} files"
+            )
 
+        self.cleanup_stale_uploads()
         destination_root = (self._upload_root / uuid4().hex).resolve()
         destination_root.mkdir(parents=True, exist_ok=True)
 
         saved_files = 0
+        total_bytes = 0
         staged_files: list[str] = []
         try:
             for upload in files:
@@ -72,15 +114,29 @@ class BrowserUploadService:
                     ) from exc
                 destination.parent.mkdir(parents=True, exist_ok=True)
 
+                file_bytes = 0
                 with destination.open("wb") as output_stream:
                     while True:
                         chunk = await upload.read(1024 * 1024)
                         if not chunk:
                             break
+                        file_bytes += len(chunk)
+                        total_bytes += len(chunk)
+                        if file_bytes > self._max_file_bytes:
+                            raise ValueError(
+                                "Uploaded file exceeds the configured size limit"
+                            )
+                        if total_bytes > self._max_total_bytes:
+                            raise ValueError(
+                                "Uploaded directory exceeds the configured size limit"
+                            )
                         output_stream.write(chunk)
 
                 saved_files += 1
                 staged_files.append(str(destination.resolve()))
+        except BaseException:
+            shutil.rmtree(destination_root, ignore_errors=True)
+            raise
         finally:
             for upload in files:
                 await upload.close()
