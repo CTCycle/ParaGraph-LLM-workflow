@@ -5,12 +5,13 @@ from typing import Any
 
 import pytest
 
-from server.contracts.chat_history import ChatHistoryHandle
+from server.contracts.chat_history import ChatHistoryHandle, ChatHistoryMessage
 from server.contracts.node_catalog import ProviderModelDefinition
 from server.repositories.workflow import (
     database_chat_history_repository,
     in_memory_chat_history_repository,
 )
+from server.repositories.workflow.chat_history_memory import InMemoryChatHistoryRepository
 from server.services.workflow import node_registry, provider_service
 from server.services.workflow.chat_history import chat_history_service
 
@@ -167,6 +168,24 @@ def test_in_memory_history_trims_max_messages_and_keeps_labels(
     assert messages[0].content == "second"
     assert messages[1].role == "assistant"
     assert messages[1].content == "fixed-reply"
+
+###############################################################################
+def test_in_memory_append_and_trim_retains_only_the_newest_messages() -> None:
+    repository = InMemoryChatHistoryRepository()
+
+    retained = repository.append_and_trim(
+        "workflow-a",
+        "session-a",
+        "node-a",
+        [
+            ChatHistoryMessage(role="user", content="first"),
+            ChatHistoryMessage(role="assistant", content="second"),
+            ChatHistoryMessage(role="user", content="third"),
+        ],
+        2,
+    )
+
+    assert [message.content for message in retained] == ["second", "third"]
 
 ###############################################################################
 def test_database_persisted_history_saves_reloads_and_trims(

@@ -31,6 +31,16 @@ class ChatHistoryRepository(Protocol):
     ) -> list[ChatHistoryMessage]: ...
 
     # -------------------------------------------------------------------------
+    def append_and_trim(
+        self,
+        workflow_id: str,
+        execution_session_id: str,
+        node_id: str,
+        messages: list[ChatHistoryMessage],
+        max_messages: int,
+    ) -> list[ChatHistoryMessage]: ...
+
+    # -------------------------------------------------------------------------
     def clear_session(self, workflow_id: str, execution_session_id: str) -> None: ...
 
     # -------------------------------------------------------------------------
@@ -143,15 +153,13 @@ class ChatHistoryService:
             )
         if not new_messages:
             return
-        merged = repository.append_messages(
+        repository.append_and_trim(
             handle.workflow_id,
             handle.execution_session_id,
             handle.node_id,
             new_messages,
+            handle.max_messages,
         )
-        trimmed = self._trim_to_limit(merged, handle.max_messages)
-        if len(trimmed) != len(merged):
-            self._overwrite_from_trimmed(handle, trimmed)
 
     # -------------------------------------------------------------------------
     def append_chat_result(
@@ -182,15 +190,13 @@ class ChatHistoryService:
             )
         if not new_messages:
             return
-        merged = repository.append_messages(
+        repository.append_and_trim(
             handle.workflow_id,
             handle.execution_session_id,
             handle.node_id,
             new_messages,
+            handle.max_messages,
         )
-        trimmed = self._trim_to_limit(merged, handle.max_messages)
-        if len(trimmed) != len(merged):
-            self._overwrite_from_trimmed(handle, trimmed)
 
     # -------------------------------------------------------------------------
     @staticmethod

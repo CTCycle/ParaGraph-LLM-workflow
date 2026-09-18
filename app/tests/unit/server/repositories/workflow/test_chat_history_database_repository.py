@@ -55,3 +55,23 @@ def test_database_chat_history_repository_accepts_injected_sqlite_repository() -
     assert repository.get_messages("workflow-a", "session-a", "node-a") == []
     remaining = repository.get_messages("workflow-a", "session-b", "node-a")
     assert [message.content for message in remaining] == ["other"]
+
+###############################################################################
+def test_database_append_and_trim_commits_new_messages_and_retention_together() -> None:
+    database_repository = InMemorySQLiteRepository()
+    repository = chat_history_module.DatabaseChatHistoryRepository(database_repository)
+    Base.metadata.create_all(database_repository.engine)
+
+    first = ChatHistoryMessage(role="user", content="first")
+    second = ChatHistoryMessage(role="assistant", content="second")
+    third = ChatHistoryMessage(role="user", content="third")
+
+    retained = repository.append_and_trim(
+        "workflow-a", "session-a", "node-a", [first, second, third], 2
+    )
+
+    assert [message.content for message in retained] == ["second", "third"]
+    assert [
+        message.content
+        for message in repository.get_messages("workflow-a", "session-a", "node-a")
+    ] == ["second", "third"]
