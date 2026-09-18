@@ -507,13 +507,16 @@ def _resolve_runtime_secret(config: dict[str, Any]) -> str:
         return secret
     profile_name = str(config.get("credential_profile") or "").strip()
     provider = str(config.get("provider") or "").strip().lower()
+    session_name = str(config.get("credential_session_name") or "").strip() or None
     if not profile_name or not provider:
         return ""
     from server.services.configuration import configuration_service
 
     try:
         provider_configuration = configuration_service.resolve_provider_configuration(
-            profile_name=profile_name, provider=provider
+            profile_name=profile_name,
+            provider=provider,
+            session_name=session_name,
         )
     except (KeyError, ValueError):
         return ""

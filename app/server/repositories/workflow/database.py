@@ -59,6 +59,7 @@ def _resolve_password(payload: dict[str, Any]) -> str:
 
     profile_name = str(payload.get("credential_profile") or "").strip()
     provider_name = str(payload.get("credential_provider") or "").strip()
+    session_name = str(payload.get("credential_session_name") or "").strip() or None
     if profile_name and provider_name:
         # Resolve durable credential metadata lazily so completed database
         # steps remain usable after the process-local reference is lost.
@@ -68,6 +69,7 @@ def _resolve_password(payload: dict[str, Any]) -> str:
             configuration = configuration_service.resolve_provider_configuration(
                 profile_name=profile_name,
                 provider=provider_name,
+                session_name=session_name,
             )
         except (KeyError, ValueError) as exc:
             raise ValueError(

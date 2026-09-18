@@ -103,6 +103,22 @@ def test_check_vector_store_connection_resolves_saved_credential(
         def validate_connection(self, **kwargs):
             calls.update(kwargs)
 
+    resolved: dict[str, object] = {}
+
+    def resolve_configuration(
+        *, profile_name: str, provider: str, session_name: str | None = None
+    ) -> ProviderConfiguration:
+        resolved.update(
+            profile_name=profile_name,
+            provider=provider,
+            session_name=session_name,
+        )
+        return ProviderConfiguration(
+            provider=provider,
+            api_key="pinecone-secret",
+            base_url="https://configured-vector.example",
+        )
+
     monkeypatch.setattr(
         node_connectivity_module,
         "get_vector_store_adapter",
@@ -111,11 +127,7 @@ def test_check_vector_store_connection_resolves_saved_credential(
     monkeypatch.setattr(
         node_connectivity_module.configuration_service,
         "resolve_provider_configuration",
-        lambda *, profile_name, provider: ProviderConfiguration(
-            provider=provider,
-            api_key="pinecone-secret",
-            base_url="https://configured-vector.example",
-        ),
+        resolve_configuration,
     )
 
     response = client.post(
@@ -129,6 +141,7 @@ def test_check_vector_store_connection_resolves_saved_credential(
                 "storage_path": "",
                 "endpoint_url": "",
                 "credential_profile": "production",
+                "credential_session_name": "tenant-a",
                 "collection_name": "",
                 "database_name": "",
                 "namespace": "",
@@ -146,6 +159,7 @@ def test_check_vector_store_connection_resolves_saved_credential(
     }
     assert calls["api_key"] == "pinecone-secret"
     assert calls["endpoint_url"] == "https://configured-vector.example"
+    assert resolved["session_name"] == "tenant-a"
 
 ###############################################################################
 @pytest.mark.parametrize("provider", ["lancedb", "chroma", "faiss"])
