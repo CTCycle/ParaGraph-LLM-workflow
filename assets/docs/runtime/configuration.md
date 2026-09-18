@@ -1,5 +1,5 @@
 # Configuration
-Last updated: 2026-08-31
+Last updated: 2026-09-18
 
 ## Shared Configuration Sources
 - Shared environment keys are loaded from `settings/.env`.
@@ -13,12 +13,11 @@ Last updated: 2026-08-31
   - `UI_PORT=8002`
   - `VITE_API_BASE_URL=/api`
   - `RELOAD=false`
-  - `BACKEND_LOGS_VISIBLE=true`
 - `PARAGRAPH_RESOURCES_DIR` is blank by default, which keeps shared resource data under `app/resources`.
 - Set `PARAGRAPH_RESOURCES_DIR` to an absolute path or a path relative to the repository root to relocate resource data, including the embedded SQLite database.
 
 ## Runtime Settings
-- Launcher option `2` creates or refreshes the frontend build. Application launch serves the existing build output and rebuilds it only when the build or required environment is missing or unusable.
+- Launcher option `3` creates or refreshes the frontend build. Application launch serves the existing build output and rebuilds it only when the build or required environment is missing or unusable.
 - Database and runtime behavior split across:
   - `settings/.env` for the internal SQLite batch-size setting.
   - `settings/configurations.json` for non-database runtime settings such as `global.seed` and `jobs.polling_interval`.
@@ -41,5 +40,5 @@ Last updated: 2026-08-31
 
 ## Shared Runtime Data
 - Shared runtime data lives under `PARAGRAPH_RESOURCES_DIR` when configured, or under `app/resources` by default. This includes the SQLite database, logs, artifacts, node assets, workflow templates, and model assets. The active workflow graph remains in browser storage and JSON exports.
-- The launcher imports `settings/.env` into the process environment before starting either process. `FASTAPI_HOST`, `FASTAPI_PORT`, `UI_HOST`, `UI_PORT`, `RELOAD`, and `BACKEND_LOGS_VISIBLE` are required; missing or invalid runtime values fail fast rather than selecting hidden port fallbacks.
+- The launcher imports `settings/.env` into the process environment before starting either process. `FASTAPI_HOST`, `FASTAPI_PORT`, `UI_HOST`, `UI_PORT`, and `RELOAD` are required; missing or invalid runtime values fail fast rather than selecting hidden port fallbacks.
 - Runtime caches are kept under `runtimes/cache`, while test/tool caches and generated test/build artifacts are kept under `app/tests/cache`. These are separate from application runtime data and user resources.

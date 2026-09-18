@@ -1,5 +1,5 @@
 # Startup
-Last updated: 2026-09-01
+Last updated: 2026-09-18
 
 ## Local Launcher
 PowerShell:
@@ -13,17 +13,18 @@ The menu can launch the application, install dependencies, initialize the databa
 The interactive menu provides these options:
 
 - `1` Launch application, then exit the launcher after starting the backend and frontend.
-- `2` Install or update portable runtimes, Python dependencies, frontend dependencies, and the frontend build.
-- `3` Rebuild the frontend only, using the existing frontend dependencies.
-- `4` Initialize or upgrade the application database with Alembic.
-- `5` Run the project test suite.
-- `6` Check for a different `origin/main` revision without downloading or applying changes.
-- `7` Update from `origin/main` with `git pull`; this requires a clean worktree and the `main` branch to be checked out.
-- `8` Remove application log files.
-- `9` Clear runtime caches under `runtimes/cache` and test/tool caches plus generated test/build artifacts under `app/tests/cache`.
-- `10` Remove user data and the embedded database, including database sidecars, while preserving application files and settings. This requires an affirmative response at a `[y/N]` confirmation prompt.
-- `11` Uninstall local runtimes, dependencies, caches, and build output while preserving dependency lockfiles, settings, and user data.
-- `12` Exit without changing the workspace.
+- `2` Kill all application processes, including the backend, frontend, and backend terminal.
+- `3` Install or update portable runtimes, Python dependencies, frontend dependencies, and the frontend build.
+- `4` Rebuild the frontend only, using the existing frontend dependencies.
+- `5` Initialize or upgrade the application database with Alembic.
+- `6` Run the project test suite.
+- `7` Check for a different `origin/main` revision without downloading or applying changes.
+- `8` Update from `origin/main` with `git pull`; this requires a clean worktree and the `main` branch to be checked out.
+- `9` Remove application log files.
+- `10` Clear runtime caches under `runtimes/cache` and test/tool caches plus generated test/build artifacts under `app/tests/cache`.
+- `11` Remove user data and the embedded database, including database sidecars, while preserving application files and settings. This requires an affirmative response at a `[y/N]` confirmation prompt.
+- `12` Uninstall local runtimes, dependencies, caches, and build output while preserving dependency lockfiles, settings, and user data.
+- `13` Exit without changing the workspace.
 
 ## Manual Backend
 CMD:
@@ -58,8 +59,8 @@ npm run dev
 - The local launcher is the recommended Windows entry point.
 - First-run startup can be slow because of dependency synchronization, migration execution, and runtime hydration.
 - If `settings/.env` is missing, the launcher and backend environment loader create it from `settings/.env.example` before loading settings. An existing local `.env` is never overwritten.
-- Set `BACKEND_LOGS_VISIBLE=true` to open a dedicated backend log terminal; set it to `false` for a hidden detached backend. The key is required.
-- Launcher option `2` creates or refreshes dependencies and the frontend build. Option `3` rebuilds only the frontend using the existing frontend dependencies. Option `1` serves the existing build output and rebuilds it only when the build or required environment is missing or unusable.
+- Launcher option `1` always opens a visible dedicated backend terminal. Option `2` stops the backend, frontend, and that backend terminal.
+- Launcher option `3` creates or refreshes dependencies and the frontend build. Option `4` rebuilds only the frontend using the existing frontend dependencies. Option `1` serves the existing build output and rebuilds it only when the build or required environment is missing or unusable.
 - Set `PARAGRAPH_RESOURCES_DIR` in `settings/.env` to relocate shared resource data and the embedded SQLite database; leave it blank to use `app/resources`.
 - Application initialization and startup check `alembic_version` and automatically apply pending migrations before validations or repository use. PostgreSQL is only selected explicitly by user-facing workflow database nodes.
 - A database without an Alembic revision, or with a partial or incompatible
