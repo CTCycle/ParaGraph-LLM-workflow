@@ -1,10 +1,10 @@
 # Python
-Last updated: 2026-08-20
+Last updated: 2026-09-18
 
 ## Runtime Baseline
 - Target Python version is `>=3.14` as defined in `pyproject.toml`.
 - Use `app/server/.venv` when present; otherwise use `runtimes/.venv`.
-- Keep dependencies aligned with `uv` and `runtimes/uv.lock`.
+- Keep dependencies aligned with `uv` and `app/server/uv.lock`.
 
 ## Typing
 - Type annotations are required for public APIs and non-trivial logic.
