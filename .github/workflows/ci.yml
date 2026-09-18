@@ -47,7 +47,7 @@ jobs:
         run: uv run --project app/server python -m compileall app/server/app.py app/server/api app/server/common app/server/configurations app/server/contracts app/server/repositories app/server/services
 
       - name: Run Backend Tests
-        run: uv run --project app/server python -m pytest app/tests/unit/server app/tests/e2e/server/test_execution_lifecycle.py
+        run: uv run --project app/server python -m pytest app/tests/unit/server app/tests/e2e/server/test_execution_lifecycle.py app/tests/e2e/server/test_database_workflow_nodes.py
 
   frontend-validation:
     runs-on: ubuntu-latest

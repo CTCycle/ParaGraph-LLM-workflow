@@ -14,9 +14,12 @@ concurrency:
 
 jobs:
   browser:
-    name: Full-stack Playwright E2E
+    name: Browser E2E (mocked UI and live backend contract)
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      FASTAPI_HOST: 127.0.0.1
+      FASTAPI_PORT: 5002
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -51,9 +54,9 @@ jobs:
         shell: bash
         run: |
           mkdir -p .ci-logs
-          (cd app/server && uv run python -m uvicorn server.app:app --host 127.0.0.1 --port 8000 --log-level warning > "$RUNNER_TEMP/paragraph-backend.log" 2>&1 & echo $! > "$RUNNER_TEMP/paragraph-backend.pid")
+          (cd app/server && uv run python -m uvicorn server.app:app --host 127.0.0.1 --port 5002 --log-level warning > "$RUNNER_TEMP/paragraph-backend.log" 2>&1 & echo $! > "$RUNNER_TEMP/paragraph-backend.pid")
           for i in {1..60}; do
-            if curl --fail --silent --max-time 2 http://127.0.0.1:8000/docs >/dev/null; then exit 0; fi
+            if curl --fail --silent --max-time 2 http://127.0.0.1:5002/docs >/dev/null; then exit 0; fi
             sleep 1
           done
           cat "$RUNNER_TEMP/paragraph-backend.log"
@@ -63,7 +66,7 @@ jobs:
         working-directory: app/client
         run: npx playwright install --with-deps chromium
 
-      - name: Run Playwright E2E
+      - name: Run mocked UI and live backend contract suites
         working-directory: app/client
         run: npm run test:e2e
 
