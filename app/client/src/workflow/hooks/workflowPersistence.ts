@@ -1,4 +1,5 @@
 import type { XYPosition } from '@xyflow/react'
+import { useEffect, useRef } from 'react'
 
 const WORKFLOW_STATE_STORAGE_KEY = 'paragraph.workflow.state.v1'
 
@@ -155,9 +156,67 @@ export function readPersistedWorkflowState(): PersistedWorkflowState | null {
     }
 }
 
-export function persistWorkflowState(state: PersistedWorkflowState): void {
+export function persistWorkflowState(state: PersistedWorkflowState): boolean {
     if (typeof globalThis.localStorage === 'undefined') {
-        return
+        return true
     }
-    globalThis.localStorage.setItem(WORKFLOW_STATE_STORAGE_KEY, JSON.stringify(state))
+    try {
+        globalThis.localStorage.setItem(WORKFLOW_STATE_STORAGE_KEY, JSON.stringify(state))
+        return true
+    } catch {
+        return false
+    }
+}
+
+export function useWorkflowAutosave(
+    state: PersistedWorkflowState,
+    enabled: boolean,
+    options?: { delayMs?: number; onError?: () => void },
+): void {
+    const latestStateRef = useRef(state)
+    const enabledRef = useRef(enabled)
+    const dirtyRef = useRef(false)
+    const errorReportedRef = useRef(false)
+    const onErrorRef = useRef(options?.onError)
+    const delayMs = options?.delayMs ?? 150
+
+    latestStateRef.current = state
+    enabledRef.current = enabled
+    onErrorRef.current = options?.onError
+
+    useEffect(() => {
+        if (!enabled) {
+            return
+        }
+        dirtyRef.current = true
+        const timer = globalThis.setTimeout(() => {
+            const saved = persistWorkflowState(latestStateRef.current)
+            if (!saved) {
+                if (!errorReportedRef.current) {
+                    errorReportedRef.current = true
+                    onErrorRef.current?.()
+                }
+                return
+            }
+            dirtyRef.current = false
+            errorReportedRef.current = false
+        }, delayMs)
+
+        return () => {
+            globalThis.clearTimeout(timer)
+        }
+    }, [delayMs, enabled, state])
+
+    useEffect(() => {
+        return () => {
+            if (!enabledRef.current || !dirtyRef.current) {
+                return
+            }
+            const saved = persistWorkflowState(latestStateRef.current)
+            if (!saved && !errorReportedRef.current) {
+                errorReportedRef.current = true
+                onErrorRef.current?.()
+            }
+        }
+    }, [])
 }

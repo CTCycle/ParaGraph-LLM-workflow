@@ -82,8 +82,9 @@ import {
     type PersistedActiveExecution,
     type PersistedWorkflowEdge,
     type PersistedWorkflowNode,
-    persistWorkflowState,
+    type PersistedWorkflowState,
     readPersistedWorkflowState,
+    useWorkflowAutosave,
 } from '../workflow/hooks/workflowPersistence'
 import {
     type SaveNodeBrowserSelection,
@@ -2335,6 +2336,7 @@ function WorkflowEditor() {
     const [isOnboardingVisible, setIsOnboardingVisible] = useState(false)
     const stopEventsRef = useRef<(() => void) | null>(null)
     const pollingAbortRef = useRef<AbortController | null>(null)
+    const executionMonitorGenerationRef = useRef(0)
     const activePlanRef = useRef<CompiledExecutionPlan | null>(null)
     const runWorkflowLockRef = useRef(false)
     const chatSubmitRef = useRef<(nodeId: string, message: string) => Promise<void>>(async () => undefined)
@@ -2402,6 +2404,7 @@ function WorkflowEditor() {
 
     useEffect(() => {
         return () => {
+            executionMonitorGenerationRef.current += 1
             stopEventsRef.current?.()
             stopEventsRef.current = null
             pollingAbortRef.current?.abort()
@@ -2776,11 +2779,7 @@ function WorkflowEditor() {
         clearRequestedTour()
     }, [clearRequestedTour, loading, requestedTour])
 
-    useEffect(() => {
-        if (!hasHydratedWorkflowRef.current) {
-            return
-        }
-
+    const persistedWorkflowState = useMemo<PersistedWorkflowState>(() => {
         const persistedNodes: PersistedWorkflowNode[] = nodes.map((node) => {
             const dimensions = resolveNodeDimensions(node)
             return {
@@ -2805,7 +2804,7 @@ function WorkflowEditor() {
             target_handle: edge.targetHandle || null,
         }))
 
-        persistWorkflowState({
+        return {
             nodes: persistedNodes,
             edges: persistedEdges,
             is_library_visible: isLibraryVisible,
@@ -2814,8 +2813,12 @@ function WorkflowEditor() {
             selected_manifest_key: selectedManifestKey,
             execution_session_id: executionSessionId,
             active_run: activeRun,
-        })
+        }
     }, [activeRun, edges, executionSessionId, isGridVisible, isLibraryVisible, nodes, search, selectedManifestKey])
+
+    useWorkflowAutosave(persistedWorkflowState, hasHydratedWorkflowRef.current, {
+        onError: () => setStatusText('Workflow changes could not be saved locally'),
+    })
 
     const filteredCatalog = useMemo(() => {
         const normalized = search.trim().toLowerCase()
@@ -3689,10 +3692,14 @@ function WorkflowEditor() {
         setStatusText(`Added ${manifest.name}`)
     }
 
-    function subscribeToExecutionEvents(runId: string): void {
-        stopEventsRef.current?.()
-        stopEventsRef.current = subscribeExecutionEvents(runId, {
+    function subscribeToExecutionEvents(runId: string, isOwner: () => boolean): () => void {
+        let lastEventSequence = 0
+        return subscribeExecutionEvents(runId, {
             onEvent(event) {
+                if (!isOwner() || event.sequence <= lastEventSequence) {
+                    return
+                }
+                lastEventSequence = event.sequence
                 if (event.event_type === 'execution.step.started') {
                     const fromPayload = typeof event.payload.node_id === 'string' ? event.payload.node_id : null
                     const fromPlan =
@@ -3704,22 +3711,33 @@ function WorkflowEditor() {
                 }
             },
             onError(streamError) {
-                setStatusText(streamError)
+                if (isOwner()) {
+                    setStatusText(streamError)
+                }
             },
         })
     }
 
     async function monitorExecutionRun(runId: string, pollInterval: number): Promise<ExecutionRunState | null> {
+        const generation = executionMonitorGenerationRef.current + 1
+        executionMonitorGenerationRef.current = generation
         pollingAbortRef.current?.abort()
         const pollingAbortController = new AbortController()
         pollingAbortRef.current = pollingAbortController
-        subscribeToExecutionEvents(runId)
+        const isOwner = (): boolean =>
+            executionMonitorGenerationRef.current === generation && !pollingAbortController.signal.aborted
+        stopEventsRef.current?.()
+        const stopEvents = subscribeToExecutionEvents(runId, isOwner)
+        stopEventsRef.current = stopEvents
 
         try {
             return await pollExecution(
                 runId,
                 pollInterval,
                 (run) => {
+                    if (!isOwner()) {
+                        return
+                    }
                     updateExecutionHighlight(resolveHighlightedNodeId(run, activePlanRef.current))
                     setStatusText(`Run ${run.status} (${Math.round(run.progress)}%)`)
                     applyRunState(run)
@@ -3735,8 +3753,12 @@ function WorkflowEditor() {
             if (pollingAbortRef.current === pollingAbortController) {
                 pollingAbortRef.current = null
             }
-            stopEventsRef.current?.()
-            stopEventsRef.current = null
+            if (executionMonitorGenerationRef.current === generation) {
+                if (stopEventsRef.current === stopEvents) {
+                    stopEventsRef.current = null
+                }
+            }
+            stopEvents()
         }
     }
 

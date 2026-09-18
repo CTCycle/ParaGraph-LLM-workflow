@@ -24,8 +24,10 @@ export function startExecution(
   })
 }
 
-export function getExecution(runId: string): Promise<ExecutionRunState> {
-  return requestJson<ExecutionRunState>(`/executions/${encodeURIComponent(runId)}`)
+export function getExecution(runId: string, options?: { signal?: AbortSignal }): Promise<ExecutionRunState> {
+  return requestJson<ExecutionRunState>(`/executions/${encodeURIComponent(runId)}`, {
+    signal: options?.signal,
+  })
 }
 
 export function cancelExecution(runId: string): Promise<ExecutionActionResponse> {
@@ -99,7 +101,8 @@ export async function pollExecution(
 
   for (;;) {
     if (signal?.aborted) throw createAbortError()
-    const run = await getExecution(runId)
+    const run = await getExecution(runId, { signal })
+    if (signal?.aborted) throw createAbortError()
     onTick?.(run)
     if (run.status !== 'queued' && run.status !== 'running') {
       return run
