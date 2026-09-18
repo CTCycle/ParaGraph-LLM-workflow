@@ -1,8 +1,8 @@
 [run]
-data_file = app/tests/cache/coverage/.coverage
+data_file = runtimes/cache/coverage/.coverage
 
 [html]
-directory = app/tests/cache/coverage/html
+directory = runtimes/cache/coverage/html
 
 [xml]
-output = app/tests/cache/coverage/coverage.xml
+output = runtimes/cache/coverage/coverage.xml

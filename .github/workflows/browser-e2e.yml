@@ -20,6 +20,18 @@ jobs:
     env:
       FASTAPI_HOST: 127.0.0.1
       FASTAPI_PORT: 5002
+      UV_CACHE_DIR: ${{ github.workspace }}/runtimes/cache/uv
+      PYTHONPYCACHEPREFIX: ${{ github.workspace }}/runtimes/cache/pycache
+      RUFF_CACHE_DIR: ${{ github.workspace }}/runtimes/cache/ruff
+      MYPY_CACHE_DIR: ${{ github.workspace }}/runtimes/cache/mypy
+      PIP_CACHE_DIR: ${{ github.workspace }}/runtimes/cache/pip
+      HF_HOME: ${{ github.workspace }}/runtimes/cache/huggingface
+      HF_HUB_CACHE: ${{ github.workspace }}/runtimes/cache/huggingface/hub
+      HF_ASSETS_CACHE: ${{ github.workspace }}/runtimes/cache/huggingface/assets
+      HF_XET_CACHE: ${{ github.workspace }}/runtimes/cache/huggingface/xet
+      TORCH_HOME: ${{ github.workspace }}/runtimes/cache/torch
+      npm_config_cache: ${{ github.workspace }}/runtimes/cache/npm
+      PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/runtimes/cache/playwright/browsers
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -86,6 +98,6 @@ jobs:
           retention-days: 3
           if-no-files-found: ignore
           path: |
-            app/client/playwright-report/
-            app/client/test-results/
+            runtimes/cache/playwright/report/
+            runtimes/cache/playwright/test-results/
             ${{ runner.temp }}/paragraph-backend.log

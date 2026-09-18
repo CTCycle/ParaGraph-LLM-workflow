@@ -4,7 +4,7 @@ import { relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const clientRoot = fileURLToPath(new URL('.', import.meta.url))
-const cacheRoot = resolve(clientRoot, '../../app/tests/cache')
+const cacheRoot = resolve(clientRoot, '../../runtimes/cache')
 const testSetupFile = relative(
     clientRoot,
     fileURLToPath(new URL('./src/test/setup.ts', import.meta.url)),

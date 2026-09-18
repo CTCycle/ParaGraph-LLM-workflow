@@ -14,14 +14,14 @@ The interactive menu provides these options:
 
 - `1` Launch application, then exit the launcher after starting the backend and frontend.
 - `2` Kill all application processes, including the backend, frontend, and backend terminal.
-- `3` Install or update portable runtimes, Python dependencies, frontend dependencies, and the frontend build.
+- `3` Install or update portable runtimes, Python dependencies, frontend dependencies, the Playwright Chromium browser, and the frontend build.
 - `4` Rebuild the frontend only, using the existing frontend dependencies.
 - `5` Initialize or upgrade the application database with Alembic.
 - `6` Run the project test suite.
 - `7` Check for a different `origin/main` revision without downloading or applying changes.
 - `8` Update from `origin/main` with `git pull`; this requires a clean worktree and the `main` branch to be checked out.
 - `9` Remove application log files.
-- `10` Clear runtime caches under `runtimes/cache` and test/tool caches plus generated test/build artifacts under `app/tests/cache`.
+- `10` Clear the complete disposable cache hierarchy under `runtimes/cache`, preserving the tracked `.gitkeep` sentinel and application data.
 - `11` Remove user data and the embedded database, including database sidecars, while preserving application files and settings. This requires an affirmative response at a `[y/N]` confirmation prompt.
 - `12` Uninstall local runtimes, dependencies, caches, and build output while preserving dependency lockfiles, settings, and user data.
 - `13` Exit without changing the workspace.
