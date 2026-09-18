@@ -72,6 +72,9 @@ async def app_lifespan(application: FastAPI) -> AsyncIterator[None]:
     try:
         yield
     finally:
+        from server.services.jobs import job_manager
+
+        job_manager.shutdown()
         reset_database_engines()
 
 ###############################################################################

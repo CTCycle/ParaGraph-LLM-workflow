@@ -13,13 +13,17 @@ from server.contracts.node_handler_http import (
 )
 from server.services.workflow.http_transport import SecureHttpTransport
 from server.services.workflow.nodes.handler import NodeHandler
+from server.services.workflow.nodes.execution_context import get_execution_context
 
 ###############################################################################
 def _http_request_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
 ) -> dict[str, Any]:
     parsed = HttpRequestParameters.model_validate(parameters)
-    result = SecureHttpTransport().execute(parsed, inputs)
+    cancelled = get_execution_context().get("cancelled")
+    result = SecureHttpTransport(
+        cancelled=cancelled if callable(cancelled) else None
+    ).execute(parsed, inputs)
     return {
         "response": result,
         "json": result.get("json"),

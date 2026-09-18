@@ -342,7 +342,7 @@ class NodeRegistry:
         parameters: dict[str, Any],
         inputs: dict[str, Any],
         controllers: dict[str, Any] | None = None,
-        context: dict[str, str] | None = None,
+        context: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         manifest = self.get(node_type, node_version)
         if manifest is None:
