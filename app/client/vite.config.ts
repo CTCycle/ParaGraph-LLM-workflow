@@ -64,7 +64,7 @@ export default defineConfig(({ mode }) => {
     const uiHost = requiredEnv(env, 'UI_HOST')
     const uiPort = requiredPort(env, 'UI_PORT')
     const apiBase = normalizeApiBase(requiredEnv(env, 'VITE_API_BASE_URL'))
-    const cacheRoot = path.resolve(__dirname, '../../app/tests/cache')
+    const cacheRoot = path.resolve(__dirname, '../../runtimes/cache')
     const cacheDir = path.join(cacheRoot, 'vite')
     const buildOutDir = path.join(cacheRoot, 'frontend-dist')
 

@@ -20,33 +20,28 @@ $script:NodeExe = Join-Path $NodeDir 'node.exe'
 $script:NpmCmd = Join-Path $NodeDir 'npm.cmd'
 $script:VenvDir = Join-Path $ServerDir '.venv'
 $script:VenvPython = Join-Path $VenvDir 'Scripts\python.exe'
-$script:RuntimeCacheDir = Join-Path $RuntimesDir 'cache'
-$script:TestCacheDir = Join-Path $TestsDir 'cache'
-$script:UvCacheDir = Join-Path $RuntimeCacheDir 'uv'
-$script:PythonCacheDir = Join-Path $RuntimeCacheDir 'pycache'
-$script:NpmCacheDir = Join-Path $RuntimeCacheDir 'npm'
-$script:PytestCacheDir = Join-Path $TestCacheDir 'pytest'
-$script:PytestTempDir = Join-Path $TestCacheDir 'pytest-tmp'
-$script:RuffCacheDir = Join-Path $TestCacheDir 'ruff'
-$script:CoverageDir = Join-Path $TestCacheDir 'coverage'
+$script:CacheRoot = Join-Path $RuntimesDir 'cache'
+$script:UvCacheDir = Join-Path $CacheRoot 'uv'
+$script:PythonCacheDir = Join-Path $CacheRoot 'pycache'
+$script:NpmCacheDir = Join-Path $CacheRoot 'npm'
+$script:PytestCacheDir = Join-Path $CacheRoot 'pytest'
+$script:PytestTempDir = Join-Path $CacheRoot 'pytest-tmp'
+$script:RuffCacheDir = Join-Path $CacheRoot 'ruff'
+$script:CoverageDir = Join-Path $CacheRoot 'coverage'
 $script:CoverageFile = Join-Path $CoverageDir '.coverage'
-$script:PlaywrightDir = Join-Path $TestCacheDir 'playwright'
+$script:PlaywrightDir = Join-Path $CacheRoot 'playwright'
 $script:PlaywrightBrowsersDir = Join-Path $PlaywrightDir 'browsers'
-$script:ViteCacheDir = Join-Path $TestCacheDir 'vite'
-$script:VitestCacheDir = Join-Path $TestCacheDir 'vitest'
-$script:FrontendBuildDir = Join-Path $TestCacheDir 'frontend-dist'
-$script:LegacyCachePaths = @(
-    (Join-Path $RepoRoot '.uv-cache'),
-    (Join-Path $RepoRoot '.pytest_cache'),
-    (Join-Path $RepoRoot '.ruff_cache'),
-    (Join-Path $RepoRoot '.mypy_cache'),
-    (Join-Path $RepoRoot '.pyright'),
-    (Join-Path $AppDir '.uv-cache'),
-    (Join-Path $ServerDir '.uv-cache'),
-    (Join-Path $ClientDir '.uv-cache'),
-    (Join-Path $TestsDir '.uv-cache'),
-    (Join-Path $RepoRoot 'assets\cache')
-)
+$script:ViteCacheDir = Join-Path $CacheRoot 'vite'
+$script:VitestCacheDir = Join-Path $CacheRoot 'vitest'
+$script:EslintCacheDir = Join-Path $CacheRoot 'eslint'
+$script:MypyCacheDir = Join-Path $CacheRoot 'mypy'
+$script:PipCacheDir = Join-Path $CacheRoot 'pip'
+$script:FrontendBuildDir = Join-Path $CacheRoot 'frontend-dist'
+$script:HuggingFaceCacheDir = Join-Path $CacheRoot 'huggingface'
+$script:HuggingFaceHubCacheDir = Join-Path $HuggingFaceCacheDir 'hub'
+$script:HuggingFaceAssetsCacheDir = Join-Path $HuggingFaceCacheDir 'assets'
+$script:HuggingFaceXetCacheDir = Join-Path $HuggingFaceCacheDir 'xet'
+$script:TorchCacheDir = Join-Path $CacheRoot 'torch'
 $script:DotEnv = Join-Path $SettingsDir '.env'
 $script:DotEnvExample = Join-Path $SettingsDir '.env.example'
 $script:PythonVersion = '3.14.2'
@@ -136,14 +131,14 @@ function Get-LauncherMenuEntries {
     return @(
         [pscustomobject]@{ Section = 'APPLICATION'; Title = 'Launch application'; Description = 'Start the backend and frontend'; Key = 'Launch'; Destructive = $false }
         [pscustomobject]@{ Section = 'APPLICATION'; Title = 'Kill all app processes'; Description = 'Stop the backend, frontend, and terminal'; Key = 'KillProcesses'; Destructive = $true }
-        [pscustomobject]@{ Section = 'SETUP & VALIDATION'; Title = 'Install or update dependencies'; Description = 'Sync runtimes, database, and UI build'; Key = 'Install'; Destructive = $false }
+        [pscustomobject]@{ Section = 'SETUP & VALIDATION'; Title = 'Install or update dependencies'; Description = 'Sync runtimes, dependencies, browser, database, and UI build'; Key = 'Install'; Destructive = $false }
         [pscustomobject]@{ Section = 'SETUP & VALIDATION'; Title = 'Rebuild frontend'; Description = 'Build the frontend only'; Key = 'Rebuild'; Destructive = $false }
         [pscustomobject]@{ Section = 'SETUP & VALIDATION'; Title = 'Initialize or upgrade database'; Description = 'Apply SQLite/Alembic migrations'; Key = 'Database'; Destructive = $false }
         [pscustomobject]@{ Section = 'SETUP & VALIDATION'; Title = 'Run test suite'; Description = 'Execute project checks'; Key = 'Tests'; Destructive = $false }
         [pscustomobject]@{ Section = 'SOURCE CONTROL'; Title = 'Check for updates'; Description = 'Report origin/main status only'; Key = 'Check'; Destructive = $false }
         [pscustomobject]@{ Section = 'SOURCE CONTROL'; Title = 'Update from main'; Description = 'Pull latest code from origin/main'; Key = 'Update'; Destructive = $false }
         [pscustomobject]@{ Section = 'DATA & MAINTENANCE'; Title = 'Remove log files'; Description = 'Delete local application logs'; Key = 'Logs'; Destructive = $true }
-        [pscustomobject]@{ Section = 'DATA & MAINTENANCE'; Title = 'Clear runtime cache'; Description = 'Remove runtime and test/tool caches'; Key = 'Cache'; Destructive = $true }
+        [pscustomobject]@{ Section = 'DATA & MAINTENANCE'; Title = 'Clear canonical cache hierarchy'; Description = 'Remove all disposable data under runtimes/cache'; Key = 'Cache'; Destructive = $true }
         [pscustomobject]@{ Section = 'DATA & MAINTENANCE'; Title = 'Remove all data'; Description = 'Delete user data and database'; Key = 'AllData'; Destructive = $true }
         [pscustomobject]@{ Section = 'DATA & MAINTENANCE'; Title = 'Uninstall application'; Description = 'Remove local runtimes and packages'; Key = 'Uninstall'; Destructive = $true }
         [pscustomobject]@{ Section = 'EXIT'; Title = 'Exit'; Description = 'Close this launcher'; Key = 'Exit'; Destructive = $false }
@@ -223,11 +218,10 @@ function Clear-PythonEnvironment {
 
 function Set-LauncherEnvironment {
     New-Item -ItemType Directory -Path @(
-        $RuntimeCacheDir,
+        $CacheRoot,
         $UvCacheDir,
         $PythonCacheDir,
         $NpmCacheDir,
-        $TestCacheDir,
         $PytestCacheDir,
         $PytestTempDir,
         $RuffCacheDir,
@@ -235,6 +229,13 @@ function Set-LauncherEnvironment {
         $PlaywrightBrowsersDir,
         $ViteCacheDir,
         $VitestCacheDir,
+        $EslintCacheDir,
+        $MypyCacheDir,
+        $PipCacheDir,
+        $HuggingFaceHubCacheDir,
+        $HuggingFaceAssetsCacheDir,
+        $HuggingFaceXetCacheDir,
+        $TorchCacheDir,
         $FrontendBuildDir
     ) -Force | Out-Null
     $env:UV_CACHE_DIR = $UvCacheDir
@@ -242,9 +243,16 @@ function Set-LauncherEnvironment {
     $env:UV_LINK_MODE = 'copy'
     $env:PYTHONPYCACHEPREFIX = $PythonCacheDir
     $env:RUFF_CACHE_DIR = $RuffCacheDir
+    $env:MYPY_CACHE_DIR = $MypyCacheDir
+    $env:PIP_CACHE_DIR = $PipCacheDir
     $env:COVERAGE_FILE = $CoverageFile
     $env:npm_config_cache = $NpmCacheDir
     $env:PLAYWRIGHT_BROWSERS_PATH = $PlaywrightBrowsersDir
+    $env:HF_HOME = $HuggingFaceCacheDir
+    $env:HF_HUB_CACHE = $HuggingFaceHubCacheDir
+    $env:HF_ASSETS_CACHE = $HuggingFaceAssetsCacheDir
+    $env:HF_XET_CACHE = $HuggingFaceXetCacheDir
+    $env:TORCH_HOME = $TorchCacheDir
     $env:PATH = "$NodeDir;$($env:PATH)"
     Clear-PythonEnvironment
 }
@@ -416,6 +424,8 @@ function Sync-Dependencies {
         if ($LASTEXITCODE -ne 0) { throw "npm dependency installation failed with exit code $LASTEXITCODE" }
     } finally { Pop-Location }
 
+    Install-PlaywrightBrowser
+
     if ($PruneCache) {
         Write-Step 'Pruning uv cache'
         if (-not (Clear-CacheDirectory -Path $UvCacheDir)) {
@@ -433,6 +443,21 @@ function Build-Frontend {
         if ($LASTEXITCODE -ne 0) { throw "Frontend build failed with exit code $LASTEXITCODE" }
     } finally { Pop-Location }
     Write-Ok 'Frontend build is ready.'
+}
+
+function Install-PlaywrightBrowser {
+    $playwrightCommand = Join-Path $ClientDir 'node_modules\.bin\playwright.cmd'
+    if (-not (Test-Path -LiteralPath $playwrightCommand)) {
+        throw "Playwright runner not found at $playwrightCommand"
+    }
+
+    Write-Step 'Installing Playwright Chromium browser'
+    Push-Location $ClientDir
+    try {
+        & $playwrightCommand install chromium
+        if ($LASTEXITCODE -ne 0) { throw "Playwright browser installation failed with exit code $LASTEXITCODE" }
+    } finally { Pop-Location }
+    Write-Ok "Playwright Chromium browser is ready under $PlaywrightBrowsersDir."
 }
 
 function Ensure-NodeRuntime {
@@ -929,9 +954,11 @@ function Clear-CacheDirectory {
 
 function Remove-PythonCaches {
     $allRemoved = $true
+    $venvRoot = ([IO.Path]::GetFullPath($VenvDir)).TrimEnd('\') + '\'
     foreach ($root in @($ServerDir, $TestsDir)) {
         if (-not (Test-Path -LiteralPath $root -ErrorAction SilentlyContinue)) { continue }
         $cacheDirectories = @(Get-ChildItem -LiteralPath $root -Directory -Filter '__pycache__' -Recurse -Force -ErrorAction SilentlyContinue |
+            Where-Object { -not ([IO.Path]::GetFullPath($_.FullName)).StartsWith($venvRoot, [StringComparison]::OrdinalIgnoreCase) } |
             Sort-Object @{ Expression = { $_.FullName.Length }; Descending = $true }, @{ Expression = { $_.FullName.ToUpperInvariant() }; Descending = $false })
         foreach ($cacheDirectory in $cacheDirectories) {
             if (-not (Remove-PathBestEffort -Path $cacheDirectory.FullName)) { $allRemoved = $false }
@@ -941,23 +968,19 @@ function Remove-PythonCaches {
 }
 
 function Clear-DeveloperCache {
-    $allRemoved = $true
-    foreach ($cacheRoot in @($RuntimeCacheDir, $TestCacheDir) + $script:LegacyCachePaths) {
-        if (-not (Clear-CacheDirectory -Path $cacheRoot)) { $allRemoved = $false }
-    }
-    return $allRemoved
+    return Clear-CacheDirectory -Path $CacheRoot
 }
 
 function Clear-ApplicationCache {
-    if (-not (Confirm-DestructiveAction 'clear runtime and test/tool caches')) { return }
+    if (-not (Confirm-DestructiveAction 'clear the canonical runtime, test/tool, browser, frontend, and library cache hierarchy under runtimes/cache')) { return }
     $script:SkippedCacheCount = 0
     $script:FirstSkippedCachePath = $null
     $allRemoved = Remove-PythonCaches
     if (-not (Clear-DeveloperCache)) { $allRemoved = $false }
     if ($allRemoved) {
-        Write-Ok 'Runtime and test/tool caches were removed.'
+        Write-Ok 'The canonical cache hierarchy under runtimes/cache was removed.'
     } else {
-        Write-Warn ("Runtime and test/tool caches were cleared where permitted; {0} locked or protected entries were skipped. First skipped path: {1}" -f $script:SkippedCacheCount, $script:FirstSkippedCachePath)
+        Write-Warn ("The canonical cache hierarchy under runtimes/cache was cleared where permitted; {0} locked or protected entries were skipped. First skipped path: {1}" -f $script:SkippedCacheCount, $script:FirstSkippedCachePath)
     }
 }
 
@@ -979,8 +1002,7 @@ function Uninstall-Application {
     $script:FirstSkippedCachePath = $null
     $allRemoved = $true
     foreach ($relativePath in @(
-        'runtimes', 'app\server\.venv', '.venv', 'app\client\node_modules',
-        'app\client\.angular', 'app\client\dist'
+        'runtimes', 'app\server\.venv', '.venv', 'app\client\node_modules'
     )) {
         if (-not (Remove-RepoItem -RelativePath $relativePath)) { $allRemoved = $false }
     }

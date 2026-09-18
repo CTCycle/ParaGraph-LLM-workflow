@@ -3,8 +3,8 @@ import { defineConfig, devices } from '@playwright/test'
 import { fileURLToPath } from 'node:url'
 
 const clientRoot = fileURLToPath(new URL('.', import.meta.url))
-const cacheRoot = path.resolve(clientRoot, '../../app/tests/cache/playwright')
-process.env.PLAYWRIGHT_BROWSERS_PATH ??= path.join(cacheRoot, 'browsers')
+const cacheRoot = path.resolve(clientRoot, '../../runtimes/cache/playwright')
+process.env.PLAYWRIGHT_BROWSERS_PATH = path.join(cacheRoot, 'browsers')
 
 export default defineConfig({
     testDir: './tests/e2e',

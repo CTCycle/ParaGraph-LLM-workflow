@@ -41,4 +41,4 @@ Last updated: 2026-09-18
 ## Shared Runtime Data
 - Shared runtime data lives under `PARAGRAPH_RESOURCES_DIR` when configured, or under `app/resources` by default. This includes the SQLite database, logs, artifacts, node assets, workflow templates, and model assets. The active workflow graph remains in browser storage and JSON exports.
 - The launcher imports `settings/.env` into the process environment before starting either process. `FASTAPI_HOST`, `FASTAPI_PORT`, `UI_HOST`, `UI_PORT`, and `RELOAD` are required; missing or invalid runtime values fail fast rather than selecting hidden port fallbacks.
-- Runtime caches are kept under `runtimes/cache`, while test/tool caches and generated test/build artifacts are kept under `app/tests/cache`. These are separate from application runtime data and user resources.
+- All disposable runtime, test, tool, browser, and generated frontend-build data is kept under `runtimes/cache`. This hierarchy is separate from persistent application runtime data and user resources under `app/resources`.

@@ -6,10 +6,7 @@ import globals from "globals";
 export default [
   {
     ignores: [
-      "dist/**",
-      ".vite/**",
       "node_modules/**",
-      "test-results/**",
     ],
   },
   js.configs.recommended,

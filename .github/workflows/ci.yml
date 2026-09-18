@@ -21,6 +21,17 @@ jobs:
     timeout-minutes: 20
     env:
       PYTHONPATH: app
+      UV_CACHE_DIR: ${{ github.workspace }}/runtimes/cache/uv
+      PYTHONPYCACHEPREFIX: ${{ github.workspace }}/runtimes/cache/pycache
+      RUFF_CACHE_DIR: ${{ github.workspace }}/runtimes/cache/ruff
+      MYPY_CACHE_DIR: ${{ github.workspace }}/runtimes/cache/mypy
+      PIP_CACHE_DIR: ${{ github.workspace }}/runtimes/cache/pip
+      COVERAGE_FILE: ${{ github.workspace }}/runtimes/cache/coverage/.coverage
+      HF_HOME: ${{ github.workspace }}/runtimes/cache/huggingface
+      HF_HUB_CACHE: ${{ github.workspace }}/runtimes/cache/huggingface/hub
+      HF_ASSETS_CACHE: ${{ github.workspace }}/runtimes/cache/huggingface/assets
+      HF_XET_CACHE: ${{ github.workspace }}/runtimes/cache/huggingface/xet
+      TORCH_HOME: ${{ github.workspace }}/runtimes/cache/torch
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -47,11 +58,14 @@ jobs:
         run: uv run --project app/server python -m compileall app/server/app.py app/server/api app/server/common app/server/configurations app/server/contracts app/server/repositories app/server/services
 
       - name: Run Backend Tests
-        run: uv run --project app/server python -m pytest app/tests/unit/server app/tests/e2e/server/test_execution_lifecycle.py app/tests/e2e/server/test_database_workflow_nodes.py
+        run: uv run --project app/server python -m pytest -c pytest.ini app/tests/unit/server app/tests/e2e/server/test_execution_lifecycle.py app/tests/e2e/server/test_database_workflow_nodes.py --basetemp=runtimes/cache/pytest-tmp
 
   frontend-validation:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      npm_config_cache: ${{ github.workspace }}/runtimes/cache/npm
+      PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/runtimes/cache/playwright/browsers
     steps:
       - name: Checkout
         uses: actions/checkout@v4
