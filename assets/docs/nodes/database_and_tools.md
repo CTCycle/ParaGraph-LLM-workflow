@@ -1,5 +1,5 @@
 # Database And Tools
-Last updated: 2026-08-27
+Last updated: 2026-09-18
 
 ## Database Nodes
 - The database category includes SQL database connection nodes, CRUD create, read, update, delete, and upsert nodes, plus a custom SQL node.
@@ -26,6 +26,7 @@ Last updated: 2026-08-27
 ## Tool Collection
 - `TOOL_SCHEMA_COLLECTION` creates a deterministic, schema-only `TOOL_COLLECTION_HANDLE` from JSON Schema definitions or signature text. It never imports or executes Python and does not allocate a runtime executable registry.
 - `PYTHON_TOOL_COLLECTION` creates an explicitly executable, run-scoped `TOOL_COLLECTION_HANDLE` from inline Python functions or local `.py` files. It is non-deterministic and side-effect-capable because loading Python can execute module-level code.
+- Executable Python tool collections are trusted-local features and are rejected when `PARAGRAPH_CLOUD_MODE=true`; use `TOOL_SCHEMA_COLLECTION` for cloud-mode workflows.
 - `TOOL_COLLECTION` remains available as an advanced mixed-source node and is conservatively marked non-deterministic and side-effect-capable.
 - Callable signatures are converted into JSON Schema parameter definitions.
 

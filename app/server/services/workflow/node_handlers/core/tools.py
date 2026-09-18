@@ -13,6 +13,7 @@ from uuid import uuid4
 
 from pydantic import ValidationError
 
+from server.common.security import is_cloud_deployment
 from server.contracts.node_catalog import ProviderModelDefinition
 from server.contracts.node_handler_core import (
     ToolCallParameters,
@@ -286,6 +287,10 @@ def _tool_collection_executor(
     allowed_source_types: set[str] | None = None,
 ) -> dict[str, Any]:
     parsed = ToolCollectionParameters.model_validate(parameters)
+    if parsed.source_type in {"inline_python", "python_file"} and is_cloud_deployment():
+        raise ValueError(
+            "Executable Python tool collections are disabled in cloud deployments"
+        )
     if (
         allowed_source_types is not None
         and parsed.source_type not in allowed_source_types
