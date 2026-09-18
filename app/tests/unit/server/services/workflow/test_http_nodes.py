@@ -128,6 +128,88 @@ def test_file_response_commits_only_an_accepted_response(
     assert not list(tmp_path.glob("*.partial-*"))
 
 ###############################################################################
+def test_file_request_body_is_replayed_for_status_retry(
+    tmp_path: Path, monkeypatch
+) -> None:
+    monkeypatch.setattr(common_path, "ARTIFACT_ROOT", tmp_path)
+    (tmp_path / "request.bin").write_bytes(b"request-payload")
+    seen: list[bytes] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request.content)
+        return httpx.Response(503 if len(seen) == 1 else 200)
+
+    _execute(
+        handler,
+        parameters={
+            "method": "PUT",
+            "body_mode": "file",
+            "upload_path": "request.bin",
+            "max_attempts": 2,
+        },
+    )
+
+    assert seen == [b"request-payload", b"request-payload"]
+
+###############################################################################
+def test_retry_rebuilds_basic_auth_after_cross_origin_redirect(monkeypatch) -> None:
+    monkeypatch.setattr(
+        SecureHttpTransport,
+        "_resolve_credentials",
+        staticmethod(lambda parameters: ("secret", None)),
+    )
+    seen: list[tuple[str, str | None]] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append((str(request.url), request.headers.get("Authorization")))
+        if len(seen) == 1:
+            return httpx.Response(302, headers={"Location": "https://other.test/final"})
+        if len(seen) == 2:
+            return httpx.Response(503)
+        return httpx.Response(200, json={"ok": True})
+
+    result = _execute(
+        handler,
+        parameters={
+            "auth_mode": "basic",
+            "credential_profile": "profile",
+            "username": "user",
+            "max_redirects": 1,
+            "max_attempts": 2,
+            "retry_statuses": [503],
+        },
+    )
+
+    assert result["json"] == {"ok": True}
+    assert seen[0][0].startswith("https://93.184.216.34")
+    assert seen[0][1].startswith("Basic ")
+    assert seen[1][0].startswith("https://93.184.216.34")
+    assert seen[1][1] is None
+    assert seen[2][0].startswith("https://93.184.216.34")
+    assert seen[2][1].startswith("Basic ")
+
+###############################################################################
+def test_retry_backoff_rechecks_cancellation() -> None:
+    cancelled = False
+    delays: list[float] = []
+
+    def sleep(delay: float) -> None:
+        nonlocal cancelled
+        delays.append(delay)
+        cancelled = True
+
+    with pytest.raises(HttpTransportError) as error:
+        _execute(
+            lambda request: httpx.Response(503),
+            parameters={"max_attempts": 2},
+            sleep=sleep,
+            cancelled=lambda: cancelled,
+        )
+
+    assert error.value.code == "cancelled"
+    assert len(delays) == 1
+
+###############################################################################
 def test_retry_after_and_idempotency_key_retention() -> None:
     calls: list[str] = []
     delays: list[float] = []
@@ -221,6 +303,10 @@ def test_method_specific_http_nodes_share_the_transport_executor(
 
     ###############################################################################
     class FakeTransport:
+
+        # -------------------------------------------------------------------------
+        def __init__(self, **kwargs) -> None:
+            pass
 
         # -------------------------------------------------------------------------
         def execute(self, parameters, inputs):

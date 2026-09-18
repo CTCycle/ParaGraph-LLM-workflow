@@ -169,6 +169,36 @@ class SecureHttpTransport:
 
     # -------------------------------------------------------------------------
     @staticmethod
+    def _rewind_request_bodies(opened: list[Any]) -> None:
+        for handle in opened:
+            try:
+                handle.seek(0)
+            except (OSError, ValueError) as exc:
+                raise HttpTransportError(
+                    "invalid_body", "HTTP request body could not be rewound"
+                ) from exc
+
+    # -------------------------------------------------------------------------
+    def _wait_before_retry(
+        self, delay: float, *, started: float, overall_timeout: float
+    ) -> None:
+        if self._cancelled():
+            raise HttpTransportError("cancelled", "HTTP request was cancelled")
+        remaining = overall_timeout - (time.monotonic() - started)
+        if remaining <= 0:
+            raise HttpTransportError(
+                "overall_timeout", "HTTP overall timeout elapsed"
+            )
+        self._sleep(min(max(delay, 0.0), remaining))
+        if self._cancelled():
+            raise HttpTransportError("cancelled", "HTTP request was cancelled")
+        if time.monotonic() - started >= overall_timeout:
+            raise HttpTransportError(
+                "overall_timeout", "HTTP overall timeout elapsed"
+            )
+
+    # -------------------------------------------------------------------------
+    @staticmethod
     def _resolve_artifact_path(path_value: str) -> Path:
         candidate = Path(path_value).expanduser()
         if not candidate.is_absolute():
@@ -247,13 +277,13 @@ class SecureHttpTransport:
         headers = {str(key): str(value) for key, value in parameters.headers.items()}
         if parameters.idempotency_key:
             headers["Idempotency-Key"] = parameters.idempotency_key
-        auth: httpx.Auth | None = None
+        base_auth: httpx.Auth | None = None
         if parameters.auth_mode == "bearer":
             headers["Authorization"] = f"Bearer {secret}"
         elif parameters.auth_mode == "api_key":
             headers[parameters.api_key_header] = secret
         elif parameters.auth_mode == "basic":
-            auth = httpx.BasicAuth(parameters.username, secret)
+            base_auth = httpx.BasicAuth(parameters.username, secret)
 
         body_kwargs, opened = self._request_content(parameters, inputs)
         attempts: list[dict[str, Any]] = []
@@ -281,6 +311,7 @@ class SecureHttpTransport:
                         )
                     current_url = initial_url
                     current_headers = dict(headers)
+                    attempt_auth = base_auth
                     redirects = 0
                     try:
                         while True:
@@ -294,12 +325,13 @@ class SecureHttpTransport:
                                 else f"{original_host}:{origin[2]}"
                             )
                             extensions = {"sni_hostname": original_host.encode("ascii")}
+                            self._rewind_request_bodies(opened)
                             with client.stream(
                                 parameters.method,
                                 pinned_url,
                                 params=parameters.query,
                                 headers=current_headers,
-                                auth=auth,
+                                auth=attempt_auth,
                                 extensions=extensions,
                                 **body_kwargs,
                             ) as response:
@@ -338,7 +370,7 @@ class SecureHttpTransport:
                                                 "idempotency-key",
                                             }
                                         }
-                                        auth = None
+                                        attempt_auth = None
                                     current_url = target
                                     redirects += 1
                                     continue
@@ -375,9 +407,15 @@ class SecureHttpTransport:
                                         else:
                                             chunks.append(chunk)
                                         if (
-                                            time.monotonic() - started
+                                            self._cancelled()
+                                            or time.monotonic() - started
                                             >= parameters.overall_timeout
                                         ):
+                                            if self._cancelled():
+                                                raise HttpTransportError(
+                                                    "cancelled",
+                                                    "HTTP request was cancelled",
+                                                )
                                             raise HttpTransportError(
                                                 "overall_timeout",
                                                 "HTTP overall timeout elapsed",
@@ -424,7 +462,11 @@ class SecureHttpTransport:
                                         if partial_path:
                                             partial_path.unlink(missing_ok=True)
                                             partial_path = None
-                                        self._sleep(delay)
+                                        self._wait_before_retry(
+                                            delay,
+                                            started=started,
+                                            overall_timeout=parameters.overall_timeout,
+                                        )
                                         break
                                     raise HttpTransportError(
                                         "http_status",
@@ -485,12 +527,19 @@ class SecureHttpTransport:
                                 "HTTP transport failed",
                                 attempts=attempts,
                             ) from exc
+                        if partial_path:
+                            partial_path.unlink(missing_ok=True)
+                            partial_path = None
                         delay = min(
                             parameters.backoff_seconds * (2 ** (attempt - 1)),
                             parameters.max_retry_delay,
                         )
                         attempts[-1]["retry_delay_seconds"] = delay
-                        self._sleep(delay)
+                        self._wait_before_retry(
+                            delay,
+                            started=started,
+                            overall_timeout=parameters.overall_timeout,
+                        )
         finally:
             for handle in opened:
                 handle.close()
