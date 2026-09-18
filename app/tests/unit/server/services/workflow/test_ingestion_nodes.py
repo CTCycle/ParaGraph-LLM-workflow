@@ -211,5 +211,7 @@ def test_sql_database_emits_only_an_opaque_credential_reference(monkeypatch) -> 
     )
 
     assert result["connection"]["credential_ref"] == "db-credential-ref"
+    assert result["connection"]["credential_profile"] == "production"
+    assert result["connection"]["credential_provider"] == "postgres"
     assert "password" not in captured
     assert "database-secret" not in str(result)

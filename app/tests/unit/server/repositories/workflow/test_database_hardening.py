@@ -7,6 +7,7 @@ from sqlalchemy import Column, Integer, MetaData, String, Table, create_engine, 
 from sqlalchemy.dialects.postgresql import dialect as postgresql_dialect
 from sqlalchemy.dialects.postgresql import insert as postgresql_insert
 
+from server.contracts.configuration import ProviderConfiguration
 from server.repositories.workflow import database as database_repository
 from server.repositories.workflow.database import (
     build_database_url,
@@ -110,6 +111,37 @@ def test_engine_reuse_disposal_and_credential_safe_identity(database: Path) -> N
     assert "secret" not in engine_registry.identity(connection)
     reset_database_engines()
     assert engine_registry.size() == 0
+
+###############################################################################
+def test_stable_credential_metadata_resolves_after_process_registry_reset(
+    monkeypatch,
+) -> None:
+    from server.services.configuration import configuration_service
+
+    monkeypatch.setattr(
+        configuration_service,
+        "resolve_provider_configuration",
+        lambda *, profile_name, provider: ProviderConfiguration(
+            provider=provider, api_key="database-secret"
+        ),
+    )
+    connection = {
+        "engine": "postgres",
+        "database_name": "workflow_db",
+        "host": "db.example.test",
+        "port": 5432,
+        "username": "workflow_user",
+        "credential_ref": "expired-process-reference",
+        "credential_profile": "production",
+        "credential_provider": "postgres",
+        "options": {},
+    }
+
+    reset_database_engines()
+    url, _ = build_database_url(connection)
+
+    assert url.password == "database-secret"
+    assert "database-secret" not in engine_registry.identity(connection)
 
 ###############################################################################
 def test_read_only_enforcement_and_parameterized_single_statement_sql(

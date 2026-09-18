@@ -57,6 +57,8 @@ def _validate_and_build_database_connection(
             "port": parsed.port,
             "username": parsed.username or None,
             "credential_ref": parsed.credential_ref or None,
+            "credential_profile": parsed.credential_profile or None,
+            "credential_provider": parsed.credential_provider or None,
             "file_path": resolved_file_path,
             "read_only": False,
             "options": {
@@ -84,6 +86,8 @@ def _sql_database_executor(
         "port": parsed.db_port,
         "username": parsed.db_user,
         "credential_ref": credential_ref,
+        "credential_profile": parsed.credential_profile,
+        "credential_provider": parsed.db_engine,
         "file_path": "",
         "options": _build_sql_connection_options(
             db_ssl=parsed.db_ssl, db_ssl_ca=parsed.db_ssl_ca

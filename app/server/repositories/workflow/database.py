@@ -51,13 +51,42 @@ def _resolve_password(payload: dict[str, Any]) -> str:
     if "password" in payload:
         raise ValueError("Database connections must use an opaque credential_ref")
     reference = str(payload.get("credential_ref") or "")
-    if not reference:
-        raise ValueError("Server database connections require an opaque credential_ref")
-    with _credential_lock:
-        password = _credential_passwords.get(reference)
-    if password is None:
-        raise ValueError("Database credential reference is unavailable")
-    return password
+    if reference:
+        with _credential_lock:
+            password = _credential_passwords.get(reference)
+        if password is not None:
+            return password
+
+    profile_name = str(payload.get("credential_profile") or "").strip()
+    provider_name = str(payload.get("credential_provider") or "").strip()
+    if profile_name and provider_name:
+        # Resolve durable credential metadata lazily so completed database
+        # steps remain usable after the process-local reference is lost.
+        from server.services.configuration import configuration_service
+
+        try:
+            configuration = configuration_service.resolve_provider_configuration(
+                profile_name=profile_name,
+                provider=provider_name,
+            )
+        except (KeyError, ValueError) as exc:
+            raise ValueError(
+                "RECOVERY_UNAVAILABLE: database credential profile is unavailable"
+            ) from exc
+        password = configuration.api_key
+        if password:
+            return password
+        raise ValueError(
+            "RECOVERY_UNAVAILABLE: database credential profile has no secret"
+        )
+
+    if reference:
+        raise ValueError(
+            "RECOVERY_UNAVAILABLE: database credential reference is unavailable"
+        )
+    raise ValueError(
+        "Server database connections require an opaque credential_ref or stable credential metadata"
+    )
 
 ###############################################################################
 def _resolve_local_path(path_value: str) -> Path:
@@ -127,6 +156,8 @@ class EngineRegistry:
     def identity(connection: dict[str, Any]) -> str:
         handle = DatabaseConnectionHandle.model_validate(connection)
         payload = handle.model_dump(mode="json")
+        if handle.credential_profile and handle.credential_provider:
+            payload.pop("credential_ref", None)
         canonical = json.dumps(payload, sort_keys=True, default=str)
         return hashlib.sha256(canonical.encode()).hexdigest()
 
