@@ -16,6 +16,83 @@ function normalizeApiBase(rawValue: string | undefined): string {
 
 const API_BASE = normalizeApiBase(import.meta.env.VITE_API_BASE_URL)
 
+export type ApiValidationIssue = {
+    loc?: unknown[]
+    msg?: string
+    type?: string
+    [key: string]: unknown
+}
+
+export class ApiError extends Error {
+    readonly status: number
+    readonly statusText: string
+    readonly detail: unknown
+    readonly validationIssues: ApiValidationIssue[]
+
+    constructor(
+        message: string,
+        response: Response,
+        detail: unknown,
+        validationIssues: ApiValidationIssue[] = [],
+    ) {
+        super(message)
+        this.name = 'ApiError'
+        this.status = response.status
+        this.statusText = response.statusText
+        this.detail = detail
+        this.validationIssues = validationIssues
+    }
+}
+
+function formatValidationIssue(issue: ApiValidationIssue): string {
+    const message = typeof issue.msg === 'string' ? issue.msg : 'Invalid value'
+    const location = Array.isArray(issue.loc) && issue.loc.length > 0
+        ? `${issue.loc.join('.')}: `
+        : ''
+    return `${location}${message}`
+}
+
+function normalizeApiDetail(detail: unknown): {
+    message: string
+    validationIssues: ApiValidationIssue[]
+} {
+    if (typeof detail === 'string' && detail.trim()) {
+        return { message: detail, validationIssues: [] }
+    }
+    if (Array.isArray(detail)) {
+        const strings = detail.filter((item): item is string => typeof item === 'string')
+        const issues = detail.filter((item): item is ApiValidationIssue => (
+            typeof item === 'object' && item !== null && !Array.isArray(item)
+        ))
+        const messages = [
+            ...strings,
+            ...issues.map(formatValidationIssue),
+        ].filter(Boolean)
+        if (messages.length > 0) {
+            return { message: messages.join('; '), validationIssues: issues }
+        }
+    }
+    return { message: '', validationIssues: [] }
+}
+
+export async function createApiError(response: Response): Promise<ApiError> {
+    const fallback = `${response.status} ${response.statusText}`
+    let detail: unknown
+    try {
+        const payload = (await response.json()) as { detail?: unknown }
+        detail = payload.detail
+    } catch {
+        // Use the HTTP status when the response body is not JSON.
+    }
+    const normalized = normalizeApiDetail(detail)
+    return new ApiError(
+        normalized.message || fallback,
+        response,
+        detail,
+        normalized.validationIssues,
+    )
+}
+
 export async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
     const response = await fetch(`${API_BASE}${path}`, {
         headers: { 'Content-Type': 'application/json', ...(init?.headers || {}) },
@@ -23,18 +100,7 @@ export async function requestJson<T>(path: string, init?: RequestInit): Promise<
     })
 
     if (!response.ok) {
-        let detail = `${response.status} ${response.statusText}`
-        try {
-            const payload = (await response.json()) as { detail?: string | string[] }
-            if (Array.isArray(payload.detail)) {
-                detail = payload.detail.join('; ')
-            } else if (payload.detail) {
-                detail = payload.detail
-            }
-        } catch {
-            // Use default status detail.
-        }
-        throw new Error(detail)
+        throw await createApiError(response)
     }
 
     return (await response.json()) as T
