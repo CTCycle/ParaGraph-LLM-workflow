@@ -101,7 +101,11 @@ class ConfigurationService:
 
     # -------------------------------------------------------------------------
     def resolve_provider_configuration(
-        self, *, profile_name: str, provider: str
+        self,
+        *,
+        profile_name: str,
+        provider: str,
+        session_name: str | None = None,
     ) -> ProviderConfiguration:
         """Resolve one saved provider credential without changing active config."""
         normalized_profile_name = profile_name.strip()
@@ -112,7 +116,7 @@ class ConfigurationService:
             raise ValueError("credential provider is required")
 
         profile = self.load_configuration_profile(
-            session_name=None, profile_name=normalized_profile_name
+            session_name=session_name, profile_name=normalized_profile_name
         )
         provider_names = {normalized_provider}
         if normalized_provider in {"postgres", "postgresql"}:

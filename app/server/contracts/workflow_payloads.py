@@ -39,6 +39,7 @@ class DatabaseConnectionHandle(BaseModel):
     credential_ref: str | None = None
     credential_profile: str | None = None
     credential_provider: str | None = None
+    credential_session_name: str | None = None
     file_path: str | None = None
     read_only: bool = True
     options: dict[str, Any] = Field(default_factory=dict)

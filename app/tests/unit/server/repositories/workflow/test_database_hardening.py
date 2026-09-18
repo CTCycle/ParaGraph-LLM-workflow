@@ -118,12 +118,22 @@ def test_stable_credential_metadata_resolves_after_process_registry_reset(
 ) -> None:
     from server.services.configuration import configuration_service
 
+    captured: dict[str, object] = {}
+
+    def resolve_configuration(
+        *, profile_name: str, provider: str, session_name: str | None = None
+    ) -> ProviderConfiguration:
+        captured.update(
+            profile_name=profile_name,
+            provider=provider,
+            session_name=session_name,
+        )
+        return ProviderConfiguration(provider=provider, api_key="database-secret")
+
     monkeypatch.setattr(
         configuration_service,
         "resolve_provider_configuration",
-        lambda *, profile_name, provider: ProviderConfiguration(
-            provider=provider, api_key="database-secret"
-        ),
+        resolve_configuration,
     )
     connection = {
         "engine": "postgres",
@@ -134,6 +144,7 @@ def test_stable_credential_metadata_resolves_after_process_registry_reset(
         "credential_ref": "expired-process-reference",
         "credential_profile": "production",
         "credential_provider": "postgres",
+        "credential_session_name": "tenant-a",
         "options": {},
     }
 
@@ -142,6 +153,7 @@ def test_stable_credential_metadata_resolves_after_process_registry_reset(
 
     assert url.password == "database-secret"
     assert "database-secret" not in engine_registry.identity(connection)
+    assert captured["session_name"] == "tenant-a"
 
 ###############################################################################
 def test_read_only_enforcement_and_parameterized_single_statement_sql(

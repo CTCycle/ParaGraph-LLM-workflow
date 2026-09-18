@@ -388,6 +388,7 @@ def _vector_store_executor(
         provider_configuration = configuration_service.resolve_provider_configuration(
             profile_name=parsed.credential_profile,
             provider=parsed.provider,
+            session_name=parsed.credential_session_name or None,
         )
         resolved_api_key = provider_configuration.api_key or ""
         resolved_endpoint = resolved_endpoint or provider_configuration.base_url or ""
@@ -404,6 +405,7 @@ def _vector_store_executor(
         provider_config={
             **parsed.provider_config,
             "credential_profile": parsed.credential_profile,
+            "credential_session_name": parsed.credential_session_name,
             "provider": parsed.provider,
         },
         index_type=parsed.index_type,

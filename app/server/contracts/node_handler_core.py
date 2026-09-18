@@ -302,6 +302,7 @@ class VectorStoreParameters(BaseModel):
     storage_path: str = ""
     endpoint_url: str = ""
     credential_profile: str = ""
+    credential_session_name: str = ""
     collection_name: str = ""
     database_name: str = ""
     provider_config: dict[str, Any] = Field(default_factory=dict)

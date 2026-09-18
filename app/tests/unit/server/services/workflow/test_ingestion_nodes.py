@@ -171,13 +171,19 @@ def test_sql_database_requires_required_fields_before_connect_attempt() -> None:
 ###############################################################################
 def test_sql_database_emits_only_an_opaque_credential_reference(monkeypatch) -> None:
     captured: dict[str, object] = {}
+
+    def resolve_configuration(
+        *, profile_name: str, provider: str, session_name: str | None = None
+    ) -> ProviderConfiguration:
+        captured["profile_name"] = profile_name
+        captured["provider"] = provider
+        captured["session_name"] = session_name
+        return ProviderConfiguration(provider=provider, api_key="database-secret")
+
     monkeypatch.setattr(
         configuration_service,
         "resolve_provider_configuration",
-        lambda *, profile_name, provider: ProviderConfiguration(
-            provider=provider,
-            api_key="database-secret",
-        ),
+        resolve_configuration,
     )
     monkeypatch.setattr(
         database_connections_module,
@@ -203,6 +209,7 @@ def test_sql_database_emits_only_an_opaque_credential_reference(monkeypatch) -> 
             "db_name": "workflow",
             "db_user": "workflow_user",
             "credential_profile": "production",
+            "credential_session_name": "tenant-a",
             "db_ssl": False,
             "db_ssl_ca": "",
             "db_connect_timeout": 30,
@@ -213,5 +220,7 @@ def test_sql_database_emits_only_an_opaque_credential_reference(monkeypatch) -> 
     assert result["connection"]["credential_ref"] == "db-credential-ref"
     assert result["connection"]["credential_profile"] == "production"
     assert result["connection"]["credential_provider"] == "postgres"
+    assert result["connection"]["credential_session_name"] == "tenant-a"
+    assert captured["session_name"] == "tenant-a"
     assert "password" not in captured
     assert "database-secret" not in str(result)

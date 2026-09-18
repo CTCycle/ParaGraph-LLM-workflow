@@ -219,6 +219,7 @@ class SecureHttpTransport:
         provider_configuration = configuration_service.resolve_provider_configuration(
             profile_name=parameters.credential_profile,
             provider=parameters.credential_provider,
+            session_name=parameters.credential_session_name or None,
         )
         return provider_configuration.api_key or "", provider_configuration.base_url
 

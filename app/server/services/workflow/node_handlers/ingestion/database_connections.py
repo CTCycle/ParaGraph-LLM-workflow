@@ -59,6 +59,7 @@ def _validate_and_build_database_connection(
             "credential_ref": parsed.credential_ref or None,
             "credential_profile": parsed.credential_profile or None,
             "credential_provider": parsed.credential_provider or None,
+            "credential_session_name": parsed.credential_session_name or None,
             "file_path": resolved_file_path,
             "read_only": False,
             "options": {
@@ -77,6 +78,7 @@ def _sql_database_executor(
     provider_configuration = configuration_service.resolve_provider_configuration(
         profile_name=parsed.credential_profile,
         provider=parsed.db_engine,
+        session_name=parsed.credential_session_name or None,
     )
     credential_ref = register_database_credential(provider_configuration.api_key or "")
     connection_payload = {
@@ -88,6 +90,7 @@ def _sql_database_executor(
         "credential_ref": credential_ref,
         "credential_profile": parsed.credential_profile,
         "credential_provider": parsed.db_engine,
+        "credential_session_name": parsed.credential_session_name or None,
         "file_path": "",
         "options": _build_sql_connection_options(
             db_ssl=parsed.db_ssl, db_ssl_ca=parsed.db_ssl_ca

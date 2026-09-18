@@ -91,6 +91,7 @@ class DatabaseConnectionParameters(BaseModel):
     credential_ref: str = ""
     credential_profile: str = ""
     credential_provider: str = ""
+    credential_session_name: str = ""
     file_path: str = ""
     options: dict[str, Any] = Field(default_factory=dict)
     connect_timeout_s: float = Field(default=5.0, ge=1.0, le=60.0)
@@ -148,6 +149,7 @@ class SQLDatabaseParameters(BaseModel):
     db_name: str = ""
     db_user: str = "postgres"
     credential_profile: str = ""
+    credential_session_name: str = ""
     db_ssl: bool = False
     db_ssl_ca: str = ""
     db_connect_timeout: float = Field(default=30.0, ge=1.0, le=120.0)

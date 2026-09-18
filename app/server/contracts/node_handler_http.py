@@ -23,6 +23,7 @@ class HttpRequestParameters(BaseModel):
     accepted_statuses: list[int | str] = Field(default_factory=lambda: ["200-299"])
     credential_profile: str = ""
     credential_provider: str = "http"
+    credential_session_name: str = ""
     auth_mode: Literal["none", "bearer", "api_key", "basic"] = "none"
     api_key_header: str = "X-API-Key"
     username: str = ""
