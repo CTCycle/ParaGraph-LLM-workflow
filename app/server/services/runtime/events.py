@@ -32,6 +32,7 @@ class EventService:
     """Durable history with process-local live subscriber queues."""
 
     DEFAULT_SUBSCRIBER_QUEUE_SIZE = 1024
+    DEFAULT_HISTORY_PAGE_SIZE = 1000
 
     # -------------------------------------------------------------------------
     def __init__(self, max_subscriber_queue_size: int | None = None) -> None:
@@ -88,8 +89,16 @@ class EventService:
                 self._subscribers.pop(run_id, None)
 
     # -------------------------------------------------------------------------
-    def get_history(self, run_id: str) -> EventHistoryResponse:
-        events = execution_run_repository.get_events(run_id)
+    def get_history(
+        self,
+        run_id: str,
+        *,
+        after_sequence: int = 0,
+        limit: int | None = None,
+    ) -> EventHistoryResponse:
+        events = execution_run_repository.get_events(
+            run_id, after_sequence=after_sequence, limit=limit
+        )
         return EventHistoryResponse(
             run_id=run_id,
             request_id=events[0].request_id if events else None,

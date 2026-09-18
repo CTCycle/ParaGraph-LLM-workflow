@@ -23,6 +23,7 @@ from server.api.ws import router as ws_router
 from server.configurations.startup import get_server_settings
 from server.repositories.database.initializer import initialize_database
 from server.repositories.configuration import reset_configuration_database_repositories
+from server.repositories.workflow.execution_run import execution_run_repository
 from server.repositories.workflow.database import reset_database_engines
 from server.services.startup_validation import run_startup_validations
 from server.services.workflow.execution import execution_service
@@ -67,6 +68,7 @@ def redirect_root_to_docs() -> RedirectResponse:
 async def app_lifespan(application: FastAPI) -> AsyncIterator[None]:
     settings = get_server_settings()
     initialize_database()
+    execution_run_repository.cleanup_retention(settings.jobs.retention_days)
     run_startup_validations()
     execution_service.recover_interrupted()
     application.state.server_settings = settings

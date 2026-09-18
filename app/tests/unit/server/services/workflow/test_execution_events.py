@@ -48,6 +48,24 @@ def test_execution_event_sequence_is_monotonic_for_each_run() -> None:
     ] == [1, 2]
 
 ###############################################################################
+def test_execution_event_history_supports_sequence_pagination() -> None:
+    _create_event_run("run-paged")
+    for index in range(3):
+        execution_event_service.publish(
+            run_id="run-paged",
+            event_type="execution.step.progress",
+            payload={"index": index},
+        )
+
+    first_page = execution_event_service.get_history("run-paged", limit=2)
+    second_page = execution_event_service.get_history(
+        "run-paged", after_sequence=first_page.events[-1].sequence, limit=2
+    )
+
+    assert [event.sequence for event in first_page.events] == [1, 2]
+    assert [event.sequence for event in second_page.events] == [3]
+
+###############################################################################
 def test_concurrent_event_publishers_receive_unique_sequences() -> None:
     _create_event_run("run-concurrent")
 
