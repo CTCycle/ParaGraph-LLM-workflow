@@ -48,6 +48,8 @@ class JobState:
 ###############################################################################
 class JobManager:
 
+    MAX_TERMINAL_JOBS = 256
+
     # -------------------------------------------------------------------------
     def __init__(self) -> None:
         self._jobs: dict[str, JobState] = {}
@@ -63,7 +65,7 @@ class JobManager:
         kwargs: dict[str, Any] | None = None,
         job_id: str | None = None,
     ) -> str:
-        job_id = job_id or str(uuid.uuid4())[:8]
+        job_id = job_id or str(uuid.uuid4())
         state = JobState(job_id=job_id, job_type=job_type, status="pending")
         runner_kwargs = kwargs.copy() if kwargs else {}
 
@@ -173,7 +175,22 @@ class JobManager:
             if state.stop_requested:
                 state.update(status="cancelled", completed_at=monotonic())
                 return
+            logger.exception("Job %s failed (type=%s)", job_id, state.job_type)
             state.update(status="failed", error=str(exc), completed_at=monotonic())
+        finally:
+            with self._lock:
+                self._threads.pop(job_id, None)
+                terminal = sorted(
+                    (
+                        item
+                        for item in self._jobs.values()
+                        if item.status in ("completed", "failed", "cancelled")
+                    ),
+                    key=lambda item: item.completed_at or item.created_at,
+                    reverse=True,
+                )
+                for stale in terminal[self.MAX_TERMINAL_JOBS :]:
+                    self._jobs.pop(stale.job_id, None)
 
     # -------------------------------------------------------------------------
     def _runner_accepts_job_id(self, runner: Callable[..., dict[str, Any]]) -> bool:
@@ -203,6 +220,27 @@ class JobManager:
         with self._lock:
             self._jobs.clear()
             self._threads.clear()
+
+    # -------------------------------------------------------------------------
+    def shutdown(self, timeout: float = 1.0) -> None:
+        """Request cooperative cancellation and join active job workers."""
+        with self._lock:
+            active = [
+                state
+                for state in self._jobs.values()
+                if state.status in ("pending", "running")
+            ]
+            threads = [
+                self._threads.get(state.job_id)
+                for state in active
+                if self._threads.get(state.job_id) is not None
+            ]
+        for state in active:
+            state.update(stop_requested=True)
+        deadline = monotonic() + max(0.0, timeout)
+        for thread in threads:
+            if thread is not None:
+                thread.join(timeout=max(0.0, deadline - monotonic()))
 
 
 ###############################################################################

@@ -3,9 +3,11 @@ from __future__ import annotations
 import hashlib
 import json
 import secrets
+import threading
 import uuid
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
 from datetime import datetime, timezone
+from time import monotonic
 from typing import Any
 
 from server.common.security import redact_sensitive_payload
@@ -31,6 +33,11 @@ from server.common.utils.values import (
 )
 
 ###############################################################################
+class _StepAttemptExpired(RuntimeError):
+    """Prevent a timed-out attempt from publishing late local results."""
+
+
+###############################################################################
 class ExecutionService:
     SKIP_SENTINEL = "__paragraph_skip__"
 
@@ -42,7 +49,7 @@ class ExecutionService:
         execution_session_id: str | None = None,
         request_id: str | None = None,
     ) -> str:
-        run_id = str(uuid.uuid4())[:8]
+        run_id = str(uuid.uuid4())
         self._initialize_run(
             plan, workflow_id, execution_session_id, run_id, request_id=request_id
         )
@@ -97,7 +104,8 @@ class ExecutionService:
             self._initialize_run(
                 plan, workflow_id, execution_session_id, job_id, request_id=request_id
             )
-        else:
+        persisted = execution_run_repository.get_run(job_id)
+        if persisted is not None and persisted.status == "queued":
             execution_run_repository.update_run(job_id, status="running")
             execution_event_service.publish(
                 run_id=job_id,
@@ -155,6 +163,8 @@ class ExecutionService:
                 progress = computed_progress if index < total_steps else 99.0
                 self._complete_step(job_id, step_id, output_state_public, progress)
             except Exception as exc:  # noqa: BLE001
+                if self._cancelled(job_id):
+                    return {}
                 self._fail_step(job_id, step_id, str(exc))
                 raise
 
@@ -276,13 +286,6 @@ class ExecutionService:
         execution_event_service.publish(
             run_id=job_id,
             event_type="execution.queued",
-            request_id=request_id,
-            payload={"plan_id": plan.plan_id},
-        )
-        execution_run_repository.update_run(job_id, status="running", progress=0.0)
-        execution_event_service.publish(
-            run_id=job_id,
-            event_type="execution.started",
             request_id=request_id,
             payload={"plan_id": plan.plan_id},
         )
@@ -463,6 +466,10 @@ class ExecutionService:
     def _execute_step_with_policy(self, **kwargs: Any) -> dict[str, Any]:
         step = kwargs["step"]
         job_id = kwargs["job_id"]
+        if step.timeout_ms is not None and step.timeout_ms <= 0:
+            raise ValueError(f"Step '{step.step_id}' timeout_ms must be positive")
+        if step.retries < 0:
+            raise ValueError(f"Step '{step.step_id}' retries must not be negative")
         if (
             step.retries > 0
             and getattr(step, "side_effecting", False)
@@ -478,6 +485,20 @@ class ExecutionService:
             local_kwargs["outputs_by_step"] = dict(kwargs["outputs_by_step"])
             local_kwargs["output_payload"] = dict(kwargs["output_payload"])
             local_kwargs["cache"] = dict(kwargs["cache"])
+            attempt_active = threading.Event()
+            attempt_active.set()
+            deadline = (
+                monotonic() + (step.timeout_ms / 1000)
+                if step.timeout_ms
+                else None
+            )
+            local_kwargs["attempt_active"] = attempt_active
+            local_kwargs["deadline_monotonic"] = deadline
+            local_kwargs["attempt_cancelled"] = lambda: (
+                not attempt_active.is_set()
+                or self._cancelled(job_id)
+                or (deadline is not None and monotonic() >= deadline)
+            )
             executor = ThreadPoolExecutor(
                 max_workers=1, thread_name_prefix=f"step-{step.step_id}"
             )
@@ -492,11 +513,41 @@ class ExecutionService:
                 kwargs["output_payload"].update(local_kwargs["output_payload"])
                 kwargs["cache"].clear()
                 kwargs["cache"].update(local_kwargs["cache"])
+                attempt_active.clear()
                 executor.shutdown(wait=False)
                 return result
             except FutureTimeoutError as exc:
+                future_completed = future.done()
+                attempt_active.clear()
                 future.cancel()
                 executor.shutdown(wait=False, cancel_futures=True)
+                # concurrent.futures.TimeoutError is an alias of the built-in
+                # TimeoutError. A handler can therefore raise the same class;
+                # a completed future means this was a provider error, not the
+                # wrapper deadline.
+                if future_completed:
+                    if self._cancelled(job_id):
+                        raise
+                    if attempt >= attempts:
+                        raise
+                    execution_event_service.publish(
+                        run_id=job_id,
+                        event_type="execution.step.retry.failed",
+                        step_id=step.step_id,
+                        request_id=self._request_id_for_run(job_id),
+                        payload={"attempt": attempt, "error": str(exc)},
+                    )
+                    execution_event_service.publish(
+                        run_id=job_id,
+                        event_type="execution.step.retry.started",
+                        step_id=step.step_id,
+                        request_id=self._request_id_for_run(job_id),
+                        payload={
+                            "attempt": attempt + 1,
+                            "max_attempts": attempts,
+                        },
+                    )
+                    continue
                 message = f"STEP_TIMEOUT: step exceeded {step.timeout_ms} ms"
                 execution_event_service.publish(
                     run_id=job_id,
@@ -509,8 +560,29 @@ class ExecutionService:
                         "error": message,
                     },
                 )
-                raise TimeoutError(message) from exc
+                if self._cancelled(job_id):
+                    raise TimeoutError(message) from exc
+                if attempt >= attempts:
+                    raise TimeoutError(message) from exc
+                execution_event_service.publish(
+                    run_id=job_id,
+                    event_type="execution.step.retry.failed",
+                    step_id=step.step_id,
+                    request_id=self._request_id_for_run(job_id),
+                    payload={"attempt": attempt, "error": message},
+                )
+                execution_event_service.publish(
+                    run_id=job_id,
+                    event_type="execution.step.retry.started",
+                    step_id=step.step_id,
+                    request_id=self._request_id_for_run(job_id),
+                    payload={"attempt": attempt + 1, "max_attempts": attempts},
+                )
+                continue
             except Exception as exc:  # noqa: BLE001
+                if self._cancelled(job_id):
+                    raise
+                attempt_active.clear()
                 executor.shutdown(wait=False, cancel_futures=True)
                 if attempt >= attempts:
                     raise
@@ -564,7 +636,12 @@ class ExecutionService:
         output_payload: dict[str, dict[str, Any]],
         cache: dict[str, dict[str, Any]],
         step_lookup: dict[str, Any],
+        attempt_active: threading.Event | None = None,
+        attempt_cancelled: Any = None,
+        deadline_monotonic: float | None = None,
     ) -> dict[str, Any]:
+        if attempt_active is not None and not attempt_active.is_set():
+            raise _StepAttemptExpired()
         resolved_inputs, resolved_controllers = self._resolve_inputs(
             step, outputs_by_step, step_lookup
         )
@@ -576,12 +653,19 @@ class ExecutionService:
             job_id=job_id,
             workflow_id=workflow_id,
             execution_session_id=execution_session_id,
+            attempt_active=attempt_active,
+            attempt_cancelled=attempt_cancelled,
+            deadline_monotonic=deadline_monotonic,
         )
+        if attempt_active is not None and not attempt_active.is_set():
+            raise _StepAttemptExpired()
         outputs_by_step[step.step_id] = port_outputs
         result = self._extract_terminal_output(
             step.node_type, resolved_inputs, port_outputs
         )
-        if result is not None:
+        if result is not None and (
+            attempt_active is None or attempt_active.is_set()
+        ):
             output_payload[step.node_id] = result
             job_manager.update_result(job_id, {"outputs": dict(output_payload)})
         return self._redact_output_state(
@@ -602,6 +686,9 @@ class ExecutionService:
         job_id: str,
         workflow_id: str | None,
         execution_session_id: str | None,
+        attempt_active: threading.Event | None = None,
+        attempt_cancelled: Any = None,
+        deadline_monotonic: float | None = None,
     ) -> dict[str, Any]:
         cache_key = (
             self._build_cache_key(step, resolved_inputs, resolved_controllers)
@@ -622,8 +709,12 @@ class ExecutionService:
                 "workflow_id": workflow_id or "",
                 "execution_session_id": execution_session_id or "",
                 "node_id": step.node_id,
+                "cancelled": attempt_cancelled,
+                "deadline_monotonic": deadline_monotonic,
             },
         )
+        if attempt_active is not None and not attempt_active.is_set():
+            raise _StepAttemptExpired()
         if cache_key is not None:
             cache[cache_key] = port_outputs
         return port_outputs

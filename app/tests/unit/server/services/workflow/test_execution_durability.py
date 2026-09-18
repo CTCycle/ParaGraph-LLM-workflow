@@ -129,6 +129,66 @@ def test_timeout_late_result_cannot_overwrite_terminal_state(
     assert run.steps[0].output == {}
 
 ###############################################################################
+def test_timeout_retries_safe_attempt_and_ignores_late_local_result(
+    job_state_factory, monkeypatch
+) -> None:
+    calls = 0
+
+    def slow_then_fast(*_args, **_kwargs):
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            time.sleep(0.1)
+            return {"text": "late"}
+        return {"text": "ok"}
+
+    monkeypatch.setattr(node_registry, "execute", slow_then_fast)
+    job_state_factory("timeout-retry-run", "workflow")
+    result = execution_service.execute_plan_job(
+        _plan(retries=1, timeout_ms=10), None, "timeout-retry-run"
+    )
+    time.sleep(0.15)
+
+    assert result == {"outputs": {}}
+    assert calls == 2
+    run = execution_run_repository.get_run("timeout-retry-run")
+    assert run is not None and run.status == "completed"
+    assert run.steps[0].output["ports"] == {"text": "ok"}
+    event_types = [
+        event.event_type
+        for event in execution_event_service.get_history("timeout-retry-run").events
+    ]
+    assert event_types.count("execution.step.timeout") == 1
+    assert event_types.count("execution.step.retry.failed") == 1
+    assert event_types.count("execution.step.retry.started") == 1
+
+###############################################################################
+def test_handler_timeout_error_is_not_misclassified_as_step_timeout(
+    job_state_factory, monkeypatch
+) -> None:
+    def provider_timeout(*_args, **_kwargs):
+        raise TimeoutError("provider timeout")
+
+    monkeypatch.setattr(node_registry, "execute", provider_timeout)
+    job_state_factory("provider-timeout-run", "workflow")
+    try:
+        execution_service.execute_plan_job(
+            _plan(timeout_ms=100), None, "provider-timeout-run"
+        )
+    except TimeoutError as exc:
+        assert str(exc) == "provider timeout"
+    else:
+        raise AssertionError("Expected provider timeout to be propagated")
+
+    run = execution_run_repository.get_run("provider-timeout-run")
+    assert run is not None and run.error == "provider timeout"
+    event_types = [
+        event.event_type
+        for event in execution_event_service.get_history("provider-timeout-run").events
+    ]
+    assert "execution.step.timeout" not in event_types
+
+###############################################################################
 def test_cancel_before_start_and_retention_cleanup() -> None:
     plan = _plan()
     execution_service._initialize_run(plan, None, None, "cancel-run", request_id=None)  # noqa: SLF001
