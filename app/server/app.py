@@ -22,6 +22,7 @@ from server.api.workflow_templates import router as workflow_templates_router
 from server.api.ws import router as ws_router
 from server.configurations.startup import get_server_settings
 from server.repositories.database.initializer import initialize_database
+from server.repositories.configuration import reset_configuration_database_repositories
 from server.repositories.workflow.database import reset_database_engines
 from server.services.startup_validation import run_startup_validations
 from server.services.workflow.execution import execution_service
@@ -75,6 +76,7 @@ async def app_lifespan(application: FastAPI) -> AsyncIterator[None]:
         from server.services.jobs import job_manager
 
         job_manager.shutdown()
+        reset_configuration_database_repositories()
         reset_database_engines()
 
 ###############################################################################

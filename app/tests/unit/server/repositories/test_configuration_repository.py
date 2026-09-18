@@ -36,3 +36,27 @@ def test_configuration_repository_uses_the_embedded_sqlite_path(
 
     assert engine.url.get_backend_name() == "sqlite"
     assert engine.url.database == str(tmp_path / "database.db")
+
+###############################################################################
+def test_default_configuration_repositories_reuse_the_same_engine(
+    tmp_path: Path, monkeypatch
+) -> None:
+    monkeypatch.setattr(
+        "server.repositories.database.sqlite.common_path.RESOURCES_ROOT", tmp_path
+    )
+    monkeypatch.setattr(
+        "server.repositories.configuration.common_path.RESOURCES_ROOT", tmp_path
+    )
+    monkeypatch.setattr(
+        "server.repositories.configuration.get_server_settings",
+        lambda: type(
+            "ServerSettingsStub",
+            (),
+            {"database": SQLiteSettings(insert_batch_size=1000)},
+        )(),
+    )
+
+    first = ConfigurationRepository()._database_engine()  # noqa: SLF001
+    second = ConfigurationRepository()._database_engine()  # noqa: SLF001
+
+    assert first is second
