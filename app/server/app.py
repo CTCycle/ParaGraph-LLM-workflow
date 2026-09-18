@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import warnings
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from importlib.metadata import version as package_version
@@ -28,7 +27,6 @@ from server.repositories.workflow.database import reset_database_engines
 from server.services.startup_validation import run_startup_validations
 from server.services.workflow.execution import execution_service
 
-warnings.filterwarnings("ignore", category=FutureWarning)
 APP_VERSION = package_version("paragraph")
 
 ###############################################################################

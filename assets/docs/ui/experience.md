@@ -1,5 +1,5 @@
 # Experience
-Last updated: 2026-08-20
+Last updated: 2026-09-18
 
 ## User Experience Rules
 - Prefer clear system status communication through inline notices, banners, modals, and status text.
@@ -8,7 +8,7 @@ Last updated: 2026-08-20
 - Surface recoverable errors with actionable copy and retry affordances.
 
 ## Desktop viewport
-- ParaGraph is a desktop application delivered through web technologies.
+- ParaGraph is a local web application optimized for desktop-sized browser windows.
 - The supported minimum viewport width is `1024px` CSS pixels.
 - At supported widths, preserve the desktop navigation, workflow node-tree/canvas split, dense catalog views, and two-column Models and Configurations layouts.
 - When the viewport is narrower than `1024px`, show a full-window notice asking the user to widen or maximize the browser window.
