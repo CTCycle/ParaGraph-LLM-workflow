@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
     persistWorkflowState,
@@ -76,5 +76,27 @@ describe('workflow persistence', () => {
             execution_session_id: '',
             active_run: null,
         })
+    })
+
+    it('reports localStorage write failures without throwing', () => {
+        const setItem = vi.fn(() => {
+            throw new DOMException('quota exceeded', 'QuotaExceededError')
+        })
+        vi.stubGlobal('localStorage', { setItem })
+
+        try {
+            expect(persistWorkflowState({
+                nodes: [],
+                edges: [],
+                is_library_visible: false,
+                is_grid_visible: true,
+                search: '',
+                selected_manifest_key: null,
+                execution_session_id: 'session-1',
+                active_run: null,
+            })).toBe(false)
+        } finally {
+            vi.unstubAllGlobals()
+        }
     })
 })
