@@ -114,12 +114,16 @@ def test_save_uploaded_directory_enforces_limits_and_cleans_partial_staging(
 def test_save_uploaded_directory_removes_staging_after_later_file_failure(
     tmp_path: Path,
 ) -> None:
+
+    ###############################################################################
     class FailingUpload:
         filename = "broken.txt"
 
+        # -------------------------------------------------------------------------
         async def read(self, size: int = -1) -> bytes:
             raise RuntimeError("read failed")
 
+        # -------------------------------------------------------------------------
         async def close(self) -> None:
             return None
 
