@@ -36,7 +36,6 @@ from server.common.utils.values import (
 class _StepAttemptExpired(RuntimeError):
     """Prevent a timed-out attempt from publishing late local results."""
 
-
 ###############################################################################
 class ExecutionService:
     SKIP_SENTINEL = "__paragraph_skip__"

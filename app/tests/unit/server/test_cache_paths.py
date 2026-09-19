@@ -7,6 +7,7 @@ from pathlib import Path
 from server.common import path as common_path
 
 
+###############################################################################
 def test_application_cache_root_is_repository_canonical() -> None:
     expected_root = Path(__file__).resolve().parents[4] / "runtimes" / "cache"
 
@@ -15,6 +16,7 @@ def test_application_cache_root_is_repository_canonical() -> None:
     assert sys.pycache_prefix == str(expected_root / "pycache")
 
 
+###############################################################################
 def test_library_cache_environment_is_repository_canonical() -> None:
     expected_root = common_path.CACHE_ROOT
 
