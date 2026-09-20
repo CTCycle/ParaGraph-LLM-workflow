@@ -1,12 +1,12 @@
 # Testing And Quality
-Last updated: 2026-09-18
+Last updated: 2026-09-20
 
 ## Python Tooling
 - Lint and format with Ruff or the project-approved equivalent.
 - Keep typing compatible with Pylance expectations.
 - Test backend behavior with pytest, including `tests/unit` and relevant `tests/e2e` coverage.
 - All runtime, test, tool, browser, and generated frontend-build caches are centralized under `runtimes/cache`, including uv, npm, Python bytecode, pytest, Ruff, coverage, Vite, Vitest, Playwright, ESLint, and Hugging Face runtime caches.
-- On Windows, run focused pytest commands from `app/` with the repository-local cache and base temp directories:
+- On Windows, run focused pytest commands from the repository root with the repository-local cache and base temp directories:
   `.\app\server\.venv\Scripts\python.exe -m pytest -c .\pytest.ini <test-path> -q --basetemp=.\runtimes\cache\pytest-tmp`
 - If pytest still ends with `WinError 5` during temp cleanup, preserve the exact traceback under `assets/QA/` and use a direct harness only as supplemental evidence.
 
