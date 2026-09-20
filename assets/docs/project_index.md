@@ -1,5 +1,5 @@
 # Project Overview
-Last updated: 2026-08-20
+Last updated: 2026-09-20
 
 ## Purpose
 This file is the root index for `assets/docs`. Read it first, then open only the smallest leaf file that matches the task.
@@ -20,6 +20,8 @@ This file is the root index for `assets/docs`. Read it first, then open only the
 ### Root
 - `project_index.md`
   - Entry point, navigation rules, and complete index for the documentation tree.
+- `project_status_ledger.md`
+  - Canonical current operational status catalog for project components, validation evidence, active issues, and validation debt.
 
 ### Architecture
 - `architecture/system_overview.md`
@@ -84,9 +86,10 @@ This file is the root index for `assets/docs`. Read it first, then open only the
 
 ## Reading Order
 1. Read this root index.
-2. Open one leaf file in the relevant topic branch.
-3. Expand only when the task crosses branch boundaries.
-4. Update this index whenever files are added, removed, moved, or renamed.
+2. For current-state, validation, or revalidation work, read `project_status_ledger.md` before opening detailed documents.
+3. Open one leaf file in the relevant topic branch.
+4. Expand only when the task crosses branch boundaries.
+5. Update this index whenever files are added, removed, moved, or renamed.
 
 ## Context Rules
 - Read documentation only when required by the current task.
@@ -94,6 +97,8 @@ This file is the root index for `assets/docs`. Read it first, then open only the
 - Keep all affected docs updated when implementation changes alter behavior.
 - Always include a `Last updated: YYYY-MM-DD` line when modifying a document.
 - Pre-select files by user intent, folder structure, and target subsystem before reading deeply.
+- Treat `project_status_ledger.md` as the canonical source for current operational status. Architecture and user documents describe intended ownership and behavior; validation reports and QA artifacts explain the evidence behind ledger entries; implementation plans describe future work.
+- Update the ledger after implementation changes, meaningful validation, regressions, blocker changes, or issue remediation. Keep detailed narratives in their dedicated reports instead of copying them into the ledger.
 
 ## Environment Rules
 - Windows is the default operating environment for this project.

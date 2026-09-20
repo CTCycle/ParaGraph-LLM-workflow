@@ -1,0 +1,105 @@
+# Project Status Ledger
+Last updated: 2026-09-20
+
+This is the canonical current operational status catalog for ParaGraph. It is a
+compact index of what is implemented, what has meaningful evidence, what is
+limited or blocked, and what should be validated next. Detailed architecture,
+implementation, troubleshooting, and validation narratives remain in their
+dedicated documents and QA artifacts.
+
+The ledger describes the current checkout on `develop` as of 2026-09-20. A
+`Last validated` date belongs to the evidence for the stated scope; it does not
+claim that every later change has been covered by the same evidence.
+
+## Maintenance Rules
+
+1. Read this ledger before substantial implementation or validation work.
+2. Use the ledger to find known defects, blockers, validation debt, and prior evidence before creating new findings.
+3. Update affected entries after implementation, meaningful tests, browser checks, regressions, or environment changes.
+4. Never mark a component `VALIDATED` from source inspection or test existence alone; link meaningful evidence.
+5. Downgrade a status when a regression or narrower evidence boundary is discovered.
+6. Keep active issues in the Open Issues section and move resolved findings to the historical section after remediation and revalidation.
+7. Do not create duplicate issue entries for the same underlying defect; extend the existing entry when its scope grows.
+8. Link detailed reports, test files, screenshots, and plans rather than copying their narratives into this document.
+9. Keep validation debt separate from known defects. Insufficient coverage is not proof that a feature is broken.
+10. Keep this ledger synchronized with the repository, current runtime constraints, and the latest available evidence.
+
+## Status Taxonomy
+
+| Status | Meaning |
+| --- | --- |
+| `VALIDATED` | Implemented and confirmed through meaningful testing or observation for the stated scope. |
+| `WORKING` | Believed to work from implementation or limited testing, but not fully validated. |
+| `PARTIAL` | Implemented but incomplete, degraded, or confirmed for only part of the expected behavior. |
+| `BROKEN` | Known not to work correctly. |
+| `BLOCKED` | Cannot currently be validated or completed because of an external dependency, missing credential, unavailable service, hardware constraint, or similar blocker. |
+| `UNVALIDATED` | Implementation exists, but available evidence is insufficient to claim that it works. |
+| `NOT_IMPLEMENTED` | Expected capability is currently absent. |
+| `DEPRECATED` | Intentionally retained only for compatibility or scheduled for removal. |
+
+Validation levels used below are `None`, `unit`, `integration`, `E2E`, and
+`manual`. A combined level means that each named evidence type is relevant to
+the scope, not that every possible path has been tested.
+
+## Current Component Ledger
+
+| Component | Status | Scope | Evidence | Known Issues | Blocker | Last Validated | Validation Level | Related Docs | Next Action |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `app.startup.local` | `WORKING` | Windows launcher, environment bootstrap, separate backend/frontend startup, configured ports, and process cleanup. | [Startup guidance](runtime/startup.md); the [2026-08-26 system validation](../QA/paragraph-e2e-system-validation-2026-08-26.md) started and exercised the live application. | The latest browser pass did not cover the complete launcher menu or a fresh dependency/bootstrap sequence. | — | 2026-08-26 | E2E + manual | [Runtime configuration](runtime/configuration.md), [deployment](runtime/deployment.md) | Run launcher options 1 and 2, then a clean bootstrap check after future launcher changes. |
+| `backend.api.contracts` | `VALIDATED` | FastAPI routes, OpenAPI surface, request/response contracts, and generated frontend DTO alignment. | The live report observed `/openapi.json` with 29 routes; the current backend suite passed 373 tests; contract-boundary and generated-contract tests are present. | External catalog data is time-sensitive and is not a fixed fixture. | — | 2026-09-20 | unit + integration + E2E | [Backend API](architecture/backend_api.md), [findings and remediation](architecture/findings_and_remediation.md), [generated contract test](../../app/tests/unit/server/test_generated_frontend_contracts.py) | Re-run contract freshness and route checks after API or schema changes. |
+| `frontend.build_and_unit` | `VALIDATED` | TypeScript compilation, Vite production build, and frontend unit/component behavior. | Current `npm.cmd run build` passed and wrote to `runtimes/cache/frontend-dist`; current `npm.cmd run test:unit` passed 12 files and 46 tests. | Build emits a non-failing large-chunk warning; the unit suite emits existing React Router future-flag warnings. See `ISSUE-002` and `ISSUE-003`. | — | 2026-09-20 | unit | [Testing and quality](coding/testing_and_quality.md), [frontend package scripts](../../app/client/package.json) | Keep the current cache-root command reproducible; remove the two warning classes when their follow-up work is intentionally scheduled. |
+| `ui.guidance` | `VALIDATED` | Empty-workflow onboarding, editor tour, Help dialog, Tips & Tricks, Chat help, keyboard behavior, reduced motion, and responsive guidance surfaces. | [Guidance validation](../QA/guidance-validation.md) records local mock-backed browser checks, unit/component coverage, and six screenshots. | Tips & Tricks was manually checked rather than covered by a recurring automated route test. | — | 2026-08-26 | unit + E2E + manual | [UI experience](ui/experience.md), [workflow editor](user/workflow_editor.md) | Recheck guidance after route, focus-management, or breakpoint changes. |
+| `ui.nodes.catalog_and_import` | `PARTIAL` | Node catalog loading, filtering, preview states, invalid manifest handling, duplicate detection, and custom manifest import. | The live report observed 73 nodes, catalog filtering, invalid JSON handling, and duplicate `PROMPT v1` rejection; current `NodesPage` tests cover success and error import paths. | A fixture-backed browser pass for successful import, persistence, catalog reload, and editor placement is not recorded. | — | 2026-09-20 | unit + E2E | [Catalog and manifests](nodes/catalog_and_manifests.md), [import and integration](nodes/import_and_integration.md), [NodesPage tests](../../app/client/src/pages/NodesPage.test.tsx) | Run the missing fixture-backed browser flow and link its report. |
+| `workflow.editor.graph` | `VALIDATED` | Browser-owned graph editing, typed connections, node controls, compile feedback, responsive canvas behavior, and graph JSON persistence. | The live report confirmed editing, a two-node/one-edge graph, refresh and back/forward persistence, responsive layouts, and compile diagnostics. | Runtime output intentionally resets on refresh; the desired product behavior for that transient output is not yet recorded. | — | 2026-08-26 | unit + E2E + manual | [Workflow editor](user/workflow_editor.md), [persistence](architecture/persistence.md), [WorkflowPage tests](../../app/client/src/pages/WorkflowPage.test.tsx) | Decide and document whether the last runtime output should persist across refresh. |
+| `workflow.compiler.diagnostics` | `VALIDATED` | Graph validation, typed controller edges, blocking errors, non-blocking warnings, and execution-plan creation. | Invalid workflow compilation rendered actionable UI diagnostics in the live report; current compiler and route tests pass in the backend suite. | Conditional activation semantics and some warning cases remain intentionally limited by the documented execution model. | — | 2026-09-20 | unit + integration + E2E | [Execution and data flow](architecture/execution_and_data_flow.md), [workflow editor](user/workflow_editor.md), [compiler tests](../../app/tests/unit/server/services/workflow/test_compiler_graph_diagnostics.py) | Re-run compiler and browser diagnostics after manifest, controller, or graph-schema changes. |
+| `workflow.execution.deterministic` | `VALIDATED` | Prompt-to-Text Output execution without an external model provider, durable run state, step outputs, and completion handling. | The live report completed a deterministic graph with run `94e70dbe`; the current backend suite passed execution lifecycle and durability coverage. | This status does not cover successful model-provider execution. | — | 2026-09-20 | unit + integration + E2E | [Execution and data flow](architecture/execution_and_data_flow.md), [execution lifecycle test](../../app/tests/e2e/server/test_execution_lifecycle.py), [system validation](../QA/paragraph-e2e-system-validation-2026-08-26.md) | Re-run a live deterministic graph after execution-lifecycle changes and retain the run evidence. |
+| `workflow.execution.events` | `VALIDATED` | Durable event history, WebSocket delivery, reconnect/polling behavior, and ordered run updates. | The live report correlated WebSocket acceptance with a completed run; current backend event and execution tests pass. | A successful provider-backed streaming run remains unverified; see `ISSUE-001`. | Provider service availability for the provider-backed path. | 2026-09-20 | unit + integration + E2E | [Execution and data flow](architecture/execution_and_data_flow.md), [event tests](../../app/tests/unit/server/services/workflow/test_execution_events.py), [system validation](../QA/paragraph-e2e-system-validation-2026-08-26.md) | Add a reachable-provider streaming pass when the blocker in `ISSUE-001` is removed. |
+| `persistence.workflow_and_runs` | `VALIDATED` | Browser-local workflow graph, application SQLite records, durable plans, steps, outputs, checkpoints, and event history. | The live report confirmed graph persistence and durable deterministic execution; current backend repository and migration tests pass. | Last runtime output is not persisted through editor refresh in the observed flow; this is a product decision, not a confirmed storage defect. | — | 2026-09-20 | unit + integration + E2E | [Persistence](architecture/persistence.md), [workflow persistence tests](../../app/client/src/workflow/hooks/workflowPersistence.test.ts), [migration tests](../../app/tests/unit/server/repositories/test_database_migrations.py) | Keep browser-local graph ownership and database ownership boundaries explicit when adding persistence features. |
+| `workflow.chat.history` | `PARTIAL` | Execution-owned Chat input history, node-scoped memory, persisted memory, terminal-output association, and success/failure history mutation rules. | Architecture and user docs describe the canonical ownership model; current unit tests cover chat-history execution and repositories; the browser evidence covers disconnected/error behavior. | Successful provider-backed Chat completion and post-success history append are not live-validated in the available environment. | Reachable model provider for a meaningful success path. | 2026-09-20 | unit + manual | [Chat execution ownership](architecture/execution_and_data_flow.md), [Chat editor behavior](user/workflow_editor.md), [chat execution tests](../../app/tests/unit/server/services/workflow/test_chat_history_execution.py) | Run success, failure, cancellation, pause, reload, and scoped-history browser checks with a working provider. |
+| `provider.configuration_and_catalogs` | `VALIDATED` | Canonical provider configuration records, redacted reads, configuration failure states, Ollama public catalog, and Hugging Face catalog browsing. | The live report observed configuration loading, redacted shape, Ollama failure rendering, and live Ollama/Hugging Face catalog responses; current provider route/service tests pass. | Catalog responses depend on external services and can change independently of the repository. | — | 2026-09-20 | unit + integration + E2E | [Models and configurations](user/models_and_configurations.md), [provider tests](../../app/tests/unit/server/routes/test_providers.py) | Recheck catalog contracts when provider APIs or registry metadata change. |
+| `provider.ollama.execution` | `BLOCKED` | Ollama connectivity, model pull, and successful model-backed workflow execution. | The live report recorded the configured endpoint `http://127.0.0.1:1` as unreachable and correctly surfaced the failure; no successful listener was available. | No provider-backed success or model pull can be claimed. | A reachable authorized Ollama service and available model. | 2026-08-26 | E2E failure-path | [Models and configurations](user/models_and_configurations.md), [system validation](../QA/paragraph-e2e-system-validation-2026-08-26.md) | Revalidate ping, pull, successful execution, streaming, and reload recovery when the service is available. |
+| `provider.openai.execution` | `BLOCKED` | OpenAI-backed workflow execution through the configured cloud provider. | The live report correlated the request with HTTP 429 for insufficient quota and the UI showed an execution error rather than false success. | Successful OpenAI execution remains unverified. | An authorized, funded or isolated test credential with quota. | 2026-08-26 | E2E failure-path | [Models and configurations](user/models_and_configurations.md), [system validation](../QA/paragraph-e2e-system-validation-2026-08-26.md) | Re-run a minimal successful model workflow and Chat history flow with an approved credential. |
+| `workflow.external_integrations` | `UNVALIDATED` | File upload/import, database schema UI, external database connections, and external vector-store behavior as live end-to-end workflows. | The current backend suite includes database, vector, upload, and provider contract tests; the live report explicitly records file upload/import and database schema flows as not exercised. | No product failure is established; live coverage is insufficient. | — | 2026-09-20 | unit + integration | [Node database and tools](nodes/database_and_tools.md), [import and integration](nodes/import_and_integration.md), [system validation](../QA/paragraph-e2e-system-validation-2026-08-26.md) | Add fixture-backed browser/API passes for each integration family and separate local-adapter from external-service evidence. |
+| `deployment.packaging` | `NOT_IMPLEMENTED` | Installer, standalone executable, and container-image distribution. | The supported deployment document explicitly states that the repository produces none of these artifacts. | This is outside the supported local operation model, not a confirmed defect. | — | 2026-09-18 | None | [Deployment](runtime/deployment.md), [system overview](architecture/system_overview.md) | Take no action unless packaging becomes an explicit product requirement. |
+
+## Open Issues
+
+Severity is independent of component status. A `PARTIAL` or `BLOCKED`
+component is not automatically a high-severity defect.
+
+| ID | Affected Component | Severity | Description | Current Impact | Evidence / Reproduction | Suspected Cause | Blocker | Remediation Status | Required Revalidation | Related Documentation |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `ISSUE-001` | `provider.ollama.execution`, `provider.openai.execution`, `workflow.chat.history` | `MEDIUM` | Provider-backed success paths cannot currently be validated. | Deterministic workflows work, but successful model-backed execution, streaming, and Chat history append do not have a live PASS. | [2026-08-26 system validation](../QA/paragraph-e2e-system-validation-2026-08-26.md); reproduce with the configured Ollama endpoint or the OpenAI-backed template. | Supported environment prerequisites are unavailable: Ollama refuses at `127.0.0.1:1`; OpenAI returned HTTP 429. | Reachable Ollama plus model, or an approved OpenAI credential with quota. | `OPEN` — environment prerequisite, not a confirmed product defect. | Ping or pull the provider, complete a model-backed graph, inspect WebSocket/reload behavior, and verify scoped Chat history on success and failure. | [Models and configurations](user/models_and_configurations.md), [Chat execution ownership](architecture/execution_and_data_flow.md) |
+| `ISSUE-002` | `frontend.build_and_unit` | `LOW` | The frontend unit suite emits two existing React Router future-flag warnings from the database-schema page test. | Test output is noisy; no corresponding live-browser defect was observed. | Current `npm.cmd run test:unit`; see [DatabaseSchemaPage test](../../app/client/src/pages/DatabaseSchemaPage.test.tsx). | Test router setup has not opted into the announced v7 flags. | — | `OPEN` — optional test-harness cleanup. | Re-run the unit suite and confirm the warnings are absent without changing route behavior. | [Testing and quality](coding/testing_and_quality.md) |
+| `ISSUE-003` | `frontend.build_and_unit` | `LOW` | Vite reports a non-failing bundle-size warning for a minified chunk larger than 500 kB. | Initial frontend payload may be larger than desired; the build still succeeds. | Current `npm.cmd run build` output from 2026-09-20. | Bundle composition has not been split or the warning threshold has not been revisited. | — | `OPEN` — performance follow-up, not a release-blocking build failure. | Measure the intended performance budget, then code-split or adjust the threshold with evidence. | [Frontend package scripts](../../app/client/package.json), [UI experience](ui/experience.md) |
+
+## Validation Debt
+
+Validation debt identifies important coverage gaps, not known defects.
+
+| Component | Current Confidence | Missing Validation | Priority |
+| --- | --- | --- | --- |
+| `provider.ollama.execution` and `provider.openai.execution` | Blocked | Successful provider-backed execution, model pull, streaming, reload recovery, and error-to-success transition. | High |
+| `workflow.chat.history` | Partial | Successful Chat append, node-scope isolation across multiple Chat nodes, and success/failure behavior with a reachable provider. | High |
+| `ui.nodes.catalog_and_import` | Partial | Browser fixture for successful custom import, persistence, reload, and editor placement. | Medium |
+| `workflow.external_integrations` | Unvalidated | File upload, database schema UI, external database connectivity, and external vector-store browser/API flows. | Medium |
+| `app.startup.local` | Working | Fresh bootstrap plus launcher option 1/2 lifecycle from the current checkout. | Medium |
+| `workflow.editor.graph` | Validated for graph state | Product decision and regression check for whether transient runtime output should survive refresh. | Low |
+
+## Resolved / Historical Findings
+
+These entries provide provenance only. They are not active issues and must not
+be used to inflate the current Open Issues list.
+
+| Finding | Resolution | Evidence |
+| --- | --- | --- |
+| Aug-2026 configuration profile modal exceeded the default Vitest timeout. | Added an explicit 15-second test budget; the affected flow and the current frontend suite pass. | [2026-08-02 E2E validation](../QA/paragraph_e2e_validation_2026-08-02.md), [ConfigurationsPage test](../../app/client/src/pages/ConfigurationsPage.test.tsx) |
+| Aug-2026 singular node-count summary used plural grammar. | Corrected the formatter and added a regression assertion; the live recheck showed singular and zero-result wording correctly. | [2026-08-26 system validation](../QA/paragraph-e2e-system-validation-2026-08-26.md), [NodesPage test](../../app/client/src/pages/NodesPage.test.tsx) |
+| Aug-2026 default Vite build cleanup was blocked by the managed `app/tests/cache/frontend-dist` placeholder. | The generated frontend output is now centralized under `runtimes/cache/frontend-dist`; the current default build passes. | [Current testing guidance](coding/testing_and_quality.md), [runtime startup guidance](runtime/startup.md) |
+
+## Revalidation Order
+
+1. Remove or satisfy `ISSUE-001`, then validate provider-backed execution and Chat history.
+2. Cover the missing custom-node import and external-integration browser flows.
+3. Recheck launcher lifecycle and browser graph/runtime persistence after changes in those areas.
+4. Clean up the two low-severity frontend warnings only when the intended performance and test-harness behavior is agreed.
