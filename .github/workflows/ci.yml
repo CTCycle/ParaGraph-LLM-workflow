@@ -64,6 +64,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
+      # Vite validates the complete runtime contract even for a production build.
+      # Keep CI independent from the developer-only settings/.env file.
+      FASTAPI_HOST: 127.0.0.1
+      FASTAPI_PORT: 5002
+      UI_HOST: 127.0.0.1
+      UI_PORT: 8002
+      VITE_API_BASE_URL: /api
       npm_config_cache: ${{ github.workspace }}/runtimes/cache/npm
       PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/runtimes/cache/playwright/browsers
     steps:
