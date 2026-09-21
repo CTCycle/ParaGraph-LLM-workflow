@@ -54,6 +54,10 @@ This file is the root index for `assets/docs`. Read it first, then open only the
 - `runtime/deployment.md`
   - Supported local operation model, limitations, and runtime-heavy generated outputs.
 
+### Validation
+- `validation/strategy.md`
+  - Tiered validation campaign, evidence boundaries, slice identifiers, and stopping criteria.
+
 ### UI
 - `ui/design_tokens.md`
   - Typography, spacing, radius, color, and theme tokens.

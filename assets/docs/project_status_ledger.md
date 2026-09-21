@@ -1,5 +1,5 @@
 # Project Status Ledger
-Last updated: 2026-09-20
+Last updated: 2026-09-21
 
 This is the canonical current operational status catalog for ParaGraph. It is a
 compact index of what is implemented, what has meaningful evidence, what is
@@ -7,7 +7,7 @@ limited or blocked, and what should be validated next. Detailed architecture,
 implementation, troubleshooting, and validation narratives remain in their
 dedicated documents and QA artifacts.
 
-The ledger describes the current checkout on `develop` as of 2026-09-20. A
+The ledger describes the current checkout on `develop` as of 2026-09-21. A
 `Last validated` date belongs to the evidence for the stated scope; it does not
 claim that every later change has been covered by the same evidence.
 
@@ -23,6 +23,24 @@ claim that every later change has been covered by the same evidence.
 8. Link detailed reports, test files, screenshots, and plans rather than copying their narratives into this document.
 9. Keep validation debt separate from known defects. Insufficient coverage is not proof that a feature is broken.
 10. Keep this ledger synchronized with the repository, current runtime constraints, and the latest available evidence.
+
+## Validation Campaign
+
+The long-term campaign is summarized in the [validation strategy](validation/strategy.md).
+The strategy uses stable slice IDs and keeps detailed execution evidence under
+[`assets/QA`](../QA/README.md). A slice is not `VALIDATED` because an
+implementation or test exists; the linked report must identify the tested
+revision, executed scenarios, environment, and remaining gaps.
+
+The first campaign tier is Tier 0: establish a reproducible baseline before
+claiming product-workflow coverage. Its current working ledger is:
+
+| Slice | Scope | Status | Evidence | Next action |
+| --- | --- | --- | --- | --- |
+| `PG-T0-01` | Clean CI backend/frontend baseline | `PARTIAL` | [baseline report](../QA/PG-T0-01-6a9e5e1.md); GitHub Actions run [35526656589](https://github.com/CTCycle/ParaGraph-LLM-workflow/actions/runs/35526656589) reproduced the missing frontend environment failure. | Verify the minimal CI environment correction on the pushed candidate, then retain the passing run URL. |
+| `PG-T0-02` | Fresh Windows bootstrap and migrations | `PARTIAL` | [startup guidance](runtime/startup.md); prior live evidence is linked from the component ledger below. | Run option 3 and option 5 from a disposable data root, including repeat migration and incompatible-schema preservation. |
+| `PG-T0-03` | Launcher start/stop lifecycle | `PARTIAL` | [startup guidance](runtime/startup.md); prior live evidence is linked from the component ledger below. | Exercise options 1 and 2 with process-tree and port-ownership evidence. |
+| `PG-T0-04` | Evidence and documentation integrity | `PASS` | [QA index](../QA/README.md), [validation strategy](validation/strategy.md), and the curated reports now stored in the repository. | Keep new slice reports linked from this ledger and exclude generated caches/fixtures. |
 
 ## Status Taxonomy
 
@@ -47,7 +65,7 @@ the scope, not that every possible path has been tested.
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | `app.startup.local` | `WORKING` | Windows launcher, environment bootstrap, separate backend/frontend startup, configured ports, and process cleanup. | [Startup guidance](runtime/startup.md); the [2026-08-26 system validation](../QA/paragraph-e2e-system-validation-2026-08-26.md) started and exercised the live application. | The latest browser pass did not cover the complete launcher menu or a fresh dependency/bootstrap sequence. | — | 2026-08-26 | E2E + manual | [Runtime configuration](runtime/configuration.md), [deployment](runtime/deployment.md) | Run launcher options 1 and 2, then a clean bootstrap check after future launcher changes. |
 | `backend.api.contracts` | `VALIDATED` | FastAPI routes, OpenAPI surface, request/response contracts, and generated frontend DTO alignment. | The live report observed `/openapi.json` with 29 routes; the current backend suite passed 373 tests; contract-boundary and generated-contract tests are present. | External catalog data is time-sensitive and is not a fixed fixture. | — | 2026-09-20 | unit + integration + E2E | [Backend API](architecture/backend_api.md), [findings and remediation](architecture/findings_and_remediation.md), [generated contract test](../../app/tests/unit/server/test_generated_frontend_contracts.py) | Re-run contract freshness and route checks after API or schema changes. |
-| `frontend.build_and_unit` | `VALIDATED` | TypeScript compilation, Vite production build, and frontend unit/component behavior. | Current `npm.cmd run build` passed and wrote to `runtimes/cache/frontend-dist`; current `npm.cmd run test:unit` passed 12 files and 46 tests. | Build emits a non-failing large-chunk warning; the unit suite emits existing React Router future-flag warnings. See `ISSUE-002` and `ISSUE-003`. | — | 2026-09-20 | unit | [Testing and quality](coding/testing_and_quality.md), [frontend package scripts](../../app/client/package.json) | Keep the current cache-root command reproducible; remove the two warning classes when their follow-up work is intentionally scheduled. |
+| `frontend.build_and_unit` | `PARTIAL` | TypeScript compilation, Vite production build, and frontend unit/component behavior, including the clean CI environment. | Local build and unit evidence passed on 2026-09-20; the exact clean-checkout CI run failed before the fix because `FASTAPI_HOST` was absent. See [PG-T0-01](../QA/PG-T0-01-6a9e5e1.md). | The repository-local `.env` masks missing CI inputs; the pushed workflow correction still needs a green run on the candidate SHA. Build emits a non-failing large-chunk warning; the unit suite emits existing React Router future-flag warnings. See `ISSUE-002` and `ISSUE-003`. | CI candidate run | 2026-09-20 | unit + CI | [Testing and quality](coding/testing_and_quality.md), [frontend package scripts](../../app/client/package.json), [validation strategy](validation/strategy.md) | Complete `PG-T0-01`, then restore `VALIDATED` only when frontend install, lint, build, and unit steps pass in clean CI. |
 | `ui.guidance` | `VALIDATED` | Empty-workflow onboarding, editor tour, Help dialog, Tips & Tricks, Chat help, keyboard behavior, reduced motion, and responsive guidance surfaces. | [Guidance validation](../QA/guidance-validation.md) records local mock-backed browser checks, unit/component coverage, and six screenshots. | Tips & Tricks was manually checked rather than covered by a recurring automated route test. | — | 2026-08-26 | unit + E2E + manual | [UI experience](ui/experience.md), [workflow editor](user/workflow_editor.md) | Recheck guidance after route, focus-management, or breakpoint changes. |
 | `ui.nodes.catalog_and_import` | `PARTIAL` | Node catalog loading, filtering, preview states, invalid manifest handling, duplicate detection, and custom manifest import. | The live report observed 73 nodes, catalog filtering, invalid JSON handling, and duplicate `PROMPT v1` rejection; current `NodesPage` tests cover success and error import paths. | A fixture-backed browser pass for successful import, persistence, catalog reload, and editor placement is not recorded. | — | 2026-09-20 | unit + E2E | [Catalog and manifests](nodes/catalog_and_manifests.md), [import and integration](nodes/import_and_integration.md), [NodesPage tests](../../app/client/src/pages/NodesPage.test.tsx) | Run the missing fixture-backed browser flow and link its report. |
 | `workflow.editor.graph` | `VALIDATED` | Browser-owned graph editing, typed connections, node controls, compile feedback, responsive canvas behavior, and graph JSON persistence. | The live report confirmed editing, a two-node/one-edge graph, refresh and back/forward persistence, responsive layouts, and compile diagnostics. | Runtime output intentionally resets on refresh; the desired product behavior for that transient output is not yet recorded. | — | 2026-08-26 | unit + E2E + manual | [Workflow editor](user/workflow_editor.md), [persistence](architecture/persistence.md), [WorkflowPage tests](../../app/client/src/pages/WorkflowPage.test.tsx) | Decide and document whether the last runtime output should persist across refresh. |
