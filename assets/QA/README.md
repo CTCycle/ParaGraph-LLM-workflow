@@ -15,6 +15,8 @@ Current curated reports:
 
 - [`PG-T0-01-6a9e5e1.md`](PG-T0-01-6a9e5e1.md) — clean-CI baseline failure and
   minimal remediation record.
+- [`PG-T0-02-f43590f.md`](PG-T0-02-f43590f.md) — fresh Windows bootstrap,
+  repeat setup, migration idempotence, and incompatible-schema preservation.
 - [`paragraph-e2e-system-validation-2026-08-26.md`](paragraph-e2e-system-validation-2026-08-26.md)
   — live full-stack validation and known provider blockers.
 - [`paragraph_e2e_validation_2026-08-02.md`](paragraph_e2e_validation_2026-08-02.md)
