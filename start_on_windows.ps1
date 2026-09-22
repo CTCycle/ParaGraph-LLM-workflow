@@ -281,8 +281,11 @@ function Invoke-DownloadAndExtract {
 function Invoke-PatchPth {
     param([Parameter(Mandatory = $true)][string]$Path)
     if (Test-Path -LiteralPath $Path) {
-        (Get-Content -LiteralPath $Path) -replace '^#import site$', 'import site' |
-            Set-Content -LiteralPath $Path
+        $content = Get-Content -LiteralPath $Path
+        if ($content -contains '#import site') {
+            $content -replace '^#import site$', 'import site' |
+                Set-Content -LiteralPath $Path
+        }
     }
 }
 
@@ -437,12 +440,126 @@ function Sync-Dependencies {
 
 function Build-Frontend {
     Write-Step 'Building frontend'
+    $fingerprintPath = Join-Path $FrontendBuildDir '.paragraph-build-fingerprint'
+    if (Test-Path -LiteralPath $fingerprintPath) {
+        Remove-Item -LiteralPath $fingerprintPath -Force -ErrorAction Stop
+    }
     Push-Location $ClientDir
     try {
         & $NpmCmd run build
         if ($LASTEXITCODE -ne 0) { throw "Frontend build failed with exit code $LASTEXITCODE" }
     } finally { Pop-Location }
+    Write-FrontendBuildFingerprint
     Write-Ok 'Frontend build is ready.'
+}
+
+function Get-FrontendBuildInputFiles {
+    $relativePaths = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    foreach ($relativeRoot in @('src', 'public')) {
+        $rootPath = Join-Path $ClientDir $relativeRoot
+        if (-not (Test-Path -LiteralPath $rootPath -PathType Container)) { continue }
+        foreach ($file in @(Get-ChildItem -LiteralPath $rootPath -File -Recurse -Force -ErrorAction Stop)) {
+            $relativePath = [IO.Path]::GetRelativePath($ClientDir, $file.FullName).Replace('\', '/')
+            [void]$relativePaths.Add($relativePath)
+        }
+    }
+    foreach ($relativePath in @(
+        'index.html',
+        'package.json',
+        'package-lock.json',
+        'tsconfig.json',
+        'tsconfig.node.json',
+        'vite.config.ts'
+    )) {
+        [void]$relativePaths.Add($relativePath)
+    }
+    $sortedPaths = [string[]]@($relativePaths)
+    [Array]::Sort($sortedPaths, [StringComparer]::OrdinalIgnoreCase)
+    return $sortedPaths
+}
+
+function Get-FrontendBuildFingerprint {
+    param([string]$ViteApiBaseUrl = $env:VITE_API_BASE_URL)
+
+    $hasher = [Security.Cryptography.SHA256]::Create()
+    try {
+        $manifest = [Text.StringBuilder]::new()
+        [void]$manifest.AppendLine('paragraph-frontend-build-fingerprint:v1')
+        [void]$manifest.AppendLine('build-command:npm run build')
+
+        $rawApiBase = if ($null -eq $ViteApiBaseUrl) { '' } else { ([string]$ViteApiBaseUrl).Trim() }
+        if ([string]::IsNullOrWhiteSpace($rawApiBase)) {
+            $effectiveApiBase = '<missing>'
+        } elseif ($rawApiBase -match '^[a-zA-Z][a-zA-Z\d+\-.]*://') {
+            $effectiveApiBase = $rawApiBase
+        } else {
+            $effectiveApiBase = if ($rawApiBase.StartsWith('/')) { $rawApiBase } else { "/$rawApiBase" }
+            if ($effectiveApiBase.Length -gt 1 -and $effectiveApiBase.EndsWith('/')) {
+                $effectiveApiBase = $effectiveApiBase.Substring(0, $effectiveApiBase.Length - 1)
+            }
+        }
+        [void]$manifest.AppendLine("vite-env:VITE_API_BASE_URL=$effectiveApiBase")
+
+        foreach ($relativePath in @(Get-FrontendBuildInputFiles)) {
+            $fullPath = Join-Path $ClientDir ($relativePath.Replace('/', '\'))
+            if (-not (Test-Path -LiteralPath $fullPath -PathType Leaf)) {
+                throw "Missing frontend build input: $relativePath"
+            }
+            $fileHash = [BitConverter]::ToString(
+                $hasher.ComputeHash([IO.File]::ReadAllBytes($fullPath))
+            ).Replace('-', '').ToLowerInvariant()
+            [void]$manifest.AppendLine("file:$relativePath=$fileHash")
+        }
+
+        return [BitConverter]::ToString(
+            $hasher.ComputeHash([Text.Encoding]::UTF8.GetBytes($manifest.ToString()))
+        ).Replace('-', '').ToLowerInvariant()
+    }
+    finally {
+        $hasher.Dispose()
+    }
+}
+
+function Get-FrontendBuildState {
+    $indexPath = Join-Path $FrontendBuildDir 'index.html'
+    $fingerprintPath = Join-Path $FrontendBuildDir '.paragraph-build-fingerprint'
+    if (-not (Test-Path -LiteralPath $indexPath -PathType Leaf)) {
+        return [pscustomobject]@{ Current = $false; Reason = 'build output missing' }
+    }
+    if (-not (Test-Path -LiteralPath $fingerprintPath -PathType Leaf)) {
+        return [pscustomobject]@{ Current = $false; Reason = 'fingerprint missing' }
+    }
+
+    try {
+        $storedFingerprint = (Get-Content -LiteralPath $fingerprintPath -Raw -ErrorAction Stop).Trim()
+    }
+    catch {
+        return [pscustomobject]@{ Current = $false; Reason = 'fingerprint invalid' }
+    }
+    if ($storedFingerprint -notmatch '^[0-9a-fA-F]{64}$') {
+        return [pscustomobject]@{ Current = $false; Reason = 'fingerprint invalid' }
+    }
+
+    try {
+        $currentFingerprint = Get-FrontendBuildFingerprint
+    }
+    catch {
+        return [pscustomobject]@{ Current = $false; Reason = "input fingerprint unavailable: $($_.Exception.Message)" }
+    }
+    if ($storedFingerprint -ine $currentFingerprint) {
+        return [pscustomobject]@{ Current = $false; Reason = 'input fingerprint changed' }
+    }
+    return [pscustomobject]@{ Current = $true; Reason = 'current' }
+}
+
+function Write-FrontendBuildFingerprint {
+    $indexPath = Join-Path $FrontendBuildDir 'index.html'
+    if (-not (Test-Path -LiteralPath $indexPath -PathType Leaf)) {
+        throw "Frontend build completed without $indexPath"
+    }
+    $fingerprintPath = Join-Path $FrontendBuildDir '.paragraph-build-fingerprint'
+    $fingerprint = Get-FrontendBuildFingerprint
+    Set-Content -LiteralPath $fingerprintPath -Value $fingerprint -NoNewline -Encoding ascii
 }
 
 function Install-PlaywrightBrowser {
@@ -481,12 +598,12 @@ function Ensure-NodeRuntime {
     $nodeVersionFound = & $NodeExe --version
     if ($LASTEXITCODE -ne 0) { throw 'Node.js failed its version check.' }
     Write-Ok "Node.js ready: $nodeVersionFound"
-    Set-LauncherEnvironment
 }
 
 function Invoke-FrontendRebuild {
     Ensure-NodeRuntime
     Import-DotEnv | Out-Null
+    Set-LauncherEnvironment
     Build-Frontend
 }
 
@@ -511,20 +628,17 @@ function Test-DependenciesReady {
         return $false
     }
 
-    & $PythonExe --version *> $null
-    if ($LASTEXITCODE -ne 0) { return $false }
-    & $UvExe --version *> $null
-    if ($LASTEXITCODE -ne 0) { return $false }
-    & $NodeExe --version *> $null
-    if ($LASTEXITCODE -ne 0) { return $false }
+    $installStateWriteTime = (Get-Item -LiteralPath $frontendInstallState).LastWriteTimeUtc
+    foreach ($manifestPath in @($frontendPackage, $frontendLock)) {
+        if ((Get-Item -LiteralPath $manifestPath).LastWriteTimeUtc -gt $installStateWriteTime) {
+            return $false
+        }
+    }
+
     & $VenvPython -c 'import fastapi, uvicorn' *> $null
     if ($LASTEXITCODE -ne 0) { return $false }
 
     return $true
-}
-
-function Test-FrontendBuildReady {
-    return Test-Path -LiteralPath (Join-Path $FrontendBuildDir 'index.html')
 }
 
 function Get-ListenerPids([int]$Port) {
@@ -533,16 +647,124 @@ function Get-ListenerPids([int]$Port) {
     } | Sort-Object -Unique)
 }
 
+function Get-PortListenerRecords {
+    param([Parameter(Mandatory = $true)][int[]]$Ports)
+
+    $configuredPorts = [Collections.Generic.HashSet[int]]::new()
+    foreach ($port in $Ports) {
+        if ($port -lt 1 -or $port -gt 65535) { throw "Invalid configured port: $port" }
+        [void]$configuredPorts.Add($port)
+    }
+
+    $records = [Collections.Generic.List[object]]::new()
+    $seen = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    $netstatOutput = @(netstat.exe -ano)
+    if ($LASTEXITCODE -ne 0) { throw "netstat failed with exit code $LASTEXITCODE" }
+    foreach ($line in $netstatOutput) {
+        if ($line -match '^\s*TCP\s+\S+:(\d+)\s+\S+\s+LISTENING\s+(\d+)\s*$') {
+            $port = [int]$Matches[1]
+            $processId = [int]$Matches[2]
+            $recordKey = "$port/$processId"
+            if ($configuredPorts.Contains($port) -and $seen.Add($recordKey)) {
+                [void]$records.Add([pscustomobject]@{
+                    Port      = $port
+                    ProcessId = $processId
+                })
+            }
+        }
+    }
+    return @($records)
+}
+
+function Get-PortConflictProcesses {
+    param([Parameter(Mandatory = $true)][object[]]$ListenerRecords)
+
+    $conflicts = foreach ($group in @($ListenerRecords | Group-Object -Property ProcessId)) {
+        $processId = [int]$group.Name
+        $processName = 'unavailable'
+        try {
+            $process = Get-Process -Id $processId -ErrorAction Stop
+            if (-not [string]::IsNullOrWhiteSpace([string]$process.ProcessName)) {
+                $processName = [string]$process.ProcessName
+            }
+        }
+        catch { }
+        [pscustomobject]@{
+            ProcessId   = $processId
+            ProcessName = $processName
+            Ports       = @($group.Group | ForEach-Object { [int]$_.Port } | Sort-Object -Unique)
+        }
+    }
+    return @($conflicts | Sort-Object -Property ProcessId)
+}
+
+function Confirm-PortConflictTermination {
+    param([Parameter(Mandatory = $true)][object[]]$Conflicts)
+
+    Write-Warn 'Configured launch ports are already in use:'
+    foreach ($conflict in $Conflicts) {
+        $ports = (@($conflict.Ports | Sort-Object -Unique) -join ', ')
+        Write-Host ("  PID {0} ({1}) owns port(s): {2}" -f $conflict.ProcessId, $conflict.ProcessName, $ports) -ForegroundColor Yellow
+    }
+
+    $launcherConflict = @($Conflicts | Where-Object { [int]$_.ProcessId -eq $PID })
+    if ($launcherConflict.Count -gt 0) {
+        $ports = (@($launcherConflict | ForEach-Object { $_.Ports } | Sort-Object -Unique) -join ', ')
+        throw "The launcher process PID $PID owns configured port(s) $ports. Refusing to terminate the launcher; free the port(s) and retry."
+    }
+    if (-not $script:LauncherInteractive) {
+        throw 'Configured launch ports are occupied, but termination requires an interactive confirmation.'
+    }
+
+    $confirmation = ([string](Read-Host 'Terminate all listed port-conflict process trees? [y/N]')).Trim()
+    if ($confirmation -notmatch '^(?i:y|yes)$') {
+        Write-Info 'Launch cancelled. No port-conflict processes were terminated.'
+        return $false
+    }
+    return $true
+}
+
 function Stop-ProcessTree([int]$ProcessId) {
-    if ($ProcessId -le 0 -or $ProcessId -eq $PID) { return }
+    if ($ProcessId -le 0) { throw "Invalid process ID: $ProcessId" }
+    if ($ProcessId -eq $PID) { throw "Refusing to terminate the launcher process PID $PID." }
+
+    $targetExists = $true
+    try {
+        $target = [Diagnostics.Process]::GetProcessById($ProcessId)
+        $target.Dispose()
+    }
+    catch [System.ArgumentException] {
+        $targetExists = $false
+    }
+    catch { $targetExists = $true }
+    if (-not $targetExists) { return $true }
+
     & taskkill.exe /PID $ProcessId /T /F | Out-Null
+    $taskKillExitCode = if ($null -eq $LASTEXITCODE) { 0 } else { [int]$LASTEXITCODE }
+    for ($attempt = 1; $attempt -le 10; $attempt++) {
+        $targetExists = $true
+        try {
+            $target = [Diagnostics.Process]::GetProcessById($ProcessId)
+            $target.Dispose()
+        }
+        catch [System.ArgumentException] {
+            $targetExists = $false
+        }
+        catch { $targetExists = $true }
+        if (-not $targetExists) { return $true }
+        if ($attempt -lt 10) { Start-Sleep -Milliseconds 100 }
+    }
+    if ($taskKillExitCode -ne 0) {
+        throw "taskkill failed with exit code $taskKillExitCode and process PID $ProcessId is still alive."
+    }
+    throw "Process PID $ProcessId is still alive after taskkill completed."
 }
 
 function Stop-PortListeners([int]$Port) {
     $pids = @(Get-ListenerPids -Port $Port)
     foreach ($processId in $pids) {
         Write-Info "Releasing port $Port from PID $processId."
-        Stop-ProcessTree -ProcessId $processId
+        [void](Stop-ProcessTree -ProcessId $processId)
     }
     for ($attempt = 1; $attempt -le 20; $attempt++) {
         $stillListening = netstat -ano | Select-String -Pattern "^\s*TCP\s+\S+:$Port\s+\S+\s+LISTENING\s+\d+\s*$"
@@ -553,9 +775,19 @@ function Stop-PortListeners([int]$Port) {
 }
 
 function Get-BackendTerminalProcessIds {
-    return @(Get-Process -Name 'cmd' -ErrorAction SilentlyContinue |
-        Where-Object { $_.MainWindowTitle -eq $script:BackendTerminalTitle } |
-        Select-Object -ExpandProperty Id)
+    $processIds = [Collections.Generic.HashSet[int]]::new()
+    foreach ($process in @(Get-Process -Name 'cmd' -ErrorAction SilentlyContinue |
+        Where-Object { $_.MainWindowTitle -eq $script:BackendTerminalTitle })) {
+        [void]$processIds.Add([int]$process.Id)
+    }
+    try {
+        foreach ($process in @(Get-CimInstance Win32_Process -Filter "Name = 'cmd.exe'" -ErrorAction Stop |
+            Where-Object { [string]$_.CommandLine -match 'server\.app:app' })) {
+            [void]$processIds.Add([int]$process.ProcessId)
+        }
+    }
+    catch { }
+    return @($processIds)
 }
 
 function Stop-ApplicationProcesses {
@@ -581,7 +813,7 @@ function Stop-ApplicationProcesses {
 
     foreach ($processId in $processIds) {
         Write-Info "Stopping application process tree rooted at PID $processId."
-        Stop-ProcessTree -ProcessId $processId
+        [void](Stop-ProcessTree -ProcessId $processId)
     }
     foreach ($port in $ports) {
         Stop-PortListeners -Port $port
@@ -598,65 +830,172 @@ function Get-ListenerPid([int]$Port) {
     return $null
 }
 
+function Resolve-LaunchPortConflicts {
+    param([Parameter(Mandatory = $true)][System.Collections.IDictionary]$Settings)
+
+    $ports = @([int]$Settings.FASTAPI_PORT, [int]$Settings.UI_PORT) | Sort-Object -Unique
+    $listenerRecords = @(Get-PortListenerRecords -Ports $ports)
+    if ($listenerRecords.Count -eq 0) { return $true }
+
+    $conflicts = @(Get-PortConflictProcesses -ListenerRecords $listenerRecords)
+    if (-not (Confirm-PortConflictTermination -Conflicts $conflicts)) { return $false }
+
+    $terminationErrors = [Collections.Generic.List[string]]::new()
+    foreach ($conflict in $conflicts) {
+        try {
+            [void](Stop-ProcessTree -ProcessId ([int]$conflict.ProcessId))
+        }
+        catch {
+            [void]$terminationErrors.Add(("PID {0} ({1}): {2}" -f $conflict.ProcessId, $conflict.ProcessName, $_.Exception.Message))
+        }
+    }
+
+    $remainingRecords = @(Get-PortListenerRecords -Ports $ports)
+    if ($remainingRecords.Count -gt 0) {
+        $remainingConflicts = @(Get-PortConflictProcesses -ListenerRecords $remainingRecords)
+        $remainingDetails = @($remainingConflicts | ForEach-Object {
+            "PID $($_.ProcessId) ($($_.ProcessName)) on port(s) $(@($_.Ports | Sort-Object -Unique) -join ', ')"
+        }) -join '; '
+        $failureDetails = if ($terminationErrors.Count -gt 0) {
+            " Termination errors: $($terminationErrors -join '; ')."
+        } else { '' }
+        throw "Approved port-conflict termination did not free all configured ports. Remaining listeners: $remainingDetails.$failureDetails"
+    }
+    if ($terminationErrors.Count -gt 0) {
+        throw "Approved port-conflict termination reported failures: $($terminationErrors -join '; ')."
+    }
+    Write-Ok 'Configured launch ports are free.'
+    return $true
+}
+
 #endregion
 
 #region Application lifecycle and verification
 
+function Start-BackendTerminalProcess {
+    param([Parameter(Mandatory = $true)][string]$BackendCommand)
+
+    $existingCmdIds = [Collections.Generic.HashSet[int]]::new()
+    foreach ($processId in @(Get-Process -Name 'cmd' -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Id)) {
+        [void]$existingCmdIds.Add([int]$processId)
+    }
+
+    $windowTitleArgument = '"' + $script:BackendTerminalTitle + '"'
+    $launcherProcess = Start-Process -FilePath 'cmd.exe' -ArgumentList @('/d', '/c', 'start', $windowTitleArgument, 'cmd.exe', '/k', $BackendCommand) -WorkingDirectory $AppDir -PassThru
+    for ($attempt = 1; $attempt -le 20; $attempt++) {
+        $candidateIds = @(Get-Process -Name 'cmd' -ErrorAction SilentlyContinue |
+            Where-Object { -not $existingCmdIds.Contains([int]$_.Id) } |
+            Select-Object -ExpandProperty Id)
+        $commandLineCandidates = @()
+        try {
+            $commandLineCandidates = @(Get-CimInstance Win32_Process -Filter "Name = 'cmd.exe'" -ErrorAction Stop |
+                Where-Object {
+                    -not $existingCmdIds.Contains([int]$_.ProcessId) -and
+                    [string]$_.CommandLine -match 'server\.app:app'
+                } |
+                Select-Object -ExpandProperty ProcessId)
+        }
+        catch { }
+
+        $terminalId = @($commandLineCandidates | Select-Object -First 1)
+        if ($terminalId.Count -eq 0) {
+            $terminalId = @(Get-Process -Name 'cmd' -ErrorAction SilentlyContinue |
+                Where-Object {
+                    -not $existingCmdIds.Contains([int]$_.Id) -and
+                    $_.MainWindowTitle -eq $script:BackendTerminalTitle
+                } |
+                Select-Object -ExpandProperty Id -First 1)
+        }
+        if ($terminalId.Count -eq 0 -and $candidateIds.Count -eq 1) {
+            $terminalId = @($candidateIds[0])
+        }
+        if ($terminalId.Count -gt 0) {
+            $terminal = Get-Process -Id ([int]$terminalId[0]) -ErrorAction SilentlyContinue
+            if ($null -ne $terminal -and -not $terminal.HasExited) { return $terminal }
+        }
+        if ($attempt -lt 20) { Start-Sleep -Milliseconds 100 }
+    }
+
+    try { [void](Stop-ProcessTree -ProcessId ([int]$launcherProcess.Id)) } catch { }
+    throw "Unable to identify the visible '$script:BackendTerminalTitle' process created for the backend launch."
+}
+
 function Invoke-Launch {
-    Ensure-PortableRuntimes
-    $settings = Import-DotEnv
-    Set-LauncherEnvironment
-    $dependenciesReady = Test-DependenciesReady
-    $frontendBuildReady = Test-FrontendBuildReady
-    if (-not $dependenciesReady -or -not $frontendBuildReady) {
-        if (-not $dependenciesReady) {
+    $backendProcess = $null
+    $frontendProcess = $null
+    try {
+        Ensure-PortableRuntimes
+        $settings = Import-DotEnv
+        Set-LauncherEnvironment
+
+        if (-not (Test-DependenciesReady)) {
             Write-Step 'Required application environments are missing or unusable; installing dependencies.'
             Sync-Dependencies -InstallationType 'Standard'
+        } else {
+            Write-Ok 'Application environments are ready; skipped dependency installation.'
         }
-        if (-not $frontendBuildReady) {
-            Write-Step 'Frontend build is missing; rebuilding frontend.'
+
+        $frontendBuildState = Get-FrontendBuildState
+        if (-not $frontendBuildState.Current) {
+            Write-Step "Frontend build is $($frontendBuildState.Reason); rebuilding frontend."
+            Build-Frontend
+        } else {
+            Write-Ok 'Frontend build fingerprint is current; skipped rebuild.'
         }
-        Build-Frontend
+
+        if (-not (Test-Path -LiteralPath $VenvPython)) { throw "Virtual environment Python not found at $VenvPython" }
+
+        $backendPort = [int]$settings.FASTAPI_PORT
+        $uiPort = [int]$settings.UI_PORT
+        if (-not (Resolve-LaunchPortConflicts -Settings $settings)) { return $false }
+        Clear-PythonEnvironment
+
+        $backendArgs = @('-m', 'uvicorn', 'server.app:app', '--host', [string]$settings.FASTAPI_HOST, '--port', [string]$backendPort, '--log-level', 'info')
+        if ([string]$settings.RELOAD -ieq 'true') { $backendArgs += '--reload' }
+        Write-Step "Launching backend on $($settings.FASTAPI_HOST):$backendPort"
+        $quotedPython = '"' + $VenvPython + '"'
+        $backendCommand = "$quotedPython $($backendArgs -join ' ')"
+        $backendProcess = Start-BackendTerminalProcess -BackendCommand $backendCommand
+
+        $healthUrl = "http://$($settings.FASTAPI_HOST):$backendPort/docs"
+        Write-Info "Waiting for $healthUrl"
+        if (-not (Invoke-HealthCheck -Url $healthUrl -Attempts 60 -IntervalSeconds 1)) {
+            throw "Backend did not become healthy at $healthUrl within 60 seconds."
+        }
+
+        Write-Step "Launching frontend preview on $($settings.UI_HOST):$uiPort"
+        $frontendProcess = Start-Process -FilePath $NpmCmd -ArgumentList @('run', 'preview', '--', '--host', [string]$settings.UI_HOST, '--port', [string]$uiPort, '--strictPort') -WorkingDirectory $ClientDir -WindowStyle Hidden -PassThru
+        $uiUrl = "http://$($settings.UI_HOST):$uiPort"
+        if (-not (Invoke-HealthCheck -Url $uiUrl -Attempts 30 -IntervalSeconds 1)) {
+            throw "Frontend preview did not become healthy at $uiUrl within 30 seconds."
+        }
+        Start-Process $uiUrl
+        $backendPid = Get-ListenerPid -Port $backendPort
+        Write-Ok 'ParaGraph started successfully.'
+        Write-Host "  Backend: $healthUrl (PID $backendPid)"
+        Write-Host "  Frontend: $uiUrl (PID $($frontendProcess.Id))"
+        return $true
     }
-    else {
-        Write-Ok 'Application environments are ready; skipped dependency installation.'
+    catch {
+        foreach ($process in @($frontendProcess, $backendProcess)) {
+            if ($null -eq $process) { continue }
+            try {
+                [void](Stop-ProcessTree -ProcessId ([int]$process.Id))
+            }
+            catch {
+                Write-Warn "Unable to clean up launch-owned PID $($process.Id): $($_.Exception.Message)"
+            }
+        }
+        throw
     }
-    if (-not (Test-Path -LiteralPath $VenvPython)) { throw "Virtual environment Python not found at $VenvPython" }
-
-    $backendPort = [int]$settings.FASTAPI_PORT
-    $uiPort = [int]$settings.UI_PORT
-    Stop-ApplicationProcesses -Settings $settings
-    Clear-PythonEnvironment
-
-    $backendArgs = @('-m', 'uvicorn', 'server.app:app', '--host', [string]$settings.FASTAPI_HOST, '--port', [string]$backendPort, '--log-level', 'info')
-    if ([string]$settings.RELOAD -ieq 'true') { $backendArgs += '--reload' }
-    Write-Step "Launching backend on $($settings.FASTAPI_HOST):$backendPort"
-    $quotedPython = '"' + $VenvPython + '"'
-    $backendCommand = "$quotedPython $($backendArgs -join ' ')"
-    $windowTitleArgument = '"' + $script:BackendTerminalTitle + '"'
-    Start-Process -FilePath 'cmd.exe' -ArgumentList @('/d', '/c', 'start', $windowTitleArgument, 'cmd.exe', '/k', $backendCommand) -WorkingDirectory $AppDir | Out-Null
-
-    $healthUrl = "http://$($settings.FASTAPI_HOST):$backendPort/docs"
-    Write-Info "Waiting for $healthUrl"
-    if (-not (Invoke-HealthCheck -Url $healthUrl -Attempts 60 -IntervalSeconds 1)) {
-        Stop-ApplicationProcesses -Settings $settings
-        throw "Backend did not become healthy at $healthUrl within 60 seconds."
-    }
-
-    Write-Step "Launching frontend preview on $($settings.UI_HOST):$uiPort"
-    $frontend = Start-Process -FilePath $NpmCmd -ArgumentList @('run', 'preview', '--', '--host', [string]$settings.UI_HOST, '--port', [string]$uiPort, '--strictPort') -WorkingDirectory $ClientDir -WindowStyle Hidden -PassThru
-    $uiUrl = "http://$($settings.UI_HOST):$uiPort"
-    Start-Process $uiUrl
-    Start-Sleep -Milliseconds 500
-    $backendPid = Get-ListenerPid -Port $backendPort
-    Write-Ok 'ParaGraph started successfully.'
-    Write-Host "  Backend: $healthUrl (PID $backendPid)"
-    Write-Host "  Frontend: $uiUrl (PID $($frontend.Id))"
 }
 
 function Invoke-DatabaseInitialization {
-    Ensure-PortableRuntimes
-    Set-LauncherEnvironment
+    param([switch]$SetupAlreadyReady)
+    if (-not $SetupAlreadyReady) {
+        Ensure-PortableRuntimes
+        Set-LauncherEnvironment
+    }
     $arguments = @('run', '--project', (Join-Path $AppDir 'server'), '--python', $PythonExe, 'python', '-m', 'scripts.initialize_database')
     Push-Location $AppDir
     try {
@@ -1097,14 +1436,15 @@ while ($true) {
     try {
         Invoke-TrackedLauncherAction -Name $entry.Title -Action {
             switch ($entry.Key) {
-                'Launch' { Invoke-Launch; exit 0 }
+                'Launch' { if (Invoke-Launch) { exit 0 } }
                 'KillProcesses' { Stop-ApplicationProcesses -Settings (Import-DotEnv) }
                 'Install' {
                     Ensure-PortableRuntimes
                     $installationType = Read-InstallationType
                     Import-DotEnv | Out-Null
+                    Set-LauncherEnvironment
                     Sync-Dependencies -PruneCache -InstallationType $installationType
-                    Invoke-DatabaseInitialization
+                    Invoke-DatabaseInitialization -SetupAlreadyReady
                     Build-Frontend
                 }
                 'Rebuild' { Invoke-FrontendRebuild }
