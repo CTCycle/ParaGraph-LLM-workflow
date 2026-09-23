@@ -39,6 +39,16 @@ not delay clean CI or deterministic foundations, and blocked external services
 must remain explicitly `BLOCKED` rather than being converted into a mocked
 success claim.
 
+## Tier 1 slices
+
+| Slice | Scope | Exit signal |
+| --- | --- | --- |
+| `PG-T1-01` | Provider and configuration HTTP route behavior, including representative success and error-to-status mappings. | Focused route checks pass; stubbed provider responses are not reported as provider success. |
+| `PG-T1-02` | FastAPI OpenAPI surface and generated frontend API contract alignment. | The generated contract check matches the current OpenAPI schemas. |
+| `PG-T1-03` | Configuration and named-profile reads/writes, secret redaction, and preservation of saved keys on redacted updates. | Disposable SQLite integration checks and the focused configuration UI suite pass. |
+| `PG-T1-04` | Browser-local workflow graph save, reload, and navigation persistence. | Browser evidence confirms the graph survives reload and back/forward navigation. |
+| `PG-T1-05` | SQLite persistence for execution runs, steps, outputs, checkpoints, and events. | Repository and restart/recovery evidence confirms durable records on the current candidate. |
+
 ## Tier 0 slices
 
 Tier 0 is the first validation tier for this checkout. Its current records are
