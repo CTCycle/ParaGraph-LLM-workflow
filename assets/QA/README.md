@@ -17,6 +17,8 @@ Current curated reports:
   minimal remediation record.
 - [`PG-T0-02-f43590f.md`](PG-T0-02-f43590f.md) — fresh Windows bootstrap,
   repeat setup, migration idempotence, and incompatible-schema preservation.
+- [`PG-T0-03-3de7520.md`](PG-T0-03-3de7520.md) — launcher safety-race harness
+  and a live approved-conflict attempt blocked by Windows process termination.
 - [`paragraph-e2e-system-validation-2026-08-26.md`](paragraph-e2e-system-validation-2026-08-26.md)
   — live full-stack validation and known provider blockers.
 - [`paragraph_e2e_validation_2026-08-02.md`](paragraph_e2e_validation_2026-08-02.md)
