@@ -1,5 +1,7 @@
 # Curated QA Evidence
 
+Last updated: 2026-09-23
+
 This directory is the durable evidence layer for the validation ledger. Curated
 reports and the screenshots they reference are revision-scoped and may be
 linked from `assets/docs/project_status_ledger.md` or a validation strategy
@@ -22,6 +24,10 @@ Current curated reports:
 - [`PG-T0-03-3010c00.md`](PG-T0-03-3010c00.md) — build-fingerprint matrix
   passed; option 1 reached both health endpoints but Windows blocked browser
   launch and process cleanup, so warm-start timings remain unvalidated.
+- [`PG-T0-03-6e74193.md`](PG-T0-03-6e74193.md) — current-revision launcher
+  revalidation; the in-app browser rendered the preview, while system-browser
+  launch, approved conflict termination, official cleanup, and warm-start
+  timings remain incomplete because of Windows access denials.
 - [`PG-T1-01-c17d740.md`](PG-T1-01-c17d740.md) — current provider and
   configuration route behavior, including the update-order regression fix.
 - [`PG-T1-02-c17d740.md`](PG-T1-02-c17d740.md) — current OpenAPI and generated
