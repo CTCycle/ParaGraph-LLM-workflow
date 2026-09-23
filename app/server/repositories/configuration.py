@@ -185,6 +185,7 @@ class ConfigurationRepository:
             )
             for row in list(session_row.provider_configurations):
                 db_session.delete(row)
+            db_session.flush()
 
             for payload in provider_map.values():
                 has_value = bool(
