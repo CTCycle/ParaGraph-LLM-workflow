@@ -19,6 +19,9 @@ Current curated reports:
   repeat setup, migration idempotence, and incompatible-schema preservation.
 - [`PG-T0-03-3de7520.md`](PG-T0-03-3de7520.md) — launcher safety-race harness
   and a live approved-conflict attempt blocked by Windows process termination.
+- [`PG-T0-03-3010c00.md`](PG-T0-03-3010c00.md) — build-fingerprint matrix
+  passed; option 1 reached both health endpoints but Windows blocked browser
+  launch and process cleanup, so warm-start timings remain unvalidated.
 - [`paragraph-e2e-system-validation-2026-08-26.md`](paragraph-e2e-system-validation-2026-08-26.md)
   — live full-stack validation and known provider blockers.
 - [`paragraph_e2e_validation_2026-08-02.md`](paragraph_e2e_validation_2026-08-02.md)
