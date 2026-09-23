@@ -22,6 +22,12 @@ Current curated reports:
 - [`PG-T0-03-3010c00.md`](PG-T0-03-3010c00.md) — build-fingerprint matrix
   passed; option 1 reached both health endpoints but Windows blocked browser
   launch and process cleanup, so warm-start timings remain unvalidated.
+- [`PG-T1-01-c17d740.md`](PG-T1-01-c17d740.md) — current provider and
+  configuration route behavior, including the update-order regression fix.
+- [`PG-T1-02-c17d740.md`](PG-T1-02-c17d740.md) — current OpenAPI and generated
+  frontend API contract alignment.
+- [`PG-T1-03-c17d740.md`](PG-T1-03-c17d740.md) — disposable SQLite
+  configuration/profile persistence and secret-redaction validation.
 - [`paragraph-e2e-system-validation-2026-08-26.md`](paragraph-e2e-system-validation-2026-08-26.md)
   — live full-stack validation and known provider blockers.
 - [`paragraph_e2e_validation_2026-08-02.md`](paragraph_e2e_validation_2026-08-02.md)
