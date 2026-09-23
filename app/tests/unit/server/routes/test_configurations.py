@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from httpx import Response
 from fastapi.testclient import TestClient
 
 from server.contracts.configuration import (
@@ -10,6 +11,10 @@ from server.contracts.configuration import (
     ProviderConfiguration,
     ProviderStatusResponse,
 )
+from server.configurations.settings import SQLiteSettings
+from server.repositories.configuration import ConfigurationRepository
+from server.repositories.database.migration import run_database_migrations
+from server.repositories.database.sqlite import SQLiteRepository
 from server.services.configuration import configuration_service
 
 ###############################################################################
@@ -142,6 +147,87 @@ def test_configurations_load_save_profile_and_ping_flows(
     )
     assert provider_ping_response.status_code == 200
     assert provider_ping_response.json()["provider"] == "lmstudio"
+
+###############################################################################
+def test_configuration_routes_persist_and_redact_secrets(
+    client: TestClient, monkeypatch, tmp_path
+) -> None:
+    database_path = tmp_path / "configuration-validation.db"
+    run_database_migrations(database_path)
+    sqlite_repository = SQLiteRepository(
+        SQLiteSettings(insert_batch_size=1000), db_path=str(database_path)
+    )
+    repository = ConfigurationRepository(database_repository=sqlite_repository)
+    monkeypatch.setattr(configuration_service, "_repository", repository)
+
+    session_name = "pg-t1-secret-validation"
+    profile_name = "validation-profile"
+    sentinel = "pg-t1-sentinel-secret"
+    payload = {
+        "session_name": session_name,
+        "provider_configurations": [
+            {
+                "provider": "openai",
+                "api_key": sentinel,
+                "base_url": None,
+                "metadata": {},
+            }
+        ],
+    }
+
+    def assert_redacted(response: Response) -> None:
+        assert response.status_code == 200
+        assert sentinel not in response.text
+        provider = response.json()["provider_configurations"][0]
+        assert provider["api_key"] is None
+        assert provider["has_api_key"] is True
+
+    try:
+        saved_configuration = client.put("/configurations", json=payload)
+        assert_redacted(saved_configuration)
+        assert repository.load_configuration(session_name)[
+            "provider_configurations"
+        ][0]["api_key"] == sentinel
+
+        public_configuration = saved_configuration.json()
+        updated_configuration = client.put(
+            "/configurations", json=public_configuration
+        )
+        assert_redacted(updated_configuration)
+        assert repository.load_configuration(session_name)[
+            "provider_configurations"
+        ][0]["api_key"] == sentinel
+
+        saved_profile = client.put(
+            f"/configurations/profiles/{profile_name}", json=payload
+        )
+        assert_redacted(saved_profile)
+
+        loaded_profile = client.get(
+            f"/configurations/profiles/{profile_name}",
+            params={"session_name": session_name},
+        )
+        assert_redacted(loaded_profile)
+        assert repository.load_configuration_profile(
+            session_name=session_name, profile_name=profile_name
+        )["provider_configurations"][0]["api_key"] == sentinel
+
+        updated_profile = client.put(
+            f"/configurations/profiles/{profile_name}", json=loaded_profile.json()
+        )
+        assert_redacted(updated_profile)
+        assert repository.load_configuration_profile(
+            session_name=session_name, profile_name=profile_name
+        )["provider_configurations"][0]["api_key"] == sentinel
+
+        profile_list = client.get(
+            "/configurations/profiles", params={"session_name": session_name}
+        )
+        assert profile_list.status_code == 200
+        assert sentinel not in profile_list.text
+        assert profile_list.json()["profiles"][0]["profile_name"] == profile_name
+    finally:
+        sqlite_repository.engine.dispose()
 
 ###############################################################################
 def test_configuration_profile_errors_map_to_http(
