@@ -724,10 +724,7 @@ function Confirm-PortConflictTermination {
     return $true
 }
 
-function Stop-ProcessTree([int]$ProcessId) {
-    if ($ProcessId -le 0) { throw "Invalid process ID: $ProcessId" }
-    if ($ProcessId -eq $PID) { throw "Refusing to terminate the launcher process PID $PID." }
-
+function Test-LauncherProcessExists([int]$ProcessId) {
     $targetExists = $true
     try {
         $target = [Diagnostics.Process]::GetProcessById($ProcessId)
@@ -737,21 +734,24 @@ function Stop-ProcessTree([int]$ProcessId) {
         $targetExists = $false
     }
     catch { $targetExists = $true }
-    if (-not $targetExists) { return $true }
+    return $targetExists
+}
 
+function Invoke-LauncherProcessTreeTermination([int]$ProcessId) {
     & taskkill.exe /PID $ProcessId /T /F | Out-Null
-    $taskKillExitCode = if ($null -eq $LASTEXITCODE) { 0 } else { [int]$LASTEXITCODE }
+    if ($null -eq $LASTEXITCODE) { return 0 }
+    return [int]$LASTEXITCODE
+}
+
+function Stop-ProcessTree([int]$ProcessId) {
+    if ($ProcessId -le 0) { throw "Invalid process ID: $ProcessId" }
+    if ($ProcessId -eq $PID) { throw "Refusing to terminate the launcher process PID $PID." }
+
+    if (-not (Test-LauncherProcessExists -ProcessId $ProcessId)) { return $true }
+
+    $taskKillExitCode = Invoke-LauncherProcessTreeTermination -ProcessId $ProcessId
     for ($attempt = 1; $attempt -le 10; $attempt++) {
-        $targetExists = $true
-        try {
-            $target = [Diagnostics.Process]::GetProcessById($ProcessId)
-            $target.Dispose()
-        }
-        catch [System.ArgumentException] {
-            $targetExists = $false
-        }
-        catch { $targetExists = $true }
-        if (-not $targetExists) { return $true }
+        if (-not (Test-LauncherProcessExists -ProcessId $ProcessId)) { return $true }
         if ($attempt -lt 10) { Start-Sleep -Milliseconds 100 }
     }
     if ($taskKillExitCode -ne 0) {
@@ -1418,6 +1418,10 @@ function Wait-ForMenu {
     Write-Host 'Press any key to return to the menu...' -ForegroundColor DarkGray
     if (-not $script:LauncherInteractive) { return }
     try { $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown') } catch { $null = Read-Host }
+}
+
+if ($MyInvocation.InvocationName -eq '.') {
+    return
 }
 
 while ($true) {
