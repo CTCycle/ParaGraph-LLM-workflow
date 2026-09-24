@@ -1,5 +1,5 @@
 # Validation Strategy
-Last updated: 2026-09-21
+Last updated: 2026-09-24
 
 ## Purpose and authority
 
@@ -51,8 +51,10 @@ success claim.
 
 ## Tier 0 slices
 
-Tier 0 is the first validation tier for this checkout. Its current records are
-summarized in the status ledger; the intended boundaries are:
+Tier 0 was the campaign's initial validation tier. The current ledger records
+Tier 0 and Tier 1 as complete; the next actionable work is the Tier 2 browser
+workflow campaign, beginning with the catalog/template and custom-import gaps.
+The intended Tier 0 boundaries remain:
 
 ### `PG-T0-01` — clean CI baseline
 

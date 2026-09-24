@@ -1,6 +1,6 @@
 # Curated QA Evidence
 
-Last updated: 2026-09-23
+Last updated: 2026-09-24
 
 This directory is the durable evidence layer for the validation ledger. Curated
 reports and the screenshots they reference are revision-scoped and may be
@@ -19,21 +19,30 @@ Current curated reports:
   minimal remediation record.
 - [`PG-T0-02-f43590f.md`](PG-T0-02-f43590f.md) — fresh Windows bootstrap,
   repeat setup, migration idempotence, and incompatible-schema preservation.
-- [`PG-T0-03-3de7520.md`](PG-T0-03-3de7520.md) — launcher safety-race harness
-  and a live approved-conflict attempt blocked by Windows process termination.
-- [`PG-T0-03-3010c00.md`](PG-T0-03-3010c00.md) — build-fingerprint matrix
-  passed; option 1 reached both health endpoints but Windows blocked browser
-  launch and process cleanup, so warm-start timings remain unvalidated.
+- [`PG-T0-03-3de7520.md`](PG-T0-03-3de7520.md) — earlier launcher safety-race
+  harness and live approved-conflict attempt; the harness was rerun in the
+  current-revision report below.
+- [`PG-T0-03-3010c00.md`](PG-T0-03-3010c00.md) — earlier build-fingerprint
+  matrix and environment-limited startup attempt; its lifecycle gaps were
+  resolved and revalidated in the current-revision report below.
 - [`PG-T0-03-6e74193.md`](PG-T0-03-6e74193.md) — current-revision launcher
-  revalidation; the in-app browser rendered the preview, while system-browser
-  launch, approved conflict termination, official cleanup, and warm-start
-  timings remain incomplete because of Windows access denials.
+  environment-limited revalidation from 2026-09-23; superseded by the current
+  launcher lifecycle report below for the resolved host-permission gaps.
+- [`PG-T0-03-1ad6758.md`](PG-T0-03-1ad6758.md) — current-revision official
+  launcher lifecycle, controlled owned-port conflict, three warm-start samples,
+  and current safety/fingerprint harness checks.
 - [`PG-T1-01-c17d740.md`](PG-T1-01-c17d740.md) — current provider and
   configuration route behavior, including the update-order regression fix.
 - [`PG-T1-02-c17d740.md`](PG-T1-02-c17d740.md) — current OpenAPI and generated
   frontend API contract alignment.
 - [`PG-T1-03-c17d740.md`](PG-T1-03-c17d740.md) — disposable SQLite
   configuration/profile persistence and secret-redaction validation.
+- [`PG-T1-04-1ad6758.md`](PG-T1-04-1ad6758.md) — browser-local graph save,
+  reload, and route/history navigation persistence, including the observed
+  transient runtime-output behavior.
+- [`PG-T1-05-1ad6758.md`](PG-T1-05-1ad6758.md) — deterministic execution
+  records, outputs, steps, checkpoints, and ordered events across SQLite and
+  backend restart.
 - [`paragraph-e2e-system-validation-2026-08-26.md`](paragraph-e2e-system-validation-2026-08-26.md)
   — live full-stack validation and known provider blockers.
 - [`paragraph_e2e_validation_2026-08-02.md`](paragraph_e2e_validation_2026-08-02.md)
