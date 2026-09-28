@@ -42,7 +42,7 @@ describe('ModelsPage download transitions', () => {
             ok: true,
             repo_id: repoId,
             message: 'Download started',
-            destination_path: 'app/resources/models/huggingface/acme--model',
+            destination_path: 'resources/models/huggingface/acme--model',
             already_downloaded: false,
             job_id: 'job-1',
             status: 'running',
@@ -55,7 +55,7 @@ describe('ModelsPage download transitions', () => {
         getHuggingFaceDownloadStatusMock.mockResolvedValue({
             job_id: 'job-1',
             repo_id: repoId,
-            destination_path: 'app/resources/models/huggingface/acme--model',
+            destination_path: 'resources/models/huggingface/acme--model',
             status: 'completed',
             progress: 100,
             message: 'Download complete.',

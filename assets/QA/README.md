@@ -1,6 +1,6 @@
 # Curated QA Evidence
 
-Last updated: 2026-09-24
+Last updated: 2026-09-28
 
 This directory is the durable evidence layer for the validation ledger. Curated
 reports and the screenshots they reference are revision-scoped and may be
@@ -19,6 +19,9 @@ Current curated reports:
   minimal remediation record.
 - [`PG-T0-02-f43590f.md`](PG-T0-02-f43590f.md) — fresh Windows bootstrap,
   repeat setup, migration idempotence, and incompatible-schema preservation.
+- [`PG-T0-02-0211d1f.md`](PG-T0-02-0211d1f.md) — focused repository resource-root
+  migration, default/override resolution, moved-data integrity, and adjacent
+  backend/frontend checks.
 - [`PG-T0-03-3de7520.md`](PG-T0-03-3de7520.md) — earlier launcher safety-race
   harness and live approved-conflict attempt; the harness was rerun in the
   current-revision report below.

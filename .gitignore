@@ -1,8 +1,9 @@
 # Project-specific generated/runtime artifacts
-app/resources/artifacts/**
-app/resources/models/**
-app/resources/tokenizers/**
-app/resources/logs/**
+resources/artifacts/**
+resources/models/**
+resources/tokenizers/**
+resources/logs/**
+!resources/logs/.gitkeep
 app/client/node_modules/
 app/client/logs/
 app/client/*.local

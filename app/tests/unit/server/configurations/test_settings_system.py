@@ -109,6 +109,17 @@ def test_environment_loader_preserves_existing_env_over_example(
     assert os.getenv("FASTAPI_HOST") == "from_local"
 
 ###############################################################################
+def test_resources_root_defaults_to_repository_resources(
+    tmp_path: Path, monkeypatch
+) -> None:
+    monkeypatch.setattr(common_path, "ENV_FILE", tmp_path / ".env")
+    monkeypatch.delenv(common_path.RESOURCES_ENV_KEY, raising=False)
+
+    assert common_path.resolve_resources_root() == (
+        common_path.REPOSITORY_ROOT / "resources"
+    )
+
+###############################################################################
 def test_resources_root_can_be_overridden_by_environment_file(
     tmp_path: Path, monkeypatch
 ) -> None:
@@ -118,6 +129,18 @@ def test_resources_root_can_be_overridden_by_environment_file(
     monkeypatch.setattr(common_path, "ENV_FILE", env_path)
 
     assert common_path.resolve_resources_root() == configured_root
+
+###############################################################################
+def test_resources_root_can_use_repository_relative_environment_path(
+    tmp_path: Path, monkeypatch
+) -> None:
+    env_path = tmp_path / ".env"
+    _write_env(env_path, ["PARAGRAPH_RESOURCES_DIR=custom-resources"])
+    monkeypatch.setattr(common_path, "ENV_FILE", env_path)
+
+    assert common_path.resolve_resources_root() == (
+        common_path.REPOSITORY_ROOT / "custom-resources"
+    )
 
 ###############################################################################
 def test_server_package_import_has_no_bootstrap_side_effect(monkeypatch) -> None:
