@@ -6,12 +6,12 @@ Last updated: 2026-09-28
   browser `localStorage` and supports explicit JSON import/export; it is not
   written to the backend resource root.
 - Workflow templates are read-only JSON manifests loaded from the configured
-  resource root (`resources/workflow_templates` by default).
-- Node definitions live as JSON assets under the configured resource root (`resources/nodes` by default).
-- Node plugins and runtime-generated artifacts are stored under the configured resource root (`resources/nodes` and `resources/artifacts` by default).
+  resource root (`data/workflow_templates` by default).
+- Node definitions live as JSON assets under the configured resource root (`data/nodes` by default).
+- Node plugins and runtime-generated artifacts are stored under the configured resource root (`data/nodes` and `data/artifacts` by default).
 
 ## Application Database
-- The default embedded database is SQLite at `resources/database.db`.
+- The default embedded database is SQLite at `data/database.db`.
 - Set `PARAGRAPH_RESOURCES_DIR` in `settings/.env` to relocate the shared resource root; the embedded database then uses `<PARAGRAPH_RESOURCES_DIR>/database.db`.
 - Internal application persistence always uses the embedded SQLite database; `DATABASE_INSERT_BATCH_SIZE` controls its dataframe batch size.
 - The application database stores internal application records, not workflow graph definitions.

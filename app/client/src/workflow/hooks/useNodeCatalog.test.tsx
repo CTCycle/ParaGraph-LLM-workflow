@@ -6,8 +6,8 @@ import * as workflowApi from '../../app/services/nodesApi'
 import { useNodeCatalog } from './useNodeCatalog'
 import type { NodeManifest, VectorStoreCapabilities } from '../schema/types'
 
-import chatHistoryMemoryManifestJson from '../../../../../resources/nodes/chat_history_memory_v1.json'
-import chatHistoryPersistedManifestJson from '../../../../../resources/nodes/chat_history_persisted_v1.json'
+import chatHistoryMemoryManifestJson from '../../../../../data/nodes/chat_history_memory_v1.json'
+import chatHistoryPersistedManifestJson from '../../../../../data/nodes/chat_history_persisted_v1.json'
 
 vi.mock('../../app/services/nodesApi', () => ({
     fetchNodeCatalog: vi.fn(),

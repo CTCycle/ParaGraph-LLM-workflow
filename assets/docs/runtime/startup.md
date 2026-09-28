@@ -63,7 +63,7 @@ npm run dev
 - Launcher option `3` creates or refreshes dependencies, runs database initialization, and rebuilds the frontend. Option `4` always rebuilds only the frontend using the existing frontend dependencies. Option `1` serves the existing build output when its content fingerprint is current; it rebuilds only when the output, fingerprint, or a build input is missing or stale.
 - The option `1` build fingerprint covers `src/**`, `public/**`, `index.html`, the package manifests, both TypeScript configs, `vite.config.ts`, the `npm run build` contract, and the effective `VITE_API_BASE_URL`. Runtime-only host, port, reload, database, and provider settings do not invalidate a current compiled bundle.
 - If `package.json` or `package-lock.json` is newer than `node_modules/.package-lock.json`, option `1` repairs frontend dependencies before evaluating/rebuilding the bundle. Dependency repair and build freshness are separate decisions.
-- Set `PARAGRAPH_RESOURCES_DIR` in `settings/.env` to relocate shared resource data and the embedded SQLite database; leave it blank to use `resources`.
+- Set `PARAGRAPH_RESOURCES_DIR` in `settings/.env` to relocate shared resource data and the embedded SQLite database; leave it blank to use `data`.
 - Application initialization and startup check `alembic_version` and automatically apply pending migrations before validations or repository use. PostgreSQL is only selected explicitly by user-facing workflow database nodes.
 - A database without an Alembic revision, or with a partial or incompatible
   schema, stops startup with an actionable error and is never overwritten.

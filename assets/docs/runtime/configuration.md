@@ -13,7 +13,7 @@ Last updated: 2026-09-28
   - `UI_PORT=8002`
   - `VITE_API_BASE_URL=/api`
   - `RELOAD=false`
-- `PARAGRAPH_RESOURCES_DIR` is blank by default, which keeps shared resource data under `resources`.
+- `PARAGRAPH_RESOURCES_DIR` is blank by default, which keeps shared resource data under `data`.
 - Set `PARAGRAPH_RESOURCES_DIR` to an absolute path or a path relative to the repository root to relocate resource data, including the embedded SQLite database.
 
 ## Runtime Settings
@@ -47,6 +47,6 @@ Last updated: 2026-09-28
 - A failed or interrupted build does not receive a new fingerprint. Option `1` therefore rebuilds on the next attempt.
 
 ## Shared Runtime Data
-- Shared runtime data lives under `PARAGRAPH_RESOURCES_DIR` when configured, or under `resources` by default. This includes the SQLite database, logs, artifacts, node assets, workflow templates, and model assets. The active workflow graph remains in browser storage and JSON exports.
+- Shared runtime data lives under `PARAGRAPH_RESOURCES_DIR` when configured, or under `data` by default. This includes the SQLite database, logs, artifacts, node assets, workflow templates, and model assets. The active workflow graph remains in browser storage and JSON exports.
 - The launcher imports `settings/.env` into the process environment before starting either process. `FASTAPI_HOST`, `FASTAPI_PORT`, `UI_HOST`, `UI_PORT`, and `RELOAD` are required; missing or invalid runtime values fail fast rather than selecting hidden port fallbacks.
 - All disposable runtime, test, tool, browser, and generated frontend-build data is kept under `runtimes/cache`. This hierarchy is separate from persistent application runtime data and user resources under the configured resource root.

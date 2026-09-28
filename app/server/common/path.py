@@ -38,7 +38,7 @@ for _cache_environment_key, _cache_environment_path in {
 sys.pycache_prefix = str(PYTHON_CACHE_ROOT)
 
 RESOURCES_ENV_KEY = "PARAGRAPH_RESOURCES_DIR"
-_DEFAULT_RESOURCES_ROOT = REPOSITORY_ROOT / "resources"
+_DEFAULT_RESOURCES_ROOT = REPOSITORY_ROOT / "data"
 
 ###############################################################################
 def resolve_resources_root() -> Path:

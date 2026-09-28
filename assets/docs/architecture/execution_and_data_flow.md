@@ -12,7 +12,7 @@ Typical backend flow follows endpoint to service to repository:
     `api/executions.py` for compile and execution.
 - Workflow templates:
   - `api/workflow_templates.py` -> `services/workflow/templates.py` -> JSON
-    manifests under `resources/workflow_templates` by default.
+    manifests under `data/workflow_templates` by default.
 - Execution lifecycle:
   - `api/executions.py` -> `services/workflow/compiler/service.py` and `services/workflow/execution.py` -> SQLAlchemy-backed run, step, and event repositories
 - Configurations:
