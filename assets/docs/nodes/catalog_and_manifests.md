@@ -1,11 +1,11 @@
 # Catalog And Manifests
-Last updated: 2026-08-27
+Last updated: 2026-09-28
 
 ## Purpose
 This branch documents the ParaGraph node system, the node catalog, and the contracts that allow nodes to participate in workflow compilation and execution.
 
 ## Node Catalog Sources
-- Built-in node manifests are loaded from `app/resources/nodes`.
+- Built-in node manifests are loaded from `resources/nodes` by default.
 - Custom manifests can be imported at runtime from `/nodes` using JSON payloads.
 - The backend catalog endpoint is `GET /nodes/catalog`.
 - The catalog response also includes `vector_store_capabilities`. These typed
@@ -39,7 +39,7 @@ The frontend and backend organize nodes by category, including:
 Category labels and ordering are defined in `app/client/src/workflow/schema/nodeCategory.ts`.
 
 ## Chat Nodes
-`app/resources/nodes/chat_input_v1.json` defines the `CHAT_INPUT` node. It has
+`resources/nodes/chat_input_v1.json` defines the `CHAT_INPUT` node by default. It has
 one transient `text` output and a required `history` controller connection to
 `CHAT_HISTORY_MEMORY` or `CHAT_HISTORY_PERSISTED`. The editor keeps the message
 in the Chat node controls only long enough to submit the current run; it is not

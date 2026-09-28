@@ -1,5 +1,5 @@
 # System Overview
-Last updated: 2026-08-31
+Last updated: 2026-09-28
 
 ## System Summary
 ParaGraph is a local-first workflow platform composed of:
@@ -36,7 +36,7 @@ The repository contains source code plus generated and runtime-heavy folders. Th
 |  |  |  |- schemas/               (SQLAlchemy ORM models)
 |  |  |  `- workflow/              (node manifests, database integrations, and chat history adapters)
 |  |  `- common/                   (constants, security, logging)
-|  `- resources/                   (db, logs, models, nodes, templates, artifacts)
+|- resources/                     (db, logs, models, nodes, templates, artifacts)
 |- settings/                       (.env and configurations.json)
 |- runtimes/                       (portable Python, uv, Node, .venv, uv.lock)
 |- start_on_windows.ps1            (Windows launcher and maintenance menu)
@@ -57,7 +57,7 @@ repository, or SQLAlchemy implementation modules.
 
 ## Runtime Topology
 - In web mode, the frontend and backend run as separate processes with API traffic routed through the configured base path.
-- Shared runtime artifacts live under `app/resources`, regardless of whether the app is started through the launcher or manually.
+- Shared runtime artifacts live under the configured resource root, `resources` by default, regardless of whether the app is started through the launcher or manually.
 - The active workflow graph is browser-local and can be exchanged as JSON. The
   backend reads validated graph payloads for compilation and execution; it does
   not maintain a workflow CRUD store.

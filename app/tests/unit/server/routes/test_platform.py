@@ -118,11 +118,12 @@ def test_nodes_catalog_exposes_registry(client: TestClient) -> None:
 def test_nodes_import_persists_manifest(client: TestClient, tmp_path: Path) -> None:
     node_dir = tmp_path / "nodes"
     node_dir.mkdir(parents=True, exist_ok=True)
-    for manifest in Path("app/resources/nodes").glob("*.json"):
+    resources_root = common_path.REPOSITORY_ROOT / "resources"
+    for manifest in (resources_root / "nodes").glob("*.json"):
         (node_dir / manifest.name).write_text(
             manifest.read_text(encoding="utf-8"), encoding="utf-8"
         )
-    plugins_src = Path("app/resources/nodes/plugins")
+    plugins_src = resources_root / "nodes" / "plugins"
     if plugins_src.exists():
         plugins_target = node_dir / "plugins"
         plugins_target.mkdir(parents=True, exist_ok=True)
@@ -435,7 +436,7 @@ def test_huggingface_download_endpoint_returns_success(
             ok=True,
             repo_id=repo_id,
             message=f"Started download for Hugging Face model '{repo_id}'.",
-            destination_path=f"app/resources/models/huggingface/{repo_id.replace('/', '--')}",
+            destination_path=f"resources/models/huggingface/{repo_id.replace('/', '--')}",
             already_downloaded=False,
             job_id="job-1234",
             status="running",
@@ -468,7 +469,7 @@ def test_huggingface_download_status_endpoint_returns_payload(
         lambda *, job_id: HuggingFaceModelDownloadStatusResponse(
             job_id=job_id,
             repo_id="meta-llama/Llama-3.2-3B-Instruct",
-            destination_path="app/resources/models/huggingface/meta-llama--Llama-3.2-3B-Instruct",
+            destination_path="resources/models/huggingface/meta-llama--Llama-3.2-3B-Instruct",
             status="running",
             progress=42.0,
             message="Downloading files...",

@@ -8,7 +8,7 @@ $script:ServerDir = Join-Path $AppDir 'server'
 $script:ClientDir = Join-Path $AppDir 'client'
 $script:TestsDir = Join-Path $AppDir 'tests'
 $script:SettingsDir = Join-Path $RepoRoot 'settings'
-$script:DefaultResourcesDir = Join-Path $AppDir 'resources'
+$script:DefaultResourcesDir = Join-Path $RepoRoot 'resources'
 $script:RuntimesDir = Join-Path $RepoRoot 'runtimes'
 $script:PythonDir = Join-Path $RuntimesDir 'python'
 $script:PythonExe = Join-Path $PythonDir 'python.exe'
@@ -1032,7 +1032,8 @@ function Confirm-DestructiveAction([string]$Description) {
 
 function Remove-LogFiles {
     if (-not (Confirm-DestructiveAction 'remove application log files')) { return }
-    $logDir = Join-Path $AppDir 'resources\logs'
+    $settings = Import-DotEnv
+    $logDir = Join-Path (Resolve-ResourcesRoot -Settings $settings) 'logs'
     if (-not (Test-Path -LiteralPath $logDir)) { Write-Info "Log directory not found: $logDir"; return }
     $logs = @(Get-ChildItem -LiteralPath $logDir -Filter '*.log' -File -ErrorAction SilentlyContinue |
         Sort-Object @{ Expression = { $_.FullName.ToUpperInvariant() }; Descending = $false })
