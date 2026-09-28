@@ -498,7 +498,7 @@ export async function setupMockBackend(page: Page, workflowOutputText = 'Hello f
                 ok: true,
                 repo_id: repoId,
                 message: 'Download started',
-                destination_path: `resources/models/huggingface/${repoId.replace('/', '--')}`,
+                destination_path: `data/models/huggingface/${repoId.replace('/', '--')}`,
                 already_downloaded: false,
                 job_id: jobId,
                 status: 'running',
@@ -524,7 +524,7 @@ export async function setupMockBackend(page: Page, workflowOutputText = 'Hello f
                     return reply(route, 200, {
                         job_id: jobId,
                         repo_id: job.repoId,
-                        destination_path: `resources/models/huggingface/${job.repoId.replace('/', '--')}`,
+                        destination_path: `data/models/huggingface/${job.repoId.replace('/', '--')}`,
                         status: 'completed',
                         progress: 100,
                         message: 'Downloaded Hugging Face model',
@@ -538,7 +538,7 @@ export async function setupMockBackend(page: Page, workflowOutputText = 'Hello f
             return reply(route, 200, {
                 job_id: jobId,
                 repo_id: job.repoId,
-                destination_path: `resources/models/huggingface/${job.repoId.replace('/', '--')}`,
+                        destination_path: `data/models/huggingface/${job.repoId.replace('/', '--')}`,
                 status: 'running',
                 progress: 50,
                 message: 'Downloading...',

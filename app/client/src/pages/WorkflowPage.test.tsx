@@ -9,17 +9,17 @@ import {
     resolveExecutionSessionId,
 } from './WorkflowPage'
 
-import textEmbeddingManifestJson from '../../../../resources/nodes/text_embedding_v1.json'
-import vectorStoreManifestJson from '../../../../resources/nodes/vector_store_v2.json'
-import rerankManifestJson from '../../../../resources/nodes/rerank_results_v1.json'
-import similaritySearchManifestJson from '../../../../resources/nodes/similarity_search_v1.json'
-import chatHistoryMemoryManifestJson from '../../../../resources/nodes/chat_history_memory_v1.json'
-import chatHistoryPersistedManifestJson from '../../../../resources/nodes/chat_history_persisted_v1.json'
-import crudCreateManifestJson from '../../../../resources/nodes/crud_create_v1.json'
-import crudReadManifestJson from '../../../../resources/nodes/crud_read_v1.json'
-import crudUpdateManifestJson from '../../../../resources/nodes/crud_update_v1.json'
-import crudDeleteManifestJson from '../../../../resources/nodes/crud_delete_v1.json'
-import customSqlQueryManifestJson from '../../../../resources/nodes/custom_sql_query_v1.json'
+import textEmbeddingManifestJson from '../../../../data/nodes/text_embedding_v1.json'
+import vectorStoreManifestJson from '../../../../data/nodes/vector_store_v2.json'
+import rerankManifestJson from '../../../../data/nodes/rerank_results_v1.json'
+import similaritySearchManifestJson from '../../../../data/nodes/similarity_search_v1.json'
+import chatHistoryMemoryManifestJson from '../../../../data/nodes/chat_history_memory_v1.json'
+import chatHistoryPersistedManifestJson from '../../../../data/nodes/chat_history_persisted_v1.json'
+import crudCreateManifestJson from '../../../../data/nodes/crud_create_v1.json'
+import crudReadManifestJson from '../../../../data/nodes/crud_read_v1.json'
+import crudUpdateManifestJson from '../../../../data/nodes/crud_update_v1.json'
+import crudDeleteManifestJson from '../../../../data/nodes/crud_delete_v1.json'
+import customSqlQueryManifestJson from '../../../../data/nodes/custom_sql_query_v1.json'
 
 const textEmbeddingManifest = textEmbeddingManifestJson as NodeManifest
 const vectorStoreManifest = vectorStoreManifestJson as NodeManifest

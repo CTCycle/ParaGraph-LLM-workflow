@@ -13,7 +13,7 @@ Last updated: 2026-09-28
 - To reset local user data, use launcher option 11 (`Remove All Data`), give an affirmative response at the `[y/N]` confirmation prompt, and restart the application so a fresh database can be initialized.
 
 ## Data Location
-Runtime data is stored under `resources` by default. Set `PARAGRAPH_RESOURCES_DIR` in `settings/.env` to use another absolute or repository-relative location. Stored data includes:
+Runtime data is stored under `data` by default. Set `PARAGRAPH_RESOURCES_DIR` in `settings/.env` to use another absolute or repository-relative location. Stored data includes:
 
 - Local database
 - Logs

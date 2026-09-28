@@ -116,14 +116,14 @@ def test_resources_root_defaults_to_repository_resources(
     monkeypatch.delenv(common_path.RESOURCES_ENV_KEY, raising=False)
 
     assert common_path.resolve_resources_root() == (
-        common_path.REPOSITORY_ROOT / "resources"
+        common_path.REPOSITORY_ROOT / "data"
     )
 
 ###############################################################################
 def test_resources_root_can_be_overridden_by_environment_file(
     tmp_path: Path, monkeypatch
 ) -> None:
-    configured_root = tmp_path / "paragraph-resources"
+    configured_root = tmp_path / "paragraph-data"
     env_path = tmp_path / ".env"
     _write_env(env_path, [f"PARAGRAPH_RESOURCES_DIR={configured_root}"])
     monkeypatch.setattr(common_path, "ENV_FILE", env_path)
@@ -135,11 +135,11 @@ def test_resources_root_can_use_repository_relative_environment_path(
     tmp_path: Path, monkeypatch
 ) -> None:
     env_path = tmp_path / ".env"
-    _write_env(env_path, ["PARAGRAPH_RESOURCES_DIR=custom-resources"])
+    _write_env(env_path, ["PARAGRAPH_RESOURCES_DIR=custom-data"])
     monkeypatch.setattr(common_path, "ENV_FILE", env_path)
 
     assert common_path.resolve_resources_root() == (
-        common_path.REPOSITORY_ROOT / "custom-resources"
+        common_path.REPOSITORY_ROOT / "custom-data"
     )
 
 ###############################################################################
