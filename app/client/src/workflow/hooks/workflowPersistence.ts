@@ -208,7 +208,7 @@ export function useWorkflowAutosave(
     }, [delayMs, enabled, state])
 
     useEffect(() => {
-        return () => {
+        const flushPendingState = (): void => {
             if (!enabledRef.current || !dirtyRef.current) {
                 return
             }
@@ -217,6 +217,15 @@ export function useWorkflowAutosave(
                 errorReportedRef.current = true
                 onErrorRef.current?.()
             }
+        }
+
+        globalThis.addEventListener('beforeunload', flushPendingState)
+        globalThis.addEventListener('pagehide', flushPendingState)
+
+        return () => {
+            globalThis.removeEventListener('beforeunload', flushPendingState)
+            globalThis.removeEventListener('pagehide', flushPendingState)
+            flushPendingState()
         }
     }, [])
 }

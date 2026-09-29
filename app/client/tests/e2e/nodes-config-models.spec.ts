@@ -82,6 +82,31 @@ test('Nodes page imports a custom node, preserves it after reload, and places it
     await expect(secondDialog.getByRole('alert')).toContainText('Duplicate node id/version')
 })
 
+test('Nodes page loads a template, places its graph, and restores it after reload', async ({ page }) => {
+    await setupMockBackend(page)
+
+    await page.goto('/nodes')
+
+    const templateCard = page.getByRole('listitem').filter({ hasText: 'Mock Prompt to Output' })
+    await expect(templateCard).toBeVisible()
+    await templateCard.getByRole('button', { name: 'Use template' }).click()
+
+    await expect(page).toHaveURL(/\/$/)
+    await expect(page.getByText('Loaded template "Mock Prompt to Output"', { exact: true })).toBeVisible()
+    await expect(page.locator('.workflow-node')).toHaveCount(2)
+    await expect(page.locator('.react-flow__edge-path')).toHaveCount(1)
+    await expect(page.locator('.workflow-node').filter({ hasText: 'Prompt' })).toHaveCount(1)
+    await expect(page.locator('.workflow-node').filter({ hasText: 'Text Output' })).toHaveCount(1)
+
+    await page.reload()
+
+    await expect(page.getByText('Restored workflow state', { exact: true })).toBeVisible()
+    await expect(page.locator('.workflow-node')).toHaveCount(2)
+    await expect(page.locator('.react-flow__edge-path')).toHaveCount(1)
+    await expect(page.locator('.workflow-node').filter({ hasText: 'Prompt' })).toHaveCount(1)
+    await expect(page.locator('.workflow-node').filter({ hasText: 'Text Output' })).toHaveCount(1)
+})
+
 test('Configurations and Models pages complete deterministic smoke flows', async ({ page }) => {
     await setupMockBackend(page)
 
