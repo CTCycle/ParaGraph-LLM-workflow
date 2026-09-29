@@ -48,6 +48,9 @@ Current curated reports:
   backend restart.
 - [`PG-T2-01-fd82ede.md`](PG-T2-01-fd82ede.md) — node catalog custom import,
   reload, editor placement, and duplicate workflow-intent regression coverage.
+- [`PG-T2-02-bbd6613.md`](PG-T2-02-bbd6613.md) — workflow-template loading,
+  graph hydration, immediate reload persistence, and the page-exit autosave
+  regression fix.
 - [`paragraph-e2e-system-validation-2026-08-26.md`](paragraph-e2e-system-validation-2026-08-26.md)
   — live full-stack validation and known provider blockers.
 - [`paragraph_e2e_validation_2026-08-02.md`](paragraph_e2e_validation_2026-08-02.md)

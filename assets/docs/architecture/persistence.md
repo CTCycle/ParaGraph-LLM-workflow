@@ -1,10 +1,12 @@
 # Persistence
-Last updated: 2026-09-28
+Last updated: 2026-09-29
 
 ## File-Based Persistence
 - The active workflow graph is browser-owned. The editor persists its state in
   browser `localStorage` and supports explicit JSON import/export; it is not
-  written to the backend resource root.
+  written to the backend resource root. Normal edits use a short debounce, and
+  pending graph state is flushed on browser page exit so an immediate reload
+  does not lose a newly loaded or edited graph.
 - Workflow templates are read-only JSON manifests loaded from the configured
   resource root (`data/workflow_templates` by default).
 - Node definitions live as JSON assets under the configured resource root (`data/nodes` by default).
