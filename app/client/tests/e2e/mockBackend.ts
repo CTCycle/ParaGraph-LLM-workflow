@@ -84,6 +84,67 @@ function buildTextOutputManifest(): AnyRecord {
     }
 }
 
+function buildWorkflowTemplate(): AnyRecord {
+    return {
+        id: 'mock-prompt-output-template',
+        name: 'Mock Prompt to Output',
+        description: 'A deterministic validation template.',
+        tags: ['validation'],
+        definition: {
+            schema_version: 2,
+            nodes: [
+                {
+                    node_id: 'template_prompt_1',
+                    node_type: 'PROMPT',
+                    node_version: 1,
+                    parameters: { prompt_text: 'Template prompt' },
+                },
+                {
+                    node_id: 'template_output_1',
+                    node_type: 'TEXT_OUTPUT',
+                    node_version: 1,
+                    parameters: {},
+                },
+            ],
+            connections: [
+                {
+                    from_node: 'template_prompt_1',
+                    connection_type: 'data',
+                    from_output: 'text',
+                    to_node: 'template_output_1',
+                    to_input: 'text',
+                },
+            ],
+            metadata: {},
+        },
+        visual_graph: {
+            schema_version: 2,
+            nodes: [
+                {
+                    node_id: 'template_prompt_1',
+                    x: 120,
+                    y: 160,
+                    width: 320,
+                    height: 190,
+                    collapsed: false,
+                },
+                {
+                    node_id: 'template_output_1',
+                    x: 560,
+                    y: 160,
+                    width: 320,
+                    height: 190,
+                    collapsed: false,
+                },
+            ],
+            groups: [],
+            comments: [],
+        },
+        required_nodes: [buildPromptManifest(), buildTextOutputManifest()],
+        metadata: {},
+    }
+}
+
 function buildConfigurationPayload(): AnyRecord {
     return {
         session_name: 'default',
@@ -289,11 +350,12 @@ export async function setupMockBackend(page: Page, workflowOutputText = 'Hello f
         compileCalls: 0,
         startCalls: 0,
         pollCalls: 0,
-        nodeCatalog: [buildPromptManifest()],
+        nodeCatalog: [buildPromptManifest(), buildTextOutputManifest()],
     }
 
     const configurationPayload = buildConfigurationPayload()
     const providerCatalog = buildProviderCatalog()
+    const workflowTemplates = [buildWorkflowTemplate()]
     const profiles = new Map<string, AnyRecord>([
         ['workstation', buildConfigurationPayload()],
         ['travel', buildConfigurationPayload()],
@@ -374,6 +436,10 @@ export async function setupMockBackend(page: Page, workflowOutputText = 'Hello f
 
         if (normalizedPath === '/nodes/catalog' && method === 'GET') {
             return reply(route, 200, { nodes: state.nodeCatalog })
+        }
+
+        if (normalizedPath === '/workflow-templates' && method === 'GET') {
+            return reply(route, 200, { templates: workflowTemplates })
         }
 
         if (normalizedPath === '/nodes/import' && method === 'POST') {
