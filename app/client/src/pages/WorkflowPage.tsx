@@ -2343,6 +2343,7 @@ function WorkflowEditor() {
     const chatResetRef = useRef<(nodeId: string) => Promise<void>>(async () => undefined)
     const saveNodeBrowseSelectionsRef = useRef<Record<string, SaveNodeBrowserSelection>>({})
     const hasHydratedWorkflowRef = useRef(false)
+    const handledWorkflowIntentRef = useRef<string | null>(null)
     const canOfferOnboardingRef = useRef(false)
     const workflowHasStartedRef = useRef(false)
     const draggedManifestKeyRef = useRef<string | null>(null)
@@ -2859,11 +2860,20 @@ function WorkflowEditor() {
         const navigationState = location.state as WorkflowNavigationState | null
         const rawIntent = navigationState?.workflow_intent
         if (!isWorkflowOpenIntentPayload(rawIntent)) {
+            handledWorkflowIntentRef.current = null
             return
         }
         if (loading) {
             return
         }
+
+        const intentKey = rawIntent.type === 'add-node'
+            ? `add-node:${rawIntent.node_id}:${rawIntent.node_version}`
+            : `load-template:${rawIntent.template.id}`
+        if (handledWorkflowIntentRef.current === intentKey) {
+            return
+        }
+        handledWorkflowIntentRef.current = intentKey
 
         const clearIntentState = (): void => {
             navigate(location.pathname, { replace: true, state: null })

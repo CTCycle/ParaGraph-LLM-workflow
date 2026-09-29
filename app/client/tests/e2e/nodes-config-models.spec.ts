@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test'
 
 import { setupMockBackend } from './mockBackend'
 
-test('Nodes page import modal validates payloads and handles success/error responses', async ({ page }) => {
+test('Nodes page imports a custom node, preserves it after reload, and places it in the editor', async ({ page }) => {
     await setupMockBackend(page)
 
     await page.goto('/nodes')
@@ -18,35 +18,36 @@ test('Nodes page import modal validates payloads and handles success/error respo
         id: 'CUSTOM_NODE',
         version: 1,
         name: 'Custom Node',
-        category: 'processing',
-        description: 'Custom processing node',
-        inputs: [
-            {
-                name: 'input_text',
-                data_type: 'TEXT',
-                required: true,
-                accepts_multiple: false,
-                description: 'Input text',
-            },
-        ],
+        category: 'prompt',
+        description: 'Custom prompt node',
+        inputs: [],
         outputs: [
             {
-                name: 'result',
+                name: 'text',
                 data_type: 'TEXT',
                 required: true,
                 accepts_multiple: false,
-                description: 'Output text',
+                description: 'Prompt text',
             },
         ],
-        parameters: [],
+        parameters: [
+            {
+                name: 'prompt_text',
+                data_type: 'TEXT',
+                default: 'hello',
+                constraints: { required: true },
+                ui_control: 'textarea',
+                description: 'Prompt value',
+            },
+        ],
         ui: {
             default_width: 320,
             accent_color: '#4aa3ff',
             collapsed_by_default: false,
         },
         runtime: {
-            executor_key: 'custom.executor',
-            cacheable: false,
+            executor_key: 'prompt',
+            cacheable: true,
             deterministic: true,
             side_effecting: false,
             plugin: null,
@@ -56,6 +57,17 @@ test('Nodes page import modal validates payloads and handles success/error respo
     await dialog.getByRole('textbox').fill(JSON.stringify(validManifest))
     await dialog.getByRole('button', { name: 'Import Node' }).click()
     await expect(page.getByText('Imported CUSTOM_NODE v1')).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Add Custom Node to canvas' })).toBeVisible()
+
+    await page.reload()
+    await expect(page.getByRole('button', { name: 'Add Custom Node to canvas' })).toBeVisible()
+
+    await page.getByRole('button', { name: 'Add Custom Node to canvas' }).click()
+    await expect(page).toHaveURL(/\/$/)
+    await expect(page.getByText('Added Custom Node to canvas', { exact: true })).toBeVisible()
+    await expect(page.locator('.workflow-node').filter({ hasText: 'Custom Node' })).toHaveCount(1)
+
+    await page.goto('/nodes')
 
     await page.getByRole('button', { name: 'Open custom node JSON import' }).click()
     const secondDialog = page.getByRole('dialog', { name: 'Custom node JSON import' })
