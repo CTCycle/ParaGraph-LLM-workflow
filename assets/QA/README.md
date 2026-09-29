@@ -1,6 +1,6 @@
 # Curated QA Evidence
 
-Last updated: 2026-09-28
+Last updated: 2026-09-29
 
 This directory is the durable evidence layer for the validation ledger. Curated
 reports and the screenshots they reference are revision-scoped and may be
@@ -46,6 +46,8 @@ Current curated reports:
 - [`PG-T1-05-1ad6758.md`](PG-T1-05-1ad6758.md) — deterministic execution
   records, outputs, steps, checkpoints, and ordered events across SQLite and
   backend restart.
+- [`PG-T2-01-fd82ede.md`](PG-T2-01-fd82ede.md) — node catalog custom import,
+  reload, editor placement, and duplicate workflow-intent regression coverage.
 - [`paragraph-e2e-system-validation-2026-08-26.md`](paragraph-e2e-system-validation-2026-08-26.md)
   — live full-stack validation and known provider blockers.
 - [`paragraph_e2e_validation_2026-08-02.md`](paragraph_e2e_validation_2026-08-02.md)
