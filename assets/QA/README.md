@@ -1,6 +1,6 @@
 # Curated QA Evidence
 
-Last updated: 2026-09-29
+Last updated: 2026-09-30
 
 This directory is the durable evidence layer for the validation ledger. Curated
 reports and the screenshots they reference are revision-scoped and may be
@@ -51,6 +51,8 @@ Current curated reports:
 - [`PG-T2-02-bbd6613.md`](PG-T2-02-bbd6613.md) — workflow-template loading,
   graph hydration, immediate reload persistence, and the page-exit autosave
   regression fix.
+- [`PG-T2-03-04-1d22193.md`](PG-T2-03-04-1d22193.md) — compiler diagnostics,
+  deterministic execution, event/replay support, and adjacent lifecycle checks.
 - [`paragraph-e2e-system-validation-2026-08-26.md`](paragraph-e2e-system-validation-2026-08-26.md)
   — live full-stack validation and known provider blockers.
 - [`paragraph_e2e_validation_2026-08-02.md`](paragraph_e2e_validation_2026-08-02.md)
