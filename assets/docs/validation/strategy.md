@@ -1,5 +1,5 @@
 # Validation Strategy
-Last updated: 2026-09-29
+Last updated: 2026-09-30
 
 ## Purpose and authority
 
@@ -52,9 +52,10 @@ success claim.
 ## Tier 0 slices
 
 Tier 0 was the campaign's initial validation tier. The current ledger records
-Tier 0 and Tier 1 as complete, and `PG-T2-01` and `PG-T2-02` now have current
-evidence. The next actionable work is the Tier 2 compiler/lifecycle campaign,
-beginning with `PG-T2-03`.
+Tier 0 and Tier 1 as complete, and `PG-T2-01` through `PG-T2-04` now have
+current evidence. The next actionable work is the remaining Tier 2
+lifecycle/restart/browser campaign; provider success and external integrations
+remain separate.
 The intended Tier 0 boundaries remain:
 
 ### `PG-T0-01` — clean CI baseline
