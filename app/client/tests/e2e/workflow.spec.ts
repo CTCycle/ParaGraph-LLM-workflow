@@ -2,6 +2,87 @@ import { expect, test } from '@playwright/test'
 
 import { setupMockBackend } from './mockBackend'
 
+for (const action of ['resume', 'cancel'] as const) {
+    test(`Paused workflow survives reload and can ${action} the same run`, async ({ page }) => {
+        const state = await setupMockBackend(page)
+        let status = 'paused'
+        let actionCalls = 0
+        await page.route('**/api/executions/run-e2e', async (route) => {
+            await route.fulfill({ json: {
+                run_id: 'run-e2e', status, progress: 0, steps: [], outputs: {},
+                resume_token: status === 'paused' ? 'review-token' : null,
+                pause_payload: { reason: 'Review this result' },
+            } })
+        })
+        await page.route(`**/api/executions/run-e2e/${action}`, async (route) => {
+            actionCalls += 1
+            if (action === 'resume') {
+                expect(route.request().postDataJSON()).toEqual({
+                    resume_token: 'review-token', reviewed_payload: { approved: true },
+                })
+            }
+            status = action === 'resume' ? 'completed' : 'cancelled'
+            await route.fulfill({ json: { run_id: 'run-e2e', status } })
+        })
+        await page.goto('/')
+        const chooserPromise = page.waitForEvent('filechooser')
+        await page.getByRole('button', { name: 'Import JSON' }).click()
+        await (await chooserPromise).setFiles({ name: 'workflow.json', mimeType: 'application/json',
+            buffer: Buffer.from(buildWorkflowBundleJson()) })
+        await page.getByRole('button', { name: 'Run Workflow' }).click()
+        await expect(page.getByRole('region', { name: 'Human review' })).toBeVisible()
+        await expect(page.getByRole('button', { name: 'Run Workflow' })).toBeDisabled()
+        await page.reload()
+        await expect(page.getByRole('region', { name: 'Human review' })).toBeVisible()
+        if (action === 'resume') {
+            await page.getByLabel('Reviewed payload').fill('[]')
+            await page.getByRole('button', { name: 'Resume Run' }).click()
+            await expect(page.getByRole('alert')).toHaveText('Reviewed payload must be a JSON object')
+            expect(actionCalls).toBe(0)
+            await page.getByLabel('Reviewed payload').fill('{"approved":true}')
+            await page.getByRole('button', { name: 'Resume Run' }).click()
+        } else {
+            await page.getByRole('button', { name: 'Cancel running workflow' }).click()
+        }
+        await expect(page.locator('.workflow-toolbar-status strong')).toHaveText(`Workflow ${status}`)
+        await expect(page.getByRole('region', { name: 'Human review' })).toBeHidden()
+        await expect(page.getByRole('button', { name: 'Run Workflow' })).toBeEnabled()
+        expect(state.startCalls).toBe(1)
+        expect(actionCalls).toBe(1)
+    })
+}
+
+test('Monitoring outage retains the run and reconnects without starting another execution', async ({ page }) => {
+    const state = await setupMockBackend(page)
+    let available = false
+    await page.route('**/api/executions/run-e2e', async (route) => {
+        if (!available) return route.abort('connectionrefused')
+        await route.fulfill({ json: { run_id: 'run-e2e', status: 'completed', progress: 100, steps: [], outputs: {} } })
+    })
+    await page.goto('/')
+    const chooserPromise = page.waitForEvent('filechooser')
+    await page.getByRole('button', { name: 'Import JSON' }).click()
+    await (await chooserPromise).setFiles({ name: 'workflow.json', mimeType: 'application/json',
+        buffer: Buffer.from(buildWorkflowBundleJson()) })
+    await page.getByRole('button', { name: 'Run Workflow' }).click()
+    await expect(page.getByRole('dialog', { name: 'Workflow execution error' })).toBeVisible()
+    await page.getByRole('button', { name: 'Close error dialog' }).click()
+    await expect(page.getByRole('button', { name: 'Run Workflow' })).toBeDisabled()
+    available = true
+    await page.getByRole('button', { name: 'Reconnect Run' }).click()
+    await expect(page.locator('.workflow-toolbar-status strong')).toHaveText('Workflow completed')
+    expect(state.startCalls).toBe(1)
+
+    await page.route('**/api/executions/run-e2e', async (route) => {
+        await route.fulfill({ status: 404, json: { detail: 'Run no longer exists' } })
+    })
+    await page.getByRole('button', { name: 'Run Workflow' }).click()
+    await expect(page.getByRole('dialog', { name: 'Workflow execution error' })).toBeVisible()
+    await page.getByRole('button', { name: 'Close error dialog' }).click()
+    await expect(page.getByRole('button', { name: 'Reconnect Run' })).toBeHidden()
+    await expect(page.getByRole('button', { name: 'Run Workflow' })).toBeEnabled()
+})
+
 function buildWorkflowBundleJson(): string {
     const promptManifest = {
         id: 'PROMPT',

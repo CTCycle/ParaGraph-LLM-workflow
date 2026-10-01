@@ -1,0 +1,353 @@
+{
+  "date": "2026-10-01",
+  "revision": "1170dd9747665e6ca2631812eadff6292f69c8c5 with reviewed source changes",
+  "sqlite_integrity": "ok",
+  "runs": [
+    {
+      "run_id": "pg-queued-recovery",
+      "status": "completed",
+      "outputs": {
+        "output": {
+          "text": "durably completed before startup"
+        }
+      },
+      "error": null,
+      "checkpoint_cleared": true,
+      "steps": [
+        {
+          "node_id": "prompt",
+          "status": "completed",
+          "attempt_count": 1,
+          "blocked_reason": null
+        },
+        {
+          "node_id": "output",
+          "status": "completed",
+          "attempt_count": 1,
+          "blocked_reason": null
+        }
+      ],
+      "events": [
+        {
+          "sequence": 1,
+          "event_type": "execution.queued",
+          "step_id": null
+        },
+        {
+          "sequence": 2,
+          "event_type": "execution.recovered",
+          "step_id": null
+        },
+        {
+          "sequence": 3,
+          "event_type": "execution.started",
+          "step_id": null
+        },
+        {
+          "sequence": 4,
+          "event_type": "execution.step.started",
+          "step_id": "output"
+        },
+        {
+          "sequence": 5,
+          "event_type": "execution.step.completed",
+          "step_id": "output"
+        },
+        {
+          "sequence": 6,
+          "event_type": "execution.completed",
+          "step_id": null
+        }
+      ],
+      "websocket_replay_matches_http": true
+    },
+    {
+      "run_id": "1912e5a2-1362-497c-bf11-fa96c77722b6",
+      "status": "cancelled",
+      "outputs": {},
+      "error": null,
+      "checkpoint_cleared": true,
+      "steps": [
+        {
+          "node_id": "gate",
+          "status": "skipped",
+          "attempt_count": 1,
+          "blocked_reason": "execution_cancelled"
+        },
+        {
+          "node_id": "merge",
+          "status": "queued",
+          "attempt_count": 0,
+          "blocked_reason": null
+        },
+        {
+          "node_id": "output",
+          "status": "queued",
+          "attempt_count": 0,
+          "blocked_reason": null
+        }
+      ],
+      "events": [
+        {
+          "sequence": 1,
+          "event_type": "execution.queued",
+          "step_id": null
+        },
+        {
+          "sequence": 2,
+          "event_type": "execution.started",
+          "step_id": null
+        },
+        {
+          "sequence": 3,
+          "event_type": "execution.step.started",
+          "step_id": "gate"
+        },
+        {
+          "sequence": 4,
+          "event_type": "execution.paused",
+          "step_id": "gate"
+        },
+        {
+          "sequence": 5,
+          "event_type": "execution.cancellation.requested",
+          "step_id": null
+        },
+        {
+          "sequence": 6,
+          "event_type": "execution.cancelled",
+          "step_id": null
+        }
+      ],
+      "websocket_replay_matches_http": true
+    },
+    {
+      "run_id": "9f854fa6-3ff3-4782-9f7d-95b66082d6b8",
+      "status": "failed",
+      "outputs": {},
+      "error": "RECOVERY_UNAVAILABLE: an interrupted running step may have produced side effects",
+      "checkpoint_cleared": true,
+      "steps": [
+        {
+          "node_id": "model_provider_1",
+          "status": "completed",
+          "attempt_count": 1,
+          "blocked_reason": null
+        },
+        {
+          "node_id": "system_prompt_1",
+          "status": "completed",
+          "attempt_count": 1,
+          "blocked_reason": null
+        },
+        {
+          "node_id": "user_prompt_1",
+          "status": "completed",
+          "attempt_count": 1,
+          "blocked_reason": null
+        },
+        {
+          "node_id": "llm_chat_1",
+          "status": "running",
+          "attempt_count": 1,
+          "blocked_reason": null
+        },
+        {
+          "node_id": "text_output_1",
+          "status": "queued",
+          "attempt_count": 0,
+          "blocked_reason": null
+        }
+      ],
+      "events": [
+        {
+          "sequence": 1,
+          "event_type": "execution.queued",
+          "step_id": null
+        },
+        {
+          "sequence": 2,
+          "event_type": "execution.started",
+          "step_id": null
+        },
+        {
+          "sequence": 3,
+          "event_type": "execution.step.started",
+          "step_id": "model_provider_1"
+        },
+        {
+          "sequence": 4,
+          "event_type": "execution.step.completed",
+          "step_id": "model_provider_1"
+        },
+        {
+          "sequence": 5,
+          "event_type": "execution.step.started",
+          "step_id": "system_prompt_1"
+        },
+        {
+          "sequence": 6,
+          "event_type": "execution.step.completed",
+          "step_id": "system_prompt_1"
+        },
+        {
+          "sequence": 7,
+          "event_type": "execution.step.started",
+          "step_id": "user_prompt_1"
+        },
+        {
+          "sequence": 8,
+          "event_type": "execution.step.completed",
+          "step_id": "user_prompt_1"
+        },
+        {
+          "sequence": 9,
+          "event_type": "execution.step.started",
+          "step_id": "llm_chat_1"
+        },
+        {
+          "sequence": 10,
+          "event_type": "execution.recovered",
+          "step_id": null
+        }
+      ],
+      "websocket_replay_matches_http": true
+    },
+    {
+      "run_id": "8ce0f5f8-bf6c-4f0a-a1e7-a1417d5084b5",
+      "status": "completed",
+      "outputs": {
+        "text_output_1": {
+          "text": "READY"
+        }
+      },
+      "error": null,
+      "checkpoint_cleared": true,
+      "steps": [
+        {
+          "node_id": "model_provider_1",
+          "status": "completed",
+          "attempt_count": 1,
+          "blocked_reason": null
+        },
+        {
+          "node_id": "system_prompt_1",
+          "status": "completed",
+          "attempt_count": 1,
+          "blocked_reason": null
+        },
+        {
+          "node_id": "user_prompt_1",
+          "status": "completed",
+          "attempt_count": 1,
+          "blocked_reason": null
+        },
+        {
+          "node_id": "llm_chat_1",
+          "status": "completed",
+          "attempt_count": 1,
+          "blocked_reason": null
+        },
+        {
+          "node_id": "text_output_1",
+          "status": "completed",
+          "attempt_count": 1,
+          "blocked_reason": null
+        }
+      ],
+      "events": [
+        {
+          "sequence": 1,
+          "event_type": "execution.queued",
+          "step_id": null
+        },
+        {
+          "sequence": 2,
+          "event_type": "execution.started",
+          "step_id": null
+        },
+        {
+          "sequence": 3,
+          "event_type": "execution.step.started",
+          "step_id": "model_provider_1"
+        },
+        {
+          "sequence": 4,
+          "event_type": "execution.step.completed",
+          "step_id": "model_provider_1"
+        },
+        {
+          "sequence": 5,
+          "event_type": "execution.step.started",
+          "step_id": "system_prompt_1"
+        },
+        {
+          "sequence": 6,
+          "event_type": "execution.step.completed",
+          "step_id": "system_prompt_1"
+        },
+        {
+          "sequence": 7,
+          "event_type": "execution.step.started",
+          "step_id": "user_prompt_1"
+        },
+        {
+          "sequence": 8,
+          "event_type": "execution.step.completed",
+          "step_id": "user_prompt_1"
+        },
+        {
+          "sequence": 9,
+          "event_type": "execution.step.started",
+          "step_id": "llm_chat_1"
+        },
+        {
+          "sequence": 10,
+          "event_type": "execution.step.completed",
+          "step_id": "llm_chat_1"
+        },
+        {
+          "sequence": 11,
+          "event_type": "execution.step.started",
+          "step_id": "text_output_1"
+        },
+        {
+          "sequence": 12,
+          "event_type": "execution.step.completed",
+          "step_id": "text_output_1"
+        },
+        {
+          "sequence": 13,
+          "event_type": "execution.completed",
+          "step_id": null
+        }
+      ],
+      "websocket_replay_matches_http": true
+    }
+  ],
+  "candidate_sha256": {
+    "app/client/src/pages/WorkflowPage.tsx": "badd15a80378af7c62163fed49036a27603b1458f5c718c72b24fae17b3e4c10",
+    "app/client/src/pages/WorkflowPage.css": "8d97b4936dfc82315578666d3ec1c63f5d47b801422eb0d36842f5050fc51bac",
+    "app/client/tests/e2e/workflow.spec.ts": "efae8984a29427b560315b1952540da0ad72c23a5b1f26206037ca162bb5138e",
+    "app/server/repositories/workflow/execution_run.py": "624d68933cd159fdae1e598f70ad38da5a611c546bb7796a43c4ffa854fa47eb",
+    "app/tests/unit/server/routes/test_executions.py": "0d2da3bd4620fe7514e34c272bc5d6d86b0cffaf82fea30fdf59795c94a7bac7"
+  },
+  "checks": {
+    "backend_focused": {
+      "passed": 38,
+      "failed": 0
+    },
+    "frontend_unit": {
+      "passed": 21,
+      "failed": 0
+    },
+    "frontend_workflow_e2e": {
+      "passed": 11,
+      "failed": 0
+    },
+    "frontend_build": "PASS; existing large-chunk warning",
+    "frontend_lint": "PASS",
+    "focused_ruff_no_cache": "PASS",
+    "browser_console_errors_at_final_check": 0
+  }
+}

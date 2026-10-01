@@ -39,9 +39,11 @@ import {
     importNodeManifest,
 } from '../app/services/nodesApi'
 import { compileWorkflow } from '../app/services/workflowsApi'
+import { ApiError } from '../app/services/api'
 import { fetchProviderModels } from '../app/services/providersApi'
 import {
     cancelExecution,
+    resumeExecution,
     DEFAULT_EXECUTION_POLL_INTERVAL_SECONDS,
     pollExecution,
     startExecution,
@@ -2318,6 +2320,10 @@ function WorkflowEditor() {
     const [compileDiagnostics, setCompileDiagnostics] = useState<CompilerDiagnostic[]>([])
     const [isRunning, setIsRunning] = useState(false)
     const [activeRun, setActiveRun] = useState<PersistedActiveExecution | null>(null)
+    const [pausedRun, setPausedRun] = useState<ExecutionRunState | null>(null)
+    const [reviewedPayloadText, setReviewedPayloadText] = useState('{}')
+    const [reviewError, setReviewError] = useState<string | null>(null)
+    const [isLifecyclePending, setIsLifecyclePending] = useState(false)
     const [executionSessionId, setExecutionSessionId] = useState<string>(() => resolveExecutionSessionId(null))
     const [resumeRunSnapshot, setResumeRunSnapshot] = useState<PersistedActiveExecution | null>(null)
     const [search, setSearch] = useState('')
@@ -3775,6 +3781,11 @@ function WorkflowEditor() {
     async function finalizeRunState(finalState: ExecutionRunState): Promise<void> {
         clearExecutionHighlight()
         applyRunState(finalState)
+        setPausedRun(finalState.status === 'paused' ? finalState : null)
+        if (finalState.status === 'paused') {
+            setReviewedPayloadText('{}')
+            setReviewError(null)
+        }
         if (finalState.status === 'completed') {
             const localSaveStatus = await syncSaveNodeBrowserSelections(finalState)
             await refreshAllChatHistories()
@@ -3816,7 +3827,7 @@ function WorkflowEditor() {
                 }
                 latestRunState = finalState
                 await finalizeRunState(finalState)
-                setActiveRun(null)
+                if (finalState.status !== 'paused') setActiveRun(null)
             } catch (runError) {
                 if (isAbortError(runError)) {
                     keepRunTracking = true
@@ -3829,7 +3840,7 @@ function WorkflowEditor() {
                     title: 'Workflow execution failed',
                     message: formatWorkflowExecutionError(runError, latestRunState),
                 })
-                setActiveRun(null)
+                if (latestRunState || (runError instanceof ApiError && runError.status === 404)) setActiveRun(null)
             } finally {
                 if (!keepRunTracking) {
                     runWorkflowLockRef.current = false
@@ -3843,7 +3854,7 @@ function WorkflowEditor() {
     async function runWorkflow(options?: { chatNodeId?: string; chatMessage?: string }): Promise<void> {
         const chatNodeId = options?.chatNodeId
         const chatMessage = options?.chatMessage?.trim() ?? ''
-        if (isRunning || runWorkflowLockRef.current) {
+        if (activeRun || isRunning || runWorkflowLockRef.current) {
             return
         }
         if (chatNodeId && !chatMessage) {
@@ -3919,7 +3930,7 @@ function WorkflowEditor() {
 
             latestRunState = finalState
             await finalizeRunState(finalState)
-            setActiveRun(null)
+            if (finalState.status !== 'paused') setActiveRun(null)
         } catch (runError) {
             if (isAbortError(runError)) {
                 keepRunTracking = true
@@ -3932,7 +3943,7 @@ function WorkflowEditor() {
                 title: 'Workflow execution failed',
                 message: formatWorkflowExecutionError(runError, latestRunState),
             })
-            setActiveRun(null)
+            if (latestRunState || (runError instanceof ApiError && runError.status === 404)) setActiveRun(null)
         } finally {
             if (!keepRunTracking) {
                 runWorkflowLockRef.current = false
@@ -3950,13 +3961,39 @@ function WorkflowEditor() {
     }
 
     async function requestCancellation(): Promise<void> {
-        if (!activeRun || !isRunning) return
+        if (!activeRun || isLifecyclePending) return
+        setIsLifecyclePending(true)
         setStatusText('Requesting cancellation...')
         try {
             const response = await cancelExecution(activeRun.run_id)
             setStatusText(response.message || `Run ${response.status}`)
+            if (!isRunning) {
+                setPausedRun(null)
+                setResumeRunSnapshot(activeRun)
+            }
         } catch (error) {
             setStatusText(error instanceof Error ? `Cancellation failed: ${error.message}` : 'Cancellation failed')
+        } finally {
+            setIsLifecyclePending(false)
+        }
+    }
+
+    async function requestReviewResume(): Promise<void> {
+        if (!activeRun || !pausedRun?.resume_token || isLifecyclePending) return
+        setIsLifecyclePending(true)
+        setReviewError(null)
+        try {
+            const payload: unknown = JSON.parse(reviewedPayloadText)
+            if (!isRecord(payload) || Array.isArray(payload)) {
+                throw new Error('Reviewed payload must be a JSON object')
+            }
+            await resumeExecution(activeRun.run_id, pausedRun.resume_token, payload)
+            setPausedRun(null)
+            setResumeRunSnapshot(activeRun)
+        } catch (error) {
+            setReviewError(error instanceof Error ? error.message : 'Unable to resume workflow')
+        } finally {
+            setIsLifecyclePending(false)
         }
     }
 
@@ -4163,7 +4200,7 @@ function WorkflowEditor() {
                     <button type="button" onClick={() => setEdges([])}>
                         Clear Links
                     </button>
-                    <button type="button" onClick={resetExecutionSession} disabled={isRunning} title="Reset run session ID only">
+                    <button type="button" onClick={resetExecutionSession} disabled={Boolean(activeRun) || isRunning} title="Reset run session ID only">
                         Reset Run ID
                     </button>
                     <button
@@ -4171,22 +4208,43 @@ function WorkflowEditor() {
                         className="workflow-run"
                         data-guidance-target="run-workflow"
                         onClick={() => void runWorkflow()}
-                        disabled={isRunning || !hasRunnableNodes || isExecutionErrorModalOpen}
+                        disabled={Boolean(activeRun) || isRunning || !hasRunnableNodes || isExecutionErrorModalOpen}
                     >
                         {isRunning ? 'Running...' : 'Run Workflow'}
                     </button>
-                    {isRunning && activeRun && (
+                    {activeRun && (
                         <button
                             type="button"
                             className="workflow-cancel"
                             onClick={() => void requestCancellation()}
                             aria-label="Cancel running workflow"
+                            disabled={isLifecyclePending}
                         >
                             Cancel Run
                         </button>
                     )}
+                    {activeRun && !isRunning && !pausedRun && (
+                        <button type="button" disabled={isLifecyclePending || isExecutionErrorModalOpen}
+                            onClick={() => setResumeRunSnapshot(activeRun)}>
+                            Reconnect Run
+                        </button>
+                    )}
                 </div>
             </nav>
+
+            {pausedRun && (
+                <section className="workflow-diagnostics workflow-review" aria-label="Human review">
+                    <h2>Workflow paused for review</h2>
+                    <p>Review the checkpoint, then submit a JSON object to continue this run.</p>
+                    <pre>{JSON.stringify(pausedRun.pause_payload, null, 2)}</pre>
+                    <label htmlFor="reviewed-payload">Reviewed payload</label>
+                    <textarea id="reviewed-payload" value={reviewedPayloadText}
+                        onChange={(event) => setReviewedPayloadText(event.target.value)} disabled={isLifecyclePending} />
+                    {reviewError && <p role="alert">{reviewError}</p>}
+                    <button type="button" onClick={() => void requestReviewResume()}
+                        disabled={isLifecyclePending || !pausedRun.resume_token}>Resume Run</button>
+                </section>
+            )}
 
             {compileDiagnostics.length > 0 && (
                 <section className="workflow-diagnostics" aria-label="Compilation diagnostics">

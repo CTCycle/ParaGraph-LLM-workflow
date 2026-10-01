@@ -1,5 +1,5 @@
 # Validation Strategy
-Last updated: 2026-09-30
+Last updated: 2026-10-01
 
 ## Purpose and authority
 
@@ -52,10 +52,12 @@ success claim.
 ## Tier 0 slices
 
 Tier 0 was the campaign's initial validation tier. The current ledger records
-Tier 0 and Tier 1 as complete, and `PG-T2-01` through `PG-T2-04` now have
-current evidence. The next actionable work is the remaining Tier 2
-lifecycle/restart/browser campaign; provider success and external integrations
-remain separate.
+Tier 0 and Tier 1 as complete, and `PG-T2-01` through `PG-T2-08` now have
+bounded evidence. The [lifecycle/recovery report](../../QA/PG-T2-05-08-1170dd9.md)
+records the latest live controls, restart, and explicit browser reconnect pass.
+Next select a bounded Tier 3 local integration family or the scoped Chat history
+campaign with the now-reachable Ollama service. Other provider lanes and external
+integrations keep their own prerequisites and evidence boundaries.
 The intended Tier 0 boundaries remain:
 
 ### `PG-T0-01` — clean CI baseline
@@ -96,6 +98,15 @@ planned/executed scenarios, status, failure class, root cause/fix when known,
 regression result, evidence paths, gaps, prerequisites, date, and environment.
 Generated caches, test databases, credentials, and bulk temporary outputs stay
 out of the curated remote evidence set.
+
+## Remaining Tier 2 slice boundaries
+
+| Slice | Scope | Evidence boundary |
+| --- | --- | --- |
+| `PG-T2-05` | Cancellation, retries, and timeouts | Live cancellation plus focused service checks; cancellation remains cooperative. |
+| `PG-T2-06` | Human-review pause, reviewed payload, resume, and paused cancellation | Browser controls, reload, real checkpoint restart, output completion, and token consumption. |
+| `PG-T2-07` | Startup recovery and interrupted-step policy | Real paused restart, controlled queued-state recovery, and actual mid-step termination failing closed. Safe between-step recovery is supported by a seeded state fixture. |
+| `PG-T2-08` | Browser run continuity, explicit reconnect, and durable event replay | Live outage/reconnect, paused reload, and matching real HTTP/WebSocket histories. Automatic reconnect and token streaming remain separate. |
 
 ## Evidence and status rules
 
