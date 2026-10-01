@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 import threading
 from typing import Any
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.orm import Session
 
 from server.configurations.startup import get_server_settings
@@ -274,6 +274,23 @@ class ExecutionRunRepository:
                 if not hasattr(row, column):
                     raise ValueError(f"Unsupported run field: {key}")
                 setattr(row, column, value)
+            if row.status == "cancelled" and row.resume_token is not None:
+                row.pause_payload_json = None
+                row.resume_token = None
+                session.execute(
+                    update(ExecutionStepRecord)
+                    .where(
+                        ExecutionStepRecord.run_id == run_id,
+                        ExecutionStepRecord.status == "paused",
+                    )
+                    .values(
+                        status="skipped",
+                        blocked_reason="execution_cancelled",
+                        pause_payload_json=None,
+                        resume_token=None,
+                        completed_at=datetime.now(timezone.utc),
+                    )
+                )
             row.updated_at = datetime.now(timezone.utc)
         return self.get_run(run_id)
 

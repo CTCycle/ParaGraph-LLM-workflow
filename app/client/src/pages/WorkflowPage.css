@@ -1569,3 +1569,31 @@
     background: rgba(74, 163, 255, 0.2);
     color: #eef6ff;
 }
+.workflow-review pre {
+    max-height: 160px;
+    overflow: auto;
+    white-space: pre-wrap;
+}
+
+.workflow-review textarea {
+    display: block;
+    width: 100%;
+    min-height: 80px;
+    margin: 8px 0;
+    font: inherit;
+    color: var(--text-primary, #e5e7eb);
+    background: var(--surface-raised, #111827);
+    border: 1px solid var(--border-subtle, #334155);
+    border-radius: 0.5rem;
+    padding: 0.5rem;
+}
+
+.workflow-review button {
+    justify-self: start;
+    border: 1px solid var(--border-subtle, #334155);
+    border-radius: 0.5rem;
+    padding: 0.5rem 1rem;
+    color: var(--text-primary, #e5e7eb);
+    background: var(--surface-raised, #111827);
+    cursor: pointer;
+}

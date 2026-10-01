@@ -1,5 +1,5 @@
 # Execution And Data Flow
-Last updated: 2026-09-28
+Last updated: 2026-10-01
 
 ## Layered Backend Flow
 Typical backend flow follows endpoint to service to repository:
@@ -105,7 +105,8 @@ Typical backend flow follows endpoint to service to repository:
   - `POST /nodes/uploads/directory` for multipart uploads.
   - `WS /executions/ws/runs/{run_id}` for streaming run events.
 - Long-running workflow execution is offloaded to background threads through `JobManager`.
-- Runs persist their compiled plan and completed step outputs. Startup recovery resumes queued or interrupted runs after completed steps; it never re-executes a durably completed step.
+- Runs persist their compiled plan and completed step outputs. Startup recovery resumes queued runs and runs interrupted between steps using completed outputs. A run with a step still marked `running` fails closed with `RECOVERY_UNAVAILABLE`, because that step may have produced side effects. Completed steps are not re-executed.
+- The editor retains the active run while paused or disconnected. Human-review controls submit a reviewed JSON object or cancel the same run. After a monitoring outage, close the error dialog and use Reconnect Run (or reload) to read durable state and replay events; a missing run releases tracking.
 - Per-step timeouts prevent late results from updating durable state, but Python cannot forcibly terminate an underlying provider thread. Live WebSocket subscribers remain process-local and clients reconnect to durable history after restart.
 - Async handlers avoid CPU-heavy loops; blocking workflow execution happens in job threads instead of request handlers.
 

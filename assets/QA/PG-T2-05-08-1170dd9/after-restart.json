@@ -1,0 +1,39 @@
+{
+  "run_id": "96214128-40ff-411e-bc2e-d3033e015d34",
+  "steps": [
+    {
+      "step_id": "gate",
+      "status": "paused",
+      "attempt_count": 1
+    },
+    {
+      "step_id": "merge",
+      "status": "queued",
+      "attempt_count": 0
+    },
+    {
+      "step_id": "output",
+      "status": "queued",
+      "attempt_count": 0
+    }
+  ],
+  "events": [
+    {
+      "sequence": 1,
+      "event_type": "execution.queued"
+    },
+    {
+      "sequence": 2,
+      "event_type": "execution.started"
+    },
+    {
+      "sequence": 3,
+      "event_type": "execution.step.started"
+    },
+    {
+      "sequence": 4,
+      "event_type": "execution.paused"
+    }
+  ],
+  "status": "paused"
+}

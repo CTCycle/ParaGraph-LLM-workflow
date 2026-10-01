@@ -1,6 +1,6 @@
 # Curated QA Evidence
 
-Last updated: 2026-09-30
+Last updated: 2026-10-01
 
 This directory is the durable evidence layer for the validation ledger. Curated
 reports and the screenshots they reference are revision-scoped and may be
@@ -53,6 +53,10 @@ Current curated reports:
   regression fix.
 - [`PG-T2-03-04-1d22193.md`](PG-T2-03-04-1d22193.md) — compiler diagnostics,
   deterministic execution, event/replay support, and adjacent lifecycle checks.
+- [`PG-T2-05-08-1170dd9.md`](PG-T2-05-08-1170dd9.md) — live human review,
+  cancellation/checkpoint fixes, process recovery, browser reconnect, real
+  event replay, and the refreshed local Ollama success boundary; sanitized JSON
+  and screenshots are under [`PG-T2-05-08-1170dd9`](PG-T2-05-08-1170dd9/).
 - [`paragraph-e2e-system-validation-2026-08-26.md`](paragraph-e2e-system-validation-2026-08-26.md)
   — live full-stack validation and known provider blockers.
 - [`paragraph_e2e_validation_2026-08-02.md`](paragraph_e2e_validation_2026-08-02.md)

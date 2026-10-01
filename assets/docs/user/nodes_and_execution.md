@@ -1,5 +1,5 @@
 # Nodes And Execution
-Last updated: 2026-07-20
+Last updated: 2026-10-01
 
 ## Nodes Page
 - Filter the node catalog by category and search query.
@@ -16,6 +16,8 @@ Execution status is exposed through:
 
 Run statuses include `queued`, `running`, `completed`, `failed`, `cancelled`, and `paused`. Step states also include `skipped`; retry and timeout events are reported in the event history.
 
-Runs are durable. The editor polls the persisted run state and can reconnect after a page reload or backend restart without re-executing durably completed steps. A paused human-review run exposes a resume token and can continue through the resume endpoint with an optional reviewed payload.
+Runs are durable. The editor polls persisted state and retains the active run across page reloads. While paused, review the checkpoint, enter a JSON object in Reviewed payload, and select Resume Run or Cancel Run. A new workflow run remains disabled until the tracked run finishes or is cancelled.
+
+If monitoring disconnects, close the error dialog and select Reconnect Run, or reload after the backend is available. Queued runs and runs interrupted between steps recover using completed outputs. A step interrupted while running fails closed with `RECOVERY_UNAVAILABLE`; inspect its possible side effects before starting another run. Durably completed steps are not re-executed.
 
 Cancellation is requested against the current durable run and may take effect after the active provider operation reaches a safe cancellation boundary.
