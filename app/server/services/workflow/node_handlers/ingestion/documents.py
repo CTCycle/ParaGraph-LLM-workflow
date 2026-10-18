@@ -59,7 +59,7 @@ def _load_documents_executor(
                 {
                     "extension": extension,
                     "file_name": path.name,
-                    "relative_path": str(path.relative_to(directory)),
+                    "relative_path": path.relative_to(directory).as_posix(),
                     "size_bytes": path.stat().st_size,
                     "deferred_load": False,
                     "file_path": resolved,
