@@ -7,7 +7,9 @@ test('loads the live catalog and compiles a real prompt-to-output graph', async 
     ).toBeTruthy()
     const catalogResponse = await page.request.get('/api/nodes/catalog')
     expect(catalogResponse.ok()).toBeTruthy()
-    const catalog = await catalogResponse.json() as { nodes: Array<{ id: string; version: number }> }
+    const catalog = await catalogResponse.json() as {
+        nodes: Array<{ id: string; version: number; name: string }>
+    }
     expect(catalog.nodes.some((node) => node.id === 'HTTP_REQUEST' && node.version === 1)).toBeTruthy()
     expect(catalog.nodes.some((node) => node.id === 'API_CALL')).toBeFalsy()
 
@@ -99,8 +101,12 @@ test('loads the live catalog and compiles a real prompt-to-output graph', async 
     )
 
     await page.goto('/')
+    const httpRequestNode = catalog.nodes.find((node) => node.id === 'HTTP_REQUEST' && node.version === 1)
+    if (!httpRequestNode) {
+        throw new Error('HTTP_REQUEST v1 is missing from the live catalog')
+    }
     await page.getByRole('button', { name: 'Show node tree' }).click()
     await page.getByRole('button', { name: /Web/ }).click()
     await expect(page.getByRole('tree', { name: 'Node catalog tree' })).toBeVisible()
-    await expect(page.getByText('Secure HTTP Request')).toBeVisible()
+    await expect(page.getByText(httpRequestNode.name)).toBeVisible()
 })

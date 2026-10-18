@@ -5,188 +5,44 @@
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![CI](https://github.com/CTCycle/ParaGraph-LLM-workflow/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/CTCycle/ParaGraph-LLM-workflow/actions/workflows/ci.yml?query=branch%3Adevelop)
 
-ParaGraph is a local application for planning, running, and observing LLM workflows in a visual way.
+ParaGraph is a local-first application for building, running, and monitoring LLM workflows on a visual canvas. Its supported Windows launcher starts a FastAPI backend and a React browser interface. The desktop layout requires a browser window at least 1024 CSS pixels wide.
 
-It is meant for people who want to assemble a workflow step by step instead of writing everything from scratch. You can connect building blocks, define how information should move through them, run the workflow, and watch what happens as it executes.
+## Workflows
 
-ParaGraph is a local web application optimized for a desktop or laptop browser window at least 1024 CSS pixels wide. Windows tablets are supported when they behave like a normal desktop environment and can comfortably display the desktop interface. Narrower windows show a minimum-window-size notice instead of switching to a mobile layout.
+- Build a graph by connecting nodes, then compile it to see diagnostics before running.
+- Follow execution status, outputs, and event history.
+- Browse node templates, import custom node manifests, and manage provider models and configuration profiles.
+- Create retrieval workflows that load, split, embed, store, search, rank, and answer questions.
 
-The app is organized around a simple idea:
+## Start on Windows
 
-- build a workflow
-- prepare the models and provider settings it needs
-- run it
-- review the result
+Run the launcher from the repository root:
 
-## What You Can Do
+    .\start_on_windows.ps1
 
-ParaGraph is useful when you want to:
+It prepares or repairs the local runtimes, initializes the database, starts the backend and frontend, and opens the interface. The first launch may take longer while dependencies are prepared. See the [startup guide](assets/docs/runtime/startup.md) for launcher actions and manual startup commands.
 
-- create workflows using a visual canvas instead of a text-only editor
-- connect nodes into a clear sequence of steps
-- check whether a workflow is valid before you run it
-- launch an execution and follow its progress
-- inspect outputs, events, and run history
-- manage available nodes, models, and saved configuration profiles
-- build retrieval-style workflows that work with documents, embeddings, search, ranking, and answer generation
+## Documentation
 
-The app is designed to stay close to the work you are doing. The main screens reflect the main stages of the process:
+The [project documentation index](assets/docs/project_index.md) maps the full documentation structure.
 
-- build the workflow
-- choose the models and settings
-- run the workflow
-- monitor the result
+User guides:
 
-## Main Screens
+- [Getting started](assets/docs/user/getting_started.md)
+- [Workflow editor](assets/docs/user/workflow_editor.md)
+- [Models and configurations](assets/docs/user/models_and_configurations.md)
+- [Nodes and execution](assets/docs/user/nodes_and_execution.md)
+- [Troubleshooting and data](assets/docs/user/troubleshooting_and_data.md)
 
-Use the app's main navigation to move between these sections.
+Project references:
 
-### Workflow
-This is the main workspace.
+- [Status ledger](assets/docs/project_status_ledger.md) — current component status, evidence, known issues, and validation gaps.
+- [Validation strategy](assets/docs/validation/strategy.md) — campaign tiers and evidence rules.
+- [Testing and quality](assets/docs/coding/testing_and_quality.md) — tools, commands, and repository conventions.
 
-Use it to:
+## Data
 
-- place nodes onto the canvas
-- connect them into a flow
-- adjust node settings
-- compile the workflow before starting it
-- run the workflow and watch its progress
-
-If you only remember one screen, remember this one. It is where most of the day-to-day work happens.
-
-### Nodes
-This area is for exploring what is available.
-
-Use it to:
-
-- browse the node catalog
-- search and filter nodes by category
-- read short summaries of what each node does
-- load ready-made workflow templates
-- import custom node manifests when needed
-
-If you are not sure what node to use, start here.
-
-### Models
-This area helps you find and prepare models.
-
-Use it to:
-
-- browse Ollama models available to your local setup
-- search the Hugging Face catalog
-- download models
-- track model download progress
-- open model cards in the browser
-
-### Configurations
-This area is where you prepare the application to run correctly.
-
-Use it to:
-
-- set provider access details when a workflow needs them
-- verify local model connectivity
-- save and reuse named profiles
-- switch between setup profiles without rebuilding everything manually
-
-## How To Get Started
-
-If you are new to the app, the easiest path is:
-
-1. Open **Configurations** and enter the provider or runtime details you need.
-2. Open **Workflow** and add the nodes you want to use.
-3. Connect the nodes so the workflow has a clear path from start to finish.
-4. Compile the workflow to check for missing pieces or incompatible connections.
-5. Start the run.
-6. Watch the execution status and inspect the output as it arrives.
-
-The workflow does not need to be perfect on the first try. It is normal to build it in small steps, compile often, and adjust as you go.
-
-## A Typical Workflow Session
-
-Most sessions follow the same basic pattern:
-
-1. Start the app.
-2. Review or update your settings.
-3. Build or open a workflow.
-4. Add the nodes you need.
-5. Connect the nodes in the order you want them to run.
-6. Compile the workflow.
-7. Fix anything the compiler points out.
-8. Start execution.
-9. Monitor the run until it finishes.
-10. Review the output and decide what to adjust next.
-
-If your workflow is intended for document retrieval, the usual shape is:
-
-1. Load documents.
-2. Split or prepare the content.
-3. Create embeddings.
-4. Store vectors.
-5. Render the query.
-6. Search for relevant matches.
-7. Rank the results.
-8. Build the final answer prompt.
-9. Generate the response.
-
-## How To Start The App
-
-### Recommended On Windows
-
-Run:
-
-```powershell
-.\start_on_windows.ps1
-```
-
-This is the easiest way to start the app locally. The launcher prepares what it needs, starts the backend and frontend, and opens the interface.
-
-The first launch can take longer because the app may still be setting up its local runtime and dependencies. Later launches are usually much faster.
-
-### Manual Startup
-
-If you prefer to start things yourself, see the detailed startup notes in:
-
-- [Startup guide](assets/docs/runtime/startup.md)
-
-## Where To Learn More
-
-For more detailed help, use the dedicated docs:
-
-- [Getting Started](assets/docs/user/getting_started.md)
-- [Workflow Editor](assets/docs/user/workflow_editor.md)
-- [Models And Configurations](assets/docs/user/models_and_configurations.md)
-- [Nodes And Execution](assets/docs/user/nodes_and_execution.md)
-- [Troubleshooting And Data](assets/docs/user/troubleshooting_and_data.md)
-
-If you want a broader map of the documentation, start here:
-
-- [Project Overview](assets/docs/project_index.md)
-
-## Troubleshooting
-
-If something does not work as expected:
-
-- try starting the app again
-- check that the configuration values are correct
-- make sure the model or provider you need is available
-- review the workflow compile messages before running
-- look at the troubleshooting guide for common causes and data locations
-
-For more detail, see:
-
-- [Troubleshooting And Data](assets/docs/user/troubleshooting_and_data.md)
-
-## Data And Files
-
-The app stores its local runtime data under `data` by default. Set `PARAGRAPH_RESOURCES_DIR` in `settings/.env` to use another absolute or repository-relative location.
-
-That includes things like:
-
-- logs
-- workflow data
-- downloaded models and related assets
-- local database files
-- runtime artifacts created while the app is running
+Shared runtime data is stored under the repository's data directory by default. Set PARAGRAPH_RESOURCES_DIR in settings/.env to use an absolute or repository-relative location instead. Data includes the application database, logs, workflow and node assets, downloaded models, and runtime artifacts. The launcher provides a confirmed Remove All Data action; see the [troubleshooting and data guide](assets/docs/user/troubleshooting_and_data.md) before using it.
 
 ## License
 

@@ -1,27 +1,26 @@
-# Testing And Quality
-Last updated: 2026-09-20
+# Testing and Quality
+Last updated: 2026-10-18
 
 ## Python Tooling
-- Lint and format with Ruff or the project-approved equivalent.
-- Keep typing compatible with Pylance expectations.
-- Test backend behavior with pytest, including `tests/unit` and relevant `tests/e2e` coverage.
-- All runtime, test, tool, browser, and generated frontend-build caches are centralized under `runtimes/cache`, including uv, npm, Python bytecode, pytest, Ruff, coverage, Vite, Vitest, Playwright, ESLint, and Hugging Face runtime caches.
-- On Windows, run focused pytest commands from the repository root with the repository-local cache and base temp directories:
-  `.\app\server\.venv\Scripts\python.exe -m pytest -c .\pytest.ini <test-path> -q --basetemp=.\runtimes\cache\pytest-tmp`
-- If pytest still ends with `WinError 5` during temp cleanup, preserve the exact traceback under `assets/QA/` and use a direct harness only as supplemental evidence.
+- Use Ruff or the project-approved equivalent for linting and formatting, and keep typing compatible with Pylance expectations.
+- Use pytest for backend behavior in unit tests and relevant end-to-end tests.
+- Runtime, test, tool, browser, and generated frontend-build caches are under runtimes/cache.
+- On Windows, run focused tests from the repository root with the project environment and local temporary directory:
+
+        .\app\server\.venv\Scripts\python.exe -m pytest -c .\pytest.ini <test-path> -q --basetemp=.\runtimes\cache\pytest-tmp
+
+- If pytest reports WinError 5 during temporary-file cleanup, keep the affected temporary roots under runtimes/cache or ignored assets/QA and treat the cleanup output as disposable. A direct harness is supplemental evidence only.
 
 ## Frontend Tooling
-- Use Vitest and Testing Library for unit and integration coverage.
-- Use Playwright for browser-level validation across pages and runtime flows.
-- Keep shared test fixtures and utilities under `client/src/test` when reuse is warranted.
+- Use Vitest and Testing Library for unit and component coverage.
+- Use Playwright for browser-level page and runtime flows.
+- Keep shared fixtures under client/src/test when reuse is warranted.
+
+## Validation Records
+Record durable outcomes in the [project status ledger](../project_status_ledger.md), following the [validation strategy](../validation/strategy.md). Keep screenshots, coverage exports, run data, test databases, and logs in ignored scratch directories; do not track standalone QA reports.
 
 ## Cross-Language Expectations
 - Keep changes scoped, reviewable, and verifiable.
 - Remove dead code and obsolete assets when the touched area makes them irrelevant.
 - Prefer deterministic behavior and explicit error handling.
-- Document architecture-impacting, runtime-impacting, and user-visible behavior changes in `assets/docs` within the same change set.
-
-## Documentation Quality Rules
-- Prefer multiple focused leaf files over large mixed-purpose markdown files.
-- Keep the root overview synchronized with every file move, addition, rename, or deletion.
-- Do not leave stale paths or obsolete file names in documentation indexes.
+- Document architecture, runtime, and user-visible behavior in its owning document in assets/docs.

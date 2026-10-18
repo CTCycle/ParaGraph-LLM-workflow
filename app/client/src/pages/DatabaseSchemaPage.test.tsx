@@ -70,6 +70,7 @@ describe('DatabaseSchemaPage', () => {
 
         render(
             <MemoryRouter
+                future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
                 initialEntries={[
                     {
                         pathname: '/database-schema/db_1',
@@ -98,6 +99,7 @@ describe('DatabaseSchemaPage', () => {
 
         render(
             <MemoryRouter
+                future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
                 initialEntries={[
                     {
                         pathname: '/database-schema/db_1',

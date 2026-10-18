@@ -1,5 +1,5 @@
 # Configuration
-Last updated: 2026-09-28
+Last updated: 2026-10-18
 
 ## Shared Configuration Sources
 - Shared environment keys are loaded from `settings/.env`.
