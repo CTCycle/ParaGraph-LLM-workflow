@@ -1,5 +1,5 @@
 # Project Status Ledger
-Last updated: 2026-10-01
+Last updated: 2026-10-18
 
 This is the canonical current operational status catalog for ParaGraph. It is a
 compact index of what is implemented, what has meaningful evidence, what is
@@ -65,6 +65,18 @@ Tier 2 slice statuses:
 | `PG-T2-07` | Process startup recovery and fail-closed interrupted steps | `PASS` | [lifecycle/recovery report](../QA/PG-T2-05-08-1170dd9.md) records paused restart, a controlled queued-state fixture reusing completed output, and real backend termination during an active LLM step. | Safe between-step recovery uses a seeded state fixture; interrupted running steps intentionally fail closed. |
 | `PG-T2-08` | Browser run continuity, explicit reconnect, and durable event replay | `PASS` | [lifecycle/recovery report](../QA/PG-T2-05-08-1170dd9.md) records real outage/reconnect, paused reload, four matching HTTP/WebSocket histories, and SQLite integrity `ok`. | Explicit reconnect/reload is validated; automatic reconnect/backoff and provider token streaming are not claimed. |
 
+## Tier 3 slice status
+
+The first bounded Tier 3 family is local browser-directory upload and document
+processing. The backend API/workflow integration passed on the CI revision below;
+live browser file selection and execution have not been exercised. The entire
+Tier 3 campaign is not complete.
+
+| Slice | Scope | Status | Evidence | Next action |
+| --- | --- | --- | --- | --- |
+| `PG-T3-01` | In-process multipart directory upload, recursive TXT/Markdown document load, text extraction, delimiter chunking, local artifact writes, and cleanup | `PARTIAL` | [CI-backed integration report](../QA/PG-T3-01-b0685c1.md) on `b0685c1`; [CI run 39103852842](https://github.com/CTCycle/ParaGraph-LLM-workflow/actions/runs/39103852842), 378 backend tests passed, including the new end-to-end server test. | Run the actual browser directory picker, upload, editor binding, compile, execute, reload and output review against a live backend; keep unsupported document formats and remote adapters separate. |
+| `PG-T3-02`–`PG-T3-11` | Remaining local/external integration families | `UNTESTED` | No bounded current-revision campaign execution recorded. | Select the next local family, such as SQLite database UI/schema and execution; external adapters require separate evidence. |
+
 ## Status Taxonomy
 
 | Status | Meaning |
@@ -101,7 +113,7 @@ the scope, not that every possible path has been tested.
 | `provider.configuration_and_catalogs` | `VALIDATED` | Canonical provider configuration records, redacted reads, configuration failure states, Ollama public catalog, and Hugging Face catalog browsing. | The 2026-09-20 live report observed configuration loading, redacted shape, Ollama failure rendering, and live Ollama/Hugging Face catalog responses. The 2026-09-23 [PG-T1-03](../QA/PG-T1-03-c17d740.md) adds disposable SQLite configuration/profile round trips, redaction, and key-preservation coverage; focused provider route tests pass. | Catalog responses depend on external services and can change independently of the repository. | — | 2026-09-23 (configuration/profile subset; live catalogs 2026-09-20) | unit + integration + E2E | [Models and configurations](user/models_and_configurations.md), [provider tests](../../app/tests/unit/server/routes/test_providers.py) | Recheck catalog contracts when provider APIs or registry metadata change. |
 | `provider.ollama.execution` | `PARTIAL` | Ollama connectivity, model pull, and successful model-backed workflow execution. | [lifecycle/recovery report](../QA/PG-T2-05-08-1170dd9.md) records Ollama 0.34.0 at `127.0.0.1:11434`, catalog availability, and a real five-step `qwen3.5:2b` browser workflow with visible `READY`; the old port-1 failure is historical. | Model pull, token streaming, provider-specific reload recovery, and Chat success/isolation remain incomplete. | — for the tested existing local model. | 2026-10-01 | E2E + manual | [Models and configurations](user/models_and_configurations.md) | Complete provider management/streaming and Chat gates without claiming other provider lanes. |
 | `provider.openai.execution` | `BLOCKED` | OpenAI-backed workflow execution through the configured cloud provider. | The live report correlated the request with HTTP 429 for insufficient quota and the UI showed an execution error rather than false success. | Successful OpenAI execution remains unverified. | An authorized, funded or isolated test credential with quota. | 2026-08-26 | E2E failure-path | [Models and configurations](user/models_and_configurations.md), [system validation](../QA/paragraph-e2e-system-validation-2026-08-26.md) | Re-run a minimal successful model workflow and Chat history flow with an approved credential. |
-| `workflow.external_integrations` | `UNVALIDATED` | File upload/import, database schema UI, external database connections, and external vector-store behavior as live end-to-end workflows. | The current backend suite includes database, vector, upload, and provider contract tests; the live report explicitly records file upload/import and database schema flows as not exercised. | No product failure is established; live coverage is insufficient. | — | 2026-09-20 | unit + integration | [Node database and tools](nodes/database_and_tools.md), [import and integration](nodes/import_and_integration.md), [system validation](../QA/paragraph-e2e-system-validation-2026-08-26.md) | Add fixture-backed browser/API passes for each integration family and separate local-adapter from external-service evidence. |
+| `workflow.external_integrations` | `UNVALIDATED` | File upload/import, database schema UI, external database connections, and external vector-store behavior as live end-to-end workflows. | The [PG-T3-01 report](../QA/PG-T3-01-b0685c1.md) adds a passing in-process multipart upload through document-load, extraction, chunking, and local artifact output on `b0685c1` (CI [39103852842](https://github.com/CTCycle/ParaGraph-LLM-workflow/actions/runs/39103852842)). The broader live browser, database-schema, and external-adapter flows remain untested. | No product failure is established; wider live coverage is insufficient. | — | 2026-10-18 (bounded server API/workflow scope only) | unit + integration | [Node database and tools](nodes/database_and_tools.md), [import and integration](nodes/import_and_integration.md), [PG-T3-01](../QA/PG-T3-01-b0685c1.md) | Run a live browser upload and execution path, then validate local database and external adapter families independently. |
 | `deployment.packaging` | `NOT_IMPLEMENTED` | Installer, standalone executable, and container-image distribution. | The supported deployment document explicitly states that the repository produces none of these artifacts. | This is outside the supported local operation model, not a confirmed defect. | — | 2026-09-18 | None | [Deployment](runtime/deployment.md), [system overview](architecture/system_overview.md) | Take no action unless packaging becomes an explicit product requirement. |
 | `workflow.execution.lifecycle` | `VALIDATED` | Human-review pause/resume/cancel, tracked browser run continuity, queued recovery, and fail-closed interrupted steps. | [lifecycle/recovery report](../QA/PG-T2-05-08-1170dd9.md) records live backend/browser scenarios plus 38 backend, 21 unit, and 11 browser regression checks. | Queued recovery uses a controlled persisted-state fixture; automatic reconnect and forced provider-thread termination are not promised. | — | 2026-10-01 | unit + integration + E2E + manual | [Execution monitoring](user/nodes_and_execution.md), [persistence](architecture/persistence.md) | Re-run after lifecycle/checkpoint or monitoring changes; complete separate Chat/provider and integration campaigns. |
 
@@ -126,7 +138,7 @@ Validation debt identifies important coverage gaps, not known defects.
 | --- | --- | --- | --- |
 | `provider.ollama.execution` and `provider.openai.execution` | Ollama partial; OpenAI blocked | Ollama pull, streaming and provider-specific reload recovery; OpenAI successful execution with available quota. | High |
 | `workflow.chat.history` | Partial; local prerequisite now available | Successful browser Chat append, node-scope isolation across multiple Chat nodes, and success/failure/cancel/pause/reload behavior. | High |
-| `workflow.external_integrations` | Unvalidated | File upload, database schema UI, external database connectivity, and external vector-store browser/API flows. | Medium |
+| `workflow.external_integrations` | Backend upload-to-document processing passed (`PG-T3-01`); overall integration component unvalidated | Live browser upload/editor flow, local database schema UI, external database connectivity, and external vector-store browser/API flows. | Medium |
 | `workflow.editor.graph` | Validated for graph state | Product decision and regression check for whether transient runtime output should survive refresh. | Low |
 
 ## Resolved / Historical Findings
@@ -145,7 +157,7 @@ be used to inflate the current Open Issues list.
 
 ## Revalidation Order
 
-1. Select a bounded Tier 3 local integration family (uploads/documents or local database flows); keep external-service adapters separate.
+1. Finish `PG-T3-01` with a real browser directory-upload and document-workflow run against the live backend, then select a bounded local SQLite/schema family. Keep external-service adapters separate.
 2. With local Ollama now reachable and basic workflow success confirmed, run the scoped Chat history browser campaign and remaining provider management/streaming gates. OpenAI keeps its own quota prerequisite.
 3. Triage `ISSUE-005` and align the Node engine constraint in `ISSUE-004`; revisit router warnings and the bundle budget in `ISSUE-002` and `ISSUE-003` within a coherent frontend/toolchain slice.
 4. Re-run the touched Tier 2 lifecycle/recovery regressions after related changes; keep explicit reconnect and fail-closed interruption boundaries intact.

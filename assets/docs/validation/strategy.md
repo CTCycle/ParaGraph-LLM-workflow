@@ -1,5 +1,5 @@
 # Validation Strategy
-Last updated: 2026-10-01
+Last updated: 2026-10-18
 
 ## Purpose and authority
 
@@ -107,6 +107,13 @@ out of the curated remote evidence set.
 | `PG-T2-06` | Human-review pause, reviewed payload, resume, and paused cancellation | Browser controls, reload, real checkpoint restart, output completion, and token consumption. |
 | `PG-T2-07` | Startup recovery and interrupted-step policy | Real paused restart, controlled queued-state recovery, and actual mid-step termination failing closed. Safe between-step recovery is supported by a seeded state fixture. |
 | `PG-T2-08` | Browser run continuity, explicit reconnect, and durable event replay | Live outage/reconnect, paused reload, and matching real HTTP/WebSocket histories. Automatic reconnect and token streaming remain separate. |
+
+## Tier 3 selected boundary
+
+| Slice | Bounded scope | Evidence boundary |
+| --- | --- | --- |
+| `PG-T3-01` | Directory upload from browser-selected paths through local Load Documents, Document Text Extractor, chunking, and file output | The [2026-10-18 CI-backed report](../../QA/PG-T3-01-b0685c1.md) confirms the real in-process upload API, compiled deterministic workflow, durable run output and local files on `b0685c1`. This is `PARTIAL`: browser folder selection, frontend field binding, actual browser execution, and visual output remain unverified. |
+| `PG-T3-02`–`PG-T3-11` | Remaining local node/integration families and external adapters | `UNTESTED` at the comprehensive campaign level; validate local SQLite separately from remote databases/vector services. |
 
 ## Evidence and status rules
 
