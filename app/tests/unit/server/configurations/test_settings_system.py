@@ -109,7 +109,7 @@ def test_environment_loader_preserves_existing_env_over_example(
     assert os.getenv("FASTAPI_HOST") == "from_local"
 
 ###############################################################################
-def test_resources_root_defaults_to_repository_resources(
+def test_resources_root_defaults_to_repository_data(
     tmp_path: Path, monkeypatch
 ) -> None:
     monkeypatch.setattr(common_path, "ENV_FILE", tmp_path / ".env")
