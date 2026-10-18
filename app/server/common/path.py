@@ -44,7 +44,7 @@ _DEFAULT_RESOURCES_ROOT = REPOSITORY_ROOT / "data"
 def resolve_resources_root() -> Path:
     """Resolve the shared resource root from the local environment settings."""
     configured_root = os.getenv(RESOURCES_ENV_KEY)
-    if ENV_FILE.is_file():
+    if (configured_root is None or not configured_root.strip()) and ENV_FILE.is_file():
         dotenv_settings = dotenv_values(ENV_FILE)
         if RESOURCES_ENV_KEY in dotenv_settings:
             configured_root = dotenv_settings[RESOURCES_ENV_KEY]

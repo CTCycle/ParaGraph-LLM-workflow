@@ -5,44 +5,52 @@
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![CI](https://github.com/CTCycle/ParaGraph-LLM-workflow/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/CTCycle/ParaGraph-LLM-workflow/actions/workflows/ci.yml?query=branch%3Adevelop)
 
-ParaGraph is a local-first application for building, running, and monitoring LLM workflows on a visual canvas. Its supported Windows launcher starts a FastAPI backend and a React browser interface. The desktop layout requires a browser window at least 1024 CSS pixels wide.
+**Version 1.0.0** is a local-first web application for building, running, and monitoring LLM workflows on a visual canvas. The Windows launcher manages a local FastAPI backend and React web interface. No installer or container is required. The desktop layout needs a browser window at least 1024 CSS pixels wide.
 
-## Workflows
+## Prerequisites
 
-- Build a graph by connecting nodes, then compile it to see diagnostics before running.
-- Follow execution status, outputs, and event history.
-- Browse node templates, import custom node manifests, and manage provider models and configuration profiles.
-- Create retrieval workflows that load, split, embed, store, search, rank, and answer questions.
+- 64-bit Windows with PowerShell.
+- Git to clone the repository.
+- Internet access for the first launch to download the portable runtimes and dependencies.
+- A modern browser. Python and Node.js do not need to be installed separately; the launcher prepares local copies.
 
-## Start on Windows
+## Install and launch
 
-Run the launcher from the repository root:
+In PowerShell:
 
-    .\start_on_windows.ps1
+```powershell
+git clone https://github.com/CTCycle/ParaGraph-LLM-workflow.git
+Set-Location ParaGraph-LLM-workflow
+.\start_on_windows.ps1
+```
 
-It prepares or repairs the local runtimes, initializes the database, starts the backend and frontend, and opens the interface. The first launch may take longer while dependencies are prepared. See the [startup guide](assets/docs/runtime/startup.md) for launcher actions and manual startup commands.
+Choose **1. Launch application**. On first use, the launcher creates `settings/.env` from the tracked example, prepares missing runtimes and dependencies, checks the database migrations, builds the frontend when needed, and opens the application at <http://127.0.0.1:8002>. The backend API documentation is at <http://127.0.0.1:5002/docs>.
 
-## Documentation
+To install development tools and run project checks, choose **3. Install or update dependencies**, then select **1. Development**. Choose **2. Standard** for application runtime dependencies only. The launcher retains installed dependencies between starts. Reopen it and choose **2. Kill all app processes** to stop the application.
 
-The [project documentation index](assets/docs/project_index.md) maps the full documentation structure.
+## Configuration and data
 
-User guides:
+The launcher copies [`settings/.env.example`](settings/.env.example) to `settings/.env` when the local file is missing. The default web and API addresses are `127.0.0.1:8002` and `127.0.0.1:5002`; set `UI_PORT` or `FASTAPI_PORT` in `settings/.env` if those ports are occupied. Keep `VITE_API_BASE_URL` as a relative path such as `/api` so the frontend uses the local backend.
 
-- [Getting started](assets/docs/user/getting_started.md)
-- [Workflow editor](assets/docs/user/workflow_editor.md)
-- [Models and configurations](assets/docs/user/models_and_configurations.md)
-- [Nodes and execution](assets/docs/user/nodes_and_execution.md)
-- [Troubleshooting and data](assets/docs/user/troubleshooting_and_data.md)
+Shared data, including the embedded SQLite database, logs, workflow templates, and runtime assets, is stored under `data` by default. Set `PARAGRAPH_RESOURCES_DIR` to an absolute or repository-relative path in `settings/.env` to move it. Provider credentials are configured in the application; do not put real credentials in `.env.example` or commit `settings/.env`.
 
-Project references:
+## Use the application
 
-- [Status ledger](assets/docs/project_status_ledger.md) — current component status, evidence, known issues, and validation gaps.
-- [Validation strategy](assets/docs/validation/strategy.md) — campaign tiers and evidence rules.
-- [Testing and quality](assets/docs/coding/testing_and_quality.md) — tools, commands, and repository conventions.
+- Build a node graph, connect compatible ports, and compile it to review diagnostics.
+- Run deterministic local workflows and follow status, outputs, and event history.
+- Browse templates and nodes, import custom node manifests, and manage provider settings.
+- Create retrieval workflows to load, split, embed, store, search, rank, and answer questions.
 
-## Data
+See [Getting Started](assets/docs/user/getting_started.md) and the [Workflow Editor guide](assets/docs/user/workflow_editor.md) for the standard user journey. Provider execution requires a configured local provider or service and its own credentials.
 
-Shared runtime data is stored under the repository's data directory by default. Set PARAGRAPH_RESOURCES_DIR in settings/.env to use an absolute or repository-relative location instead. Data includes the application database, logs, workflow and node assets, downloaded models, and runtime artifacts. The launcher provides a confirmed Remove All Data action; see the [troubleshooting and data guide](assets/docs/user/troubleshooting_and_data.md) before using it.
+## Troubleshooting and development
+
+- A first launch can take several minutes while runtimes and dependencies are installed. Choose launcher option **3** to repair the development or standard install.
+- If a configured port is occupied, the launcher shows the owning process and asks whether to stop it. Decline and choose another port in `settings/.env` if you need to keep that process running.
+- Startup applies pending SQLite migrations. For schema or data errors, see [Troubleshooting and Data](assets/docs/user/troubleshooting_and_data.md) before using any data-removal action.
+- For direct backend and frontend development commands, see the [Startup guide](assets/docs/runtime/startup.md). The frontend unit, lint, and build commands are listed in [Testing and Quality](assets/docs/coding/testing_and_quality.md).
+
+The [documentation index](assets/docs/project_index.md) maps the full project guides. Current validation scope and known limitations are in the [status ledger](assets/docs/project_status_ledger.md). Release history is in [CHANGELOG.md](CHANGELOG.md).
 
 ## License
 
