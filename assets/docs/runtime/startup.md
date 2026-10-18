@@ -1,5 +1,5 @@
 # Startup
-Last updated: 2026-09-28
+Last updated: 2026-10-18
 
 ## Local Launcher
 PowerShell:
@@ -30,13 +30,15 @@ The interactive menu provides these options:
 CMD:
 
 ```bat
-runtimes\.venv\Scripts\python.exe -m uvicorn server.app:app --host 127.0.0.1 --port 5002 --reload
+cd app
+server\.venv\Scripts\python.exe -m uvicorn server.app:app --host 127.0.0.1 --port 5002 --reload
 ```
 
 PowerShell:
 
 ```powershell
-.\runtimes\.venv\Scripts\python.exe -m uvicorn server.app:app --host 127.0.0.1 --port 5002 --reload
+Set-Location app
+.\server\.venv\Scripts\python.exe -m uvicorn server.app:app --host 127.0.0.1 --port 5002 --reload
 ```
 
 ## Manual Frontend
