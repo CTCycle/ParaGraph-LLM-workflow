@@ -58,6 +58,7 @@ Current curated reports:
   event replay, and the refreshed local Ollama success boundary; sanitized JSON
   and screenshots are under [`PG-T2-05-08-1170dd9`](PG-T2-05-08-1170dd9/).
 - [`PG-T3-01-b0685c1.md`](PG-T3-01-b0685c1.md) — CI-backed multipart directory upload through real local document loading, text extraction, chunking, and artifact output; complete server-side pass, browser validation still pending.
+- [`PG-T3-01-48aaf55.md`](PG-T3-01-48aaf55.md) — closing report for the same slice: checked-in Playwright flow drives the real browser folder upload, editor binding, live compile/execute, client-side OPFS Save As Folder artifact, JSON output review, reload, and a bounded missing-directory failure against a live uvicorn backend; sanitized screenshots and run JSON live under [`PG-T3-01-48aaf55`](PG-T3-01-48aaf55/). Also records the Windows `relative_path` separator fix, the live-backend contract spec stale-name fix, and the Browser E2E CI backend launch fix.
 - [`paragraph-e2e-system-validation-2026-08-26.md`](paragraph-e2e-system-validation-2026-08-26.md)
   — live full-stack validation and known provider blockers.
 - [`paragraph_e2e_validation_2026-08-02.md`](paragraph_e2e_validation_2026-08-02.md)

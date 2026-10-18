@@ -51,11 +51,11 @@ success claim.
 
 ## Tier 0 slices
 
-Tier 0 was the campaign's initial validation tier. The current ledger records
-Tier 0 and Tier 1 as complete, and `PG-T2-01` through `PG-T2-08` now have
+Tier 0 and Tier 1 are complete, and `PG-T2-01` through `PG-T2-08` now have
 bounded evidence. The [lifecycle/recovery report](../../QA/PG-T2-05-08-1170dd9.md)
 records the latest live controls, restart, and explicit browser reconnect pass.
-Next select a bounded Tier 3 local integration family or the scoped Chat history
+The `PG-T3-01` browser slice is also closed. Next select a bounded Tier 3 local
+integration family (such as SQLite database nodes) or the scoped Chat history
 campaign with the now-reachable Ollama service. Other provider lanes and external
 integrations keep their own prerequisites and evidence boundaries.
 The intended Tier 0 boundaries remain:
@@ -112,7 +112,7 @@ out of the curated remote evidence set.
 
 | Slice | Bounded scope | Evidence boundary |
 | --- | --- | --- |
-| `PG-T3-01` | Directory upload from browser-selected paths through local Load Documents, Document Text Extractor, chunking, and file output | The [2026-10-18 CI-backed report](../../QA/PG-T3-01-b0685c1.md) confirms the real in-process upload API, compiled deterministic workflow, durable run output and local files on `b0685c1`. This is `PARTIAL`: browser folder selection, frontend field binding, actual browser execution, and visual output remain unverified. |
+| `PG-T3-01` | Directory upload from browser-selected paths through local Load Documents, Document Text Extractor, chunking, and file output | The [2026-10-18 CI-backed report](../../QA/PG-T3-01-b0685c1.md) confirms the real in-process upload API, compiled deterministic workflow, durable run output and local files on `b0685c1`. The [2026-10-18 live-browser report](../../QA/PG-T3-01-48aaf55.md) closes the slice on `48aaf55a7137b85b34feca14e4727aa2d2af608d`: real folder-picker multipart staging, editor binding, live compile/execute, client-side OPFS save artifact, JSON output review, reload, and a bounded missing-directory failure; sanitized screenshots plus run JSON under [`PG-T3-01-48aaf55`](../../QA/PG-T3-01-48aaf55/). The OS File System Access dialog is stubbed with a real OPFS handle; the browser directory upload lane is unstubbed. Unsupported formats, per-file lanes, and security limits stay separate. |
 | `PG-T3-02`–`PG-T3-11` | Remaining local node/integration families and external adapters | `UNTESTED` at the comprehensive campaign level; validate local SQLite separately from remote databases/vector services. |
 
 ## Evidence and status rules

@@ -1,0 +1,1247 @@
+{
+  "run": {
+    "run_id": "22f8a63d-7029-4519-b04d-7c3f785c9c90",
+    "request_id": "97f8745a6a1249389e1b1f9cf94b7adb",
+    "workflow_id": "workflow",
+    "execution_session_id": "8e377ba0-a836-4320-9451-8a1ce49a1a8b",
+    "plan_id": "plan_9794dd9b9657",
+    "status": "completed",
+    "created_at": "2026-10-18T07:22:10.623322Z",
+    "updated_at": "2026-10-18T07:22:10.861932Z",
+    "progress": 100,
+    "steps": [
+      {
+        "step_id": "upload_load_1",
+        "node_id": "upload_load_1",
+        "node_type": "LOAD_DOCUMENTS",
+        "status": "completed",
+        "started_at": "2026-10-18T07:22:10.657713Z",
+        "completed_at": "2026-10-18T07:22:10.675665Z",
+        "output": {
+          "inputs": {},
+          "ports": {
+            "documents": [
+              {
+                "id": "97315c7a-db20-50ad-b448-e75ae0f2aaf2",
+                "text": "Carrots are crunchy. Dates are sweet.",
+                "source_uri": "<RESOURCES>/5e3de07c578541399ab77678a06b8a45\\pg-t3-01-upload-08axLK\\dataset\\nested\\notes.md",
+                "mime_type": "text/markdown",
+                "metadata": {
+                  "extension": ".md",
+                  "file_name": "notes.md",
+                  "relative_path": "pg-t3-01-upload-08axLK/dataset/nested/notes.md",
+                  "size_bytes": 37,
+                  "deferred_load": false,
+                  "file_path": "<RESOURCES>/5e3de07c578541399ab77678a06b8a45\\pg-t3-01-upload-08axLK\\dataset\\nested\\notes.md"
+                }
+              },
+              {
+                "id": "df480b90-00c2-512a-a4e0-a975e9cc9ef8",
+                "text": "Apples are crisp. Bananas are soft.",
+                "source_uri": "<RESOURCES>/5e3de07c578541399ab77678a06b8a45\\pg-t3-01-upload-08axLK\\dataset\\readme.txt",
+                "mime_type": "text/plain",
+                "metadata": {
+                  "extension": ".txt",
+                  "file_name": "readme.txt",
+                  "relative_path": "pg-t3-01-upload-08axLK/dataset/readme.txt",
+                  "size_bytes": 35,
+                  "deferred_load": false,
+                  "file_path": "<RESOURCES>/5e3de07c578541399ab77678a06b8a45\\pg-t3-01-upload-08axLK\\dataset\\readme.txt"
+                }
+              }
+            ]
+          }
+        },
+        "error": null,
+        "pause_payload": null,
+        "resume_token": null,
+        "position": 0,
+        "attempt_count": 1,
+        "blocked_reason": null
+      },
+      {
+        "step_id": "upload_extract_1",
+        "node_id": "upload_extract_1",
+        "node_type": "DOCUMENT_TEXT_EXTRACTOR",
+        "status": "completed",
+        "started_at": "2026-10-18T07:22:10.716445Z",
+        "completed_at": "2026-10-18T07:22:10.730925Z",
+        "output": {
+          "inputs": {
+            "documents": [
+              {
+                "id": "97315c7a-db20-50ad-b448-e75ae0f2aaf2",
+                "text": "Carrots are crunchy. Dates are sweet.",
+                "source_uri": "<RESOURCES>/5e3de07c578541399ab77678a06b8a45\\pg-t3-01-upload-08axLK\\dataset\\nested\\notes.md",
+                "mime_type": "text/markdown",
+                "metadata": {
+                  "extension": ".md",
+                  "file_name": "notes.md",
+                  "relative_path": "pg-t3-01-upload-08axLK/dataset/nested/notes.md",
+                  "size_bytes": 37,
+                  "deferred_load": false,
+                  "file_path": "<RESOURCES>/5e3de07c578541399ab77678a06b8a45\\pg-t3-01-upload-08axLK\\dataset\\nested\\notes.md"
+                }
+              },
+              {
+                "id": "df480b90-00c2-512a-a4e0-a975e9cc9ef8",
+                "text": "Apples are crisp. Bananas are soft.",
+                "source_uri": "<RESOURCES>/5e3de07c578541399ab77678a06b8a45\\pg-t3-01-upload-08axLK\\dataset\\readme.txt",
+                "mime_type": "text/plain",
+                "metadata": {
+                  "extension": ".txt",
+                  "file_name": "readme.txt",
+                  "relative_path": "pg-t3-01-upload-08axLK/dataset/readme.txt",
+                  "size_bytes": 35,
+                  "deferred_load": false,
+                  "file_path": "<RESOURCES>/5e3de07c578541399ab77678a06b8a45\\pg-t3-01-upload-08axLK\\dataset\\readme.txt"
+                }
+              }
+            ]
+          },
+          "ports": {
+            "documents": [
+              {
+                "id": "97315c7a-db20-50ad-b448-e75ae0f2aaf2",
+                "text": "Carrots are crunchy. Dates are sweet.",
+                "source_uri": "<RESOURCES>/5e3de07c578541399ab77678a06b8a45\\pg-t3-01-upload-08axLK\\dataset\\nested\\notes.md",
+                "mime_type": "text/markdown",
+                "metadata": {
+                  "extension": ".md",
+                  "file_name": "notes.md",
+                  "relative_path": "pg-t3-01-upload-08axLK/dataset/nested/notes.md",
+                  "size_bytes": 37,
+                  "deferred_load": false,
+                  "file_path": "<RESOURCES>/5e3de07c578541399ab77678a06b8a45\\pg-t3-01-upload-08axLK\\dataset\\nested\\notes.md",
+                  "source": "<RESOURCES>/5e3de07c578541399ab77678a06b8a45\\pg-t3-01-upload-08axLK\\dataset\\nested\\notes.md",
+                  "document_id": "97315c7a-db20-50ad-b448-e75ae0f2aaf2"
+                }
+              },
+              {
+                "id": "df480b90-00c2-512a-a4e0-a975e9cc9ef8",
+                "text": "Apples are crisp. Bananas are soft.",
+                "source_uri": "<RESOURCES>/5e3de07c578541399ab77678a06b8a45\\pg-t3-01-upload-08axLK\\dataset\\readme.txt",
+                "mime_type": "text/plain",
+                "metadata": {
+                  "extension": ".txt",
+                  "file_name": "readme.txt",
+                  "relative_path": "pg-t3-01-upload-08axLK/dataset/readme.txt",
+                  "size_bytes": 35,
+                  "deferred_load": false,
+                  "file_path": "<RESOURCES>/5e3de07c578541399ab77678a06b8a45\\pg-t3-01-upload-08axLK\\dataset\\readme.txt",
+                  "source": "<RESOURCES>/5e3de07c578541399ab77678a06b8a45\\pg-t3-01-upload-08axLK\\dataset\\readme.txt",
+                  "document_id": "df480b90-00c2-512a-a4e0-a975e9cc9ef8"
+                }
+              }
+            ]
+          }
+        },
+        "error": null,
+        "pause_payload": null,
+        "resume_token": null,
+        "position": 1,
+        "attempt_count": 1,
+        "blocked_reason": null
+      },
+      {
+        "step_id": "upload_chunk_1",
+        "node_id": "upload_chunk_1",
+        "node_type": "BY_DELIMITER_CHUNKS",
+        "status": "completed",
+        "started_at": "2026-10-18T07:22:10.752184Z",
+        "completed_at": "2026-10-18T07:22:10.765515Z",
+        "output": {
+          "inputs": {
+            "documents": [
+              {
+                "id": "97315c7a-db20-50ad-b448-e75ae0f2aaf2",
+                "text": "Carrots are crunchy. Dates are sweet.",
+                "source_uri": "<RESOURCES>/5e3de07c578541399ab77678a06b8a45\\pg-t3-01-upload-08axLK\\dataset\\nested\\notes.md",
+                "mime_type": "text/markdown",
+                "metadata": {
+                  "extension": ".md",
+                  "file_name": "notes.md",
+                  "relative_path": "pg-t3-01-upload-08axLK/dataset/nested/notes.md",
+                  "size_bytes": 37,
+                  "deferred_load": false,
+                  "file_path": "<RESOURCES>/5e3de07c578541399ab77678a06b8a45\\pg-t3-01-upload-08axLK\\dataset\\nested\\notes.md",
+                  "source": "<RESOURCES>/5e3de07c578541399ab77678a06b8a45\\pg-t3-01-upload-08axLK\\dataset\\nested\\notes.md",
+                  "document_id": "97315c7a-db20-50ad-b448-e75ae0f2aaf2"
+                }
+              },
+              {
+                "id": "df480b90-00c2-512a-a4e0-a975e9cc9ef8",
+                "text": "Apples are crisp. Bananas are soft.",
+                "source_uri": "<RESOURCES>/5e3de07c578541399ab77678a06b8a45\\pg-t3-01-upload-08axLK\\dataset\\readme.txt",
+                "mime_type": "text/plain",
+                "metadata": {
+                  "extension": ".txt",
+                  "file_name": "readme.txt",
+                  "relative_path": "pg-t3-01-upload-08axLK/dataset/readme.txt",
+                  "size_bytes": 35,
+                  "deferred_load": false,
+                  "file_path": "<RESOURCES>/5e3de07c578541399ab77678a06b8a45\\pg-t3-01-upload-08axLK\\dataset\\readme.txt",
+                  "source": "<RESOURCES>/5e3de07c578541399ab77678a06b8a45\\pg-t3-01-upload-08axLK\\dataset\\readme.txt",
+                  "document_id": "df480b90-00c2-512a-a4e0-a975e9cc9ef8"
+                }
+              }
+            ]
+          },
+          "ports": {
+            "chunks": [
+              {
+                "id": "d717dc57-4d13-5dc6-a7e5-8cb5d7724aa8",
+                "document_id": "97315c7a-db20-50ad-b448-e75ae0f2aaf2",
+                "text": "Carrots are crunchy",
+                "source_uri": "<RESOURCES>/5e3de07c578541399ab77678a06b8a45\\pg-t3-01-upload-08axLK\\dataset\\nested\\notes.md",
+                "chunk_index": 0,
+                "token_count": "***",
+                "metadata": {
+                  "extension": ".md",
+                  "file_name": "notes.md",
+                  "relative_path": "pg-t3-01-upload-08axLK/dataset/nested/notes.md",
+                  "size_bytes": 37,
+                  "deferred_load": false,
+                  "file_path": "<RESOURCES>/5e3de07c578541399ab77678a06b8a45\\pg-t3-01-upload-08axLK\\dataset\\nested\\notes.md",
+                  "source": "<RESOURCES>/5e3de07c578541399ab77678a06b8a45\\pg-t3-01-upload-08axLK\\dataset\\nested\\notes.md",
+                  "document_id": "97315c7a-db20-50ad-b448-e75ae0f2aaf2",
+                  "fragmentation_delimiter": "period",
+                  "fragmentation_keep_delimiter": false,
+                  "fragmentation_drop_empty": true,
+                  "fragmentation_max_chunk_size": 0,
+                  "fragmentation_overflow_strategy": "split_further",
+                  "fragmentation_strategy": "by_delimiter_chunks",
+                  "mime_type": "text/markdown"
+                }
+              },
+              {
+                "id": "349cc4a0-69e2-589e-b442-76f296d6d993",
+                "document_id": "97315c7a-db20-50ad-b448-e75ae0f2aaf2",
+                "text": "Dates are sweet",
+                "source_uri": "<RESOURCES>/5e3de07c578541399ab77678a06b8a45\\pg-t3-01-upload-08axLK\\dataset\\nested\\notes.md",
+                "chunk_index": 1,
+                "token_count": "***",
+                "metadata": {
+                  "extension": ".md",
+                  "file_name": "notes.md",
+                  "relative_path": "pg-t3-01-upload-08axLK/dataset/nested/notes.md",
+                  "size_bytes": 37,
+                  "deferred_load": false,
+                  "file_path": "<RESOURCES>/5e3de07c578541399ab77678a06b8a45\\pg-t3-01-upload-08axLK\\dataset\\nested\\notes.md",
+                  "source": "<RESOURCES>/5e3de07c578541399ab77678a06b8a45\\pg-t3-01-upload-08axLK\\dataset\\nested\\notes.md",
+                  "document_id": "97315c7a-db20-50ad-b448-e75ae0f2aaf2",
+                  "fragmentation_delimiter": "period",
+                  "fragmentation_keep_delimiter": false,
+                  "fragmentation_drop_empty": true,
+                  "fragmentation_max_chunk_size": 0,
+                  "fragmentation_overflow_strategy": "split_further",
+                  "fragmentation_strategy": "by_delimiter_chunks",
+                  "mime_type": "text/markdown"
+                }
+              },
+              {
+                "id": "d0e1c7fc-05ce-5f33-a9ac-e147fe440f07",
+                "document_id": "df480b90-00c2-512a-a4e0-a975e9cc9ef8",
+                "text": "Apples are crisp",
+                "source_uri": "<RESOURCES>/5e3de07c578541399ab77678a06b8a45\\pg-t3-01-upload-08axLK\\dataset\\readme.txt",
+                "chunk_index": 0,
+                "token_count": "***",
+                "metadata": {
+                  "extension": ".txt",
+                  "file_name": "readme.txt",
+                  "relative_path": "pg-t3-01-upload-08axLK/dataset/readme.txt",
+                  "size_bytes": 35,
+                  "deferred_load": false,
+                  "file_path": "<RESOURCES>/5e3de07c578541399ab77678a06b8a45\\pg-t3-01-upload-08axLK\\dataset\\readme.txt",
+                  "source": "<RESOURCES>/5e3de07c578541399ab77678a06b8a45\\pg-t3-01-upload-08axLK\\dataset\\readme.txt",
+                  "document_id": "df480b90-00c2-512a-a4e0-a975e9cc9ef8",
+                  "fragmentation_delimiter": "period",
+                  "fragmentation_keep_delimiter": false,
+                  "fragmentation_drop_empty": true,
+                  "fragmentation_max_chunk_size": 0,
+                  "fragmentation_overflow_strategy": "split_further",
+                  "fragmentation_strategy": "by_delimiter_chunks",
+                  "mime_type": "text/plain"
+                }
+              },
+              {
+                "id": "d6e1e611-3d49-56ba-9db4-d7e077d23163",
+                "document_id": "df480b90-00c2-512a-a4e0-a975e9cc9ef8",
+                "text": "Bananas are soft",
+                "source_uri": "<RESOURCES>/5e3de07c578541399ab77678a06b8a45\\pg-t3-01-upload-08axLK\\dataset\\readme.txt",
+                "chunk_index": 1,
+                "token_count": "***",
+                "metadata": {
+                  "extension": ".txt",
+                  "file_name": "readme.txt",
+                  "relative_path": "pg-t3-01-upload-08axLK/dataset/readme.txt",
+                  "size_bytes": 35,
+                  "deferred_load": false,
+                  "file_path": "<RESOURCES>/5e3de07c578541399ab77678a06b8a45\\pg-t3-01-upload-08axLK\\dataset\\readme.txt",
+                  "source": "<RESOURCES>/5e3de07c578541399ab77678a06b8a45\\pg-t3-01-upload-08axLK\\dataset\\readme.txt",
+                  "document_id": "df480b90-00c2-512a-a4e0-a975e9cc9ef8",
+                  "fragmentation_delimiter": "period",
+                  "fragmentation_keep_delimiter": false,
+                  "fragmentation_drop_empty": true,
+                  "fragmentation_max_chunk_size": 0,
+                  "fragmentation_overflow_strategy": "split_further",
+                  "fragmentation_strategy": "by_delimiter_chunks",
+                  "mime_type": "text/plain"
+                }
+              }
+            ]
+          }
+        },
+        "error": null,
+        "pause_payload": null,
+        "resume_token": null,
+        "position": 2,
+        "attempt_count": 1,
+        "blocked_reason": null
+      },
+      {
+        "step_id": "upload_save_1",
+        "node_id": "upload_save_1",
+        "node_type": "SAVE_AS_FOLDER",
+        "status": "completed",
+        "started_at": "2026-10-18T07:22:10.788696Z",
+        "completed_at": "2026-10-18T07:22:10.802370Z",
+        "output": {
+          "inputs": {
+            "chunks": [
+              {
+                "id": "d717dc57-4d13-5dc6-a7e5-8cb5d7724aa8",
+                "document_id": "97315c7a-db20-50ad-b448-e75ae0f2aaf2",
+                "text": "Carrots are crunchy",
+                "source_uri": "<RESOURCES>/5e3de07c578541399ab77678a06b8a45\\pg-t3-01-upload-08axLK\\dataset\\nested\\notes.md",
+                "chunk_index": 0,
+                "token_count": "***",
+                "metadata": {
+                  "extension": ".md",
+                  "file_name": "notes.md",
+                  "relative_path": "pg-t3-01-upload-08axLK/dataset/nested/notes.md",
+                  "size_bytes": 37,
+                  "deferred_load": false,
+                  "file_path": "<RESOURCES>/5e3de07c578541399ab77678a06b8a45\\pg-t3-01-upload-08axLK\\dataset\\nested\\notes.md",
+                  "source": "<RESOURCES>/5e3de07c578541399ab77678a06b8a45\\pg-t3-01-upload-08axLK\\dataset\\nested\\notes.md",
+                  "document_id": "97315c7a-db20-50ad-b448-e75ae0f2aaf2",
+                  "fragmentation_delimiter": "period",
+                  "fragmentation_keep_delimiter": false,
+                  "fragmentation_drop_empty": true,
+                  "fragmentation_max_chunk_size": 0,
+                  "fragmentation_overflow_strategy": "split_further",
+                  "fragmentation_strategy": "by_delimiter_chunks",
+                  "mime_type": "text/markdown"
+                }
+              },
+              {
+                "id": "349cc4a0-69e2-589e-b442-76f296d6d993",
+                "document_id": "97315c7a-db20-50ad-b448-e75ae0f2aaf2",
+                "text": "Dates are sweet",
+                "source_uri": "<RESOURCES>/5e3de07c578541399ab77678a06b8a45\\pg-t3-01-upload-08axLK\\dataset\\nested\\notes.md",
+                "chunk_index": 1,
+                "token_count": "***",
+                "metadata": {
+                  "extension": ".md",
+                  "file_name": "notes.md",
+                  "relative_path": "pg-t3-01-upload-08axLK/dataset/nested/notes.md",
+                  "size_bytes": 37,
+                  "deferred_load": false,
+                  "file_path": "<RESOURCES>/5e3de07c578541399ab77678a06b8a45\\pg-t3-01-upload-08axLK\\dataset\\nested\\notes.md",
+                  "source": "<RESOURCES>/5e3de07c578541399ab77678a06b8a45\\pg-t3-01-upload-08axLK\\dataset\\nested\\notes.md",
+                  "document_id": "97315c7a-db20-50ad-b448-e75ae0f2aaf2",
+                  "fragmentation_delimiter": "period",
+                  "fragmentation_keep_delimiter": false,
+                  "fragmentation_drop_empty": true,
+                  "fragmentation_max_chunk_size": 0,
+                  "fragmentation_overflow_strategy": "split_further",
+                  "fragmentation_strategy": "by_delimiter_chunks",
+                  "mime_type": "text/markdown"
+                }
+              },
+              {
+                "id": "d0e1c7fc-05ce-5f33-a9ac-e147fe440f07",
+                "document_id": "df480b90-00c2-512a-a4e0-a975e9cc9ef8",
+                "text": "Apples are crisp",
+                "source_uri": "<RESOURCES>/5e3de07c578541399ab77678a06b8a45\\pg-t3-01-upload-08axLK\\dataset\\readme.txt",
+                "chunk_index": 0,
+                "token_count": "***",
+                "metadata": {
+                  "extension": ".txt",
+                  "file_name": "readme.txt",
+                  "relative_path": "pg-t3-01-upload-08axLK/dataset/readme.txt",
+                  "size_bytes": 35,
+                  "deferred_load": false,
+                  "file_path": "<RESOURCES>/5e3de07c578541399ab77678a06b8a45\\pg-t3-01-upload-08axLK\\dataset\\readme.txt",
+                  "source": "<RESOURCES>/5e3de07c578541399ab77678a06b8a45\\pg-t3-01-upload-08axLK\\dataset\\readme.txt",
+                  "document_id": "df480b90-00c2-512a-a4e0-a975e9cc9ef8",
+                  "fragmentation_delimiter": "period",
+                  "fragmentation_keep_delimiter": false,
+                  "fragmentation_drop_empty": true,
+                  "fragmentation_max_chunk_size": 0,
+                  "fragmentation_overflow_strategy": "split_further",
+                  "fragmentation_strategy": "by_delimiter_chunks",
+                  "mime_type": "text/plain"
+                }
+              },
+              {
+                "id": "d6e1e611-3d49-56ba-9db4-d7e077d23163",
+                "document_id": "df480b90-00c2-512a-a4e0-a975e9cc9ef8",
+                "text": "Bananas are soft",
+                "source_uri": "<RESOURCES>/5e3de07c578541399ab77678a06b8a45\\pg-t3-01-upload-08axLK\\dataset\\readme.txt",
+                "chunk_index": 1,
+                "token_count": "***",
+                "metadata": {
+                  "extension": ".txt",
+                  "file_name": "readme.txt",
+                  "relative_path": "pg-t3-01-upload-08axLK/dataset/readme.txt",
+                  "size_bytes": 35,
+                  "deferred_load": false,
+                  "file_path": "<RESOURCES>/5e3de07c578541399ab77678a06b8a45\\pg-t3-01-upload-08axLK\\dataset\\readme.txt",
+                  "source": "<RESOURCES>/5e3de07c578541399ab77678a06b8a45\\pg-t3-01-upload-08axLK\\dataset\\readme.txt",
+                  "document_id": "df480b90-00c2-512a-a4e0-a975e9cc9ef8",
+                  "fragmentation_delimiter": "period",
+                  "fragmentation_keep_delimiter": false,
+                  "fragmentation_drop_empty": true,
+                  "fragmentation_max_chunk_size": 0,
+                  "fragmentation_overflow_strategy": "split_further",
+                  "fragmentation_strategy": "by_delimiter_chunks",
+                  "mime_type": "text/plain"
+                }
+              }
+            ]
+          },
+          "ports": {
+            "artifact": {
+              "path": "pg-t3-01-save",
+              "files": [
+                "pg-t3-01-save\\pg-t3-01-save_000001.md",
+                "pg-t3-01-save\\pg-t3-01-save_000002.md",
+                "pg-t3-01-save\\pg-t3-01-save_000003.md",
+                "pg-t3-01-save\\pg-t3-01-save_000004.md"
+              ],
+              "count": 4,
+              "extension": ".md",
+              "item_texts": [
+                "Carrots are crunchy",
+                "Dates are sweet",
+                "Apples are crisp",
+                "Bananas are soft"
+              ]
+            }
+          }
+        },
+        "error": null,
+        "pause_payload": null,
+        "resume_token": null,
+        "position": 3,
+        "attempt_count": 1,
+        "blocked_reason": null
+      },
+      {
+        "step_id": "upload_output_1",
+        "node_id": "upload_output_1",
+        "node_type": "JSON_OUTPUT",
+        "status": "completed",
+        "started_at": "2026-10-18T07:22:10.827552Z",
+        "completed_at": "2026-10-18T07:22:10.841489Z",
+        "output": {
+          "inputs": {
+            "value": {
+              "path": "pg-t3-01-save",
+              "files": [
+                "pg-t3-01-save\\pg-t3-01-save_000001.md",
+                "pg-t3-01-save\\pg-t3-01-save_000002.md",
+                "pg-t3-01-save\\pg-t3-01-save_000003.md",
+                "pg-t3-01-save\\pg-t3-01-save_000004.md"
+              ],
+              "count": 4,
+              "extension": ".md",
+              "item_texts": [
+                "Carrots are crunchy",
+                "Dates are sweet",
+                "Apples are crisp",
+                "Bananas are soft"
+              ]
+            }
+          },
+          "ports": {}
+        },
+        "error": null,
+        "pause_payload": null,
+        "resume_token": null,
+        "position": 4,
+        "attempt_count": 1,
+        "blocked_reason": null
+      }
+    ],
+    "outputs": {
+      "upload_output_1": {
+        "json": {
+          "path": "pg-t3-01-save",
+          "files": [
+            "pg-t3-01-save\\pg-t3-01-save_000001.md",
+            "pg-t3-01-save\\pg-t3-01-save_000002.md",
+            "pg-t3-01-save\\pg-t3-01-save_000003.md",
+            "pg-t3-01-save\\pg-t3-01-save_000004.md"
+          ],
+          "count": 4,
+          "extension": ".md",
+          "item_texts": [
+            "Carrots are crunchy",
+            "Dates are sweet",
+            "Apples are crisp",
+            "Bananas are soft"
+          ]
+        },
+        "path": "pg-t3-01-save",
+        "files": [
+          "pg-t3-01-save\\pg-t3-01-save_000001.md",
+          "pg-t3-01-save\\pg-t3-01-save_000002.md",
+          "pg-t3-01-save\\pg-t3-01-save_000003.md",
+          "pg-t3-01-save\\pg-t3-01-save_000004.md"
+        ],
+        "count": 4,
+        "extension": ".md",
+        "item_texts": [
+          "Carrots are crunchy",
+          "Dates are sweet",
+          "Apples are crisp",
+          "Bananas are soft"
+        ]
+      }
+    },
+    "error": null,
+    "pause_payload": null,
+    "resume_token": null,
+    "pause_checkpoint": null,
+    "plan": {
+      "plan_id": "plan_9794dd9b9657",
+      "schema_version": 2,
+      "step_order": [
+        "upload_load_1",
+        "upload_extract_1",
+        "upload_chunk_1",
+        "upload_save_1",
+        "upload_output_1"
+      ],
+      "steps": [
+        {
+          "step_id": "upload_load_1",
+          "node_id": "upload_load_1",
+          "node_type": "LOAD_DOCUMENTS",
+          "node_version": 1,
+          "category": "serialization",
+          "executor_key": "load_documents",
+          "parameters": {
+            "folder_path": "<RESOURCES>/5e3de07c578541399ab77678a06b8a45",
+            "recursive": true
+          },
+          "bindings": [],
+          "timeout_ms": null,
+          "retries": 0,
+          "cacheable": false,
+          "side_effecting": false,
+          "destructive": false,
+          "idempotent": false
+        },
+        {
+          "step_id": "upload_extract_1",
+          "node_id": "upload_extract_1",
+          "node_type": "DOCUMENT_TEXT_EXTRACTOR",
+          "node_version": 1,
+          "category": "serialization",
+          "executor_key": "document_text_extractor",
+          "parameters": {
+            "include_empty_pages": false
+          },
+          "bindings": [
+            {
+              "binding_type": "input",
+              "input_name": "documents",
+              "source_node_id": "upload_load_1",
+              "source_output": "documents"
+            }
+          ],
+          "timeout_ms": null,
+          "retries": 0,
+          "cacheable": false,
+          "side_effecting": false,
+          "destructive": false,
+          "idempotent": false
+        },
+        {
+          "step_id": "upload_chunk_1",
+          "node_id": "upload_chunk_1",
+          "node_type": "BY_DELIMITER_CHUNKS",
+          "node_version": 1,
+          "category": "text_segmentation",
+          "executor_key": "by_delimiter_chunks",
+          "parameters": {
+            "delimiter": "period",
+            "keep_delimiter": false,
+            "drop_empty": true,
+            "max_chunk_size": 0,
+            "overflow_strategy": "split_further"
+          },
+          "bindings": [
+            {
+              "binding_type": "input",
+              "input_name": "documents",
+              "source_node_id": "upload_extract_1",
+              "source_output": "documents"
+            }
+          ],
+          "timeout_ms": null,
+          "retries": 0,
+          "cacheable": false,
+          "side_effecting": false,
+          "destructive": false,
+          "idempotent": false
+        },
+        {
+          "step_id": "upload_save_1",
+          "node_id": "upload_save_1",
+          "node_type": "SAVE_AS_FOLDER",
+          "node_version": 1,
+          "category": "serialization",
+          "executor_key": "save_as_folder",
+          "parameters": {
+            "output_path": "pg-t3-01-save",
+            "extension": ".md",
+            "client_side_write": true
+          },
+          "bindings": [
+            {
+              "binding_type": "input",
+              "input_name": "chunks",
+              "source_node_id": "upload_chunk_1",
+              "source_output": "chunks"
+            }
+          ],
+          "timeout_ms": null,
+          "retries": 0,
+          "cacheable": false,
+          "side_effecting": true,
+          "destructive": false,
+          "idempotent": false
+        },
+        {
+          "step_id": "upload_output_1",
+          "node_id": "upload_output_1",
+          "node_type": "JSON_OUTPUT",
+          "node_version": 1,
+          "category": "output",
+          "executor_key": "json_output",
+          "parameters": {},
+          "bindings": [
+            {
+              "binding_type": "input",
+              "input_name": "value",
+              "source_node_id": "upload_save_1",
+              "source_output": "artifact"
+            }
+          ],
+          "timeout_ms": null,
+          "retries": 0,
+          "cacheable": false,
+          "side_effecting": false,
+          "destructive": false,
+          "idempotent": false
+        }
+      ],
+      "metadata": {
+        "schema_version": 2
+      }
+    },
+    "cancellation_requested": false
+  },
+  "events": {
+    "run_id": "22f8a63d-7029-4519-b04d-7c3f785c9c90",
+    "request_id": "97f8745a6a1249389e1b1f9cf94b7adb",
+    "events": [
+      {
+        "event_type": "execution.queued",
+        "run_id": "22f8a63d-7029-4519-b04d-7c3f785c9c90",
+        "request_id": "97f8745a6a1249389e1b1f9cf94b7adb",
+        "step_id": null,
+        "sequence": 1,
+        "timestamp": "2026-10-18T07:22:10.629381Z",
+        "payload": {
+          "plan_id": "plan_9794dd9b9657"
+        }
+      },
+      {
+        "event_type": "execution.started",
+        "run_id": "22f8a63d-7029-4519-b04d-7c3f785c9c90",
+        "request_id": "97f8745a6a1249389e1b1f9cf94b7adb",
+        "step_id": null,
+        "sequence": 2,
+        "timestamp": "2026-10-18T07:22:10.646972Z",
+        "payload": {
+          "plan_id": "plan_9794dd9b9657"
+        }
+      },
+      {
+        "event_type": "execution.step.started",
+        "run_id": "22f8a63d-7029-4519-b04d-7c3f785c9c90",
+        "request_id": "97f8745a6a1249389e1b1f9cf94b7adb",
+        "step_id": "upload_load_1",
+        "sequence": 3,
+        "timestamp": "2026-10-18T07:22:10.669192Z",
+        "payload": {
+          "node_type": "LOAD_DOCUMENTS",
+          "node_id": "upload_load_1",
+          "attempt": 1
+        }
+      },
+      {
+        "event_type": "execution.step.completed",
+        "run_id": "22f8a63d-7029-4519-b04d-7c3f785c9c90",
+        "request_id": "97f8745a6a1249389e1b1f9cf94b7adb",
+        "step_id": "upload_load_1",
+        "sequence": 4,
+        "timestamp": "2026-10-18T07:22:10.692421Z",
+        "payload": {
+          "output": {
+            "inputs": {},
+            "ports": {
+              "documents": [
+                {
+                  "id": "97315c7a-db20-50ad-b448-e75ae0f2aaf2",
+                  "text": "Carrots are crunchy. Dates are sweet.",
+                  "source_uri": "G:\\Projects\\Repositories\\Active projects\\ParaGraph LLM Workflow\\data\\artifacts\\browser_uploads\\5e3de07c578541399ab77678a06b8a45\\pg-t3-01-upload-08axLK\\dataset\\nested\\notes.md",
+                  "mime_type": "text/markdown",
+                  "metadata": {
+                    "extension": ".md",
+                    "file_name": "notes.md",
+                    "relative_path": "pg-t3-01-upload-08axLK/dataset/nested/notes.md",
+                    "size_bytes": 37,
+                    "deferred_load": false,
+                    "file_path": "G:\\Projects\\Repositories\\Active projects\\ParaGraph LLM Workflow\\data\\artifacts\\browser_uploads\\5e3de07c578541399ab77678a06b8a45\\pg-t3-01-upload-08axLK\\dataset\\nested\\notes.md"
+                  }
+                },
+                {
+                  "id": "df480b90-00c2-512a-a4e0-a975e9cc9ef8",
+                  "text": "Apples are crisp. Bananas are soft.",
+                  "source_uri": "G:\\Projects\\Repositories\\Active projects\\ParaGraph LLM Workflow\\data\\artifacts\\browser_uploads\\5e3de07c578541399ab77678a06b8a45\\pg-t3-01-upload-08axLK\\dataset\\readme.txt",
+                  "mime_type": "text/plain",
+                  "metadata": {
+                    "extension": ".txt",
+                    "file_name": "readme.txt",
+                    "relative_path": "pg-t3-01-upload-08axLK/dataset/readme.txt",
+                    "size_bytes": 35,
+                    "deferred_load": false,
+                    "file_path": "G:\\Projects\\Repositories\\Active projects\\ParaGraph LLM Workflow\\data\\artifacts\\browser_uploads\\5e3de07c578541399ab77678a06b8a45\\pg-t3-01-upload-08axLK\\dataset\\readme.txt"
+                  }
+                }
+              ]
+            }
+          },
+          "progress": 20
+        }
+      },
+      {
+        "event_type": "execution.step.started",
+        "run_id": "22f8a63d-7029-4519-b04d-7c3f785c9c90",
+        "request_id": "97f8745a6a1249389e1b1f9cf94b7adb",
+        "step_id": "upload_extract_1",
+        "sequence": 5,
+        "timestamp": "2026-10-18T07:22:10.725933Z",
+        "payload": {
+          "node_type": "DOCUMENT_TEXT_EXTRACTOR",
+          "node_id": "upload_extract_1",
+          "attempt": 1
+        }
+      },
+      {
+        "event_type": "execution.step.completed",
+        "run_id": "22f8a63d-7029-4519-b04d-7c3f785c9c90",
+        "request_id": "97f8745a6a1249389e1b1f9cf94b7adb",
+        "step_id": "upload_extract_1",
+        "sequence": 6,
+        "timestamp": "2026-10-18T07:22:10.745051Z",
+        "payload": {
+          "output": {
+            "inputs": {
+              "documents": [
+                {
+                  "id": "97315c7a-db20-50ad-b448-e75ae0f2aaf2",
+                  "text": "Carrots are crunchy. Dates are sweet.",
+                  "source_uri": "G:\\Projects\\Repositories\\Active projects\\ParaGraph LLM Workflow\\data\\artifacts\\browser_uploads\\5e3de07c578541399ab77678a06b8a45\\pg-t3-01-upload-08axLK\\dataset\\nested\\notes.md",
+                  "mime_type": "text/markdown",
+                  "metadata": {
+                    "extension": ".md",
+                    "file_name": "notes.md",
+                    "relative_path": "pg-t3-01-upload-08axLK/dataset/nested/notes.md",
+                    "size_bytes": 37,
+                    "deferred_load": false,
+                    "file_path": "G:\\Projects\\Repositories\\Active projects\\ParaGraph LLM Workflow\\data\\artifacts\\browser_uploads\\5e3de07c578541399ab77678a06b8a45\\pg-t3-01-upload-08axLK\\dataset\\nested\\notes.md"
+                  }
+                },
+                {
+                  "id": "df480b90-00c2-512a-a4e0-a975e9cc9ef8",
+                  "text": "Apples are crisp. Bananas are soft.",
+                  "source_uri": "G:\\Projects\\Repositories\\Active projects\\ParaGraph LLM Workflow\\data\\artifacts\\browser_uploads\\5e3de07c578541399ab77678a06b8a45\\pg-t3-01-upload-08axLK\\dataset\\readme.txt",
+                  "mime_type": "text/plain",
+                  "metadata": {
+                    "extension": ".txt",
+                    "file_name": "readme.txt",
+                    "relative_path": "pg-t3-01-upload-08axLK/dataset/readme.txt",
+                    "size_bytes": 35,
+                    "deferred_load": false,
+                    "file_path": "G:\\Projects\\Repositories\\Active projects\\ParaGraph LLM Workflow\\data\\artifacts\\browser_uploads\\5e3de07c578541399ab77678a06b8a45\\pg-t3-01-upload-08axLK\\dataset\\readme.txt"
+                  }
+                }
+              ]
+            },
+            "ports": {
+              "documents": [
+                {
+                  "id": "97315c7a-db20-50ad-b448-e75ae0f2aaf2",
+                  "text": "Carrots are crunchy. Dates are sweet.",
+                  "source_uri": "G:\\Projects\\Repositories\\Active projects\\ParaGraph LLM Workflow\\data\\artifacts\\browser_uploads\\5e3de07c578541399ab77678a06b8a45\\pg-t3-01-upload-08axLK\\dataset\\nested\\notes.md",
+                  "mime_type": "text/markdown",
+                  "metadata": {
+                    "extension": ".md",
+                    "file_name": "notes.md",
+                    "relative_path": "pg-t3-01-upload-08axLK/dataset/nested/notes.md",
+                    "size_bytes": 37,
+                    "deferred_load": false,
+                    "file_path": "G:\\Projects\\Repositories\\Active projects\\ParaGraph LLM Workflow\\data\\artifacts\\browser_uploads\\5e3de07c578541399ab77678a06b8a45\\pg-t3-01-upload-08axLK\\dataset\\nested\\notes.md",
+                    "source": "G:\\Projects\\Repositories\\Active projects\\ParaGraph LLM Workflow\\data\\artifacts\\browser_uploads\\5e3de07c578541399ab77678a06b8a45\\pg-t3-01-upload-08axLK\\dataset\\nested\\notes.md",
+                    "document_id": "97315c7a-db20-50ad-b448-e75ae0f2aaf2"
+                  }
+                },
+                {
+                  "id": "df480b90-00c2-512a-a4e0-a975e9cc9ef8",
+                  "text": "Apples are crisp. Bananas are soft.",
+                  "source_uri": "G:\\Projects\\Repositories\\Active projects\\ParaGraph LLM Workflow\\data\\artifacts\\browser_uploads\\5e3de07c578541399ab77678a06b8a45\\pg-t3-01-upload-08axLK\\dataset\\readme.txt",
+                  "mime_type": "text/plain",
+                  "metadata": {
+                    "extension": ".txt",
+                    "file_name": "readme.txt",
+                    "relative_path": "pg-t3-01-upload-08axLK/dataset/readme.txt",
+                    "size_bytes": 35,
+                    "deferred_load": false,
+                    "file_path": "G:\\Projects\\Repositories\\Active projects\\ParaGraph LLM Workflow\\data\\artifacts\\browser_uploads\\5e3de07c578541399ab77678a06b8a45\\pg-t3-01-upload-08axLK\\dataset\\readme.txt",
+                    "source": "G:\\Projects\\Repositories\\Active projects\\ParaGraph LLM Workflow\\data\\artifacts\\browser_uploads\\5e3de07c578541399ab77678a06b8a45\\pg-t3-01-upload-08axLK\\dataset\\readme.txt",
+                    "document_id": "df480b90-00c2-512a-a4e0-a975e9cc9ef8"
+                  }
+                }
+              ]
+            }
+          },
+          "progress": 40
+        }
+      },
+      {
+        "event_type": "execution.step.started",
+        "run_id": "22f8a63d-7029-4519-b04d-7c3f785c9c90",
+        "request_id": "97f8745a6a1249389e1b1f9cf94b7adb",
+        "step_id": "upload_chunk_1",
+        "sequence": 7,
+        "timestamp": "2026-10-18T07:22:10.761073Z",
+        "payload": {
+          "node_type": "BY_DELIMITER_CHUNKS",
+          "node_id": "upload_chunk_1",
+          "attempt": 1
+        }
+      },
+      {
+        "event_type": "execution.step.completed",
+        "run_id": "22f8a63d-7029-4519-b04d-7c3f785c9c90",
+        "request_id": "97f8745a6a1249389e1b1f9cf94b7adb",
+        "step_id": "upload_chunk_1",
+        "sequence": 8,
+        "timestamp": "2026-10-18T07:22:10.781476Z",
+        "payload": {
+          "output": {
+            "inputs": {
+              "documents": [
+                {
+                  "id": "97315c7a-db20-50ad-b448-e75ae0f2aaf2",
+                  "text": "Carrots are crunchy. Dates are sweet.",
+                  "source_uri": "G:\\Projects\\Repositories\\Active projects\\ParaGraph LLM Workflow\\data\\artifacts\\browser_uploads\\5e3de07c578541399ab77678a06b8a45\\pg-t3-01-upload-08axLK\\dataset\\nested\\notes.md",
+                  "mime_type": "text/markdown",
+                  "metadata": {
+                    "extension": ".md",
+                    "file_name": "notes.md",
+                    "relative_path": "pg-t3-01-upload-08axLK/dataset/nested/notes.md",
+                    "size_bytes": 37,
+                    "deferred_load": false,
+                    "file_path": "G:\\Projects\\Repositories\\Active projects\\ParaGraph LLM Workflow\\data\\artifacts\\browser_uploads\\5e3de07c578541399ab77678a06b8a45\\pg-t3-01-upload-08axLK\\dataset\\nested\\notes.md",
+                    "source": "G:\\Projects\\Repositories\\Active projects\\ParaGraph LLM Workflow\\data\\artifacts\\browser_uploads\\5e3de07c578541399ab77678a06b8a45\\pg-t3-01-upload-08axLK\\dataset\\nested\\notes.md",
+                    "document_id": "97315c7a-db20-50ad-b448-e75ae0f2aaf2"
+                  }
+                },
+                {
+                  "id": "df480b90-00c2-512a-a4e0-a975e9cc9ef8",
+                  "text": "Apples are crisp. Bananas are soft.",
+                  "source_uri": "G:\\Projects\\Repositories\\Active projects\\ParaGraph LLM Workflow\\data\\artifacts\\browser_uploads\\5e3de07c578541399ab77678a06b8a45\\pg-t3-01-upload-08axLK\\dataset\\readme.txt",
+                  "mime_type": "text/plain",
+                  "metadata": {
+                    "extension": ".txt",
+                    "file_name": "readme.txt",
+                    "relative_path": "pg-t3-01-upload-08axLK/dataset/readme.txt",
+                    "size_bytes": 35,
+                    "deferred_load": false,
+                    "file_path": "G:\\Projects\\Repositories\\Active projects\\ParaGraph LLM Workflow\\data\\artifacts\\browser_uploads\\5e3de07c578541399ab77678a06b8a45\\pg-t3-01-upload-08axLK\\dataset\\readme.txt",
+                    "source": "G:\\Projects\\Repositories\\Active projects\\ParaGraph LLM Workflow\\data\\artifacts\\browser_uploads\\5e3de07c578541399ab77678a06b8a45\\pg-t3-01-upload-08axLK\\dataset\\readme.txt",
+                    "document_id": "df480b90-00c2-512a-a4e0-a975e9cc9ef8"
+                  }
+                }
+              ]
+            },
+            "ports": {
+              "chunks": [
+                {
+                  "id": "d717dc57-4d13-5dc6-a7e5-8cb5d7724aa8",
+                  "document_id": "97315c7a-db20-50ad-b448-e75ae0f2aaf2",
+                  "text": "Carrots are crunchy",
+                  "source_uri": "G:\\Projects\\Repositories\\Active projects\\ParaGraph LLM Workflow\\data\\artifacts\\browser_uploads\\5e3de07c578541399ab77678a06b8a45\\pg-t3-01-upload-08axLK\\dataset\\nested\\notes.md",
+                  "chunk_index": 0,
+                  "token_count": "***",
+                  "metadata": {
+                    "extension": ".md",
+                    "file_name": "notes.md",
+                    "relative_path": "pg-t3-01-upload-08axLK/dataset/nested/notes.md",
+                    "size_bytes": 37,
+                    "deferred_load": false,
+                    "file_path": "G:\\Projects\\Repositories\\Active projects\\ParaGraph LLM Workflow\\data\\artifacts\\browser_uploads\\5e3de07c578541399ab77678a06b8a45\\pg-t3-01-upload-08axLK\\dataset\\nested\\notes.md",
+                    "source": "G:\\Projects\\Repositories\\Active projects\\ParaGraph LLM Workflow\\data\\artifacts\\browser_uploads\\5e3de07c578541399ab77678a06b8a45\\pg-t3-01-upload-08axLK\\dataset\\nested\\notes.md",
+                    "document_id": "97315c7a-db20-50ad-b448-e75ae0f2aaf2",
+                    "fragmentation_delimiter": "period",
+                    "fragmentation_keep_delimiter": false,
+                    "fragmentation_drop_empty": true,
+                    "fragmentation_max_chunk_size": 0,
+                    "fragmentation_overflow_strategy": "split_further",
+                    "fragmentation_strategy": "by_delimiter_chunks",
+                    "mime_type": "text/markdown"
+                  }
+                },
+                {
+                  "id": "349cc4a0-69e2-589e-b442-76f296d6d993",
+                  "document_id": "97315c7a-db20-50ad-b448-e75ae0f2aaf2",
+                  "text": "Dates are sweet",
+                  "source_uri": "G:\\Projects\\Repositories\\Active projects\\ParaGraph LLM Workflow\\data\\artifacts\\browser_uploads\\5e3de07c578541399ab77678a06b8a45\\pg-t3-01-upload-08axLK\\dataset\\nested\\notes.md",
+                  "chunk_index": 1,
+                  "token_count": "***",
+                  "metadata": {
+                    "extension": ".md",
+                    "file_name": "notes.md",
+                    "relative_path": "pg-t3-01-upload-08axLK/dataset/nested/notes.md",
+                    "size_bytes": 37,
+                    "deferred_load": false,
+                    "file_path": "G:\\Projects\\Repositories\\Active projects\\ParaGraph LLM Workflow\\data\\artifacts\\browser_uploads\\5e3de07c578541399ab77678a06b8a45\\pg-t3-01-upload-08axLK\\dataset\\nested\\notes.md",
+                    "source": "G:\\Projects\\Repositories\\Active projects\\ParaGraph LLM Workflow\\data\\artifacts\\browser_uploads\\5e3de07c578541399ab77678a06b8a45\\pg-t3-01-upload-08axLK\\dataset\\nested\\notes.md",
+                    "document_id": "97315c7a-db20-50ad-b448-e75ae0f2aaf2",
+                    "fragmentation_delimiter": "period",
+                    "fragmentation_keep_delimiter": false,
+                    "fragmentation_drop_empty": true,
+                    "fragmentation_max_chunk_size": 0,
+                    "fragmentation_overflow_strategy": "split_further",
+                    "fragmentation_strategy": "by_delimiter_chunks",
+                    "mime_type": "text/markdown"
+                  }
+                },
+                {
+                  "id": "d0e1c7fc-05ce-5f33-a9ac-e147fe440f07",
+                  "document_id": "df480b90-00c2-512a-a4e0-a975e9cc9ef8",
+                  "text": "Apples are crisp",
+                  "source_uri": "G:\\Projects\\Repositories\\Active projects\\ParaGraph LLM Workflow\\data\\artifacts\\browser_uploads\\5e3de07c578541399ab77678a06b8a45\\pg-t3-01-upload-08axLK\\dataset\\readme.txt",
+                  "chunk_index": 0,
+                  "token_count": "***",
+                  "metadata": {
+                    "extension": ".txt",
+                    "file_name": "readme.txt",
+                    "relative_path": "pg-t3-01-upload-08axLK/dataset/readme.txt",
+                    "size_bytes": 35,
+                    "deferred_load": false,
+                    "file_path": "G:\\Projects\\Repositories\\Active projects\\ParaGraph LLM Workflow\\data\\artifacts\\browser_uploads\\5e3de07c578541399ab77678a06b8a45\\pg-t3-01-upload-08axLK\\dataset\\readme.txt",
+                    "source": "G:\\Projects\\Repositories\\Active projects\\ParaGraph LLM Workflow\\data\\artifacts\\browser_uploads\\5e3de07c578541399ab77678a06b8a45\\pg-t3-01-upload-08axLK\\dataset\\readme.txt",
+                    "document_id": "df480b90-00c2-512a-a4e0-a975e9cc9ef8",
+                    "fragmentation_delimiter": "period",
+                    "fragmentation_keep_delimiter": false,
+                    "fragmentation_drop_empty": true,
+                    "fragmentation_max_chunk_size": 0,
+                    "fragmentation_overflow_strategy": "split_further",
+                    "fragmentation_strategy": "by_delimiter_chunks",
+                    "mime_type": "text/plain"
+                  }
+                },
+                {
+                  "id": "d6e1e611-3d49-56ba-9db4-d7e077d23163",
+                  "document_id": "df480b90-00c2-512a-a4e0-a975e9cc9ef8",
+                  "text": "Bananas are soft",
+                  "source_uri": "G:\\Projects\\Repositories\\Active projects\\ParaGraph LLM Workflow\\data\\artifacts\\browser_uploads\\5e3de07c578541399ab77678a06b8a45\\pg-t3-01-upload-08axLK\\dataset\\readme.txt",
+                  "chunk_index": 1,
+                  "token_count": "***",
+                  "metadata": {
+                    "extension": ".txt",
+                    "file_name": "readme.txt",
+                    "relative_path": "pg-t3-01-upload-08axLK/dataset/readme.txt",
+                    "size_bytes": 35,
+                    "deferred_load": false,
+                    "file_path": "G:\\Projects\\Repositories\\Active projects\\ParaGraph LLM Workflow\\data\\artifacts\\browser_uploads\\5e3de07c578541399ab77678a06b8a45\\pg-t3-01-upload-08axLK\\dataset\\readme.txt",
+                    "source": "G:\\Projects\\Repositories\\Active projects\\ParaGraph LLM Workflow\\data\\artifacts\\browser_uploads\\5e3de07c578541399ab77678a06b8a45\\pg-t3-01-upload-08axLK\\dataset\\readme.txt",
+                    "document_id": "df480b90-00c2-512a-a4e0-a975e9cc9ef8",
+                    "fragmentation_delimiter": "period",
+                    "fragmentation_keep_delimiter": false,
+                    "fragmentation_drop_empty": true,
+                    "fragmentation_max_chunk_size": 0,
+                    "fragmentation_overflow_strategy": "split_further",
+                    "fragmentation_strategy": "by_delimiter_chunks",
+                    "mime_type": "text/plain"
+                  }
+                }
+              ]
+            }
+          },
+          "progress": 60
+        }
+      },
+      {
+        "event_type": "execution.step.started",
+        "run_id": "22f8a63d-7029-4519-b04d-7c3f785c9c90",
+        "request_id": "97f8745a6a1249389e1b1f9cf94b7adb",
+        "step_id": "upload_save_1",
+        "sequence": 9,
+        "timestamp": "2026-10-18T07:22:10.797406Z",
+        "payload": {
+          "node_type": "SAVE_AS_FOLDER",
+          "node_id": "upload_save_1",
+          "attempt": 1
+        }
+      },
+      {
+        "event_type": "execution.step.completed",
+        "run_id": "22f8a63d-7029-4519-b04d-7c3f785c9c90",
+        "request_id": "97f8745a6a1249389e1b1f9cf94b7adb",
+        "step_id": "upload_save_1",
+        "sequence": 10,
+        "timestamp": "2026-10-18T07:22:10.819606Z",
+        "payload": {
+          "output": {
+            "inputs": {
+              "chunks": [
+                {
+                  "id": "d717dc57-4d13-5dc6-a7e5-8cb5d7724aa8",
+                  "document_id": "97315c7a-db20-50ad-b448-e75ae0f2aaf2",
+                  "text": "Carrots are crunchy",
+                  "source_uri": "G:\\Projects\\Repositories\\Active projects\\ParaGraph LLM Workflow\\data\\artifacts\\browser_uploads\\5e3de07c578541399ab77678a06b8a45\\pg-t3-01-upload-08axLK\\dataset\\nested\\notes.md",
+                  "chunk_index": 0,
+                  "token_count": "***",
+                  "metadata": {
+                    "extension": ".md",
+                    "file_name": "notes.md",
+                    "relative_path": "pg-t3-01-upload-08axLK/dataset/nested/notes.md",
+                    "size_bytes": 37,
+                    "deferred_load": false,
+                    "file_path": "G:\\Projects\\Repositories\\Active projects\\ParaGraph LLM Workflow\\data\\artifacts\\browser_uploads\\5e3de07c578541399ab77678a06b8a45\\pg-t3-01-upload-08axLK\\dataset\\nested\\notes.md",
+                    "source": "G:\\Projects\\Repositories\\Active projects\\ParaGraph LLM Workflow\\data\\artifacts\\browser_uploads\\5e3de07c578541399ab77678a06b8a45\\pg-t3-01-upload-08axLK\\dataset\\nested\\notes.md",
+                    "document_id": "97315c7a-db20-50ad-b448-e75ae0f2aaf2",
+                    "fragmentation_delimiter": "period",
+                    "fragmentation_keep_delimiter": false,
+                    "fragmentation_drop_empty": true,
+                    "fragmentation_max_chunk_size": 0,
+                    "fragmentation_overflow_strategy": "split_further",
+                    "fragmentation_strategy": "by_delimiter_chunks",
+                    "mime_type": "text/markdown"
+                  }
+                },
+                {
+                  "id": "349cc4a0-69e2-589e-b442-76f296d6d993",
+                  "document_id": "97315c7a-db20-50ad-b448-e75ae0f2aaf2",
+                  "text": "Dates are sweet",
+                  "source_uri": "G:\\Projects\\Repositories\\Active projects\\ParaGraph LLM Workflow\\data\\artifacts\\browser_uploads\\5e3de07c578541399ab77678a06b8a45\\pg-t3-01-upload-08axLK\\dataset\\nested\\notes.md",
+                  "chunk_index": 1,
+                  "token_count": "***",
+                  "metadata": {
+                    "extension": ".md",
+                    "file_name": "notes.md",
+                    "relative_path": "pg-t3-01-upload-08axLK/dataset/nested/notes.md",
+                    "size_bytes": 37,
+                    "deferred_load": false,
+                    "file_path": "G:\\Projects\\Repositories\\Active projects\\ParaGraph LLM Workflow\\data\\artifacts\\browser_uploads\\5e3de07c578541399ab77678a06b8a45\\pg-t3-01-upload-08axLK\\dataset\\nested\\notes.md",
+                    "source": "G:\\Projects\\Repositories\\Active projects\\ParaGraph LLM Workflow\\data\\artifacts\\browser_uploads\\5e3de07c578541399ab77678a06b8a45\\pg-t3-01-upload-08axLK\\dataset\\nested\\notes.md",
+                    "document_id": "97315c7a-db20-50ad-b448-e75ae0f2aaf2",
+                    "fragmentation_delimiter": "period",
+                    "fragmentation_keep_delimiter": false,
+                    "fragmentation_drop_empty": true,
+                    "fragmentation_max_chunk_size": 0,
+                    "fragmentation_overflow_strategy": "split_further",
+                    "fragmentation_strategy": "by_delimiter_chunks",
+                    "mime_type": "text/markdown"
+                  }
+                },
+                {
+                  "id": "d0e1c7fc-05ce-5f33-a9ac-e147fe440f07",
+                  "document_id": "df480b90-00c2-512a-a4e0-a975e9cc9ef8",
+                  "text": "Apples are crisp",
+                  "source_uri": "G:\\Projects\\Repositories\\Active projects\\ParaGraph LLM Workflow\\data\\artifacts\\browser_uploads\\5e3de07c578541399ab77678a06b8a45\\pg-t3-01-upload-08axLK\\dataset\\readme.txt",
+                  "chunk_index": 0,
+                  "token_count": "***",
+                  "metadata": {
+                    "extension": ".txt",
+                    "file_name": "readme.txt",
+                    "relative_path": "pg-t3-01-upload-08axLK/dataset/readme.txt",
+                    "size_bytes": 35,
+                    "deferred_load": false,
+                    "file_path": "G:\\Projects\\Repositories\\Active projects\\ParaGraph LLM Workflow\\data\\artifacts\\browser_uploads\\5e3de07c578541399ab77678a06b8a45\\pg-t3-01-upload-08axLK\\dataset\\readme.txt",
+                    "source": "G:\\Projects\\Repositories\\Active projects\\ParaGraph LLM Workflow\\data\\artifacts\\browser_uploads\\5e3de07c578541399ab77678a06b8a45\\pg-t3-01-upload-08axLK\\dataset\\readme.txt",
+                    "document_id": "df480b90-00c2-512a-a4e0-a975e9cc9ef8",
+                    "fragmentation_delimiter": "period",
+                    "fragmentation_keep_delimiter": false,
+                    "fragmentation_drop_empty": true,
+                    "fragmentation_max_chunk_size": 0,
+                    "fragmentation_overflow_strategy": "split_further",
+                    "fragmentation_strategy": "by_delimiter_chunks",
+                    "mime_type": "text/plain"
+                  }
+                },
+                {
+                  "id": "d6e1e611-3d49-56ba-9db4-d7e077d23163",
+                  "document_id": "df480b90-00c2-512a-a4e0-a975e9cc9ef8",
+                  "text": "Bananas are soft",
+                  "source_uri": "G:\\Projects\\Repositories\\Active projects\\ParaGraph LLM Workflow\\data\\artifacts\\browser_uploads\\5e3de07c578541399ab77678a06b8a45\\pg-t3-01-upload-08axLK\\dataset\\readme.txt",
+                  "chunk_index": 1,
+                  "token_count": "***",
+                  "metadata": {
+                    "extension": ".txt",
+                    "file_name": "readme.txt",
+                    "relative_path": "pg-t3-01-upload-08axLK/dataset/readme.txt",
+                    "size_bytes": 35,
+                    "deferred_load": false,
+                    "file_path": "G:\\Projects\\Repositories\\Active projects\\ParaGraph LLM Workflow\\data\\artifacts\\browser_uploads\\5e3de07c578541399ab77678a06b8a45\\pg-t3-01-upload-08axLK\\dataset\\readme.txt",
+                    "source": "G:\\Projects\\Repositories\\Active projects\\ParaGraph LLM Workflow\\data\\artifacts\\browser_uploads\\5e3de07c578541399ab77678a06b8a45\\pg-t3-01-upload-08axLK\\dataset\\readme.txt",
+                    "document_id": "df480b90-00c2-512a-a4e0-a975e9cc9ef8",
+                    "fragmentation_delimiter": "period",
+                    "fragmentation_keep_delimiter": false,
+                    "fragmentation_drop_empty": true,
+                    "fragmentation_max_chunk_size": 0,
+                    "fragmentation_overflow_strategy": "split_further",
+                    "fragmentation_strategy": "by_delimiter_chunks",
+                    "mime_type": "text/plain"
+                  }
+                }
+              ]
+            },
+            "ports": {
+              "artifact": {
+                "path": "pg-t3-01-save",
+                "files": [
+                  "pg-t3-01-save\\pg-t3-01-save_000001.md",
+                  "pg-t3-01-save\\pg-t3-01-save_000002.md",
+                  "pg-t3-01-save\\pg-t3-01-save_000003.md",
+                  "pg-t3-01-save\\pg-t3-01-save_000004.md"
+                ],
+                "count": 4,
+                "extension": ".md",
+                "item_texts": [
+                  "Carrots are crunchy",
+                  "Dates are sweet",
+                  "Apples are crisp",
+                  "Bananas are soft"
+                ]
+              }
+            }
+          },
+          "progress": 80
+        }
+      },
+      {
+        "event_type": "execution.step.started",
+        "run_id": "22f8a63d-7029-4519-b04d-7c3f785c9c90",
+        "request_id": "97f8745a6a1249389e1b1f9cf94b7adb",
+        "step_id": "upload_output_1",
+        "sequence": 11,
+        "timestamp": "2026-10-18T07:22:10.837287Z",
+        "payload": {
+          "node_type": "JSON_OUTPUT",
+          "node_id": "upload_output_1",
+          "attempt": 1
+        }
+      },
+      {
+        "event_type": "execution.step.completed",
+        "run_id": "22f8a63d-7029-4519-b04d-7c3f785c9c90",
+        "request_id": "97f8745a6a1249389e1b1f9cf94b7adb",
+        "step_id": "upload_output_1",
+        "sequence": 12,
+        "timestamp": "2026-10-18T07:22:10.856110Z",
+        "payload": {
+          "output": {
+            "inputs": {
+              "value": {
+                "path": "pg-t3-01-save",
+                "files": [
+                  "pg-t3-01-save\\pg-t3-01-save_000001.md",
+                  "pg-t3-01-save\\pg-t3-01-save_000002.md",
+                  "pg-t3-01-save\\pg-t3-01-save_000003.md",
+                  "pg-t3-01-save\\pg-t3-01-save_000004.md"
+                ],
+                "count": 4,
+                "extension": ".md",
+                "item_texts": [
+                  "Carrots are crunchy",
+                  "Dates are sweet",
+                  "Apples are crisp",
+                  "Bananas are soft"
+                ]
+              }
+            },
+            "ports": {}
+          },
+          "progress": 99
+        }
+      },
+      {
+        "event_type": "execution.completed",
+        "run_id": "22f8a63d-7029-4519-b04d-7c3f785c9c90",
+        "request_id": "97f8745a6a1249389e1b1f9cf94b7adb",
+        "step_id": null,
+        "sequence": 13,
+        "timestamp": "2026-10-18T07:22:10.868386Z",
+        "payload": {
+          "outputs": {
+            "upload_output_1": {
+              "json": {
+                "path": "pg-t3-01-save",
+                "files": [
+                  "pg-t3-01-save\\pg-t3-01-save_000001.md",
+                  "pg-t3-01-save\\pg-t3-01-save_000002.md",
+                  "pg-t3-01-save\\pg-t3-01-save_000003.md",
+                  "pg-t3-01-save\\pg-t3-01-save_000004.md"
+                ],
+                "count": 4,
+                "extension": ".md",
+                "item_texts": [
+                  "Carrots are crunchy",
+                  "Dates are sweet",
+                  "Apples are crisp",
+                  "Bananas are soft"
+                ]
+              },
+              "path": "pg-t3-01-save",
+              "files": [
+                "pg-t3-01-save\\pg-t3-01-save_000001.md",
+                "pg-t3-01-save\\pg-t3-01-save_000002.md",
+                "pg-t3-01-save\\pg-t3-01-save_000003.md",
+                "pg-t3-01-save\\pg-t3-01-save_000004.md"
+              ],
+              "count": 4,
+              "extension": ".md",
+              "item_texts": [
+                "Carrots are crunchy",
+                "Dates are sweet",
+                "Apples are crisp",
+                "Bananas are soft"
+              ]
+            }
+          }
+        }
+      }
+    ]
+  }
+}
