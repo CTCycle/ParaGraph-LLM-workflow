@@ -4,25 +4,27 @@ Last updated: 2026-10-18
 ## Purpose and authority
 
 This document is the durable campaign map for validating ParaGraph from its
-clean baseline through provider-backed and resilience workflows. It is a
-digest of the comprehensive validation roadmap, not a replacement for the
-evidence reports.
+clean baseline through provider-backed and resilience workflows.
 
 - [`project_status_ledger.md`](../project_status_ledger.md) is the canonical
-  current-status summary.
-- [`assets/QA`](../../QA/README.md) contains the curated, revision-scoped
-  reports and visual evidence.
+  record of current status and durable validation outcomes. Update it instead of
+  creating standalone QA report files.
+- Reproducible checks live in the tracked test suites: `app/tests` (pytest) and
+  the frontend unit and `app/client/tests/e2e` suites.
 - Source inspection, the existence of a test, a catalog mapping, or a mocked
   response is not a product `PASS` by itself.
 - Claims are scoped to the exact revision, environment, provider/service, and
   workflow path recorded by the evidence. A deterministic local run does not
   validate a model provider, and a backend test does not validate browser UX.
+- `assets/QA/` and `runtimes/cache/` are ignored scratch directories for
+  transient artifacts (screenshots, run JSON, databases, logs). Never commit
+  them, and never let them hold the only copy of a durable claim.
 
 ## Campaign tiers
 
 Validation proceeds from cheap, deterministic foundations toward stateful and
-external integrations. The slice IDs are stable so later reports can be
-compared without rewriting the status ledger.
+external integrations. The slice IDs are stable so reruns can be compared
+without rewriting the status ledger.
 
 | Tier | Focus | Slice IDs | Exit signal |
 | --- | --- | --- | --- |
@@ -34,100 +36,45 @@ compared without rewriting the status ledger.
 | 5 | Malformed input, transport/security limits, destructive launcher actions, accessibility/guidance, and performance | `PG-T5-01`–`PG-T5-05` | Resilience and safety claims have direct evidence with no unresolved critical regression. |
 
 The recommended order is Tier 0, Tier 1, Tier 2, deterministic/local Tier 3,
-provider/external Tier 4, and Tier 5 resilience. Provider availability must
-not delay clean CI or deterministic foundations, and blocked external services
-must remain explicitly `BLOCKED` rather than being converted into a mocked
-success claim.
+provider/external Tier 4, and Tier 5 resilience. Provider availability must not
+delay clean CI or deterministic foundations, and blocked external services must
+remain explicitly `BLOCKED` rather than being converted into a mocked success
+claim.
 
-## Tier 1 slices
+## Slice conventions
 
-| Slice | Scope | Exit signal |
-| --- | --- | --- |
-| `PG-T1-01` | Provider and configuration HTTP route behavior, including representative success and error-to-status mappings. | Focused route checks pass; stubbed provider responses are not reported as provider success. |
-| `PG-T1-02` | FastAPI OpenAPI surface and generated frontend API contract alignment. | The generated contract check matches the current OpenAPI schemas. |
-| `PG-T1-03` | Configuration and named-profile reads/writes, secret redaction, and preservation of saved keys on redacted updates. | Disposable SQLite integration checks and the focused configuration UI suite pass. |
-| `PG-T1-04` | Browser-local workflow graph save, reload, and navigation persistence. | Browser evidence confirms the graph survives reload and back/forward navigation. |
-| `PG-T1-05` | SQLite persistence for execution runs, steps, outputs, checkpoints, and events. | Repository and restart/recovery evidence confirms durable records on the current candidate. |
+- Slice IDs follow `PG-T<tier>-<number>` (for example `PG-T3-01`) and are
+  stable: reuse the ID and update the existing ledger row when a slice is rerun
+  on a new revision.
+- A slice is `PASS` only for its recorded scope. Record explicit out-of-scope
+  behavior, remaining gaps, and external prerequisites rather than implying
+  full coverage.
+- Completed and partial slice scopes and outcomes are recorded in the campaign
+  table in the [status ledger](../project_status_ledger.md); this document
+  defines the tiers and the recording rules, not the history.
+- Tier 0 details worth preserving for reruns: `PG-T0-01` runs backend
+  lint/compile/tests plus frontend install/lint/build/unit on a clean checkout
+  with the five explicit Vite build inputs (`FASTAPI_HOST`, `FASTAPI_PORT`,
+  `UI_HOST`, `UI_PORT`, `VITE_API_BASE_URL`); `PG-T0-02` exercises launcher
+  options 3 and 5 from a disposable data root with missing, empty, and
+  incompatible databases (never real user data); `PG-T0-03` exercises official
+  options 1 and 2 from no running processes, including a controlled port
+  collision, without killing unrelated processes.
 
-## Tier 0 slices
+## Recording rules
 
-Tier 0 and Tier 1 are complete, and `PG-T2-01` through `PG-T2-08` now have
-bounded evidence. The [lifecycle/recovery report](../../QA/PG-T2-05-08-1170dd9.md)
-records the latest live controls, restart, and explicit browser reconnect pass.
-The `PG-T3-01` browser slice is also closed. Next select a bounded Tier 3 local
-integration family (such as SQLite database nodes) or the scoped Chat history
-campaign with the now-reachable Ollama service. Other provider lanes and external
-integrations keep their own prerequisites and evidence boundaries.
-The intended Tier 0 boundaries remain:
-
-### `PG-T0-01` — clean CI baseline
-
-Run backend lint/compile/tests and frontend install/lint/build/unit tests on a
-clean checkout of the exact revision. The Vite build requires
-`FASTAPI_HOST`, `FASTAPI_PORT`, `UI_HOST`, `UI_PORT`, and
-`VITE_API_BASE_URL`; CI must provide these safe local values rather than rely
-on a developer-only `settings/.env`. Browser E2E and provider services are out
-of scope. The adjacent regression is the full configured CI job set.
-
-The intake failure at `6a9e5e142898d5a1ab6f8c4d80693d5b5ff5ba40` is recorded in
-[`PG-T0-01-6a9e5e1.md`](../../QA/PG-T0-01-6a9e5e1.md): backend and frontend
-lint passed, while the clean frontend build stopped at the first missing
-environment value and frontend unit tests were skipped.
-
-### `PG-T0-02` — fresh Windows bootstrap and migrations
-
-From a disposable data root, exercise launcher option 3 and option 5 with a
-missing environment file, first and repeated dependency setup, an empty
-SQLite database, repeat migration, and an intentionally incompatible schema.
-The expected result is idempotent setup and fail-closed preservation of an
-incompatible database. Never remove real user data for this slice.
-
-### `PG-T0-03` — launcher start and shutdown
-
-From no ParaGraph processes, exercise launcher options 1 and 2. Capture
-backend health before frontend launch, the documented visible backend
-terminal, configured port ownership, UI/docs reachability, process-tree
-cleanup, and immediate relaunch. A port collision is a controlled scenario,
-not permission to kill unrelated processes.
-
-### `PG-T0-04` — evidence integrity
-
-Every ledger link must resolve to a tracked report or explicitly state that the
-source artifact is unavailable. Reports must carry slice ID, revision,
-planned/executed scenarios, status, failure class, root cause/fix when known,
-regression result, evidence paths, gaps, prerequisites, date, and environment.
-Generated caches, test databases, credentials, and bulk temporary outputs stay
-out of the curated remote evidence set.
-
-## Remaining Tier 2 slice boundaries
-
-| Slice | Scope | Evidence boundary |
-| --- | --- | --- |
-| `PG-T2-05` | Cancellation, retries, and timeouts | Live cancellation plus focused service checks; cancellation remains cooperative. |
-| `PG-T2-06` | Human-review pause, reviewed payload, resume, and paused cancellation | Browser controls, reload, real checkpoint restart, output completion, and token consumption. |
-| `PG-T2-07` | Startup recovery and interrupted-step policy | Real paused restart, controlled queued-state recovery, and actual mid-step termination failing closed. Safe between-step recovery is supported by a seeded state fixture. |
-| `PG-T2-08` | Browser run continuity, explicit reconnect, and durable event replay | Live outage/reconnect, paused reload, and matching real HTTP/WebSocket histories. Automatic reconnect and token streaming remain separate. |
-
-## Tier 3 selected boundary
-
-| Slice | Bounded scope | Evidence boundary |
-| --- | --- | --- |
-| `PG-T3-01` | Directory upload from browser-selected paths through local Load Documents, Document Text Extractor, chunking, and file output | The [2026-10-18 CI-backed report](../../QA/PG-T3-01-b0685c1.md) confirms the real in-process upload API, compiled deterministic workflow, durable run output and local files on `b0685c1`. The [2026-10-18 live-browser report](../../QA/PG-T3-01-48aaf55.md) closes the slice on `48aaf55a7137b85b34feca14e4727aa2d2af608d`: real folder-picker multipart staging, editor binding, live compile/execute, client-side OPFS save artifact, JSON output review, reload, and a bounded missing-directory failure; sanitized screenshots plus run JSON under [`PG-T3-01-48aaf55`](../../QA/PG-T3-01-48aaf55/). The OS File System Access dialog is stubbed with a real OPFS handle; the browser directory upload lane is unstubbed. Unsupported formats, per-file lanes, and security limits stay separate. |
-| `PG-T3-02`–`PG-T3-11` | Remaining local node/integration families and external adapters | `UNTESTED` at the comprehensive campaign level; validate local SQLite separately from remote databases/vector services. |
-
-## Evidence and status rules
-
-Each slice report should be named `PG-Tx-yy-<tested-revision>.md` (or use a
-directory with the same stable prefix) and include:
+Every validated or partially validated slice must state, in the ledger entry
+and any supporting test change:
 
 1. scope and explicit out-of-scope behavior;
 2. exact planned and executed scenarios;
 3. status: `PASS`, `PARTIAL`, `FAIL`, `BLOCKED`, or `UNTESTED`;
-4. failure class: `FUNC`, `FE`, `BE`, `INT`, `STATE`, `PERF`, `UX`, `CFG`, or
-   `ENV`;
+4. failure class when applicable: `FUNC`, `FE`, `BE`, `INT`, `STATE`, `PERF`,
+   `UX`, `CFG`, or `ENV`;
 5. tested revision, OS/runtime/browser/service versions, and date;
 6. root cause, surgical fix, and adjacent regression results where applicable;
-7. links to logs, screenshots, traces, run IDs, or database state; and
+7. durable evidence: a tracked test path, a CI run URL, or a dated outcome
+   statement in the ledger;
 8. remaining gaps and external prerequisites.
 
 Use the sequence **inspect → execute → observe → diagnose → fix → retest →

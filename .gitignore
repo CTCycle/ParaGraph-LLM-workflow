@@ -11,6 +11,8 @@ app/client/debug.log
 runtimes/**
 !runtimes/cache/
 !runtimes/cache/.gitkeep
+# Ignored scratch area for transient validation evidence and test output; durable
+# validation outcomes belong in assets/docs/project_status_ledger.md.
 assets/QA/**
 
 # All disposable runtime, test, tool, browser, and frontend-build output belongs under runtimes/cache.
