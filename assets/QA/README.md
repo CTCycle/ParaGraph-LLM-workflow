@@ -1,6 +1,6 @@
 # Curated QA Evidence
 
-Last updated: 2026-10-01
+Last updated: 2026-10-18
 
 This directory is the durable evidence layer for the validation ledger. Curated
 reports and the screenshots they reference are revision-scoped and may be
@@ -57,6 +57,7 @@ Current curated reports:
   cancellation/checkpoint fixes, process recovery, browser reconnect, real
   event replay, and the refreshed local Ollama success boundary; sanitized JSON
   and screenshots are under [`PG-T2-05-08-1170dd9`](PG-T2-05-08-1170dd9/).
+- [`PG-T3-01-b0685c1.md`](PG-T3-01-b0685c1.md) — CI-backed multipart directory upload through real local document loading, text extraction, chunking, and artifact output; complete server-side pass, browser validation still pending.
 - [`paragraph-e2e-system-validation-2026-08-26.md`](paragraph-e2e-system-validation-2026-08-26.md)
   — live full-stack validation and known provider blockers.
 - [`paragraph_e2e_validation_2026-08-02.md`](paragraph_e2e_validation_2026-08-02.md)
