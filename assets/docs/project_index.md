@@ -2,110 +2,69 @@
 Last updated: 2026-10-18
 
 ## Purpose
-This file is the root index for `assets/docs`. Read it first, then open only the smallest leaf file that matches the task.
+This is the entry point for the ParaGraph documentation tree. Use it to find the owning concept document and keep related knowledge there.
 
 ## How To Navigate
-1. Start with this file only.
-2. Pick the topic branch that matches the question or change.
-3. Open the narrowest leaf file in that branch.
-4. Open adjacent files only when the task clearly crosses topic boundaries.
-5. Return here whenever you need to jump to another topic.
-
-## Naming Rules
-- All files and folders under `assets/docs` use lower-case names.
-- Root-level files are reserved for entry points and top-level guidance.
-- Topic folders group related leaf files by subject so large mixed-purpose markdown files are avoided.
+1. Choose the topic that matches the behavior or task.
+2. Read the narrowest linked document first.
+3. Follow adjacent links only when the work crosses concepts.
+4. Update this index when documents are added, removed, moved, or renamed.
 
 ## Documentation Ontology
+
 ### Root
-- `project_index.md`
-  - Entry point, navigation rules, and complete index for the documentation tree.
-- `project_status_ledger.md`
-  - Canonical current operational status catalog for project components, validation evidence, active issues, and validation debt.
+- [Project status ledger](project_status_ledger.md) — canonical current component status, durable validation outcomes, active issues, and validation debt.
 
 ### Architecture
-- `architecture/system_overview.md`
-  - Product structure, repository layout, entry points, and top-level runtime topology.
-- `architecture/backend_api.md`
-  - HTTP and WebSocket surface grouped by functional area.
-- `architecture/execution_and_data_flow.md`
-  - Layered backend flow, key module responsibilities, and async/background execution behavior.
-- `architecture/persistence.md`
-  - File-based persistence, database responsibilities, and in-memory runtime stores.
-- `architecture/findings_and_remediation.md`
-  - Architecture review findings, implemented P0/P1 remediations, validation
-    evidence, and intentionally deferred follow-up work.
+- [System overview](architecture/system_overview.md) — product structure, repository layout, entry points, and runtime topology.
+- [Backend API](architecture/backend_api.md) — HTTP and WebSocket surface and contract boundaries.
+- [Execution and data flow](architecture/execution_and_data_flow.md) — backend layers, module responsibilities, and execution lifecycle.
+- [Persistence](architecture/persistence.md) — file storage, database responsibilities, and runtime stores.
 
 ### Coding
-- `coding/python.md`
-  - Python runtime, typing, validation, async, and structural expectations.
-- `coding/typescript.md`
-  - TypeScript, React, state, styling, and frontend structure expectations.
-- `coding/testing_and_quality.md`
-  - Tooling, testing, quality gates, and cross-language change expectations.
+- [Python](coding/python.md) — Python runtime, typing, validation, and async conventions.
+- [TypeScript](coding/typescript.md) — TypeScript, React, state, styling, and frontend structure.
+- [Testing and quality](coding/testing_and_quality.md) — tooling, commands, and quality expectations.
 
 ### Runtime
-- `runtime/modes.md`
-  - Supported runtime modes and operational differences.
-- `runtime/startup.md`
-  - Windows startup procedures for the launcher, backend, and frontend.
-- `runtime/configuration.md`
-  - Shared environment keys, runtime settings, and cross-runtime communication rules.
-- `runtime/deployment.md`
-  - Supported local operation model, limitations, and runtime-heavy generated outputs.
+- [Modes](runtime/modes.md) — supported runtime modes and operational differences.
+- [Startup](runtime/startup.md) — Windows launcher and manual startup procedures.
+- [Configuration](runtime/configuration.md) — environment keys, runtime settings, and cross-runtime communication.
+- [Deployment](runtime/deployment.md) — supported local operation model, limitations, and generated runtime outputs.
 
 ### Validation
-- `validation/strategy.md`
-  - Tiered validation campaign, slice identifiers, evidence recording rules, and completion boundary. Durable outcomes are recorded in `project_status_ledger.md`.
+- [Validation strategy](validation/strategy.md) — campaign tiers, slice conventions, and evidence rules. Current outcomes belong in the status ledger.
 
 ### UI
-- `ui/design_tokens.md`
-  - Typography, spacing, radius, color, and theme tokens.
-- `ui/components_and_patterns.md`
-  - Navigation, surfaces, route structure, and reusable interaction patterns.
-- `ui/experience.md`
-  - UX rules, responsiveness, accessibility, and design principles.
+- [Design tokens](ui/design_tokens.md) — typography, spacing, radius, color, and theme tokens.
+- [Components and patterns](ui/components_and_patterns.md) — navigation, route structure, and reusable interactions.
+- [Experience](ui/experience.md) — responsiveness, accessibility, and design principles.
 
 ### Nodes
-- `nodes/catalog_and_manifests.md`
-  - Node catalog sources, category model, manifest structure, and compatibility constraints.
-- `nodes/processing_and_retrieval.md`
-  - Structured JSON, processing, retrieval, RAG, web API, control, tokenizer, metadata, and vector search behavior.
-- `nodes/database_and_tools.md`
-  - Database nodes, tool collection and tool call nodes, and runtime contracts around them.
-- `nodes/import_and_integration.md`
-  - Custom node import flow, workflow integration, connectivity checks, and operational notes.
+- [Catalog and manifests](nodes/catalog_and_manifests.md) — catalog sources, category model, manifests, and compatibility.
+- [Processing and retrieval](nodes/processing_and_retrieval.md) — structured data, retrieval, web requests, control, tokenizer, metadata, and vector search.
+- [Database and tools](nodes/database_and_tools.md) — database nodes, tool collection and call nodes, and runtime contracts.
+- [Import and integration](nodes/import_and_integration.md) — custom node import, workflow integration, and connectivity checks.
 
 ### User
-- `user/getting_started.md`
-  - Product overview, main UI areas, startup entry point, and standard user journey.
-- `user/workflow_editor.md`
-  - Workflow editor basics, compile flow, and graph-building expectations.
-- `user/models_and_configurations.md`
-  - Configurations and models page behavior, saved profiles, and provider operations.
-- `user/nodes_and_execution.md`
-  - Nodes page usage, execution monitoring surfaces, and common runtime statuses.
-- `user/troubleshooting_and_data.md`
-  - Troubleshooting guidance and runtime data locations.
+- [Getting started](user/getting_started.md) — product overview, main UI areas, startup, and standard journey.
+- [Workflow editor](user/workflow_editor.md) — graph editing, compilation, and building workflows.
+- [Models and configurations](user/models_and_configurations.md) — saved profiles and provider operations.
+- [Nodes and execution](user/nodes_and_execution.md) — node usage, execution monitoring, and runtime statuses.
+- [Troubleshooting and data](user/troubleshooting_and_data.md) — common causes and runtime data locations.
 
 ## Reading Order
-1. Read this root index.
-2. For current-state, validation, or revalidation work, read `project_status_ledger.md` before opening detailed documents.
-3. Open one leaf file in the relevant topic branch.
-4. Expand only when the task crosses branch boundaries.
-5. Update this index whenever files are added, removed, moved, or renamed.
+For current-state, validation, or revalidation work, read the [status ledger](project_status_ledger.md) first, then the owning concept document.
 
-## Context Rules
-- Read documentation only when required by the current task.
-- Prefer leaf files over broad branch reads.
-- Keep all affected docs updated when implementation changes alter behavior.
-- Always include a `Last updated: YYYY-MM-DD` line when modifying a document.
-- Pre-select files by user intent, folder structure, and target subsystem before reading deeply.
-- Treat `project_status_ledger.md` as the canonical source for current operational status and durable validation outcomes. Architecture and user documents describe intended ownership and behavior; tracked test suites hold reproducible checks; implementation plans describe future work.
-- Update the ledger after implementation changes, meaningful validation, regressions, blocker changes, or issue remediation. Do not create standalone QA report files; record durable outcomes in the ledger and keep transient artifacts in the ignored scratch areas (`assets/QA`, `runtimes/cache`).
+## Documentation Rules
+- Keep implementation behavior in its owning concept document; keep reproducible checks in tracked test suites.
+- The status ledger is the only canonical record of durable validation outcomes. Do not add standalone QA reports.
+- Record test revision, date, scope, result, and remaining limits in the ledger. Link to tracked tests and CI runs where they provide the evidence.
+- Keep transient screenshots, logs, databases, and run exports in ignored scratch directories such as assets/QA or runtimes/cache; they are not durable evidence.
+- Treat source inspection or the existence of a test as insufficient proof of a validated behavior.
+- Add a Last updated: YYYY-MM-DD line to each modified document.
 
 ## Environment Rules
-- Windows is the default operating environment for this project.
+- Windows is the default operating environment.
 - Document both PowerShell and CMD variants when commands differ.
-- Keep runtime guidance aligned with `start_on_windows.ps1`.
-- Update environment guidance when Windows-specific constraints or workarounds change.
+- Keep runtime guidance aligned with start_on_windows.ps1.
