@@ -5,74 +5,44 @@
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![CI](https://github.com/CTCycle/ParaGraph-LLM-workflow/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/CTCycle/ParaGraph-LLM-workflow/actions/workflows/ci.yml?query=branch%3Adevelop)
 
-ParaGraph is a local application for planning, running, and observing LLM workflows in a visual way. Instead of writing everything from scratch, you connect building blocks on a canvas, define how information moves through them, run the workflow, and watch what happens as it executes.
+ParaGraph is a local-first application for building, running, and monitoring LLM workflows on a visual canvas. Its supported Windows launcher starts a FastAPI backend and a React browser interface. The desktop layout requires a browser window at least 1024 CSS pixels wide.
 
-It is a local web application for Windows, optimized for a desktop or laptop browser window at least 1024 CSS pixels wide. Narrower windows show a minimum-window-size notice instead of a mobile layout.
+## Workflows
 
-## What You Can Do
+- Build a graph by connecting nodes, then compile it to see diagnostics before running.
+- Follow execution status, outputs, and event history.
+- Browse node templates, import custom node manifests, and manage provider models and configuration profiles.
+- Create retrieval workflows that load, split, embed, store, search, rank, and answer questions.
 
-- create workflows on a visual canvas instead of in a text-only editor
-- connect nodes into a clear sequence of steps and check the workflow before running it
-- launch an execution and follow its progress, outputs, and event history
-- manage available nodes, models, providers, and saved configuration profiles
-- build retrieval-style workflows: load documents, split content, create embeddings, store vectors, search, rank, and generate an answer
+## Start on Windows
 
-## Main Screens
+Run the launcher from the repository root:
 
-- **Workflow** — the main workspace: place nodes, connect them, adjust settings, compile the graph, run it, and monitor progress.
-- **Nodes** — browse the node catalog and templates, search and filter by category, and import custom node manifests.
-- **Models** — browse Ollama and Hugging Face catalogs, download models, track download progress, and open model cards.
-- **Configurations** — set provider access details, verify local model connectivity, and save or reuse named profiles.
+    .\start_on_windows.ps1
 
-## Getting Started
-
-On Windows, run:
-
-```powershell
-.\start_on_windows.ps1
-```
-
-The launcher prepares its portable runtimes and dependencies, initializes the database, starts the backend and frontend, and opens the interface. The first launch can take longer because it sets up the local runtime; later launches are usually much faster. See the [Startup Guide](assets/docs/runtime/startup.md) for the full launcher menu and manual startup commands.
-
-A typical session:
-
-1. Open **Configurations** and enter the provider or runtime details you need.
-2. Open **Workflow** (or load a template from **Nodes**) and place the nodes you want.
-3. Connect the nodes so the workflow has a clear path from start to finish.
-4. Compile the workflow and fix anything the compiler points out.
-5. Start the run and watch the execution status; inspect the output as it arrives.
+It prepares or repairs the local runtimes, initializes the database, starts the backend and frontend, and opens the interface. The first launch may take longer while dependencies are prepared. See the [startup guide](assets/docs/runtime/startup.md) for launcher actions and manual startup commands.
 
 ## Documentation
 
+The [project documentation index](assets/docs/project_index.md) maps the full documentation structure.
+
 User guides:
 
-- [Getting Started](assets/docs/user/getting_started.md)
-- [Workflow Editor](assets/docs/user/workflow_editor.md)
-- [Models And Configurations](assets/docs/user/models_and_configurations.md)
-- [Nodes And Execution](assets/docs/user/nodes_and_execution.md)
-- [Troubleshooting And Data](assets/docs/user/troubleshooting_and_data.md)
+- [Getting started](assets/docs/user/getting_started.md)
+- [Workflow editor](assets/docs/user/workflow_editor.md)
+- [Models and configurations](assets/docs/user/models_and_configurations.md)
+- [Nodes and execution](assets/docs/user/nodes_and_execution.md)
+- [Troubleshooting and data](assets/docs/user/troubleshooting_and_data.md)
 
-Project documentation:
+Project references:
 
-- [Project Overview](assets/docs/project_index.md) — entry point for the documentation tree.
-- [Project Status Ledger](assets/docs/project_status_ledger.md) — current component status, known issues, and validation outcomes.
-- [Validation Strategy](assets/docs/validation/strategy.md) — how validation is planned and recorded.
-- [Testing And Quality](assets/docs/coding/testing_and_quality.md) — tooling and quality expectations.
+- [Status ledger](assets/docs/project_status_ledger.md) — current component status, evidence, known issues, and validation gaps.
+- [Validation strategy](assets/docs/validation/strategy.md) — campaign tiers and evidence rules.
+- [Testing and quality](assets/docs/coding/testing_and_quality.md) — tools, commands, and repository conventions.
 
-## Data And Files
+## Data
 
-The app stores its local runtime data under `data` by default. Set `PARAGRAPH_RESOURCES_DIR` in `settings/.env` to use another absolute or repository-relative location. Stored data includes logs, workflow data, downloaded models and related assets, local database files, and runtime artifacts. Launcher option 11 removes user data while preserving application files and settings.
-
-## Troubleshooting
-
-If something does not work as expected:
-
-- try starting the app again with `start_on_windows.ps1` and read the console output
-- check that the host, port, and provider values in `settings/.env` are correct
-- make sure the model or provider you need is available
-- review the compile diagnostics before running a workflow
-
-See [Troubleshooting And Data](assets/docs/user/troubleshooting_and_data.md) for common causes and data locations.
+Shared runtime data is stored under the repository's data directory by default. Set PARAGRAPH_RESOURCES_DIR in settings/.env to use an absolute or repository-relative location instead. Data includes the application database, logs, workflow and node assets, downloaded models, and runtime artifacts. The launcher provides a confirmed Remove All Data action; see the [troubleshooting and data guide](assets/docs/user/troubleshooting_and_data.md) before using it.
 
 ## License
 
