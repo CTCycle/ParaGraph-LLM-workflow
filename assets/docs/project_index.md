@@ -1,5 +1,5 @@
 # Project Overview
-Last updated: 2026-09-20
+Last updated: 2026-10-18
 
 ## Purpose
 This file is the root index for `assets/docs`. Read it first, then open only the smallest leaf file that matches the task.
@@ -56,7 +56,7 @@ This file is the root index for `assets/docs`. Read it first, then open only the
 
 ### Validation
 - `validation/strategy.md`
-  - Tiered validation campaign, evidence boundaries, slice identifiers, and stopping criteria.
+  - Tiered validation campaign, slice identifiers, evidence recording rules, and completion boundary. Durable outcomes are recorded in `project_status_ledger.md`.
 
 ### UI
 - `ui/design_tokens.md`
@@ -101,8 +101,8 @@ This file is the root index for `assets/docs`. Read it first, then open only the
 - Keep all affected docs updated when implementation changes alter behavior.
 - Always include a `Last updated: YYYY-MM-DD` line when modifying a document.
 - Pre-select files by user intent, folder structure, and target subsystem before reading deeply.
-- Treat `project_status_ledger.md` as the canonical source for current operational status. Architecture and user documents describe intended ownership and behavior; validation reports and QA artifacts explain the evidence behind ledger entries; implementation plans describe future work.
-- Update the ledger after implementation changes, meaningful validation, regressions, blocker changes, or issue remediation. Keep detailed narratives in their dedicated reports instead of copying them into the ledger.
+- Treat `project_status_ledger.md` as the canonical source for current operational status and durable validation outcomes. Architecture and user documents describe intended ownership and behavior; tracked test suites hold reproducible checks; implementation plans describe future work.
+- Update the ledger after implementation changes, meaningful validation, regressions, blocker changes, or issue remediation. Do not create standalone QA report files; record durable outcomes in the ledger and keep transient artifacts in the ignored scratch areas (`assets/QA`, `runtimes/cache`).
 
 ## Environment Rules
 - Windows is the default operating environment for this project.
