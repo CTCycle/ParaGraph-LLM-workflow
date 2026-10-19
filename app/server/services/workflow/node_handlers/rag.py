@@ -64,7 +64,12 @@ def _context_builder_executor(
 ) -> dict[str, Any]:
     parsed = RagParameters.model_validate(parameters)
     words: list[str] = []
-    for item in _items(inputs.get("chunks", inputs.get("results", []))):
+    chunk_values = inputs.get("chunks")
+    if chunk_values is None:
+        chunk_values = inputs.get("results")
+    if chunk_values is None:
+        chunk_values = inputs.get("value", inputs.get("text", []))
+    for item in _items(chunk_values):
         for word in _text(item).split():
             if len(words) >= parsed.token_budget:
                 break
