@@ -166,6 +166,14 @@
       "ui_control": "text"
     },
     {
+      "description": "Replacement text for each match.",
+      "name": "replacement",
+      "constraints": {},
+      "default": "",
+      "data_type": "TEXT",
+      "ui_control": "text"
+    },
+    {
       "description": "HTTP URL.",
       "name": "url",
       "constraints": {},

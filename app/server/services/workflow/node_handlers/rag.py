@@ -81,8 +81,15 @@ def _citation_formatter_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
 ) -> dict[str, Any]:
     _ = parameters
+    items = inputs.get("chunks")
+    if items is None:
+        items = inputs.get("results")
+    if items is None:
+        items = inputs.get("value", [])
+    if isinstance(items, dict) and isinstance(items.get("hits"), list):
+        items = items["hits"]
     citations = []
-    for item in _items(inputs.get("chunks", inputs.get("results", []))):
+    for item in _items(items):
         metadata = item.get("metadata", {}) if isinstance(item, dict) else {}
         citations.append(
             {

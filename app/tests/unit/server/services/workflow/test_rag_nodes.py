@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from server.services.workflow.node_handlers.rag import (
+    _citation_formatter_executor,
     _context_builder_executor,
     _html_to_text_executor,
 )
@@ -44,3 +45,33 @@ def test_html_to_text_coerces_none_and_recovers_malformed_markup() -> None:
         _html_to_text_executor({}, {"text": "<p>Readable <strong>text"})["result"]
         == "Readable text"
     )
+
+###############################################################################
+def test_citation_formatter_reads_retrieval_results_from_manifest_value_input() -> None:
+    result = _citation_formatter_executor(
+        {},
+        {
+            "value": {
+                "query": "alpha target",
+                "hits": [
+                    {
+                        "metadata": {
+                            "source": "paper.pdf",
+                            "page_number": 4,
+                            "chunk_id": "chunk-1",
+                        }
+                    }
+                ],
+            }
+        },
+    )
+
+    assert result["result"] == [
+        {
+            "source": "paper.pdf",
+            "page": None,
+            "page_number": 4,
+            "line": None,
+            "chunk_id": "chunk-1",
+        }
+    ]

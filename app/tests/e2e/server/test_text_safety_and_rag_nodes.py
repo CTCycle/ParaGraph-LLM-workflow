@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from pathlib import Path
 
 from fastapi.testclient import TestClient
 
@@ -292,3 +293,299 @@ def test_context_builder_executes_through_compiled_workflow(
     context = outputs["context_output"]["text"]
     assert context == "one two three four"
     assert len(context.split()) == 4
+
+###############################################################################
+def test_text_transformations_and_metadata_execute_through_compiled_workflow(
+    client: TestClient,
+    wait_for_job: Callable[[str, float], dict[str, object]],
+) -> None:
+    definition: dict[str, object] = {
+        "schema_version": 2,
+        "nodes": [
+            {
+                "node_id": "text_source",
+                "node_type": "PROMPT",
+                "node_version": 1,
+                "parameters": {"prompt_text": "Ａlpha　target"},
+            },
+            {
+                "node_id": "normalize",
+                "node_type": "NORMALIZE_TEXT",
+                "node_version": 1,
+                "parameters": {},
+            },
+            {
+                "node_id": "replace",
+                "node_type": "REGEX_REPLACE",
+                "node_version": 1,
+                "parameters": {"pattern": "target", "replacement": "passage"},
+            },
+            {
+                "node_id": "metadata",
+                "node_type": "METADATA_ATTACH",
+                "node_version": 1,
+                "parameters": {"metadata": {"source": "fixture", "page": 2}},
+            },
+            {
+                "node_id": "json_output",
+                "node_type": "JSON_OUTPUT",
+                "node_version": 1,
+                "parameters": {},
+            },
+        ],
+        "connections": [
+            {
+                "from_node": "text_source",
+                "from_output": "text",
+                "to_node": "normalize",
+                "to_input": "text",
+            },
+            {
+                "from_node": "normalize",
+                "from_output": "result",
+                "to_node": "replace",
+                "to_input": "text",
+            },
+            {
+                "from_node": "replace",
+                "from_output": "result",
+                "to_node": "metadata",
+                "to_input": "value",
+            },
+            {
+                "from_node": "metadata",
+                "from_output": "result",
+                "to_node": "json_output",
+                "to_input": "value",
+            },
+        ],
+        "metadata": {},
+    }
+
+    run = _run_compiled_workflow(
+        client,
+        definition,
+        "pg-t3-07-text-metadata",
+        "pg-t3-07-text-metadata-session",
+        wait_for_job,
+    )
+
+    outputs = run["outputs"]
+    assert isinstance(outputs, dict)
+    assert outputs["json_output"]["json"] == {
+        "text": "Alpha passage",
+        "metadata": {"source": "fixture", "page": 2},
+    }
+
+###############################################################################
+def test_local_retrieval_reranking_and_citations_execute_through_compiled_workflow(
+    client: TestClient,
+    tmp_path: Path,
+    wait_for_job: Callable[[str, float], dict[str, object]],
+    monkeypatch,
+) -> None:
+    from server.services.workflow.node_handlers.core import (
+        embeddings as embeddings_module,
+    )
+
+    monkeypatch.setattr(
+        embeddings_module,
+        "_embed_text_for_text_embedding_node",
+        lambda **_: [1.0, 0.0],
+    )
+    points = [
+        {
+            "id": "vector-first",
+            "chunk_id": "chunk-vector-first",
+            "document_id": "doc-vector-first",
+            "text": "alpha unrelated passage",
+            "source_uri": "fixture://vector-first",
+            "vector": [1.0, 0.0],
+            "embedding_provider": "openai",
+            "embedding_model": "text-embedding-3-small",
+            "embedding_revision": "fixture",
+            "normalized": False,
+            "metadata": {
+                "source": "vector-first.pdf",
+                "page_number": 1,
+                "chunk_id": "chunk-vector-first",
+            },
+        },
+        {
+            "id": "phrase-match",
+            "chunk_id": "chunk-phrase-match",
+            "document_id": "doc-phrase-match",
+            "text": "an alpha target reference",
+            "source_uri": "fixture://phrase-match",
+            "vector": [0.8, 0.6],
+            "embedding_provider": "openai",
+            "embedding_model": "text-embedding-3-small",
+            "embedding_revision": "fixture",
+            "normalized": False,
+            "metadata": {
+                "source": "target.pdf",
+                "page_number": 2,
+                "chunk_id": "chunk-phrase-match",
+            },
+        },
+    ]
+    definition: dict[str, object] = {
+        "schema_version": 2,
+        "nodes": [
+            {
+                "node_id": "point_batch",
+                "node_type": "STRUCTURED_INPUT",
+                "node_version": 1,
+                "parameters": {"value": points},
+            },
+            {
+                "node_id": "store",
+                "node_type": "VECTOR_STORE",
+                "node_version": 2,
+                "parameters": {
+                    "provider": "faiss",
+                    "index_name": "pg-t3-08-retrieval",
+                    "distance_metric": "cosine",
+                    "write_mode": "overwrite",
+                    "id_conflict_policy": "upsert",
+                    "storage_path": str(tmp_path / "faiss-retrieval"),
+                },
+            },
+            {
+                "node_id": "query",
+                "node_type": "PROMPT",
+                "node_version": 1,
+                "parameters": {"prompt_text": "alpha target"},
+            },
+            {
+                "node_id": "embedding",
+                "node_type": "TEXT_EMBEDDING",
+                "node_version": 1,
+                "parameters": {
+                    "provider": "openai",
+                    "model_name": "text-embedding-3-small",
+                },
+            },
+            {
+                "node_id": "similarity",
+                "node_type": "SIMILARITY_SEARCH",
+                "node_version": 1,
+                "parameters": {
+                    "search_mode": "vector",
+                    "search_engine": "native",
+                    "similarity_strategy": "cosine",
+                    "top_k": 2,
+                    "include_metadata": True,
+                },
+            },
+            {
+                "node_id": "rerank",
+                "node_type": "RERANK_RESULTS",
+                "node_version": 1,
+                "parameters": {
+                    "strategy": "exact_phrase",
+                    "score_mode": "replace",
+                    "top_k": 0,
+                },
+            },
+            {
+                "node_id": "citations",
+                "node_type": "CITATION_FORMATTER",
+                "node_version": 1,
+                "parameters": {},
+            },
+            {
+                "node_id": "json_output",
+                "node_type": "JSON_OUTPUT",
+                "node_version": 1,
+                "parameters": {},
+            },
+        ],
+        "connections": [
+            {
+                "from_node": "point_batch",
+                "from_output": "result",
+                "to_node": "store",
+                "to_input": "vectors",
+            },
+            {
+                "from_node": "query",
+                "from_output": "text",
+                "to_node": "embedding",
+                "to_input": "text",
+            },
+            {
+                "from_node": "query",
+                "from_output": "text",
+                "to_node": "similarity",
+                "to_input": "query",
+            },
+            {
+                "from_node": "embedding",
+                "from_controller": "embedding",
+                "to_node": "similarity",
+                "to_controller": "embedding",
+                "connection_type": "controller",
+            },
+            {
+                "from_node": "store",
+                "from_controller": "store",
+                "to_node": "similarity",
+                "to_controller": "store",
+                "connection_type": "controller",
+            },
+            {
+                "from_node": "similarity",
+                "from_output": "results",
+                "to_node": "rerank",
+                "to_input": "results",
+            },
+            {
+                "from_node": "rerank",
+                "from_output": "results",
+                "to_node": "citations",
+                "to_input": "value",
+            },
+            {
+                "from_node": "citations",
+                "from_output": "result",
+                "to_node": "json_output",
+                "to_input": "value",
+            },
+        ],
+        "metadata": {},
+    }
+
+    run = _run_compiled_workflow(
+        client,
+        definition,
+        "pg-t3-08-local-retrieval",
+        "pg-t3-08-local-retrieval-session",
+        wait_for_job,
+    )
+
+    results = _step_ports(run, "similarity")["results"]
+    assert [hit["id"] for hit in results["hits"]] == ["vector-first", "phrase-match"]
+    assert results["hits"][0]["score_semantics"] == "normalized_similarity"
+
+    reranked = _step_ports(run, "rerank")["results"]
+    assert [hit["id"] for hit in reranked["hits"]] == ["phrase-match", "vector-first"]
+
+    outputs = run["outputs"]
+    assert isinstance(outputs, dict)
+    assert outputs["json_output"]["json"] == [
+        {
+            "source": "target.pdf",
+            "page": None,
+            "page_number": 2,
+            "line": None,
+            "chunk_id": "chunk-phrase-match",
+        },
+        {
+            "source": "vector-first.pdf",
+            "page": None,
+            "page_number": 1,
+            "line": None,
+            "chunk_id": "chunk-vector-first",
+        },
+    ]
