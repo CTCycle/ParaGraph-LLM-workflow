@@ -29,10 +29,12 @@ def _classifier(
     label: str, score: float, matches: list[Any], metadata: dict[str, Any] | None = None
 ) -> dict[str, Any]:
     return {
+        "result": {
+            "score": score,
+            "matches": matches,
+            "metadata": metadata or {},
+        },
         "label": label,
-        "score": score,
-        "matches": matches,
-        "metadata": metadata or {},
     }
 
 ###############################################################################
