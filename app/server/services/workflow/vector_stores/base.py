@@ -836,6 +836,9 @@ class VectorStoreAdapter:
         )
         normalized_metric = _coerce_metric(metric)
         normalized = normalized_metric == "cosine"
+        normalized_index_type = index_type.lower().strip()
+        if normalized_index_type == "auto":
+            normalized_index_type = "flat"
         if normalized:
             incoming_vectors = _normalize_vectors(incoming_vectors)
         incoming_metadata = [_sanitize_metadata_entry(point) for point in points]
@@ -845,7 +848,7 @@ class VectorStoreAdapter:
             "backend": self.backend,
             "index_name": normalized_index_name,
             "metric": normalized_metric,
-            "index_type": index_type.lower().strip(),
+            "index_type": normalized_index_type,
             "dimension": dimension,
             "count": len(incoming_metadata),
             "embedding_provider": str(
@@ -912,7 +915,7 @@ class VectorStoreAdapter:
                 index = _build_index(
                     vectors,
                     metric=normalized_metric,
-                    index_type=index_type,
+                    index_type=normalized_index_type,
                     nlist=nlist,
                     hnsw_m=hnsw_m,
                 )

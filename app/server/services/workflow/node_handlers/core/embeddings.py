@@ -438,6 +438,14 @@ def _vector_store_lifecycle_executor(
     operation = parsed.operation
     if operation == "inspect":
         result = adapter.inspect_collection(store=store)
+        payload = result.model_dump(mode="json")
+        response = {"result": payload}
+        response["store"] = (
+            adapter.reload(store=store).model_dump(mode="json")
+            if result.exists
+            else store.model_dump(mode="json")
+        )
+        return response
     elif operation == "reload":
         reloaded = adapter.reload(store=store)
         return {
@@ -474,7 +482,12 @@ def _vector_store_lifecycle_executor(
     payload = result.model_dump(mode="json")
     response = {"result": payload}
     if operation != "delete_collection":
-        response["store"] = adapter.reload(store=store).model_dump(mode="json")
+        collection = adapter.inspect_collection(store=store)
+        response["store"] = (
+            adapter.reload(store=store).model_dump(mode="json")
+            if collection.exists
+            else store.model_dump(mode="json")
+        )
     return response
 
 ###############################################################################

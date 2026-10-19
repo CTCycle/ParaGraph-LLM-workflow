@@ -57,7 +57,14 @@ def _structured_input_executor(
 ) -> dict[str, Any]:
     parsed = StructuredInputParameters.model_validate(parameters)
     _ = inputs
-    return _validate_payload(parsed.value, parsed.model_dump(mode="json"))
+    if isinstance(parsed.value, dict):
+        return _validate_payload(parsed.value, parsed.model_dump(mode="json"))
+    return {
+        "result": parsed.value,
+        "schema": {},
+        "valid": True,
+        "errors": [],
+    }
 
 ###############################################################################
 def _structured_output_executor(

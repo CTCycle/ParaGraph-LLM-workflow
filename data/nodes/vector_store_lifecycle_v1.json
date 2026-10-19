@@ -26,7 +26,7 @@
       "data_type": "VECTOR_STORE_HANDLE",
       "required": false,
       "accepts_multiple": false,
-      "description": "Reloaded store handle when the collection still exists."
+      "description": "Current store handle for chaining lifecycle operations."
     }
   ],
   "controllers": [
