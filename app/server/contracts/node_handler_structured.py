@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, JsonValue, field_validator
 
 from server.common.utils.values import parse_json_if_possible
 
@@ -28,16 +28,13 @@ class PydanticModelParameters(BaseModel):
 
 ###############################################################################
 class StructuredInputParameters(PydanticModelParameters):
-    value: dict[str, Any] = Field(default_factory=dict)
+    value: JsonValue = Field(default_factory=dict)
 
     # -------------------------------------------------------------------------
     @field_validator("value", mode="before")
     @classmethod
-    def validate_value(cls, value: Any) -> dict[str, Any]:
-        parsed = parse_json_if_possible(value)
-        if not isinstance(parsed, dict):
-            raise ValueError("value must be a JSON object")
-        return parsed
+    def validate_value(cls, value: Any) -> JsonValue:
+        return parse_json_if_possible(value)
 
 ###############################################################################
 class StructuredOutputParameters(PydanticModelParameters):

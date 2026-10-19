@@ -3,6 +3,7 @@ from __future__ import annotations
 import pytest
 
 from server.services.workflow.node_handlers.structured import (
+    _structured_input_executor,
     _structured_output_executor,
 )
 from server.services.workflow.structured_models import (
@@ -46,4 +47,23 @@ def test_unsupported_annotation_error() -> None:
 def test_structured_output_exposes_top_level_keys_through_result() -> None:
     result = _structured_output_executor({}, {"value": {"summary": "ok"}})
     assert result["result"]["summary"] == "ok"
+    assert result["valid"] is True
+
+###############################################################################
+def test_structured_input_exposes_configured_json_object() -> None:
+    value = {"vectors": [{"id": "point-1", "vector": [1.0, 0.0]}]}
+
+    result = _structured_input_executor({"value": value}, {})
+
+    assert result["result"] == value
+    assert result["valid"] is True
+
+###############################################################################
+def test_structured_input_passes_through_json_array() -> None:
+    value = [{"id": "point-1", "vector": [1.0, 0.0]}]
+
+    result = _structured_input_executor({"value": value}, {})
+
+    assert result["result"] == value
+    assert result["schema"] == {}
     assert result["valid"] is True

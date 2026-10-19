@@ -129,7 +129,7 @@ class LanceDbVectorStoreAdapter(VectorStoreAdapter):
             for point in points
         ]
         db = lancedb.connect(str(root_path))
-        table_names = set(db.table_names())
+        table_names = set(db.list_tables().tables)
 
         with _store_lock(root_path / normalized_index_name, lock_timeout):
             current_rows: list[dict[str, Any]] = []
@@ -200,20 +200,23 @@ class LanceDbVectorStoreAdapter(VectorStoreAdapter):
                 rows = [*current_rows, *rows]
             table = db.create_table(normalized_index_name, data=rows, mode="overwrite")
 
-        if create_vector_index:
-            try:
-                table.create_index(
-                    vector_column_name="vector",
-                    metric=metric_normalized,
-                    num_partitions=max(1, nlist),
-                )
-            except TypeError:
-                try:
-                    table.create_index(
-                        "vector", metric=metric_normalized, num_partitions=max(1, nlist)
-                    )
-                except TypeError:
-                    table.create_index("vector")
+        vector_index_status = "skipped"
+        vector_index_type = ""
+        num_partitions = 0
+        if create_vector_index and len(rows) > 1:
+            num_partitions = max(1, min(nlist, len(rows) - 1))
+            vector_index_type = (
+                "IVF_PQ"
+                if len(rows) >= 256 and dimension % 96 == 0
+                else "IVF_FLAT"
+            )
+            table.create_index(
+                vector_column_name="vector",
+                metric=metric_normalized,
+                num_partitions=num_partitions,
+                index_type=vector_index_type,
+            )
+            vector_index_status = "created"
 
         return VectorStoreHandle(
             backend=self.backend,
@@ -231,13 +234,14 @@ class LanceDbVectorStoreAdapter(VectorStoreAdapter):
                 "storage_directory": str(root_path),
                 "table_name": normalized_index_name,
                 "create_vector_index": bool(create_vector_index),
-                "vector_index_status": "created" if create_vector_index else "skipped",
+                "vector_index_status": vector_index_status,
+                "vector_index_type": vector_index_type,
                 "keyword_index_status": "unsupported",
-                "num_partitions": max(1, nlist),
+                "num_partitions": num_partitions,
                 "hnsw_m": hnsw_m,
             },
             collection_name=normalized_index_name,
-            vector_index_status="created" if create_vector_index else "skipped",
+            vector_index_status=vector_index_status,
         )
 
     # -------------------------------------------------------------------------
@@ -329,7 +333,17 @@ class LanceDbVectorStoreAdapter(VectorStoreAdapter):
     def inspect_collection(
         self, *, store: VectorStoreHandle | dict[str, Any]
     ) -> VectorCollectionInfo:
-        _, table, _, name = self._table(store)
+        metadata = _store_attr(store, "metadata") or {}
+        root = _resolve_vectorstore_root(metadata.get("storage_directory"))
+        name = str(metadata.get("table_name") or _store_attr(store, "index_name"))
+        db = lancedb.connect(str(root))
+        if name not in set(db.list_tables().tables):
+            return VectorCollectionInfo(
+                backend=self.backend,
+                index_name=name,
+                exists=False,
+            )
+        table = db.open_table(name)
         rows = _materialize_lancedb_rows(table)
         first = rows[0] if rows else {}
         vector = first.get("vector") if isinstance(first.get("vector"), list) else []

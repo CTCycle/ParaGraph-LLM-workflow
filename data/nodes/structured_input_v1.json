@@ -150,6 +150,14 @@
   ],
   "parameters": [
     {
+      "description": "JSON value to expose as the structured input value.",
+      "name": "value",
+      "constraints": {},
+      "default": {},
+      "data_type": "JSON",
+      "ui_control": "json"
+    },
+    {
       "description": "Keyword or label.",
       "name": "keyword",
       "constraints": {},

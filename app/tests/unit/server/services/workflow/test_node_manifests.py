@@ -85,6 +85,18 @@ def test_every_manifest_parameter_model_accepts_manifest_defaults() -> None:
             )
 
 ###############################################################################
+def test_structured_input_catalog_exposes_json_value_parameter() -> None:
+    manifest = node_registry.get("STRUCTURED_INPUT", 1)
+    assert manifest is not None
+
+    value_parameter = next(
+        parameter for parameter in manifest.parameters if parameter.name == "value"
+    )
+    assert value_parameter.data_type == "JSON"
+    assert value_parameter.ui_control == "json"
+    assert value_parameter.default == {}
+
+###############################################################################
 def test_runtime_effect_metadata_is_loaded_from_manifests() -> None:
     lifecycle = node_registry.get("VECTOR_STORE_LIFECYCLE", 1)
     schema_collection = node_registry.get("TOOL_SCHEMA_COLLECTION", 1)

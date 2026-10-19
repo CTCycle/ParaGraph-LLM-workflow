@@ -1,5 +1,5 @@
 # Processing And Retrieval
-Last updated: 2026-08-27
+Last updated: 2026-10-19
 
 ## Similarity Search Contract
 - `search_mode`
@@ -53,6 +53,7 @@ separate from payload bindings and never override JSON parameters.
 - `LLM_STRUCTURED` handles structured generation and extraction.
 - It returns the main JSON object as `result` plus `schema`, `valid`, and `errors`.
 - Validation can use JSON Schema mode, an inferred model, or pasted Pydantic model source parsed without executing arbitrary Python.
+- `STRUCTURED_INPUT` infers a schema for JSON objects and passes JSON arrays or scalars through without an inferred object schema.
 - Related structured nodes include `STRUCTURED_INPUT`, `STRUCTURED_OUTPUT`, and `OUTPUT_PARSER`.
 
 ## RAG And Document Processing
