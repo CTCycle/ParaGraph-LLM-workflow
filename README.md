@@ -1,8 +1,6 @@
-# ParaGraph LLM Workflow
+<h1 align="center"><img src="app/client/public/favicon.svg" alt="" width="44">&nbsp;ParaGraph LLM Workflow</h1>
 
-<p align="center">
-  <img src="app/client/public/favicon.svg" alt="ParaGraph node logo" width="112">
-</p>
+Last updated: 2026-10-20
 
 **Build and run LLM workflows with a local visual node editor.**
 
