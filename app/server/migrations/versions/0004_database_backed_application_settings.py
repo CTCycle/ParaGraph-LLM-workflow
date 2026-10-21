@@ -12,6 +12,7 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
+###############################################################################
 def upgrade() -> None:
     op.create_table(
         "application_settings",
@@ -34,5 +35,6 @@ def upgrade() -> None:
     )
 
 
+###############################################################################
 def downgrade() -> None:
     op.drop_table("application_settings")

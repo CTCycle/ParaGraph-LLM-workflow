@@ -5,7 +5,6 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
-
 ###############################################################################
 def test_browser_uploaded_documents_complete_local_chunking_workflow(
     client: TestClient,

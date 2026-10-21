@@ -5,6 +5,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 
+###############################################################################
 class DatabaseConfigurationPayload(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
 
@@ -13,6 +14,7 @@ class DatabaseConfigurationPayload(BaseModel):
     insert_batch_size: int = Field(ge=1, le=100000)
 
 
+###############################################################################
 class DatabaseConfigurationResponse(BaseModel):
     backend: Literal["sqlite"] = "sqlite"
     database_path: str = "database.db"
@@ -22,6 +24,7 @@ class DatabaseConfigurationResponse(BaseModel):
     error: str | None = None
 
 
+###############################################################################
 class DatabaseTestResponse(BaseModel):
     ok: bool
     message: str
