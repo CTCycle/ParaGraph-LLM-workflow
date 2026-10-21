@@ -10,7 +10,17 @@ $script:FixtureRoot = Join-Path ([IO.Path]::GetTempPath()) ($script:FixturePrefi
 $script:ClientDir = Join-Path $script:FixtureRoot 'client'
 $script:FrontendBuildDir = Join-Path $script:FixtureRoot 'frontend-dist'
 $script:NpmCmd = Join-Path $script:FixtureRoot 'npm.cmd'
-$script:EnvironmentKeys = @('VITE_API_BASE_URL', 'FASTAPI_HOST', 'FASTAPI_PORT', 'UI_HOST', 'UI_PORT')
+$script:EnvironmentKeys = @(
+    'VITE_API_BASE_URL',
+    'FASTAPI_HOST',
+    'FASTAPI_PORT',
+    'UI_HOST',
+    'UI_PORT',
+    'CORS_ALLOWED_ORIGINS',
+    'CORS_ALLOW_CREDENTIALS',
+    'CORS_ALLOWED_METHODS',
+    'CORS_ALLOWED_HEADERS'
+)
 $script:OriginalEnvironment = @{}
 foreach ($key in $script:EnvironmentKeys) {
     $script:OriginalEnvironment[$key] = [Environment]::GetEnvironmentVariable($key, 'Process')
@@ -121,7 +131,7 @@ try {
         }
     }
 
-    Invoke-TestCase -Name 'VITE_API_BASE_URL invalidates while runtime host and port settings do not' -Test {
+    Invoke-TestCase -Name 'VITE_API_BASE_URL invalidates while runtime host, port, and CORS settings do not' -Test {
         $baseFingerprint = Get-FrontendBuildFingerprint
         Set-ProcessEnvironmentValue -Name 'VITE_API_BASE_URL' -Value '/api/v2'
         $changedApiFingerprint = Get-FrontendBuildFingerprint
@@ -133,7 +143,11 @@ try {
         Set-ProcessEnvironmentValue -Name 'FASTAPI_PORT' -Value '6500'
         Set-ProcessEnvironmentValue -Name 'UI_HOST' -Value '192.0.2.11'
         Set-ProcessEnvironmentValue -Name 'UI_PORT' -Value '8500'
-        Assert-True ((Get-FrontendBuildFingerprint) -eq $baseFingerprint) 'Runtime host or port settings changed the fingerprint.'
+        Set-ProcessEnvironmentValue -Name 'CORS_ALLOWED_ORIGINS' -Value 'https://ui.example'
+        Set-ProcessEnvironmentValue -Name 'CORS_ALLOW_CREDENTIALS' -Value 'true'
+        Set-ProcessEnvironmentValue -Name 'CORS_ALLOWED_METHODS' -Value 'GET,PUT,OPTIONS'
+        Set-ProcessEnvironmentValue -Name 'CORS_ALLOWED_HEADERS' -Value 'Authorization,Content-Type'
+        Assert-True ((Get-FrontendBuildFingerprint) -eq $baseFingerprint) 'Runtime host, port, or CORS settings changed the fingerprint.'
     }
 
     Invoke-TestCase -Name 'missing, invalid, changed, and current build states are classified' -Test {
