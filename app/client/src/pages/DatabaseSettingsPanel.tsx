@@ -8,9 +8,12 @@ import {
     testDatabaseConfiguration,
 } from '../app/services/databaseApi'
 
-type Props = { onDatabaseChanged: () => Promise<void> }
+type Props = {
+    onBeforeDatabaseChange: () => Promise<void>
+    onDatabaseChanged: () => Promise<void>
+}
 
-export default function DatabaseSettingsPanel({ onDatabaseChanged }: Props) {
+export default function DatabaseSettingsPanel({ onBeforeDatabaseChange, onDatabaseChanged }: Props) {
     const [status, setStatus] = useState<DatabaseConfigurationStatus | null>(null)
     const [databasePath, setDatabasePath] = useState('database.db')
     const [insertBatchSize, setInsertBatchSize] = useState('1000')
@@ -81,6 +84,7 @@ export default function DatabaseSettingsPanel({ onDatabaseChanged }: Props) {
         setIsApplying(true)
         setMessage('')
         try {
+            await onBeforeDatabaseChange()
             const active = await applyDatabaseConfiguration(configuration)
             setStatus(active)
             setDatabasePath(active.database_path)

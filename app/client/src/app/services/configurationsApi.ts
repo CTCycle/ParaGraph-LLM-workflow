@@ -15,6 +15,7 @@ export function saveConfigurations(payload: AppConfigurationPayload): Promise<Ap
   return requestJson<AppConfigurationPayload>('/configurations', {
     method: 'PUT',
     body: JSON.stringify(payload),
+    keepalive: true,
   })
 }
 
@@ -23,9 +24,11 @@ export function listConfigurationProfiles(sessionName = 'default'): Promise<Conf
   return requestJson<ConfigurationProfileListResponse>(`/configurations/profiles?${params.toString()}`)
 }
 
-export function loadConfigurationProfile(profileName: string, sessionName = 'default'): Promise<AppConfigurationPayload> {
+export function activateConfigurationProfile(profileName: string, sessionName = 'default'): Promise<AppConfigurationPayload> {
   const params = new URLSearchParams({ session_name: sessionName })
-  return requestJson<AppConfigurationPayload>(`/configurations/profiles/${encodeURIComponent(profileName)}?${params.toString()}`)
+  return requestJson<AppConfigurationPayload>(`/configurations/profiles/${encodeURIComponent(profileName)}/activate?${params.toString()}`, {
+    method: 'POST',
+  })
 }
 
 export function saveConfigurationProfile(profileName: string, payload: AppConfigurationPayload): Promise<AppConfigurationPayload> {

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { useErrorMessage } from '../app/hooks/useErrorMessage'
 import { usePageMetadata } from '../app/hooks/usePageMetadata'
@@ -7,11 +7,12 @@ import { GUIDANCE_CONTENT_VERSIONS } from '../guidance/guidanceContent'
 import { useGuidance } from '../guidance/GuidanceContext'
 import FeatureTip from '../guidance/FeatureTip'
 import {
+    activateConfigurationProfile,
     fetchConfigurations,
     listConfigurationProfiles,
-    loadConfigurationProfile,
     pingOllama,
     pingProvider,
+    saveConfigurations,
     saveConfigurationProfile,
 } from '../app/services/configurationsApi'
 import { fetchProviderCatalog } from '../app/services/providersApi'
@@ -53,6 +54,8 @@ type ConfigurationFormValues = {
 type InlineStatusTone = 'neutral' | 'success' | 'error'
 
 const DEFAULT_SESSION_NAME = 'default'
+const SETTINGS_AUTOSAVE_DELAY_MS = 400
+
 function emptyProviderCredential(): ProviderCredential {
     return { apiKey: '', baseUrl: '', hasApiKey: false, apiKeyDirty: false }
 }
@@ -235,6 +238,40 @@ export default function ConfigurationsPage() {
     const [saveProfileName, setSaveProfileName] = useState('')
     const [saveProfileError, setSaveProfileError] = useState<string | null>(null)
     const [isSetupTipVisible, setIsSetupTipVisible] = useState(false)
+    const [persistenceMessage, setPersistenceMessage] = useState<string | null>(null)
+    const [persistenceTone, setPersistenceTone] = useState<InlineStatusTone>('neutral')
+    const formValuesRef = useRef<ConfigurationFormValues>({
+        cloudCredentials: {},
+        localProviders: {},
+        huggingFaceKey: '',
+        huggingFaceHasApiKey: false,
+        huggingFaceKeyDirty: false,
+        ollamaBaseUrl: '',
+        ollamaChatModel: '',
+        ollamaEmbeddingModel: '',
+        selectedCloudProvider: '',
+        selectedLocalProvider: '',
+    })
+    const providerCatalogRef = useRef<ProviderCapability[]>([])
+    const settingsRevisionRef = useRef(0)
+    const savedRevisionRef = useRef(0)
+    const saveTimerRef = useRef<number | null>(null)
+    const savePromiseRef = useRef<Promise<void> | null>(null)
+    const configurationLoadedRef = useRef(false)
+
+    formValuesRef.current = {
+        cloudCredentials,
+        localProviders,
+        huggingFaceKey,
+        huggingFaceHasApiKey,
+        huggingFaceKeyDirty,
+        ollamaBaseUrl,
+        ollamaChatModel,
+        ollamaEmbeddingModel,
+        selectedCloudProvider,
+        selectedLocalProvider,
+    }
+    providerCatalogRef.current = providerCatalog
 
     const currentCloudCredentials = useMemo(
         () => cloudCredentials[selectedCloudProvider] || emptyProviderCredential(),
@@ -263,13 +300,17 @@ export default function ConfigurationsPage() {
         () => providerCatalog.find((item) => item.provider === 'ollama'),
         [providerCatalog],
     )
-    const huggingFaceProvider = useMemo(
-        () => providerCatalog.find((item) => item.provider === 'huggingface'),
-        [providerCatalog],
-    )
-
     function applyPayload(payload: AppConfigurationPayload): void {
-        const mapped = mapPayloadToForm(payload, providerCatalog)
+        const mapped = mapPayloadToForm(payload, providerCatalogRef.current)
+        setFormValues(mapped)
+        settingsRevisionRef.current += 1
+        savedRevisionRef.current = settingsRevisionRef.current
+        setPersistenceMessage('Changes saved')
+        setPersistenceTone('success')
+    }
+
+    function setFormValues(mapped: ConfigurationFormValues): void {
+        formValuesRef.current = mapped
         setCloudCredentials(mapped.cloudCredentials)
         setLocalProviders(mapped.localProviders)
         setHuggingFaceKey(mapped.huggingFaceKey)
@@ -291,17 +332,13 @@ export default function ConfigurationsPage() {
                 fetchConfigurations(DEFAULT_SESSION_NAME),
             ])
             setProviderCatalog(catalog.providers)
+            providerCatalogRef.current = catalog.providers
             const mapped = mapPayloadToForm(payload, catalog.providers)
-            setCloudCredentials(mapped.cloudCredentials)
-            setLocalProviders(mapped.localProviders)
-            setHuggingFaceKey(mapped.huggingFaceKey)
-            setHuggingFaceHasApiKey(mapped.huggingFaceHasApiKey)
-            setHuggingFaceKeyDirty(mapped.huggingFaceKeyDirty)
-            setOllamaBaseUrl(mapped.ollamaBaseUrl)
-            setOllamaChatModel(mapped.ollamaChatModel)
-            setOllamaEmbeddingModel(mapped.ollamaEmbeddingModel)
-            setSelectedCloudProvider(mapped.selectedCloudProvider)
-            setSelectedLocalProvider(mapped.selectedLocalProvider)
+            setFormValues(mapped)
+            settingsRevisionRef.current = 0
+            savedRevisionRef.current = 0
+            configurationLoadedRef.current = true
+            setPersistenceMessage(null)
             setStatusMessage('Configuration loaded')
         } catch (error) {
             setStatusMessage(getErrorMessage(error, 'Unable to load configuration'))
@@ -323,30 +360,34 @@ export default function ConfigurationsPage() {
         markSeen('config-setup', GUIDANCE_CONTENT_VERSIONS['config-setup'])
     }, [isLoading, markSeen, shouldShow, statusMessage])
 
-    function buildPayload(): AppConfigurationPayload {
-        const huggingFaceApiKey = toApiKeyPayload(huggingFaceKey)
+    function buildPayload(
+        values: ConfigurationFormValues = formValuesRef.current,
+        catalog: ProviderCapability[] = providerCatalogRef.current,
+    ): AppConfigurationPayload {
+        const huggingFaceApiKey = toApiKeyPayload(values.huggingFaceKey)
+        const huggingFaceProviderValue = catalog.find((item) => item.provider === 'huggingface')?.provider
         const huggingFaceConfiguration = {
-            provider: huggingFaceProvider?.provider || 'huggingface',
-            api_key: huggingFaceKeyDirty ? huggingFaceApiKey : null,
-            has_api_key: huggingFaceKeyDirty
+            provider: huggingFaceProviderValue || 'huggingface',
+            api_key: values.huggingFaceKeyDirty ? huggingFaceApiKey : null,
+            has_api_key: values.huggingFaceKeyDirty
                 ? Boolean(huggingFaceApiKey)
-                : huggingFaceHasApiKey,
+                : values.huggingFaceHasApiKey,
             base_url: null,
             metadata: {},
         }
-        const providerConfigurations = providerCatalog.map((metadata) => {
+        const providerConfigurations = catalog.map((metadata) => {
             if (metadata.provider === 'ollama') {
                 return {
                     provider: metadata.provider,
                     api_key: null,
                     has_api_key: false,
-                    base_url: normalizeText(ollamaBaseUrl) || null,
+                    base_url: normalizeText(values.ollamaBaseUrl) || null,
                     metadata: {
-                        ...(normalizeText(ollamaChatModel)
-                            ? { chat_model: normalizeText(ollamaChatModel) }
+                        ...(normalizeText(values.ollamaChatModel)
+                            ? { chat_model: normalizeText(values.ollamaChatModel) }
                             : {}),
-                        ...(normalizeText(ollamaEmbeddingModel)
-                            ? { embedding_model: normalizeText(ollamaEmbeddingModel) }
+                        ...(normalizeText(values.ollamaEmbeddingModel)
+                            ? { embedding_model: normalizeText(values.ollamaEmbeddingModel) }
                             : {}),
                     },
                 }
@@ -355,8 +396,8 @@ export default function ConfigurationsPage() {
                 return huggingFaceConfiguration
             }
 
-            const credential = cloudCredentials[metadata.provider]
-            const localSettings = localProviders[metadata.provider]
+            const credential = values.cloudCredentials[metadata.provider]
+            const localSettings = values.localProviders[metadata.provider]
             const fields = localSettings || credential
             const apiKey = fields ? toApiKeyPayload(fields.apiKey) : null
             return {
@@ -387,6 +428,89 @@ export default function ConfigurationsPage() {
         }
     }
 
+    async function flushProviderSettings(): Promise<void> {
+        if (saveTimerRef.current !== null) {
+            window.clearTimeout(saveTimerRef.current)
+            saveTimerRef.current = null
+        }
+        if (!configurationLoadedRef.current || savedRevisionRef.current >= settingsRevisionRef.current) {
+            return
+        }
+
+        const currentSave = savePromiseRef.current
+        if (currentSave) {
+            await currentSave
+            if (savedRevisionRef.current < settingsRevisionRef.current) {
+                return flushProviderSettings()
+            }
+            return
+        }
+
+        const saveChanges = async (): Promise<void> => {
+            while (savedRevisionRef.current < settingsRevisionRef.current) {
+                const revision = settingsRevisionRef.current
+                setPersistenceMessage('Saving changes…')
+                setPersistenceTone('neutral')
+                try {
+                    await saveConfigurations(buildPayload())
+                    savedRevisionRef.current = revision
+                    if (revision === settingsRevisionRef.current) {
+                        setPersistenceMessage('Changes saved')
+                        setPersistenceTone('success')
+                    }
+                } catch (error) {
+                    if (revision !== settingsRevisionRef.current) {
+                        continue
+                    }
+                    const message = getErrorMessage(error, 'Unable to save settings')
+                    setPersistenceMessage(message)
+                    setPersistenceTone('error')
+                    throw error
+                }
+            }
+        }
+
+        const pendingSave = saveChanges()
+        savePromiseRef.current = pendingSave
+        try {
+            await pendingSave
+        } finally {
+            if (savePromiseRef.current === pendingSave) {
+                savePromiseRef.current = null
+            }
+        }
+    }
+
+    function scheduleProviderSettingsSave(): void {
+        if (!configurationLoadedRef.current) {
+            return
+        }
+        settingsRevisionRef.current += 1
+        setPersistenceMessage(null)
+        if (saveTimerRef.current !== null) {
+            window.clearTimeout(saveTimerRef.current)
+        }
+        saveTimerRef.current = window.setTimeout(() => {
+            saveTimerRef.current = null
+            void flushProviderSettings().catch(() => undefined)
+        }, SETTINGS_AUTOSAVE_DELAY_MS)
+    }
+
+    useEffect(() => {
+        const flushOnExit = (): void => {
+            if (savedRevisionRef.current < settingsRevisionRef.current) {
+                void flushProviderSettings().catch(() => undefined)
+            }
+        }
+        window.addEventListener('pagehide', flushOnExit)
+        window.addEventListener('beforeunload', flushOnExit)
+        return () => {
+            window.removeEventListener('pagehide', flushOnExit)
+            window.removeEventListener('beforeunload', flushOnExit)
+            flushOnExit()
+        }
+    }, [])
+
     async function openLoadModal(): Promise<void> {
         loadModal.open()
         setIsLoadingProfiles(true)
@@ -410,8 +534,9 @@ export default function ConfigurationsPage() {
         setIsLoadingProfile(true)
         setStatusMessage(null)
         try {
-            const payload = await loadConfigurationProfile(selectedProfileName, DEFAULT_SESSION_NAME)
-            applyPayload(payload)
+            await flushProviderSettings()
+            const activeConfiguration = await activateConfigurationProfile(selectedProfileName, DEFAULT_SESSION_NAME)
+            applyPayload(activeConfiguration)
             setStatusMessage(`Loaded configuration '${selectedProfileName}'`)
             loadModal.close()
         } catch (error) {
@@ -432,8 +557,8 @@ export default function ConfigurationsPage() {
         setIsSavingProfile(true)
         setStatusMessage(null)
         try {
-            const payload = await saveConfigurationProfile(profileName, buildPayload())
-            applyPayload(payload)
+            await flushProviderSettings()
+            await saveConfigurationProfile(profileName, buildPayload())
             setStatusMessage(`Saved configuration '${profileName}'`)
             saveModal.close()
             setSaveProfileName('')
@@ -509,6 +634,7 @@ export default function ConfigurationsPage() {
                 ...(field === 'apiKey' ? { apiKeyDirty: true } : {}),
             },
         }))
+        scheduleProviderSettingsSave()
     }
 
     function updateCurrentLocalProvider(
@@ -527,11 +653,13 @@ export default function ConfigurationsPage() {
                 ...(field === 'apiKey' ? { apiKeyDirty: true } : {}),
             },
         }))
+        scheduleProviderSettingsSave()
     }
 
     function updateHuggingFaceKey(value: string): void {
         setHuggingFaceKey(value)
         setHuggingFaceKeyDirty(true)
+        scheduleProviderSettingsSave()
     }
 
     return (
@@ -552,7 +680,7 @@ export default function ConfigurationsPage() {
                             </a>
                         )}
                     >
-                        <p>Choose a local endpoint or cloud key, check its status, then select the provider and model in the workflow. Save a profile if you switch setups.</p>
+                        <p>Choose a local endpoint or cloud key, check its status, then select the provider and model in the workflow. Settings save automatically; save a named profile if you switch setups.</p>
                     </FeatureTip>
                 )}
             </header>
@@ -590,6 +718,7 @@ export default function ConfigurationsPage() {
 
                     <form
                         className="config-panel-fields"
+                        onBlur={() => void flushProviderSettings().catch(() => undefined)}
                         onSubmit={(event) => {
                             event.preventDefault()
                         }}
@@ -599,7 +728,10 @@ export default function ConfigurationsPage() {
                             <input
                                 type="text"
                                 value={ollamaBaseUrl}
-                                onChange={(event) => setOllamaBaseUrl(event.target.value)}
+                                onChange={(event) => {
+                                    setOllamaBaseUrl(event.target.value)
+                                    scheduleProviderSettingsSave()
+                                }}
                                 placeholder={ollamaProvider?.default_base_url || 'Provider default'}
                             />
                         </label>
@@ -624,7 +756,7 @@ export default function ConfigurationsPage() {
                     <div className="config-panel-header">
                         <div>
                             <h2>Provider Configurations</h2>
-                            <p>Manage API keys and endpoints from the backend provider catalog.</p>
+                                <p>Changes to API keys and endpoints save automatically.</p>
                         </div>
                         <div className="config-panel-actions">
                             <button type="button" onClick={() => void openLoadModal()} disabled={isLoading || isLoadingProfiles || isLoadingCatalog}>
@@ -637,7 +769,7 @@ export default function ConfigurationsPage() {
                                 }}
                                 disabled={isLoading || isSavingProfile || isLoadingCatalog}
                             >
-                                Save
+                                Save profile
                             </button>
                         </div>
                     </div>
@@ -645,6 +777,7 @@ export default function ConfigurationsPage() {
                     <form
                         className="config-panel-fields"
                         autoComplete="off"
+                        onBlur={() => void flushProviderSettings().catch(() => undefined)}
                         onSubmit={(event) => {
                             event.preventDefault()
                         }}
@@ -696,7 +829,19 @@ export default function ConfigurationsPage() {
                         </label>
                     </form>
 
-                    {statusMessage && <p className="config-panel-note">{statusMessage}</p>}
+                    {statusMessage && <p className="config-panel-note" role="status">{statusMessage}</p>}
+                    {persistenceMessage && (
+                        <p
+                            className={`config-panel-note ${persistenceTone === 'error'
+                                ? 'config-panel-note-error'
+                                : persistenceTone === 'success'
+                                    ? 'config-panel-note-success'
+                                    : ''}`}
+                            role={persistenceTone === 'error' ? 'alert' : 'status'}
+                        >
+                            {persistenceMessage}
+                        </p>
+                    )}
                 </section>
 
                 <section className="config-panel config-panel-column">
@@ -715,6 +860,7 @@ export default function ConfigurationsPage() {
                     <form
                         className="config-panel-fields"
                         autoComplete="off"
+                        onBlur={() => void flushProviderSettings().catch(() => undefined)}
                         onSubmit={(event) => {
                             event.preventDefault()
                         }}
@@ -789,7 +935,7 @@ export default function ConfigurationsPage() {
                         </p>
                     )}
                 </section>
-            </div> : <div id="database-settings-panel" role="tabpanel"><DatabaseSettingsPanel onDatabaseChanged={loadCurrentConfiguration} /></div>}
+            </div> : <div id="database-settings-panel" role="tabpanel"><DatabaseSettingsPanel onBeforeDatabaseChange={flushProviderSettings} onDatabaseChanged={loadCurrentConfiguration} /></div>}
 
             <ModalDialog
                 isOpen={loadModal.isOpen}
@@ -839,7 +985,7 @@ export default function ConfigurationsPage() {
                 actions={(
                     <ModalActionButtons
                         cancelLabel="Cancel"
-                        confirmLabel={isSavingProfile ? 'Saving...' : 'Save'}
+                        confirmLabel={isSavingProfile ? 'Saving...' : 'Save profile'}
                         onCancel={saveModal.close}
                         onConfirm={() => void handleSaveProfile()}
                         cancelDisabled={isSavingProfile}

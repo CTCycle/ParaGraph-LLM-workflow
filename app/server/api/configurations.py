@@ -69,6 +69,27 @@ def load_configuration_profile(
         raise HTTPException(status_code=404, detail=detail) from exc
 
 ###############################################################################
+@router.post("/profiles/{profile_name}/activate", response_model=AppConfigurationPayload)
+def activate_configuration_profile(
+    profile_name: str = Path(
+        ..., min_length=1, max_length=120, pattern=PROFILE_NAME_PATTERN
+    ),
+    session_name: str = Query(
+        default=DEFAULT_SESSION_NAME,
+        min_length=1,
+        max_length=120,
+        pattern=SESSION_NAME_PATTERN,
+    ),
+) -> AppConfigurationPayload:
+    try:
+        return configuration_service.activate_public_configuration_profile(
+            session_name=session_name, profile_name=profile_name
+        )
+    except KeyError as exc:
+        detail = exc.args[0] if exc.args else str(exc)
+        raise HTTPException(status_code=404, detail=detail) from exc
+
+###############################################################################
 @router.put("/profiles/{profile_name}", response_model=AppConfigurationPayload)
 def save_configuration_profile(
     payload: AppConfigurationPayload,

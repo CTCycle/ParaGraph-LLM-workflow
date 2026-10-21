@@ -24,6 +24,7 @@ describe('DatabaseSettingsPanel', () => {
     beforeEach(() => vi.clearAllMocks())
 
     it('tests and applies a SQLite database then refreshes provider state', async () => {
+        const onBeforeDatabaseChange = vi.fn().mockResolvedValue(undefined)
         const onDatabaseChanged = vi.fn().mockResolvedValue(undefined)
         vi.mocked(databaseApi.fetchDatabaseConfiguration).mockResolvedValue(connectedStatus)
         vi.mocked(databaseApi.testDatabaseConfiguration).mockResolvedValue({
@@ -36,19 +37,21 @@ describe('DatabaseSettingsPanel', () => {
             resolved_path: 'C:/data/alternate.db',
             insert_batch_size: 24,
         })
-        render(<DatabaseSettingsPanel onDatabaseChanged={onDatabaseChanged} />)
+        render(<DatabaseSettingsPanel onBeforeDatabaseChange={onBeforeDatabaseChange} onDatabaseChanged={onDatabaseChanged} />)
 
         await screen.findByText('Connected')
         await userEvent.clear(screen.getByRole('textbox', { name: 'Database file path' }))
         await userEvent.type(screen.getByRole('textbox', { name: 'Database file path' }), 'alternate.db')
         await userEvent.clear(screen.getByRole('spinbutton', { name: 'Insert batch size' }))
         await userEvent.type(screen.getByRole('spinbutton', { name: 'Insert batch size' }), '24')
+        expect(databaseApi.applyDatabaseConfiguration).not.toHaveBeenCalled()
 
         await userEvent.click(screen.getByRole('button', { name: 'Test Connection' }))
         expect(await screen.findByText('Connection is available')).toBeInTheDocument()
         await userEvent.click(screen.getByRole('button', { name: 'Apply' }))
 
         expect(await screen.findByText(/No settings or other data were copied/)).toBeInTheDocument()
+        expect(onBeforeDatabaseChange).toHaveBeenCalledOnce()
         expect(databaseApi.applyDatabaseConfiguration).toHaveBeenCalledWith({
             backend: 'sqlite',
             database_path: 'alternate.db',
@@ -66,10 +69,24 @@ describe('DatabaseSettingsPanel', () => {
             error: 'Database file is unavailable',
         })
         vi.mocked(databaseApi.applyDatabaseConfiguration).mockResolvedValue(connectedStatus)
-        render(<DatabaseSettingsPanel onDatabaseChanged={vi.fn().mockResolvedValue(undefined)} />)
+        render(<DatabaseSettingsPanel onBeforeDatabaseChange={vi.fn().mockResolvedValue(undefined)} onDatabaseChanged={vi.fn().mockResolvedValue(undefined)} />)
 
         expect(await screen.findByRole('alert')).toHaveTextContent('Database unavailable: Database file is unavailable')
         expect(screen.getByRole('textbox', { name: 'Database file path' })).toBeEnabled()
         expect(screen.getByRole('button', { name: 'Apply' })).toBeEnabled()
+    })
+
+    it('does not apply a database change when pending provider settings cannot be saved', async () => {
+        const onBeforeDatabaseChange = vi.fn().mockRejectedValue(new Error('Provider settings could not be saved'))
+        vi.mocked(databaseApi.fetchDatabaseConfiguration).mockResolvedValue(connectedStatus)
+        render(<DatabaseSettingsPanel onBeforeDatabaseChange={onBeforeDatabaseChange} onDatabaseChanged={vi.fn().mockResolvedValue(undefined)} />)
+
+        await screen.findByText('Connected')
+        await userEvent.clear(screen.getByRole('textbox', { name: 'Database file path' }))
+        await userEvent.type(screen.getByRole('textbox', { name: 'Database file path' }), 'alternate.db')
+        await userEvent.click(screen.getByRole('button', { name: 'Apply' }))
+
+        expect(await screen.findByRole('alert')).toHaveTextContent('Provider settings could not be saved')
+        expect(databaseApi.applyDatabaseConfiguration).not.toHaveBeenCalled()
     })
 })
