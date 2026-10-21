@@ -79,15 +79,12 @@ def initialized_application_database() -> Iterator[None]:
         initialize_database()
         yield
     finally:
-        from server.repositories.configuration import reset_configuration_database_repositories
         from server.repositories.workflow.database import reset_database_engines
 
-        reset_configuration_database_repositories()
         reset_database_engines()
-        if execution_run_repository._cached_engine is not None:
-            execution_run_repository._cached_engine.dispose()
-            execution_run_repository._cached_engine = None
-        database_chat_history_repository._database_repository.engine.dispose()
+        from server.repositories.database.runtime import database_runtime
+
+        database_runtime.reset_for_tests()
         root_logger = logging.getLogger()
         for handler in tuple(root_logger.handlers):
             if isinstance(handler, logging.FileHandler):

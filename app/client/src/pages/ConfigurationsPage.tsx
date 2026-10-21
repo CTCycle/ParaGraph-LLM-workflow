@@ -15,6 +15,7 @@ import {
     saveConfigurationProfile,
 } from '../app/services/configurationsApi'
 import { fetchProviderCatalog } from '../app/services/providersApi'
+import DatabaseSettingsPanel from './DatabaseSettingsPanel'
 import ModalActionButtons from '../components/ModalActionButtons'
 import ModalDialog from '../components/ModalDialog'
 import {
@@ -199,6 +200,7 @@ export default function ConfigurationsPage() {
             'Configure provider endpoints and credentials for ParaGraph workflow execution in your current session.',
     })
     const { shouldShow, markSeen, markDismissed } = useGuidance()
+    const [settingsSection, setSettingsSection] = useState<'providers' | 'database'>('providers')
     const [providerCatalog, setProviderCatalog] = useState<ProviderCapability[]>([])
     const [selectedCloudProvider, setSelectedCloudProvider] = useState('')
     const [selectedLocalProvider, setSelectedLocalProvider] = useState('')
@@ -555,7 +557,24 @@ export default function ConfigurationsPage() {
                 )}
             </header>
 
-            <div className="config-page-layout">
+            <div className="config-settings-tabs" role="tablist" aria-label="Settings sections">
+                <button
+                    type="button"
+                    role="tab"
+                    aria-selected={settingsSection === 'providers'}
+                    aria-controls="provider-settings-panel"
+                    onClick={() => setSettingsSection('providers')}
+                >Providers</button>
+                <button
+                    type="button"
+                    role="tab"
+                    aria-selected={settingsSection === 'database'}
+                    aria-controls="database-settings-panel"
+                    onClick={() => setSettingsSection('database')}
+                >Database</button>
+            </div>
+
+            {settingsSection === 'providers' ? <div className="config-page-layout" id="provider-settings-panel" role="tabpanel">
                 <section className="config-panel config-panel-column">
                     <div className="config-panel-header">
                         <div>
@@ -770,7 +789,7 @@ export default function ConfigurationsPage() {
                         </p>
                     )}
                 </section>
-            </div>
+            </div> : <div id="database-settings-panel" role="tabpanel"><DatabaseSettingsPanel onDatabaseChanged={loadCurrentConfiguration} /></div>}
 
             <ModalDialog
                 isOpen={loadModal.isOpen}

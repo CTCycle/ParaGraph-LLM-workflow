@@ -21,6 +21,7 @@ from server.contracts.execution import (
     StartExecutionResponse,
 )
 from server.repositories.workflow import execution_run_repository
+from server.repositories.database.runtime import database_runtime
 from server.services.jobs import job_manager
 from server.services.runtime.events import execution_event_service
 from server.services.workflow.nodes import node_registry
@@ -47,6 +48,19 @@ class ExecutionService:
         workflow_id: str | None = None,
         execution_session_id: str | None = None,
         request_id: str | None = None,
+    ) -> str:
+        with database_runtime.operation():
+            return self._start_execution(
+                plan, workflow_id, execution_session_id, request_id
+            )
+
+    # -------------------------------------------------------------------------
+    def _start_execution(
+        self,
+        plan: CompiledExecutionPlan,
+        workflow_id: str | None,
+        execution_session_id: str | None,
+        request_id: str | None,
     ) -> str:
         run_id = str(uuid.uuid4())
         self._initialize_run(
@@ -364,6 +378,16 @@ class ExecutionService:
 
     # -------------------------------------------------------------------------
     def resume(
+        self,
+        run_id: str,
+        resume_token: str,
+        reviewed_payload: dict[str, Any] | None = None,
+    ) -> ExecutionRunState | None:
+        with database_runtime.operation():
+            return self._resume(run_id, resume_token, reviewed_payload)
+
+    # -------------------------------------------------------------------------
+    def _resume(
         self,
         run_id: str,
         resume_token: str,

@@ -1,45 +1,24 @@
 from __future__ import annotations
 
 import re
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from server.common import path as common_path
-from server.common.constants import DATABASE_FILENAME
-from server.configurations.startup import get_server_settings
 from server.contracts.configuration import (
     DEFAULT_SESSION_NAME,
     PROFILE_NAME_PATTERN,
 )
 from server.repositories.database.sqlite import SQLiteRepository
+from server.repositories.database.runtime import database_runtime
 from server.repositories.schemas import (
     ConfigurationProfile,
     ProviderConfiguration,
     UserSession,
 )
-
-_default_database_repositories: dict[str, SQLiteRepository] = {}
-
-###############################################################################
-def _default_database_repository() -> SQLiteRepository:
-    database_key = str((common_path.RESOURCES_ROOT / DATABASE_FILENAME).resolve())
-    repository = _default_database_repositories.get(database_key)
-    if repository is None:
-        repository = SQLiteRepository(
-            get_server_settings().database, db_path=database_key
-        )
-        _default_database_repositories[database_key] = repository
-    return repository
-
-###############################################################################
-def reset_configuration_database_repositories() -> None:
-    repositories = list(_default_database_repositories.values())
-    _default_database_repositories.clear()
-    for repository in repositories:
-        repository.engine.dispose()
 
 ###############################################################################
 class ConfigurationRepository:
@@ -49,10 +28,14 @@ class ConfigurationRepository:
         self._database_repository = database_repository
 
     # -------------------------------------------------------------------------
-    def _database_engine(self):
-        if self._database_repository is not None:
-            return self._database_repository.engine
-        return _default_database_repository().engine
+    @contextmanager
+    def _session(self):
+        if self._database_repository is None:
+            with database_runtime.session() as session:
+                yield session
+        else:
+            with Session(self._database_repository.engine) as session:
+                yield session
 
     # -------------------------------------------------------------------------
     def _normalize_session_name(self, session_name: str | None) -> str:
@@ -144,7 +127,7 @@ class ConfigurationRepository:
     # -------------------------------------------------------------------------
     def load_configuration(self, session_name: str | None = None) -> dict[str, Any]:
         normalized_session_name = self._normalize_session_name(session_name)
-        with Session(self._database_engine()) as db_session:
+        with self._session() as db_session:
             session_row, created = self._get_or_create_session(
                 db_session, normalized_session_name
             )
@@ -179,7 +162,7 @@ class ConfigurationRepository:
                 else {},
             }
 
-        with Session(self._database_engine()) as db_session:
+        with self._session() as db_session:
             session_row, _ = self._get_or_create_session(
                 db_session, normalized_session_name
             )
@@ -215,7 +198,7 @@ class ConfigurationRepository:
         self, session_name: str | None = None
     ) -> dict[str, Any]:
         normalized_session_name = self._normalize_session_name(session_name)
-        with Session(self._database_engine()) as db_session:
+        with self._session() as db_session:
             session_row = self._get_session(db_session, normalized_session_name)
             if session_row is None:
                 return {"session_name": normalized_session_name, "profiles": []}
@@ -244,7 +227,7 @@ class ConfigurationRepository:
         normalized_session_name = self._normalize_session_name(session_name)
         normalized_profile_name = self._normalize_profile_name(profile_name)
 
-        with Session(self._database_engine()) as db_session:
+        with self._session() as db_session:
             session_row = self._get_session(db_session, normalized_session_name)
             if session_row is None:
                 raise KeyError(
@@ -289,7 +272,7 @@ class ConfigurationRepository:
         normalized_session_name = self._normalize_session_name(session_name)
         normalized_profile_name = self._normalize_profile_name(profile_name)
 
-        with Session(self._database_engine()) as db_session:
+        with self._session() as db_session:
             session_row, _ = self._get_or_create_session(
                 db_session, normalized_session_name
             )

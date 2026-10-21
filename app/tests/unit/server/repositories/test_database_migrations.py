@@ -52,6 +52,7 @@ def test_empty_database_is_created_and_migrated_to_head(tmp_path: Path) -> None:
     try:
         assert set(inspect(engine).get_table_names()) == {
             "alembic_version",
+            "application_settings",
             "chat_history_messages",
             "configuration_profiles",
             "execution_events",
@@ -60,7 +61,7 @@ def test_empty_database_is_created_and_migrated_to_head(tmp_path: Path) -> None:
             "provider_configurations",
             "user_sessions",
         }
-        assert _version(database_path) == "0003_canonical_provider_configuration"
+        assert _version(database_path) == "0004_database_backed_application_settings"
     finally:
         engine.dispose()
 
@@ -188,7 +189,7 @@ def test_0002_schema_migrates_provider_data_to_canonical_shape(
 
     engine = _engine(database_path)
     try:
-        assert _version(database_path) == "0003_canonical_provider_configuration"
+        assert _version(database_path) == "0004_database_backed_application_settings"
         assert "access_keys" not in inspect(engine).get_table_names()
         columns = {
             column["name"] for column in inspect(engine).get_columns("user_sessions")
@@ -291,8 +292,8 @@ def _add_marker_revision(migration_root: Path, *, failing: bool = False) -> None
         '''"""Add a marker column for migration integration tests."""\n\n'''
         "from alembic import op\n"
         "import sqlalchemy as sa\n\n"
-        "revision = '0004_marker'\n"
-        "down_revision = '0003_canonical_provider_configuration'\n"
+        "revision = '0005_marker'\n"
+        "down_revision = '0004_database_backed_application_settings'\n"
         "branch_labels = None\n"
         "depends_on = None\n\n"
         "def upgrade():\n"
@@ -307,8 +308,8 @@ def _add_marker_revision(migration_root: Path, *, failing: bool = False) -> None
             '''"""Fail after issuing DDL to verify rollback."""\n\n'''
             "from alembic import op\n"
             "import sqlalchemy as sa\n\n"
-            "revision = '0005_failure'\n"
-            "down_revision = '0004_marker'\n"
+            "revision = '0006_failure'\n"
+            "down_revision = '0005_marker'\n"
             "branch_labels = None\n"
             "depends_on = None\n\n"
             "def upgrade():\n"
@@ -369,7 +370,7 @@ def test_outdated_database_is_upgraded_to_head(
 
     engine = _engine(database_path)
     try:
-        assert _version(database_path) == "0004_marker"
+        assert _version(database_path) == "0005_marker"
         assert "migration_marker" in {
             column["name"] for column in inspect(engine).get_columns("user_sessions")
         }
@@ -391,7 +392,7 @@ def test_failed_migration_rolls_back_ddl_and_revision(
     _add_marker_revision(migration_root, failing=True)
     database_path = tmp_path / "rollback.db"
 
-    _apply_revision(database_path, "0004_marker")
+    _apply_revision(database_path, "0005_marker")
 
     with pytest.raises(migration.DatabaseMigrationError, match="failed"):
         migration.run_database_migrations(database_path)
@@ -402,7 +403,7 @@ def test_failed_migration_rolls_back_ddl_and_revision(
             column["name"] for column in inspect(engine).get_columns("user_sessions")
         }
         assert "failure_marker" not in columns
-        assert _version(database_path) == "0004_marker"
+        assert _version(database_path) == "0005_marker"
     finally:
         engine.dispose()
 
@@ -422,7 +423,7 @@ def test_concurrent_initialization_is_serialized(tmp_path: Path) -> None:
         for future in futures:
             future.result()
 
-    assert _version(database_path) == "0003_canonical_provider_configuration"
+    assert _version(database_path) == "0004_database_backed_application_settings"
 
 ###############################################################################
 def test_migration_lock_timeout_is_reported_as_typed_error(

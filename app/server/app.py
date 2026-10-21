@@ -5,7 +5,8 @@ from contextlib import asynccontextmanager
 from importlib.metadata import version as package_version
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -13,15 +14,17 @@ from server.common import path as common_path
 from server.common.constants import FASTAPI_DESCRIPTION, FASTAPI_TITLE
 from server.api.chat_history import router as chat_history_router
 from server.api.configurations import router as configurations_router
+from server.api.database import router as database_router
 from server.api.executions import router as executions_router
 from server.api.nodes import router as nodes_router
 from server.api.providers import router as providers_router
 from server.api.request_id import request_id_middleware
 from server.api.workflow_templates import router as workflow_templates_router
 from server.api.ws import router as ws_router
+from server.common.utils.logger import logger
 from server.configurations.startup import get_server_settings
 from server.repositories.database.initializer import initialize_database
-from server.repositories.configuration import reset_configuration_database_repositories
+from server.repositories.database.runtime import DatabaseUnavailableError
 from server.repositories.workflow.execution_run import execution_run_repository
 from server.repositories.workflow.database import reset_database_engines
 from server.services.startup_validation import run_startup_validations
@@ -64,11 +67,18 @@ def redirect_root_to_docs() -> RedirectResponse:
 ###############################################################################
 @asynccontextmanager
 async def app_lifespan(application: FastAPI) -> AsyncIterator[None]:
-    settings = get_server_settings()
-    initialize_database()
-    execution_run_repository.cleanup_retention(settings.jobs.retention_days)
-    run_startup_validations()
-    execution_service.recover_interrupted()
+    try:
+        initialize_database()
+        settings = get_server_settings()
+        execution_run_repository.cleanup_retention(settings.jobs.retention_days)
+        run_startup_validations()
+        execution_service.recover_interrupted()
+    except Exception:
+        # Keep the Settings UI available so a broken/missing target can be repaired.
+        logger.exception(
+            "Application startup failed; database configuration remains available for recovery"
+        )
+        settings = get_server_settings()
     application.state.server_settings = settings
     try:
         yield
@@ -76,7 +86,6 @@ async def app_lifespan(application: FastAPI) -> AsyncIterator[None]:
         from server.services.jobs import job_manager
 
         job_manager.shutdown()
-        reset_configuration_database_repositories()
         reset_database_engines()
 
 ###############################################################################
@@ -90,11 +99,18 @@ def create_app() -> FastAPI:
 
     app.middleware("http")(request_id_middleware)
 
+    @app.exception_handler(DatabaseUnavailableError)
+    async def database_unavailable_handler(
+        _request: Request, exc: DatabaseUnavailableError
+    ) -> JSONResponse:
+        return JSONResponse(status_code=503, content={"detail": str(exc)})
+
     app.include_router(workflow_templates_router)
     app.include_router(executions_router)
     app.include_router(nodes_router)
     app.include_router(providers_router)
     app.include_router(configurations_router)
+    app.include_router(database_router)
     app.include_router(chat_history_router)
     app.include_router(ws_router)
 
