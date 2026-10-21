@@ -6,6 +6,7 @@ from importlib.metadata import version as package_version
 from pathlib import Path
 
 from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
@@ -22,7 +23,7 @@ from server.api.request_id import request_id_middleware
 from server.api.workflow_templates import router as workflow_templates_router
 from server.api.ws import router as ws_router
 from server.common.utils.logger import logger
-from server.configurations.startup import get_server_settings
+from server.configurations.startup import get_configuration_runtime, get_server_settings
 from server.repositories.database.initializer import initialize_database
 from server.repositories.database.runtime import DatabaseUnavailableError
 from server.repositories.workflow.execution_run import execution_run_repository
@@ -65,6 +66,12 @@ def redirect_root_to_docs() -> RedirectResponse:
     return RedirectResponse("/docs")
 
 ###############################################################################
+def _parse_csv_setting(value: str | None, default: tuple[str, ...]) -> list[str]:
+    if value is None or not value.strip():
+        return list(default)
+    return [item.strip() for item in value.split(",") if item.strip()]
+
+###############################################################################
 @asynccontextmanager
 async def app_lifespan(application: FastAPI) -> AsyncIterator[None]:
     try:
@@ -98,6 +105,21 @@ def create_app() -> FastAPI:
     )
 
     app.middleware("http")(request_id_middleware)
+
+    environment = get_configuration_runtime().environment()
+    cors_origins = _parse_csv_setting(environment.get("CORS_ALLOWED_ORIGINS"), ())
+    if cors_origins:
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=cors_origins,
+            allow_credentials=environment.get_bool("CORS_ALLOW_CREDENTIALS", False),
+            allow_methods=_parse_csv_setting(
+                environment.get("CORS_ALLOWED_METHODS"), ("*",)
+            ),
+            allow_headers=_parse_csv_setting(
+                environment.get("CORS_ALLOWED_HEADERS"), ("*",)
+            ),
+        )
 
     @app.exception_handler(DatabaseUnavailableError)
     async def database_unavailable_handler(

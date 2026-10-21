@@ -36,6 +36,8 @@ class ProviderConfiguration(BaseModel):
 
 ###############################################################################
 class AppConfigurationPayload(BaseModel):
+    """UI-managed provider configuration; server runtime belongs in settings/.env."""
+
     model_config = ConfigDict(extra="forbid")
 
     session_name: str = Field(default=DEFAULT_SESSION_NAME, max_length=120)
