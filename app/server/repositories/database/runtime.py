@@ -36,17 +36,21 @@ from server.repositories.database.sqlite_policy import configure_sqlite_engine
 from server.repositories.schemas import ApplicationSettingsRecord
 
 
+###############################################################################
 class DatabaseUnavailableError(RuntimeError):
     pass
 
 
+###############################################################################
 class DatabaseBusyError(RuntimeError):
     pass
 
 
+###############################################################################
 class DatabaseRuntime:
     """Owns the active engine and fences repository work during a switch."""
 
+    # -------------------------------------------------------------------------
     def __init__(
         self, *, persist_configuration: bool = True, publish_settings: bool = True
     ) -> None:
@@ -65,11 +69,13 @@ class DatabaseRuntime:
             jobs=JobsSettings(polling_interval=1.0, retention_days=30),
         )
 
+    # -------------------------------------------------------------------------
     @property
     def settings(self) -> ServerSettings:
         with self._condition:
             return self._settings
 
+    # -------------------------------------------------------------------------
     @contextmanager
     def operation(self) -> Iterator[None]:
         """Fence a complete multi-step operation against database switching."""
@@ -86,6 +92,7 @@ class DatabaseRuntime:
                 self._active_operations -= 1
                 self._condition.notify_all()
 
+    # -------------------------------------------------------------------------
     @contextmanager
     def session(self) -> Iterator[Session]:
         with self._condition:
@@ -103,6 +110,7 @@ class DatabaseRuntime:
                 self._active_operations -= 1
                 self._condition.notify_all()
 
+    # -------------------------------------------------------------------------
     def status(self) -> dict[str, object]:
         with self._condition:
             return {
@@ -112,6 +120,7 @@ class DatabaseRuntime:
                 "error": self._error,
             }
 
+    # -------------------------------------------------------------------------
     def reset_for_tests(self) -> None:
         with self._condition:
             previous = self._engine
@@ -125,6 +134,7 @@ class DatabaseRuntime:
         if previous is not None:
             previous.dispose()
 
+    # -------------------------------------------------------------------------
     def initialize(self) -> None:
         config_file = configuration_path()
         if self._engine is not None and self._configuration_file == config_file.resolve():
@@ -156,6 +166,7 @@ class DatabaseRuntime:
                 self._error = str(exc)
             raise
 
+    # -------------------------------------------------------------------------
     def test(self, configuration: DatabaseConfiguration) -> None:
         target = configuration.resolved_path()
         if target.exists():
@@ -197,6 +208,7 @@ class DatabaseRuntime:
         except OSError as exc:
             raise DatabaseConfigurationError(f"Database directory is not writable: {exc}") from exc
 
+    # -------------------------------------------------------------------------
     def activate(self, configuration: DatabaseConfiguration) -> None:
         from server.services.jobs import job_manager
 
@@ -220,6 +232,7 @@ class DatabaseRuntime:
                 self._switching = False
                 self._condition.notify_all()
 
+    # -------------------------------------------------------------------------
     def _activate(
         self,
         configuration: DatabaseConfiguration,
@@ -258,6 +271,7 @@ class DatabaseRuntime:
 
             install_server_settings(self.settings)
 
+    # -------------------------------------------------------------------------
     def _load_settings(
         self, engine: Engine, *, import_legacy: bool
     ) -> tuple[int, float, int]:
@@ -310,6 +324,7 @@ class DatabaseRuntime:
                 pass
         return values
 
+    # -------------------------------------------------------------------------
     def _remove_legacy_batch_setting(self) -> None:
         os.environ.pop("DATABASE_INSERT_BATCH_SIZE", None)
         env_file = common_path.ENV_FILE

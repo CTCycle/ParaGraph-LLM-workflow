@@ -11,6 +11,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from server.common import path as common_path
 
 
+###############################################################################
 class DatabaseConfiguration(BaseModel):
     """Only settings required to connect to the internal application database."""
 
@@ -20,20 +21,24 @@ class DatabaseConfiguration(BaseModel):
     database_path: str = Field(default="database.db", min_length=1, max_length=2048)
     insert_batch_size: int = Field(default=1000, ge=1, le=100000)
 
+    # -------------------------------------------------------------------------
     def resolved_path(self, resources_root: Path | None = None) -> Path:
         path = Path(self.database_path).expanduser()
         root = resources_root or common_path.RESOURCES_ROOT
         return (path if path.is_absolute() else root / path).resolve()
 
 
+###############################################################################
 class DatabaseConfigurationError(RuntimeError):
     pass
 
 
+###############################################################################
 def configuration_path(resources_root: Path | None = None) -> Path:
     return (resources_root or common_path.RESOURCES_ROOT) / "database_config.json"
 
 
+###############################################################################
 def load_database_configuration(
     resources_root: Path | None = None,
 ) -> DatabaseConfiguration:
@@ -47,6 +52,7 @@ def load_database_configuration(
         raise DatabaseConfigurationError(f"Invalid database configuration: {exc}") from exc
 
 
+###############################################################################
 def save_database_configuration(
     configuration: DatabaseConfiguration,
     resources_root: Path | None = None,

@@ -10,6 +10,7 @@ from server.repositories.database.configuration import DatabaseConfiguration
 from server.repositories.database.runtime import DatabaseRuntime
 
 
+###############################################################################
 def test_configuration_repository_accepts_injected_sqlite_repository() -> None:
     engine = create_engine("sqlite:///:memory:")
     repository = ConfigurationRepository(
@@ -20,6 +21,7 @@ def test_configuration_repository_accepts_injected_sqlite_repository() -> None:
         assert session.get_bind() is engine
 
 
+###############################################################################
 def test_default_configuration_repository_tracks_the_active_database(
     tmp_path: Path, monkeypatch
 ) -> None:

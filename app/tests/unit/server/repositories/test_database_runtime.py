@@ -21,6 +21,7 @@ from server.repositories.database.runtime import (
 from server.repositories.schemas import ApplicationSettingsRecord
 
 
+###############################################################################
 def test_database_configuration_schema_is_strict_sqlite_only() -> None:
     from pydantic import ValidationError
 
@@ -38,6 +39,7 @@ def test_database_configuration_schema_is_strict_sqlite_only() -> None:
         )
 
 
+###############################################################################
 def test_runtime_ignores_database_environment_variable(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -62,6 +64,7 @@ def test_runtime_ignores_database_environment_variable(
         runtime.reset_for_tests()
 
 
+###############################################################################
 def test_database_configuration_write_is_atomic(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -83,6 +86,7 @@ def test_database_configuration_write_is_atomic(
     assert not list(tmp_path.glob("*.tmp"))
 
 
+###############################################################################
 def test_bootstrap_imports_legacy_values_once_and_restart_persists(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -128,6 +132,7 @@ def test_bootstrap_imports_legacy_values_once_and_restart_persists(
         runtime.reset_for_tests()
 
 
+###############################################################################
 def test_failed_legacy_settings_import_keeps_source_and_rolls_back_row(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -164,6 +169,7 @@ def test_failed_legacy_settings_import_keeps_source_and_rolls_back_row(
         runtime.reset_for_tests()
 
 
+###############################################################################
 def test_switching_databases_keeps_application_settings_isolated(
     tmp_path: Path,
 ) -> None:
@@ -186,6 +192,7 @@ def test_switching_databases_keeps_application_settings_isolated(
         runtime.reset_for_tests()
 
 
+###############################################################################
 def test_failed_target_and_active_workflow_leave_current_database_active(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -214,6 +221,7 @@ def test_failed_target_and_active_workflow_leave_current_database_active(
     runtime.reset_for_tests()
 
 
+###############################################################################
 def test_switch_waits_for_existing_repository_sessions(tmp_path: Path) -> None:
     runtime = DatabaseRuntime(persist_configuration=False, publish_settings=False)
     first = DatabaseConfiguration(database_path=str(tmp_path / "current.db"))
@@ -247,6 +255,7 @@ def test_switch_waits_for_existing_repository_sessions(tmp_path: Path) -> None:
     runtime.reset_for_tests()
 
 
+###############################################################################
 def test_switch_waits_for_multi_step_operations(tmp_path: Path) -> None:
     runtime = DatabaseRuntime(persist_configuration=False, publish_settings=False)
     runtime.activate(DatabaseConfiguration(database_path=str(tmp_path / "current.db")))
@@ -276,6 +285,7 @@ def test_switch_waits_for_multi_step_operations(tmp_path: Path) -> None:
     runtime.reset_for_tests()
 
 
+###############################################################################
 def test_switch_rejects_workflow_admitted_during_drain(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

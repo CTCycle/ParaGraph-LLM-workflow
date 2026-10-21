@@ -196,7 +196,6 @@ def test_invalid_llm_timeout_environment_value_fails_fast(
         loader.get_float("LLM_TIMEOUT_S", 30.0)
 
 ###############################################################################
-###############################################################################
 def test_cloud_provider_client_does_not_fallback_to_provider_env(monkeypatch) -> None:
     from server.services.llm.providers import CloudLLMClient
 

@@ -20,6 +20,7 @@ from server.repositories.database.runtime import (
 router = APIRouter(prefix="/database", tags=["database"])
 
 
+###############################################################################
 def _configuration_response() -> DatabaseConfigurationResponse:
     status = database_runtime.status()
     configured = status.get("configuration") or {}
@@ -33,11 +34,13 @@ def _configuration_response() -> DatabaseConfigurationResponse:
     )
 
 
+###############################################################################
 @router.get("/configuration", response_model=DatabaseConfigurationResponse)
 def get_database_configuration() -> DatabaseConfigurationResponse:
     return _configuration_response()
 
 
+###############################################################################
 @router.post("/test", response_model=DatabaseTestResponse)
 def test_database_configuration(
     payload: DatabaseConfigurationPayload,
@@ -52,6 +55,7 @@ def test_database_configuration(
     )
 
 
+###############################################################################
 @router.put("/configuration", response_model=DatabaseConfigurationResponse)
 def put_database_configuration(
     payload: DatabaseConfigurationPayload,

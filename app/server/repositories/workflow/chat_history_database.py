@@ -25,6 +25,7 @@ class DatabaseChatHistoryRepository:
     def __init__(self, database_repository: SQLiteRepository | None = None) -> None:
         self._database_repository = database_repository
 
+    # -------------------------------------------------------------------------
     @contextmanager
     def _session(self) -> Iterator[Session]:
         if self._database_repository is None:

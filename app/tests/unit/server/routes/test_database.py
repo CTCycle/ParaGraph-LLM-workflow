@@ -12,11 +12,13 @@ from server.repositories.database.runtime import DatabaseRuntime
 import pytest
 
 
+###############################################################################
 def _configure_runtime(runtime: DatabaseRuntime, monkeypatch, root: Path) -> None:
     monkeypatch.setattr(common_path, "RESOURCES_ROOT", root)
     monkeypatch.setattr(database_api, "database_runtime", runtime)
 
 
+###############################################################################
 def test_database_endpoints_test_apply_and_rollback(
     tmp_path: Path, monkeypatch
 ) -> None:
@@ -57,6 +59,7 @@ def test_database_endpoints_test_apply_and_rollback(
     runtime.reset_for_tests()
 
 
+###############################################################################
 def test_database_apply_rejects_an_active_workflow(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
