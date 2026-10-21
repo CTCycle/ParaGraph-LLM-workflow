@@ -19,7 +19,9 @@ Last updated: 2026-10-21
 
 ## Runtime Settings
 - Launcher option `3` creates or refreshes dependencies and the frontend build. Option `4` explicitly rebuilds the frontend. Application launch repairs missing dependencies independently, then serves the existing build when its content fingerprint is current.
-- The Database section in `/config` configures the internal SQLite file and insert batch size, tests a draft, and switches the active database after its schema is ready.
+- The Providers section in `/config` automatically saves endpoint, credential, and model metadata edits to the active database after a 400 ms debounce. Blur and page exit flush pending edits; subsequent provider operations read the saved values without an application restart. Successful saves are acknowledged inline, and failed saves remain visible while the edited values stay on screen.
+- Named configuration profiles are optional snapshots. Saving a profile does not gate ordinary settings persistence; loading one replaces the active provider configuration, including its stored credentials, in the current database.
+- The Database section in `/config` keeps edits as a draft. **Test Connection** validates a draft without changing the active database. **Apply** is the only settings confirmation: the backend validates and prepares the target schema before activating it, then atomically writes `<RESOURCES_ROOT>/database_config.json`. A failed switch leaves the previous database active.
 - PostgreSQL and MySQL remain supported by workflow database nodes only; they are not internal application database backends.
 - On upgrade, the old `DATABASE_INSERT_BATCH_SIZE` value is imported into the database configuration file once and removed from `.env`. Legacy `settings/configurations.json` values are imported transactionally into the initial database and removed after commit.
 - Internal application persistence always uses embedded SQLite. PostgreSQL settings belong only to user-configured workflow database nodes and are not used for application records.

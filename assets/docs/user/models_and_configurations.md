@@ -1,5 +1,5 @@
 # Models And Configurations
-Last updated: 2026-08-31
+Last updated: 2026-10-21
 
 ## Configurations Page
 Manage:
@@ -9,6 +9,17 @@ Manage:
 - OpenAI-compatible local provider endpoints for LM Studio and llama.cpp, including optional API keys and default chat or embedding model metadata
 - Hugging Face API key
 - Named configuration profiles through save and load flows
+
+Provider endpoint, credential, and model metadata fields save automatically
+after a short typing debounce. Moving focus, navigating away, and leaving the
+page flush pending edits. The current saved values are used by subsequent
+provider operations, and inline feedback reports success or a persistence
+error. A failed write leaves the edited value visible for correction or retry.
+
+Profiles are optional named snapshots. Loading a profile activates and saves it
+as the current provider configuration, including its credentials, while API
+responses keep secrets redacted. Database settings are managed separately and
+require the explicit Apply action.
 
 The provider catalog at `/providers/catalog` defines the supported providers,
 configuration kinds, defaults, and capabilities. Configuration APIs are backed

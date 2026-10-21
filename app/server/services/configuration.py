@@ -100,6 +100,26 @@ class ConfigurationService:
         return AppConfigurationPayload.model_validate(payload)
 
     # -------------------------------------------------------------------------
+    def activate_configuration_profile(
+        self, *, session_name: str | None, profile_name: str
+    ) -> AppConfigurationPayload:
+        """Replace the active configuration with a saved profile, including its secrets."""
+        profile = self.load_configuration_profile(
+            session_name=session_name, profile_name=profile_name
+        )
+        return self.save_configuration(profile)
+
+    # -------------------------------------------------------------------------
+    def activate_public_configuration_profile(
+        self, *, session_name: str | None, profile_name: str
+    ) -> AppConfigurationPayload:
+        return self._mask_configuration_secrets(
+            self.activate_configuration_profile(
+                session_name=session_name, profile_name=profile_name
+            )
+        )
+
+    # -------------------------------------------------------------------------
     def resolve_provider_configuration(
         self,
         *,

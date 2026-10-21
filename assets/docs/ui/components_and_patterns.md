@@ -1,5 +1,5 @@
 # Components And Patterns
-Last updated: 2026-08-26
+Last updated: 2026-10-21
 
 ## Navigation
 - The app uses a top bar with active-route underline and hover background treatment.
@@ -7,7 +7,7 @@ Last updated: 2026-08-26
 ## Primary Surfaces
 - Workflow canvas, node tree, and node cards.
 - Models explorer with split columns for Ollama and Hugging Face.
-- Configuration forms with modal save and load flows.
+- Automatically saved configuration forms with optional named profile save and load flows.
 - Nodes catalog, template cards, and custom import modal.
 
 ## Interaction States
