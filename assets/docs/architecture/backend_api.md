@@ -1,5 +1,5 @@
 # Backend API
-Last updated: 2026-10-18
+Last updated: 2026-10-21
 
 ## Root
 - `GET /`
@@ -55,6 +55,16 @@ server-side workflow graph index.
 Configuration payloads use `provider_configurations`. Public reads redact API
 keys and expose `has_api_key`; the provider catalog is the authoritative list
 of supported providers and defaults.
+
+## Internal Database
+- `GET /database/configuration` returns the selected SQLite path, active status,
+  and any recovery error.
+- `POST /database/test` checks a draft path without activating it. Invalid or
+  unavailable targets return `400`.
+- `PUT /database/configuration` prepares the target schema and its own settings,
+  then atomically persists and activates it. An active workflow returns `409`;
+  target preparation failures return `503` and keep the current database active.
+  Switching never copies application data.
 
 ## Chat History
 - `GET /chat-history`

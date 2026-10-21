@@ -7,9 +7,8 @@ from alembic.util.exc import CommandError
 from sqlalchemy import create_engine, pool
 from sqlalchemy.engine import Connection
 
-from server.configurations.settings import get_sqlite_settings_from_env
+from server.repositories.database.configuration import load_database_configuration
 from server.repositories.database.sqlite_policy import configure_sqlite_engine
-from server.repositories.database.sqlite import SQLiteRepository
 from server.repositories.schemas import Base
 
 
@@ -52,11 +51,8 @@ def _database_url() -> str:
     if configured_url:
         return configured_url
 
-    repository = SQLiteRepository(get_sqlite_settings_from_env())
-    try:
-        return repository.engine.url.render_as_string(hide_password=False)
-    finally:
-        repository.engine.dispose()
+    database_path = load_database_configuration().resolved_path()
+    return f"sqlite:///{database_path.as_posix()}"
 
 ###############################################################################
 def _migration_options(connection: Connection) -> dict[str, Any]:

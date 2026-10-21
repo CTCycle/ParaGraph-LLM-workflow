@@ -2,13 +2,12 @@ from __future__ import annotations
 
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
-import threading
+from contextlib import contextmanager
 from typing import Any
 
 from sqlalchemy import delete, func, select, update
 from sqlalchemy.orm import Session
 
-from server.configurations.startup import get_server_settings
 from server.contracts.execution import (
     CompiledExecutionPlan,
     ExecutionEventEnvelope,
@@ -17,6 +16,7 @@ from server.contracts.execution import (
     PauseCheckpoint,
 )
 from server.repositories.database.sqlite import SQLiteRepository
+from server.repositories.database.runtime import database_runtime
 from server.repositories.schemas import (
     ExecutionEventRecord,
     ExecutionRunRecord,
@@ -30,18 +30,16 @@ class ExecutionRunRepository:
     # -------------------------------------------------------------------------
     def __init__(self, database_repository: SQLiteRepository | None = None) -> None:
         self._database_repository = database_repository
-        self._cached_engine = None
-        self._engine_lock = threading.Lock()
 
     # -------------------------------------------------------------------------
-    def _engine(self):
-        with self._engine_lock:
-            if self._cached_engine is None:
-                repository = self._database_repository or SQLiteRepository(
-                    get_server_settings().database
-                )
-                self._cached_engine = repository.engine
-            return self._cached_engine
+    @contextmanager
+    def _session(self):
+        if self._database_repository is None:
+            with database_runtime.session() as session:
+                yield session
+        else:
+            with Session(self._database_repository.engine) as session:
+                yield session
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -54,7 +52,7 @@ class ExecutionRunRepository:
     def create_run(self, run: ExecutionRunState) -> None:
         if run.plan is None:
             raise ValueError("Execution run requires its serialized plan")
-        with Session(self._engine()) as session, session.begin():
+        with self._session() as session, session.begin():
             session.add(
                 ExecutionRunRecord(
                     run_id=run.run_id,
@@ -173,7 +171,7 @@ class ExecutionRunRepository:
 
     # -------------------------------------------------------------------------
     def get_run(self, run_id: str) -> ExecutionRunState | None:
-        with Session(self._engine()) as session:
+        with self._session() as session:
             row = session.get(ExecutionRunRecord, run_id)
             if row is None:
                 return None
@@ -195,7 +193,7 @@ class ExecutionRunRepository:
         output: dict[str, Any],
     ) -> ExecutionRunState | None:
         """Persist a pause checkpoint and the in-flight step atomically."""
-        with Session(self._engine()) as session, session.begin():
+        with self._session() as session, session.begin():
             run = session.get(ExecutionRunRecord, run_id)
             if run is None:
                 return None
@@ -225,7 +223,7 @@ class ExecutionRunRepository:
         resumed_output: dict[str, Any],
     ) -> ExecutionRunState | None:
         """Atomically verify and consume a pause checkpoint."""
-        with Session(self._engine()) as session, session.begin():
+        with self._session() as session, session.begin():
             run = session.get(ExecutionRunRecord, run_id)
             if run is None:
                 return None
@@ -265,7 +263,7 @@ class ExecutionRunRepository:
     # -------------------------------------------------------------------------
     def update_run(self, run_id: str, **kwargs: Any) -> ExecutionRunState | None:
         aliases = {"outputs": "outputs_json", "pause_payload": "pause_payload_json"}
-        with Session(self._engine()) as session, session.begin():
+        with self._session() as session, session.begin():
             row = session.get(ExecutionRunRecord, run_id)
             if row is None:
                 return None
@@ -299,7 +297,7 @@ class ExecutionRunRepository:
         self, run_id: str, step_id: str, **updates: Any
     ) -> ExecutionRunState | None:
         aliases = {"output": "output_json", "pause_payload": "pause_payload_json"}
-        with Session(self._engine()) as session, session.begin():
+        with self._session() as session, session.begin():
             row = session.execute(
                 select(ExecutionStepRecord).where(
                     ExecutionStepRecord.run_id == run_id,
@@ -322,7 +320,7 @@ class ExecutionRunRepository:
     def set_steps(
         self, run_id: str, steps: list[ExecutionStepState]
     ) -> ExecutionRunState | None:
-        with Session(self._engine()) as session, session.begin():
+        with self._session() as session, session.begin():
             if session.get(ExecutionRunRecord, run_id) is None:
                 return None
             session.execute(
@@ -346,7 +344,7 @@ class ExecutionRunRepository:
         step_id: str | None = None,
         request_id: str | None = None,
     ) -> ExecutionEventEnvelope:
-        with Session(self._engine()) as session, session.begin():
+        with self._session() as session, session.begin():
             sequence = (
                 session.execute(
                     select(func.max(ExecutionEventRecord.sequence)).where(
@@ -388,7 +386,7 @@ class ExecutionRunRepository:
             raise ValueError("after_sequence must be non-negative")
         if limit is not None and limit < 1:
             raise ValueError("limit must be positive")
-        with Session(self._engine()) as session:
+        with self._session() as session:
             statement = (
                 select(ExecutionEventRecord)
                 .where(
@@ -415,7 +413,7 @@ class ExecutionRunRepository:
 
     # -------------------------------------------------------------------------
     def list_recoverable(self) -> list[ExecutionRunState]:
-        with Session(self._engine()) as session:
+        with self._session() as session:
             rows = list(
                 session.execute(
                     select(ExecutionRunRecord).where(
@@ -443,7 +441,7 @@ class ExecutionRunRepository:
 
     # -------------------------------------------------------------------------
     def cleanup_completed_before(self, cutoff: datetime) -> int:
-        with Session(self._engine()) as session, session.begin():
+        with self._session() as session, session.begin():
             result = session.execute(
                 delete(ExecutionRunRecord).where(
                     ExecutionRunRecord.status.in_(("completed", "failed", "cancelled")),
@@ -462,7 +460,7 @@ class ExecutionRunRepository:
 
     # -------------------------------------------------------------------------
     def reset_for_tests(self) -> None:
-        with Session(self._engine()) as session, session.begin():
+        with self._session() as session, session.begin():
             session.execute(delete(ExecutionEventRecord))
             session.execute(delete(ExecutionStepRecord))
             session.execute(delete(ExecutionRunRecord))

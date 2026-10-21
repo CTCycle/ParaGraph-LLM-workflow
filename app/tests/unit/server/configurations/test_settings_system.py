@@ -11,10 +11,8 @@ from server.common import path as common_path
 from server.configurations.environment import EnvironmentLoader
 from server.configurations.startup import (
     ConfigurationRuntime,
-    get_server_settings,
     reset_configuration_runtime_for_tests,
 )
-from server.services.llm.providers import CloudLLMClient
 
 ###############################################################################
 @pytest.fixture(autouse=True)
@@ -168,76 +166,23 @@ def test_server_package_import_has_no_bootstrap_side_effect(monkeypatch) -> None
     assert os.getenv("PARAGRAPH_CLOUD_MODE") == "false"
 
 ###############################################################################
-def test_application_database_settings_are_sqlite_only(
+def test_application_settings_are_not_read_from_legacy_json_or_environment(
     tmp_path: Path, monkeypatch
 ) -> None:
     config_path = tmp_path / "configurations.json"
-    env_path = tmp_path / ".env"
     _write_json(
         config_path,
-        {
-            "global": {"seed": 42},
-            "jobs": {"polling_interval": 1.0},
-        },
+        {"global": {"seed": 7}, "jobs": {"polling_interval": 2.5}},
     )
-    _write_env(env_path, ["DATABASE_INSERT_BATCH_SIZE=37"])
+    monkeypatch.setenv("DATABASE_INSERT_BATCH_SIZE", "37")
 
-    runtime = ConfigurationRuntime(environment_loader=EnvironmentLoader(env_path))
-    settings = runtime.get_server_settings(config_path=config_path)
+    runtime = ConfigurationRuntime(environment_loader=EnvironmentLoader(tmp_path / ".env"))
+    settings = runtime.get_server_settings()
 
-    assert settings.database.insert_batch_size == 37
-    assert settings.jobs.retention_days == 30
-    assert not hasattr(settings.database, "engine")
-
-###############################################################################
-def test_application_database_settings_reject_non_positive_batch_size(
-    tmp_path: Path,
-) -> None:
-    config_path = tmp_path / "configurations.json"
-    env_path = tmp_path / ".env"
-    _write_json(
-        config_path, {"global": {"seed": 42}, "jobs": {"polling_interval": 1.0}}
-    )
-    _write_env(env_path, ["DATABASE_INSERT_BATCH_SIZE=0"])
-
-    runtime = ConfigurationRuntime(environment_loader=EnvironmentLoader(env_path))
-
-    with pytest.raises(ValueError, match="greater than or equal to 1"):
-        _ = runtime.get_server_settings(config_path=config_path)
-
-###############################################################################
-def test_runtime_settings_reject_obsolete_database_block_from_json(tmp_path: Path) -> None:
-    config_path = tmp_path / "configurations.json"
-    env_path = tmp_path / ".env"
-    _write_json(
-        config_path,
-        {
-            "database": {
-                "mode": "legacy",
-            },
-            "global": {"seed": 7},
-            "jobs": {"polling_interval": 2.5},
-        },
-    )
-    _write_env(env_path, ["DATABASE_INSERT_BATCH_SIZE=1000"])
-
-    runtime = ConfigurationRuntime(environment_loader=EnvironmentLoader(env_path))
-    with pytest.raises(RuntimeError, match="database"):
-        runtime.initialize(force=True, configuration_file=config_path)
-
-###############################################################################
-def test_invalid_numeric_environment_value_fails_fast(
-    tmp_path: Path,
-) -> None:
-    config_path = tmp_path / "configurations.json"
-    env_path = tmp_path / ".env"
-    _write_json(config_path, {"global": {"seed": 42}, "jobs": {"polling_interval": 1.0}})
-    _write_env(env_path, ["DATABASE_INSERT_BATCH_SIZE=not-a-number"])
-
-    runtime = ConfigurationRuntime(environment_loader=EnvironmentLoader(env_path))
-
-    with pytest.raises(ValueError, match="DATABASE_INSERT_BATCH_SIZE must be an integer"):
-        runtime.get_server_settings(config_path=config_path)
+    assert settings.database.insert_batch_size == 1000
+    assert settings.global_settings.seed == 42
+    assert settings.jobs.polling_interval == 1.0
+    assert config_path.is_file()
 
 ###############################################################################
 def test_invalid_llm_timeout_environment_value_fails_fast(
@@ -251,24 +196,10 @@ def test_invalid_llm_timeout_environment_value_fails_fast(
         loader.get_float("LLM_TIMEOUT_S", 30.0)
 
 ###############################################################################
-def test_missing_configuration_file_fails_fast(tmp_path: Path, monkeypatch) -> None:
-    monkeypatch.setenv("FASTAPI_HOST", "127.0.0.1")
-
-    with pytest.raises(RuntimeError, match="Configuration file not found"):
-        _ = get_server_settings(config_path=tmp_path / "missing.json")
-
-###############################################################################
-def test_invalid_configuration_file_fails_fast(tmp_path: Path, monkeypatch) -> None:
-    config_path = tmp_path / "configurations.json"
-    config_path.write_text("{not-json", encoding="utf-8")
-
-    monkeypatch.setenv("FASTAPI_HOST", "127.0.0.1")
-
-    with pytest.raises(RuntimeError, match="Unable to load configuration"):
-        _ = get_server_settings(config_path=config_path)
-
 ###############################################################################
 def test_cloud_provider_client_does_not_fallback_to_provider_env(monkeypatch) -> None:
+    from server.services.llm.providers import CloudLLMClient
+
     monkeypatch.setenv("OPENAI_API_KEY", "env-key")
     monkeypatch.setenv("OPENAI_BASE_URL", "https://example.invalid/v1")
 

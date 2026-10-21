@@ -9,6 +9,10 @@ from sqlalchemy import inspect
 
 from server.configurations.settings import SQLiteSettings
 from server.repositories.database import initializer as initializer_module
+from server.repositories.database.configuration import (
+    DatabaseConfiguration,
+    save_database_configuration,
+)
 from server.repositories.database import sqlite as sqlite_module
 from server.repositories.schemas import (
     Base,
@@ -33,22 +37,29 @@ def test_sqlite_repository_uses_resources_root_for_default_path(
     tmp_path: Path, monkeypatch
 ) -> None:
     monkeypatch.setattr(sqlite_module.common_path, "RESOURCES_ROOT", tmp_path)
+    save_database_configuration(
+        DatabaseConfiguration(database_path="selected.sqlite", insert_batch_size=27),
+        tmp_path,
+    )
 
     repository = sqlite_module.SQLiteRepository(_build_settings())
 
-    assert repository.db_path == str(tmp_path / "database.db")
+    assert repository.db_path == str(tmp_path / "selected.sqlite")
+    assert repository.insert_batch_size == 27
 
 ###############################################################################
 def test_initialize_sqlite_database_creates_application_schema(
     tmp_path: Path, monkeypatch
 ) -> None:
     monkeypatch.setattr(sqlite_module.common_path, "RESOURCES_ROOT", tmp_path)
+    save_database_configuration(DatabaseConfiguration(), tmp_path)
 
     initializer_module.initialize_sqlite_database(_build_settings())
 
     repository = sqlite_module.SQLiteRepository(_build_settings())
     assert set(inspect(repository.engine).get_table_names()) == {
         "alembic_version",
+        "application_settings",
         "chat_history_messages",
         "configuration_profiles",
         "execution_events",
@@ -116,10 +127,11 @@ def test_sqlite_repository_cascades_execution_children() -> None:
 
 ###############################################################################
 def test_sqlite_repository_save_load_and_count_rows(
-    tmp_path: Path, monkeypatch
+    tmp_path: Path,
 ) -> None:
-    monkeypatch.setattr(sqlite_module.common_path, "RESOURCES_ROOT", tmp_path)
-    repository = sqlite_module.SQLiteRepository(_build_settings())
+    repository = sqlite_module.SQLiteRepository(
+        _build_settings(), db_path=str(tmp_path / "database.db")
+    )
 
     frame = pd.DataFrame(
         [
@@ -135,10 +147,11 @@ def test_sqlite_repository_save_load_and_count_rows(
 
 ###############################################################################
 def test_sqlite_repository_load_missing_table_returns_empty_frame(
-    tmp_path: Path, monkeypatch
+    tmp_path: Path,
 ) -> None:
-    monkeypatch.setattr(sqlite_module.common_path, "RESOURCES_ROOT", tmp_path)
-    repository = sqlite_module.SQLiteRepository(_build_settings())
+    repository = sqlite_module.SQLiteRepository(
+        _build_settings(), db_path=str(tmp_path / "database.db")
+    )
 
     loaded = repository.load_from_database("missing_table")
 
@@ -147,10 +160,11 @@ def test_sqlite_repository_load_missing_table_returns_empty_frame(
 
 ###############################################################################
 def test_sqlite_repository_count_rows_raises_for_missing_table(
-    tmp_path: Path, monkeypatch
+    tmp_path: Path,
 ) -> None:
-    monkeypatch.setattr(sqlite_module.common_path, "RESOURCES_ROOT", tmp_path)
-    repository = sqlite_module.SQLiteRepository(_build_settings())
+    repository = sqlite_module.SQLiteRepository(
+        _build_settings(), db_path=str(tmp_path / "database.db")
+    )
 
     with pytest.raises(ValueError, match="does not exist"):
         repository.count_rows("missing_table")

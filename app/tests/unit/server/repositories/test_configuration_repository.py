@@ -4,59 +4,33 @@ from pathlib import Path
 
 from sqlalchemy import create_engine
 
-from server.configurations.settings import SQLiteSettings
+import server.repositories.configuration as configuration_module
 from server.repositories.configuration import ConfigurationRepository
+from server.repositories.database.configuration import DatabaseConfiguration
+from server.repositories.database.runtime import DatabaseRuntime
 
-###############################################################################
+
 def test_configuration_repository_accepts_injected_sqlite_repository() -> None:
     engine = create_engine("sqlite:///:memory:")
     repository = ConfigurationRepository(
         database_repository=type("SQLiteRepositoryStub", (), {"engine": engine})()
     )
 
-    assert repository._database_engine() is engine  # noqa: SLF001
+    with repository._session() as session:  # noqa: SLF001
+        assert session.get_bind() is engine
 
-###############################################################################
-def test_configuration_repository_uses_the_embedded_sqlite_path(
+
+def test_default_configuration_repository_tracks_the_active_database(
     tmp_path: Path, monkeypatch
 ) -> None:
-    monkeypatch.setattr(
-        "server.repositories.database.sqlite.common_path.RESOURCES_ROOT", tmp_path
-    )
-    monkeypatch.setattr(
-        "server.repositories.configuration.get_server_settings",
-        lambda: type(
-            "ServerSettingsStub",
-            (),
-            {"database": SQLiteSettings(insert_batch_size=1000)},
-        )(),
-    )
-
-    engine = ConfigurationRepository()._database_engine()  # noqa: SLF001
-
-    assert engine.url.get_backend_name() == "sqlite"
-    assert engine.url.database == str(tmp_path / "database.db")
-
-###############################################################################
-def test_default_configuration_repositories_reuse_the_same_engine(
-    tmp_path: Path, monkeypatch
-) -> None:
-    monkeypatch.setattr(
-        "server.repositories.database.sqlite.common_path.RESOURCES_ROOT", tmp_path
-    )
-    monkeypatch.setattr(
-        "server.repositories.configuration.common_path.RESOURCES_ROOT", tmp_path
-    )
-    monkeypatch.setattr(
-        "server.repositories.configuration.get_server_settings",
-        lambda: type(
-            "ServerSettingsStub",
-            (),
-            {"database": SQLiteSettings(insert_batch_size=1000)},
-        )(),
-    )
-
-    first = ConfigurationRepository()._database_engine()  # noqa: SLF001
-    second = ConfigurationRepository()._database_engine()  # noqa: SLF001
-
-    assert first is second
+    runtime = DatabaseRuntime(persist_configuration=False, publish_settings=False)
+    monkeypatch.setattr(configuration_module, "database_runtime", runtime)
+    first = DatabaseConfiguration(database_path=str(tmp_path / "first.sqlite"))
+    second = DatabaseConfiguration(database_path=str(tmp_path / "second.sqlite"), insert_batch_size=23)
+    runtime.activate(first)
+    with ConfigurationRepository()._session() as session:  # noqa: SLF001
+        assert Path(session.get_bind().url.database).resolve() == first.resolved_path()
+    runtime.activate(second)
+    with ConfigurationRepository()._session() as session:  # noqa: SLF001
+        assert Path(session.get_bind().url.database).resolve() == second.resolved_path()
+    runtime.reset_for_tests()

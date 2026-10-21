@@ -1,34 +1,8 @@
 from __future__ import annotations
 
-import os
 from dataclasses import dataclass
-from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
-
-###############################################################################
-def _env_text(key: str) -> str | None:
-    value = os.getenv(key)
-    if value is None:
-        return None
-    normalized = value.strip()
-    return normalized or None
-
-###############################################################################
-def _env_int(key: str, default: int) -> int:
-    value = _env_text(key)
-    if value is None:
-        return default
-    try:
-        return int(value)
-    except ValueError as exc:
-        raise ValueError(f"{key} must be an integer, got {value!r}.") from exc
-
-###############################################################################
-def load_sqlite_settings_from_env() -> dict[str, Any]:
-    return {
-        "insert_batch_size": _env_int("DATABASE_INSERT_BATCH_SIZE", 1000),
-    }
 
 ###############################################################################
 @dataclass(frozen=True)
@@ -52,11 +26,6 @@ class ServerSettings:
     database: SQLiteSettings
     global_settings: GlobalSettings
     jobs: JobsSettings
-
-###############################################################################
-class JsonSQLiteSettings(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    insert_batch_size: int = Field(default=1000, ge=1)
 
 ###############################################################################
 class JsonGlobalSettings(BaseModel):
@@ -87,8 +56,3 @@ class RuntimeConfigurationSettings(BaseModel):
                 retention_days=self.jobs.retention_days,
             ),
         )
-
-###############################################################################
-def get_sqlite_settings_from_env() -> SQLiteSettings:
-    settings = JsonSQLiteSettings.model_validate(load_sqlite_settings_from_env())
-    return SQLiteSettings(insert_batch_size=settings.insert_batch_size)

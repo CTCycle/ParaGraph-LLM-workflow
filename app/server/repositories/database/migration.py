@@ -14,8 +14,8 @@ from sqlalchemy.engine import Connection, Engine, URL, create_engine
 from sqlalchemy.pool import NullPool
 
 from server.common import path as common_path
-from server.common.constants import DATABASE_FILENAME
 from server.common.utils.logger import logger
+from server.repositories.database.configuration import load_database_configuration
 from server.repositories.database.sqlite_policy import configure_sqlite_engine
 from server.repositories.schemas import Base
 
@@ -31,7 +31,7 @@ class DatabaseMigrationError(RuntimeError):
 
 ###############################################################################
 def default_database_path() -> Path:
-    return common_path.RESOURCES_ROOT / DATABASE_FILENAME
+    return load_database_configuration().resolved_path()
 
 ###############################################################################
 def _sqlite_url(database_path: Path) -> URL:

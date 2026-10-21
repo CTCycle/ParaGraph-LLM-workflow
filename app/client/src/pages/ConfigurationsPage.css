@@ -26,6 +26,123 @@
     line-height: 1.45;
 }
 
+.config-settings-tabs {
+    display: flex;
+    gap: 4px;
+    width: fit-content;
+    margin: 18px 0 14px;
+    padding: 3px;
+    border: 1px solid rgba(73, 95, 128, 0.64);
+    border-radius: var(--radius-md);
+    background: rgba(5, 12, 23, 0.72);
+}
+
+.config-settings-tabs button {
+    min-height: 34px;
+    padding: 0 14px;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: #9ab1ce;
+    cursor: pointer;
+    font: inherit;
+    font-size: 0.86rem;
+}
+
+.config-settings-tabs button[aria-selected="true"] {
+    background: rgba(48, 134, 255, 0.2);
+    color: #f2f7ff;
+    box-shadow: inset 0 0 0 1px rgba(89, 154, 255, 0.45);
+}
+
+.config-settings-tabs button:focus-visible {
+    outline: 2px solid #75b2ff;
+    outline-offset: 2px;
+}
+
+.database-settings-panel {
+    max-width: 900px;
+}
+
+.database-active-summary {
+    display: grid;
+    grid-template-columns: 110px minmax(0, 1fr);
+    gap: 8px 14px;
+    padding: 13px 14px;
+    border: 1px solid rgba(73, 95, 128, 0.55);
+    border-radius: var(--radius-md);
+    background: rgba(4, 10, 20, 0.55);
+    margin: 2px 0 16px;
+}
+
+.database-summary-label {
+    color: #8ea8c8;
+    font-size: 0.78rem;
+}
+
+.database-active-summary strong,
+.database-active-summary code {
+    color: #e7f1ff;
+    font-size: 0.85rem;
+    overflow-wrap: anywhere;
+}
+
+.database-state {
+    padding: 5px 9px;
+    border: 1px solid rgba(73, 95, 128, 0.7);
+    border-radius: 999px;
+    color: #bbcee5;
+    font-size: 0.74rem;
+    white-space: nowrap;
+}
+
+.database-state-connected {
+    border-color: rgba(63, 174, 132, 0.48);
+    background: rgba(30, 133, 94, 0.15);
+    color: #95e4c3;
+}
+
+.database-state-unavailable {
+    border-color: rgba(236, 116, 105, 0.5);
+    background: rgba(151, 45, 45, 0.14);
+    color: #ffaaa4;
+}
+
+.database-settings-fields {
+    grid-template-columns: minmax(0, 2fr) minmax(180px, 1fr);
+    gap: 14px;
+}
+
+.database-settings-fields small {
+    color: #8ea8c8;
+    font-size: 0.76rem;
+    line-height: 1.4;
+}
+
+.database-switch-note {
+    margin: 16px 0 0;
+    color: #b9cce3;
+    font-size: 0.82rem;
+    line-height: 1.45;
+}
+
+.database-settings-actions {
+    margin-top: 16px;
+}
+
+.database-feedback {
+    margin: 12px 0 0;
+    line-height: 1.45;
+}
+
+.database-feedback-success {
+    color: #95e4c3;
+}
+
+.database-feedback-error {
+    color: #ffaaa4;
+}
+
 .config-page-layout {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));

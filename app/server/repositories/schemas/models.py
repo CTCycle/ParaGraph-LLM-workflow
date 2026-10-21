@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 from datetime import datetime, timezone
 
-from sqlalchemy import DateTime, ForeignKey, Index, UniqueConstraint
+from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, Index, UniqueConstraint
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 from server.repositories.schemas.types import JSONSequence
@@ -40,6 +40,33 @@ class UserSession(Base):
         back_populates="session",
         cascade="all, delete-orphan",
         passive_deletes=True,
+    )
+
+###############################################################################
+class ApplicationSettingsRecord(Base):
+    """Singleton row containing backend application settings."""
+
+    __tablename__ = "application_settings"
+
+    settings_id: Mapped[int] = mapped_column(primary_key=True)
+    global_seed: Mapped[int] = mapped_column(nullable=False, default=42)
+    jobs_polling_interval: Mapped[float] = mapped_column(nullable=False, default=1.0)
+    jobs_retention_days: Mapped[int] = mapped_column(nullable=False, default=30)
+    legacy_imported: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow
+    )
+
+    __table_args__ = (
+        CheckConstraint("settings_id = 1", name="ck_application_settings_singleton"),
+        CheckConstraint(
+            "jobs_polling_interval > 0",
+            name="ck_application_settings_polling_interval_positive",
+        ),
+        CheckConstraint(
+            "jobs_retention_days >= 1",
+            name="ck_application_settings_retention_days_positive",
+        ),
     )
 
 ###############################################################################

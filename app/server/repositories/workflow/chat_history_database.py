@@ -1,13 +1,15 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from contextlib import contextmanager
+from typing import Iterator
 
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
-from server.configurations.startup import get_server_settings
 from server.contracts.chat_history import ChatHistoryMessage
 from server.repositories.database.sqlite import SQLiteRepository
+from server.repositories.database.runtime import database_runtime
 from server.repositories.schemas import ChatHistoryMessageRecord
 
 ###############################################################################
@@ -21,15 +23,22 @@ class DatabaseChatHistoryRepository:
 
     # -------------------------------------------------------------------------
     def __init__(self, database_repository: SQLiteRepository | None = None) -> None:
-        self._database_repository = database_repository or SQLiteRepository(
-            get_server_settings().database
-        )
+        self._database_repository = database_repository
+
+    @contextmanager
+    def _session(self) -> Iterator[Session]:
+        if self._database_repository is None:
+            with database_runtime.session() as session:
+                yield session
+        else:
+            with Session(self._database_repository.engine) as session:
+                yield session
 
     # -------------------------------------------------------------------------
     def get_messages(
         self, workflow_id: str, execution_session_id: str, node_id: str
     ) -> list[ChatHistoryMessage]:
-        with Session(self._database_repository.engine) as db_session:
+        with self._session() as db_session:
             rows = list(
                 db_session.execute(
                     select(ChatHistoryMessageRecord)
@@ -59,7 +68,7 @@ class DatabaseChatHistoryRepository:
         node_id: str,
         messages: list[ChatHistoryMessage],
     ) -> list[ChatHistoryMessage]:
-        with Session(self._database_repository.engine) as db_session:
+        with self._session() as db_session:
             for item in messages:
                 db_session.add(
                     ChatHistoryMessageRecord(
@@ -85,7 +94,7 @@ class DatabaseChatHistoryRepository:
     ) -> list[ChatHistoryMessage]:
         if max_messages < 1:
             raise ValueError("max_messages must be positive")
-        with Session(self._database_repository.engine) as db_session:
+        with self._session() as db_session:
             for item in messages:
                 db_session.add(
                     ChatHistoryMessageRecord(
@@ -135,7 +144,7 @@ class DatabaseChatHistoryRepository:
 
     # -------------------------------------------------------------------------
     def clear_session(self, workflow_id: str, execution_session_id: str) -> None:
-        with Session(self._database_repository.engine) as db_session:
+        with self._session() as db_session:
             db_session.execute(
                 delete(ChatHistoryMessageRecord).where(
                     ChatHistoryMessageRecord.workflow_id == workflow_id,
@@ -153,7 +162,7 @@ class DatabaseChatHistoryRepository:
         node_id: str,
         messages: list[ChatHistoryMessage],
     ) -> None:
-        with Session(self._database_repository.engine) as db_session:
+        with self._session() as db_session:
             db_session.execute(
                 delete(ChatHistoryMessageRecord).where(
                     ChatHistoryMessageRecord.workflow_id == workflow_id,
@@ -179,7 +188,7 @@ class DatabaseChatHistoryRepository:
     def clear_messages(
         self, workflow_id: str, execution_session_id: str, node_id: str
     ) -> None:
-        with Session(self._database_repository.engine) as db_session:
+        with self._session() as db_session:
             db_session.execute(
                 delete(ChatHistoryMessageRecord).where(
                     ChatHistoryMessageRecord.workflow_id == workflow_id,
@@ -192,7 +201,7 @@ class DatabaseChatHistoryRepository:
 
     # -------------------------------------------------------------------------
     def reset_for_tests(self) -> None:
-        with Session(self._database_repository.engine) as db_session:
+        with self._session() as db_session:
             db_session.execute(delete(ChatHistoryMessageRecord))
             db_session.commit()
 

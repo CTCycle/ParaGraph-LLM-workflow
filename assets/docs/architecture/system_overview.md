@@ -1,5 +1,5 @@
 # System Overview
-Last updated: 2026-09-28
+Last updated: 2026-10-21
 
 ## System Summary
 ParaGraph is a local-first workflow platform composed of:
@@ -37,7 +37,7 @@ The repository contains source code plus generated and runtime-heavy folders. Th
 |  |  |  `- workflow/              (node manifests, database integrations, and chat history adapters)
 |  |  `- common/                   (constants, security, logging)
 |- data/                          (db, logs, models, nodes, templates, artifacts)
-|- settings/                       (.env and configurations.json)
+|- settings/                       (.env and its example; legacy settings import only)
 |- runtimes/                       (portable Python, uv, Node, .venv, uv.lock)
 |- start_on_windows.ps1            (Windows launcher and maintenance menu)
 `- README.md
@@ -62,3 +62,4 @@ repository, or SQLAlchemy implementation modules.
   backend reads validated graph payloads for compilation and execution; it does
   not maintain a workflow CRUD store.
 - Workflow runs are durable application-database records: the frontend can reload or reconnect to a run, recover queued or interrupted work after backend startup, and resume paused human-review steps with a resume token.
+- Internal SQLite connection settings live in `database_config.json` under the resource root; backend application settings live in the selected database. `DatabaseRuntime` owns the active engine and drains leased sessions when the Settings page switches databases.

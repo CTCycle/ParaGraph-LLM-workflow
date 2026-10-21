@@ -68,6 +68,21 @@ export interface ConfigurationProfileSummary {
     updated_at: string
 }
 
+export interface DatabaseConfigurationPayload {
+    backend: "sqlite"
+    database_path: string
+    insert_batch_size: number
+}
+
+export interface DatabaseConfigurationResponse {
+    backend: "sqlite"
+    database_path: string
+    insert_batch_size: number
+    resolved_path?: string | null
+    connected: boolean
+    error?: string | null
+}
+
 export interface DatabaseConnectionCheckRequest {
     node_type: "SQL_DATABASE" | "SQL_FILE_DATABASE"
     node_version: number
@@ -121,6 +136,11 @@ export interface DatabaseSchemaTable {
     primary_key: DatabaseSchemaPrimaryKey
     foreign_keys: DatabaseSchemaForeignKey[]
     indexes: DatabaseSchemaIndex[]
+}
+
+export interface DatabaseTestResponse {
+    ok: boolean
+    message: string
 }
 
 export interface EventHistoryResponse {

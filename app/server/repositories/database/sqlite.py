@@ -28,6 +28,7 @@ from server.common import path as common_path
 from server.common.constants import DATABASE_FILENAME
 from server.common.utils.logger import logger
 from server.configurations.settings import SQLiteSettings
+from server.repositories.database.configuration import load_database_configuration
 from server.repositories.database.sqlite_policy import configure_sqlite_engine
 from server.repositories.schemas import Base
 
@@ -53,8 +54,19 @@ class SQLiteRepository:
         engine: Engine | None = None,
         db_path: str | None = None,
     ) -> None:
+        configuration = (
+            load_database_configuration()
+            if db_path is None and engine is None
+            else None
+        )
         default_db_path = common_path.RESOURCES_ROOT / DATABASE_FILENAME
-        resolved_db_path = Path(db_path) if db_path is not None else default_db_path
+        resolved_db_path = (
+            Path(db_path)
+            if db_path is not None
+            else configuration.resolved_path()
+            if configuration is not None
+            else default_db_path
+        )
         resolved_db_path.parent.mkdir(parents=True, exist_ok=True)
         self.db_path = str(resolved_db_path)
         self.engine = configure_sqlite_engine(
@@ -65,7 +77,11 @@ class SQLiteRepository:
             )
         )
         self.session = sessionmaker(bind=self.engine, future=True)
-        self.insert_batch_size = settings.insert_batch_size
+        self.insert_batch_size = (
+            configuration.insert_batch_size
+            if configuration is not None
+            else settings.insert_batch_size
+        )
 
     # -------------------------------------------------------------------------
     def _model_for_table(self, table_name: str) -> type[Any] | None:

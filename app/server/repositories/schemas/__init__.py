@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from server.repositories.schemas.models import (
     Base,
+    ApplicationSettingsRecord,
     ChatHistoryMessageRecord,
     ConfigurationProfile,
     ExecutionEventRecord,
@@ -14,6 +15,7 @@ from server.repositories.schemas.types import JSONSequence
 
 __all__ = [
     "Base",
+    "ApplicationSettingsRecord",
     "ChatHistoryMessageRecord",
     "ConfigurationProfile",
     "ExecutionEventRecord",
