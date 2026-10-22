@@ -1,10 +1,14 @@
-<h1 align="center"><img src="app/client/public/favicon.svg" alt="" width="44">&nbsp;ParaGraph LLM Workflow</h1>
+<p align="center"><img src="app/client/public/favicon.svg" alt="ParaGraph logo" width="96"></p>
 
-Last updated: 2026-10-20
+# ParaGraph LLM Workflow
 
 **Build and run LLM workflows with a local visual node editor.**
 
-[![License](https://img.shields.io/github/license/CTCycle/ParaGraph-LLM-workflow?style=flat-square)](LICENSE) [![Release](https://img.shields.io/github/v/release/CTCycle/ParaGraph-LLM-workflow?style=flat-square)](https://github.com/CTCycle/ParaGraph-LLM-workflow/releases) [![CI](https://img.shields.io/github/actions/workflow/status/CTCycle/ParaGraph-LLM-workflow/ci.yml?branch=develop&style=flat-square)](https://github.com/CTCycle/ParaGraph-LLM-workflow/actions/workflows/ci.yml?query=branch%3Adevelop) [![Python 3.14](https://img.shields.io/badge/Python-3.14-3776AB?logo=python&logoColor=white&style=flat-square)](app/server/pyproject.toml) [![React](https://img.shields.io/badge/React-18-149ECA?logo=react&logoColor=white&style=flat-square)](app/client/package.json) [![Windows](https://img.shields.io/badge/platform-Windows-0078D4?logo=windows&logoColor=white&style=flat-square)](assets/docs/runtime/startup.md)
+[![GitHub stars](https://img.shields.io/github/stars/CTCycle/ParaGraph-LLM-workflow?style=flat-square)](https://github.com/CTCycle/ParaGraph-LLM-workflow/stargazers) [![Last commit](https://img.shields.io/github/last-commit/CTCycle/ParaGraph-LLM-workflow?style=flat-square)](https://github.com/CTCycle/ParaGraph-LLM-workflow/commits) [![Release](https://img.shields.io/github/v/release/CTCycle/ParaGraph-LLM-workflow?style=flat-square)](https://github.com/CTCycle/ParaGraph-LLM-workflow/releases) [![License](https://img.shields.io/github/license/CTCycle/ParaGraph-LLM-workflow?style=flat-square)](LICENSE)
+
+[![Python](https://img.shields.io/badge/Python-3.14.2-3776AB?logo=python&logoColor=white&style=flat-square)](app/server/pyproject.toml) [![React](https://img.shields.io/badge/React-18-149ECA?logo=react&logoColor=white&style=flat-square)](app/client/package.json) [![Platform](https://img.shields.io/badge/Platform-Windows-0078D4?logo=windows&logoColor=white&style=flat-square)](assets/docs/runtime/startup.md)
+
+<p align="center"><sub>Last updated: 2026-10-20</sub></p>
 
 ## Overview
 
@@ -20,12 +24,18 @@ ParaGraph is a local-first web application for building, compiling, running, and
 
 Provider execution depends on the configured endpoint, model, credentials, and external service.
 
+## Screenshots
+
+No workflow editor screenshot is currently available. A placeholder will be added once one is captured.
+
 ## Technology Stack
 
-- React frontend with TypeScript and Vite.
-- FastAPI backend using the launcher-pinned Python 3.14.2 runtime.
-- SQLite for application persistence and Node.js 22.12.0 for frontend tooling.
-- Windows PowerShell launcher for runtime setup and local startup.
+| Layer | Technology | Version |
+|---|---|---|
+| Frontend | React, TypeScript, Vite | - |
+| Backend | Python, FastAPI | 3.14.2 |
+| Frontend tooling | Node.js | 22.12.0 |
+| Database | SQLite | - |
 
 ## Installation and Usage
 
@@ -43,9 +53,15 @@ To build a workflow, choose a template or add nodes from the catalog, connect co
 
 ## Configuration
 
-- The launcher creates `settings/.env` from [`settings/.env.example`](settings/.env.example) when it is missing. The default UI and backend addresses are `127.0.0.1:8002` and `127.0.0.1:5002`.
-- Shared runtime data and the embedded SQLite database use `data/` by default. Set `PARAGRAPH_RESOURCES_DIR` in `settings/.env` to an absolute or repository-relative path to relocate them.
-- Configure provider credentials in the application and keep machine-specific settings in the ignored `settings/.env` file.
+The launcher creates `settings/.env` from [`settings/.env.example`](settings/.env.example) when it is missing. The default UI and backend addresses are `127.0.0.1:8002` and `127.0.0.1:5002`.
+
+Shared runtime data and the embedded SQLite database use `data/` by default. Set `PARAGRAPH_RESOURCES_DIR` in `settings/.env` to an absolute or repository-relative path to relocate them.
+
+Configure provider credentials in the application and keep machine-specific settings in the ignored `settings/.env` file.
+
+| Variable | Purpose | Default |
+|---|---|---|
+| `PARAGRAPH_RESOURCES_DIR` | Shared runtime data and embedded SQLite location | `data` |
 
 ## Documentation
 
@@ -54,6 +70,16 @@ To build a workflow, choose a template or add nodes from the catalog, connect co
 - [Models and configurations](assets/docs/user/models_and_configurations.md)
 - [Nodes and execution](assets/docs/user/nodes_and_execution.md)
 - [Startup](assets/docs/runtime/startup.md) and [configuration](assets/docs/runtime/configuration.md)
+
+## Limitations
+
+- Provider execution depends on the configured endpoint, model, credentials, and external service.
+- The active workflow graph is stored in browser storage and can be lost if browser data is cleared; export important workflows as JSON.
+- Local-first application: run and execution records are stored in SQLite on the computer running the app.
+
+## Contributing
+
+Contributions are welcome. Open an issue or pull request with a clear description of the change and its motivation. Keep changes focused and consistent with the existing code style.
 
 ## License
 
