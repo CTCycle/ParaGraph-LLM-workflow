@@ -3,16 +3,15 @@ from __future__ import annotations
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from importlib.metadata import version as package_version
-from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from fastapi.responses import FileResponse, RedirectResponse
-from fastapi.staticfiles import StaticFiles
+from fastapi.responses import RedirectResponse
 
 from server.common import path as common_path
 from server.common.constants import FASTAPI_DESCRIPTION, FASTAPI_TITLE
+from server.api.client_hosting import ClientHostingMiddleware
 from server.api.chat_history import router as chat_history_router
 from server.api.configurations import router as configurations_router
 from server.api.database import router as database_router
@@ -36,30 +35,6 @@ APP_VERSION = package_version("paragraph")
 ###############################################################################
 def _client_build_available() -> bool:
     return (common_path.FRONTEND_DIST_ROOT / "index.html").is_file()
-
-###############################################################################
-def _resolve_client_file(full_path: str) -> Path | None:
-    client_root = common_path.FRONTEND_DIST_ROOT.resolve()
-    requested_path = (client_root / full_path).resolve()
-
-    if not requested_path.is_relative_to(client_root):
-        return None
-
-    if requested_path.is_file():
-        return requested_path
-
-    return None
-
-###############################################################################
-def serve_client_root() -> FileResponse:
-    return FileResponse(common_path.FRONTEND_DIST_ROOT / "index.html")
-
-###############################################################################
-def serve_client_path(full_path: str) -> FileResponse:
-    client_file = _resolve_client_file(full_path)
-    if client_file is not None:
-        return FileResponse(client_file)
-    return FileResponse(common_path.FRONTEND_DIST_ROOT / "index.html")
 
 ###############################################################################
 def redirect_root_to_docs() -> RedirectResponse:
@@ -137,20 +112,10 @@ def create_app() -> FastAPI:
     app.include_router(ws_router)
 
     if _client_build_available():
-        if common_path.FRONTEND_ASSETS_ROOT.is_dir():
-            app.mount(
-                "/assets",
-                StaticFiles(directory=str(common_path.FRONTEND_ASSETS_ROOT)),
-                name="paragraph-assets",
-            )
-        app.add_api_route(
-            "/", serve_client_root, methods=["GET"], include_in_schema=False
-        )
-        app.add_api_route(
-            "/{full_path:path}",
-            serve_client_path,
-            methods=["GET"],
-            include_in_schema=False,
+        app.add_middleware(
+            ClientHostingMiddleware,
+            api_base=environment.get("VITE_API_BASE_URL") or "",
+            client_root=common_path.FRONTEND_DIST_ROOT,
         )
         return app
 

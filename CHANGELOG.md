@@ -1,5 +1,9 @@
 # Changelog
 
+## [Unreleased]
+
+- The launcher now runs a single backend process that serves the built frontend, the `/api` path, and the execution WebSocket from one origin; the Vite preview server is no longer started.
+
 ## [1.0.0] - 2026-10-18
 
 First stable local web application release.

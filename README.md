@@ -50,13 +50,13 @@ Set-Location .\ParaGraph-LLM-workflow
 .\start_on_windows.ps1
 ```
 
-Choose **1. Launch application**. On first use, the launcher prepares its Python and Node.js runtimes, dependencies, SQLite database, and frontend build, then opens the app at <http://127.0.0.1:8002>. Backend API documentation is available at <http://127.0.0.1:5002/docs>.
+Choose **1. Launch application**. On first use, the launcher prepares its Python and Node.js runtimes, dependencies, SQLite database, and frontend build, then opens the app at <http://127.0.0.1:5002>. Backend API documentation is available at <http://127.0.0.1:5002/docs>. Stop the application with Ctrl+C in the backend console that the launcher opened.
 
 To build a workflow, choose a template or add nodes from the catalog, connect compatible ports, select **Run Workflow**, and resolve any blocking diagnostics shown by the compiler. Runs report status and events in the editor; workflow graphs can be exported to JSON.
 
 ## Configuration
 
-The launcher creates `settings/.env` from [`settings/.env.example`](settings/.env.example) when it is missing. The default UI and backend addresses are `127.0.0.1:8002` and `127.0.0.1:5002`.
+The launcher creates `settings/.env` from [`settings/.env.example`](settings/.env.example) when it is missing. The application is served by the backend at `127.0.0.1:5002`; `127.0.0.1:8002` is used only by the Vite development server.
 
 Shared runtime data and the embedded SQLite database use `data/` by default. Set `PARAGRAPH_RESOURCES_DIR` in `settings/.env` to an absolute or repository-relative path to relocate them.
 

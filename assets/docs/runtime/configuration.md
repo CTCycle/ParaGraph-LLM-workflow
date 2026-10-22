@@ -1,5 +1,5 @@
 # Configuration
-Last updated: 2026-10-21
+Last updated: 2026-10-22
 
 ## Shared Configuration Sources
 - Shared environment keys are loaded from `settings/.env`.
@@ -44,20 +44,20 @@ Last updated: 2026-10-21
 ## Cross-Runtime Communication
 - Frontend to backend communication targets the relative API base path `/api`.
 - `VITE_API_BASE_URL` selects that frontend API path at build time. `FASTAPI_HOST`, `FASTAPI_PORT`, `UI_HOST`, and `UI_PORT` configure the backend and frontend listeners. Optional CORS origins, methods, headers, and credential policy are configured with `CORS_ALLOWED_ORIGINS`, `CORS_ALLOWED_METHODS`, `CORS_ALLOWED_HEADERS`, and `CORS_ALLOW_CREDENTIALS` in `settings/.env`.
-- In web mode, Vite handles proxying or rewriting to the backend.
+- In development, the Vite dev server proxies `/api` to the backend and strips the prefix. In launcher/production mode, the backend itself strips the `VITE_API_BASE_URL` prefix, serves the built files under `runtimes/cache/frontend-dist`, and returns `index.html` for browser navigations (`Accept: text/html`) so client routes such as `/nodes` survive a reload; `/docs`, `/redoc`, and `/openapi.json` remain backend pages.
 - WebSocket execution streaming uses `/api/executions/ws/runs/{run_id}` derived from the current origin.
-- The Windows launcher starts uvicorn, waits for `/docs`, then starts Vite preview and opens the UI URL.
+- The Windows launcher starts uvicorn, waits for `/docs` and the application root, then opens the backend URL.
 
 ## Frontend Build Freshness
 - Option `1` records a SHA-256 fingerprint at `runtimes/cache/frontend-dist/.paragraph-build-fingerprint` after a successful `npm run build`.
 - The fingerprint includes every file under `app/client/src` and `app/client/public`, `index.html`, `package.json`, `package-lock.json`, `tsconfig.json`, `tsconfig.node.json`, `vite.config.ts`, and the effective `VITE_API_BASE_URL` exposed to the frontend bundle.
 - A missing output, missing or malformed fingerprint, changed content, or changed `VITE_API_BASE_URL` triggers a rebuild. A source timestamp change without a content change does not.
 - Frontend dependency manifests newer than `app/client/node_modules/.package-lock.json` trigger dependency repair independently of the build fingerprint.
-- `FASTAPI_HOST`, `FASTAPI_PORT`, `UI_HOST`, `UI_PORT`, `RELOAD`, and CORS settings are runtime-only values. Changing them does not invalidate a current compiled bundle; the launcher applies listener settings when starting uvicorn or Vite preview, and the backend applies CORS settings at startup. `VITE_API_BASE_URL` is build-time input and is included in the frontend fingerprint.
+- `FASTAPI_HOST`, `FASTAPI_PORT`, `UI_HOST`, `UI_PORT`, `RELOAD`, and CORS settings are runtime-only values. Changing them does not invalidate a current compiled bundle; the launcher applies listener settings when starting uvicorn (`UI_HOST`/`UI_PORT` apply only to the Vite dev server), and the backend applies CORS settings at startup. `VITE_API_BASE_URL` is build-time input and is included in the frontend fingerprint.
 - A failed or interrupted build does not receive a new fingerprint. Option `1` therefore rebuilds on the next attempt.
 
 ## Shared Runtime Data
 - Shared runtime data lives under `PARAGRAPH_RESOURCES_DIR` when configured, or under `data` by default. This includes `database_config.json`, the selected SQLite database, logs, artifacts, node assets, workflow templates, and model assets. The active workflow graph remains in browser storage and JSON exports.
-- The launcher imports `settings/.env` into the process environment before starting either process. `FASTAPI_HOST`, `FASTAPI_PORT`, `UI_HOST`, `UI_PORT`, and `RELOAD` are required; missing or invalid runtime values fail fast rather than selecting hidden port fallbacks. CORS settings are optional and read by the backend from the same environment file; an empty `CORS_ALLOWED_ORIGINS` leaves cross-origin access disabled.
+- The launcher imports `settings/.env` into the process environment before starting either process. `FASTAPI_HOST`, `FASTAPI_PORT`, `UI_HOST`, `UI_PORT`, and `RELOAD` are required (the UI values only matter for development); missing or invalid runtime values fail fast rather than selecting hidden port fallbacks. CORS settings are optional and read by the backend from the same environment file; an empty `CORS_ALLOWED_ORIGINS` leaves cross-origin access disabled.
 - All disposable runtime, test, tool, browser, and generated frontend-build data is kept under `runtimes/cache`. This hierarchy is separate from persistent application runtime data and user resources under the configured resource root.
 - Database switching is live for the supported single-worker backend: active workflow jobs must finish or be cancelled, and current database sessions are drained before activation. Changing `PARAGRAPH_RESOURCES_DIR` or using multiple backend workers requires a restart so every process reads the same configuration.
