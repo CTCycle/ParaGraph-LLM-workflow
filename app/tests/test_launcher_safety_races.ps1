@@ -132,7 +132,7 @@ Invoke-TestCase -Name 'surviving process after successful termination command is
 Invoke-TestCase -Name 'replacement listener is detected and never terminated' -Test {
     $script:HarnessState.ProcessChecks.Enqueue($true)
     $script:HarnessState.ProcessChecks.Enqueue($false)
-    $settings = @{ FASTAPI_PORT = 5002; UI_PORT = 8002 }
+    $settings = @{ FASTAPI_PORT = 5002 }
     $failure = $null
     try { [void](Resolve-LaunchPortConflicts -Settings $settings) }
     catch { $failure = $_.Exception.Message }

@@ -129,8 +129,8 @@ function Write-MenuDivider {
 
 function Get-LauncherMenuEntries {
     return @(
-        [pscustomobject]@{ Section = 'APPLICATION'; Title = 'Launch application'; Description = 'Start the backend and frontend'; Key = 'Launch'; Destructive = $false }
-        [pscustomobject]@{ Section = 'APPLICATION'; Title = 'Kill all app processes'; Description = 'Stop the backend, frontend, and terminal'; Key = 'KillProcesses'; Destructive = $true }
+        [pscustomobject]@{ Section = 'APPLICATION'; Title = 'Launch application'; Description = 'Start ParaGraph in one backend console'; Key = 'Launch'; Destructive = $false }
+        [pscustomobject]@{ Section = 'APPLICATION'; Title = 'Kill all app processes'; Description = 'Stop the backend, any dev server, and the console'; Key = 'KillProcesses'; Destructive = $true }
         [pscustomobject]@{ Section = 'SETUP & VALIDATION'; Title = 'Install or update dependencies'; Description = 'Sync runtimes, dependencies, browser, database, and UI build'; Key = 'Install'; Destructive = $false }
         [pscustomobject]@{ Section = 'SETUP & VALIDATION'; Title = 'Rebuild frontend'; Description = 'Build the frontend only'; Key = 'Rebuild'; Destructive = $false }
         [pscustomobject]@{ Section = 'SETUP & VALIDATION'; Title = 'Initialize or upgrade database'; Description = 'Apply SQLite/Alembic migrations'; Key = 'Database'; Destructive = $false }
@@ -833,7 +833,7 @@ function Get-ListenerPid([int]$Port) {
 function Resolve-LaunchPortConflicts {
     param([Parameter(Mandatory = $true)][System.Collections.IDictionary]$Settings)
 
-    $ports = @([int]$Settings.FASTAPI_PORT, [int]$Settings.UI_PORT) | Sort-Object -Unique
+    $ports = @([int]$Settings.FASTAPI_PORT)
     $listenerRecords = @(Get-PortListenerRecords -Ports $ports)
     if ($listenerRecords.Count -eq 0) { return $true }
 
@@ -922,7 +922,6 @@ function Start-BackendTerminalProcess {
 
 function Invoke-Launch {
     $backendProcess = $null
-    $frontendProcess = $null
     try {
         Ensure-PortableRuntimes
         $settings = Import-DotEnv
@@ -946,7 +945,6 @@ function Invoke-Launch {
         if (-not (Test-Path -LiteralPath $VenvPython)) { throw "Virtual environment Python not found at $VenvPython" }
 
         $backendPort = [int]$settings.FASTAPI_PORT
-        $uiPort = [int]$settings.UI_PORT
         if (-not (Resolve-LaunchPortConflicts -Settings $settings)) { return $false }
         Clear-PythonEnvironment
 
@@ -957,27 +955,27 @@ function Invoke-Launch {
         $backendCommand = "$quotedPython $($backendArgs -join ' ')"
         $backendProcess = Start-BackendTerminalProcess -BackendCommand $backendCommand
 
-        $healthUrl = "http://$($settings.FASTAPI_HOST):$backendPort/docs"
+        $hostName = [string]$settings.FASTAPI_HOST
+        if ($hostName -in @('0.0.0.0', '::', '[::]')) { $hostName = '127.0.0.1' }
+        $appUrl = "http://${hostName}:$backendPort/"
+        $healthUrl = "${appUrl}docs"
         Write-Info "Waiting for $healthUrl"
         if (-not (Invoke-HealthCheck -Url $healthUrl -Attempts 60 -IntervalSeconds 1)) {
             throw "Backend did not become healthy at $healthUrl within 60 seconds."
         }
-
-        Write-Step "Launching frontend preview on $($settings.UI_HOST):$uiPort"
-        $frontendProcess = Start-Process -FilePath $NpmCmd -ArgumentList @('run', 'preview', '--', '--host', [string]$settings.UI_HOST, '--port', [string]$uiPort, '--strictPort') -WorkingDirectory $ClientDir -WindowStyle Hidden -PassThru
-        $uiUrl = "http://$($settings.UI_HOST):$uiPort"
-        if (-not (Invoke-HealthCheck -Url $uiUrl -Attempts 30 -IntervalSeconds 1)) {
-            throw "Frontend preview did not become healthy at $uiUrl within 30 seconds."
+        if (-not (Invoke-HealthCheck -Url $appUrl -Attempts 5 -IntervalSeconds 1)) {
+            throw "Backend did not serve the frontend at $appUrl; rebuild the frontend (option 4)."
         }
-        Start-Process $uiUrl
+
+        Start-Process $appUrl
         $backendPid = Get-ListenerPid -Port $backendPort
         Write-Ok 'ParaGraph started successfully.'
-        Write-Host "  Backend: $healthUrl (PID $backendPid)"
-        Write-Host "  Frontend: $uiUrl (PID $($frontendProcess.Id))"
+        Write-Host "  Application: $appUrl (backend PID $backendPid)"
+        Write-Host "  Stop with Ctrl+C in the '$script:BackendTerminalTitle' console, or launcher option 2."
         return $true
     }
     catch {
-        foreach ($process in @($frontendProcess, $backendProcess)) {
+        foreach ($process in @($backendProcess)) {
             if ($null -eq $process) { continue }
             try {
                 [void](Stop-ProcessTree -ProcessId ([int]$process.Id))

@@ -1,9 +1,10 @@
 # Deployment
-Last updated: 2026-09-18
+Last updated: 2026-10-22
 
 ## Supported Operation Model
 - ParaGraph is run locally as separate FastAPI and Vite processes.
 - `start_on_windows.ps1` is the supported Windows bootstrap and maintenance entry point.
+- The launcher runs a single backend process that serves the UI and API; there is no separate production frontend server.
 - Manual development startup remains available when backend and frontend process control is needed.
 
 ## Limitations And Constraints

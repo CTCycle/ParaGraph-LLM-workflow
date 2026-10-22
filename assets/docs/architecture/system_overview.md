@@ -1,5 +1,5 @@
 # System Overview
-Last updated: 2026-10-21
+Last updated: 2026-10-22
 
 ## System Summary
 ParaGraph is a local-first workflow platform composed of:
@@ -56,7 +56,7 @@ repository, or SQLAlchemy implementation modules.
 - Frontend entry: `app/client/src/main.tsx` bootstraps `App.tsx`.
 
 ## Runtime Topology
-- In web mode, the frontend and backend run as separate processes with API traffic routed through the configured base path.
+- In launcher mode, one uvicorn process serves the built frontend and the API (under the configured base path, e.g. `/api`) from one origin. In development, the Vite dev server and backend run as separate processes with API traffic proxied through the base path.
 - Shared runtime artifacts live under the configured resource root, `data` by default, regardless of whether the app is started through the launcher or manually.
 - The active workflow graph is browser-local and can be exchanged as JSON. The
   backend reads validated graph payloads for compilation and execution; it does
