@@ -12,15 +12,18 @@
 
 ## Overview
 
-ParaGraph is a local-first web application for building, compiling, running, and monitoring LLM workflows. The React frontend runs locally with a FastAPI backend. The active workflow graph is stored in browser storage and can be exchanged as JSON; run and execution records are stored in SQLite.
+ParaGraph is a local-first web application for building, compiling, running, and monitoring LLM workflows through a visual node canvas. It pairs a React and TypeScript editor with a FastAPI backend so users can assemble graphs from a typed node catalog, connect data and controller ports, and execute them locally. The active workflow graph lives in browser storage and can be exchanged as JSON, while run records and execution history persist in SQLite for durable monitoring and recovery. Users can configure local and hosted model providers, browse model catalogs, and save named configuration profiles for reuse. The platform includes nodes for prompts, structured extraction, RAG and document processing, text transformations, HTTP calls, vector storage, and human review gates. Provider execution depends on the configured endpoint, model, credentials, and external service, and browser-stored graphs can be lost if browser data is cleared.
 
 ## Key Features
 
-- Build graphs from the node catalog and templates, import custom node manifests, and connect compatible data and controller ports.
-- Compile workflows before execution and review diagnostics for blocking errors and warnings.
-- Monitor workflow runs and event history, reconnect to active runs after a page reload, and resume supported human-review steps.
-- Configure local and hosted model providers, browse supported model catalogs, and save named configuration profiles.
-- Import and export workflow definitions as JSON.
+- Build workflows by dragging nodes from the catalog or templates and connecting compatible data and controller ports.
+- Compile graphs before execution and review blocking errors and non-blocking warnings.
+- Run workflows with durable status and event history, reconnect after a page reload, and resume paused human-review steps.
+- Configure Ollama, cloud providers, and OpenAI-compatible local endpoints, then save named profiles.
+- Import custom node manifests and work with a catalog covering prompts, structured JSON, RAG, embeddings, vector stores, text processing, HTTP, and control nodes.
+- Exchange workflow definitions as JSON and keep run records in local SQLite.
+- Monitor queued, running, completed, failed, cancelled, and paused runs with retry and timeout events.
+- Use chat nodes with isolated history scopes and exactly one terminal output.
 
 Provider execution depends on the configured endpoint, model, credentials, and external service.
 
