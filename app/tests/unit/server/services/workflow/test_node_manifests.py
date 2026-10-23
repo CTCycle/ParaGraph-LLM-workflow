@@ -10,12 +10,9 @@ from server.services.workflow.node_handlers import NODE_HANDLERS
 from server.services.workflow.nodes.registry import node_registry
 
 ###############################################################################
-def test_all_manifests_load() -> None:
-    assert node_registry.list()
-
-###############################################################################
-def test_no_duplicate_node_type_version() -> None:
+def test_manifest_registry_is_nonempty_and_has_unique_node_type_versions() -> None:
     keys = [(manifest.id, manifest.version) for manifest in node_registry.list()]
+    assert keys
     assert len(keys) == len(set(keys))
 
 ###############################################################################

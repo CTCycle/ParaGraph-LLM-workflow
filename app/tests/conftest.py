@@ -24,6 +24,7 @@ _ORIGINAL_PATHS = {
     name: getattr(common_path, name)
     for name in (
         "ENV_FILE",
+        "LEGACY_APPLICATION_SETTINGS_FILE",
         "RESOURCES_ROOT",
         "ARTIFACT_ROOT",
         "LOGS_ROOT",
@@ -34,6 +35,9 @@ _ORIGINAL_PATHS = {
 os.environ[common_path.RESOURCES_ENV_KEY] = str(_TEST_RESOURCES_ROOT)
 common_path.ENV_FILE = _TEST_RESOURCES_ROOT / "settings" / ".env"
 common_path.ENV_FILE.parent.mkdir(parents=True, exist_ok=True)
+common_path.LEGACY_APPLICATION_SETTINGS_FILE = (
+    _TEST_RESOURCES_ROOT / "settings" / "configurations.json"
+)
 common_path.ENV_FILE.write_text(
     f'{common_path.RESOURCES_ENV_KEY}="{_TEST_RESOURCES_ROOT.as_posix()}"\n',
     encoding="utf-8",
@@ -55,19 +59,20 @@ for _resource_name in ("nodes", "workflow_templates"):
     else:
         _destination.mkdir(parents=True, exist_ok=True)
 
-from server.app import app
-from server.services.jobs import JobState
-from server.repositories.database.initializer import initialize_database
-from server.repositories.workflow import (
+# These imports must follow the test resource-root and app-path setup above.
+from server.app import app  # noqa: E402
+from server.services.jobs import JobState  # noqa: E402
+from server.repositories.database.initializer import initialize_database  # noqa: E402
+from server.repositories.workflow import (  # noqa: E402
     database_chat_history_repository,
     execution_run_repository,
     in_memory_chat_history_repository,
     node_manifest_repository,
 )
-from server.services.jobs import job_manager
-from server.services.runtime.events import execution_event_service
-from server.services.workflow.nodes import registry as node_registry_module
-from server.services.workflow.provider import provider_service
+from server.services.jobs import job_manager  # noqa: E402
+from server.services.runtime.events import execution_event_service  # noqa: E402
+from server.services.workflow.nodes import registry as node_registry_module  # noqa: E402
+from server.services.workflow.provider import provider_service  # noqa: E402
 
 ###############################################################################
 @pytest.fixture(scope="session", autouse=True)

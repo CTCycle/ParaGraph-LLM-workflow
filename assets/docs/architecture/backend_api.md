@@ -86,5 +86,5 @@ application SQLite database. There is no filesystem chat-history API.
 - HTTP and WebSocket handlers live under app/server/api.
 - Request validation, response shape stability, and status-code mapping are owned by the API layer.
 - Long-running work is delegated to services and jobs rather than executed inline in request handlers.
-- app/client/src/workflow/schema/apiTypes.generated.ts is generated from FastAPI OpenAPI component schemas; app/tests/unit/server/test_generated_frontend_contracts.py checks it for drift.
+- app/client/src/workflow/schema/apiTypes.generated.ts is generated from FastAPI OpenAPI component schemas; app/tests/unit/server/test_server_boundaries.py checks it for drift.
 - Provider configuration and catalog metadata share the provider registry, which defines supported providers and defaults.

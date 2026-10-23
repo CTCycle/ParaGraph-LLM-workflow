@@ -477,6 +477,16 @@ export async function setupMockBackend(page: Page, workflowOutputText = 'Hello f
             })
         }
 
+        const activationMatch = normalizedPath.match(/^\/configurations\/profiles\/([^/]+)\/activate$/)
+        if (activationMatch && method === 'POST') {
+            const profileName = decodeURIComponent(activationMatch[1])
+            const profile = profiles.get(profileName)
+            if (!profile) {
+                return reply(route, 404, { detail: `Profile not found: ${profileName}` })
+            }
+            return reply(route, 200, profile)
+        }
+
         if (normalizedPath.startsWith('/configurations/profiles/') && method === 'GET') {
             const profileName = decodeURIComponent(normalizedPath.replace('/configurations/profiles/', ''))
             const profile = profiles.get(profileName)
@@ -494,11 +504,22 @@ export async function setupMockBackend(page: Page, workflowOutputText = 'Hello f
         }
 
         if (normalizedPath === '/configurations/ollama/ping' && method === 'POST') {
+            const payload = extractJsonPayload(request.postData())
             return reply(route, 200, {
                 ok: true,
                 message: 'Ollama reachable (mocked)',
-                base_url: 'http://127.0.0.1:11434',
+                base_url: payload.base_url ?? 'http://127.0.0.1:11434',
                 model_count: 1,
+            })
+        }
+
+        if (normalizedPath === '/configurations/providers/ping' && method === 'POST') {
+            const payload = extractJsonPayload(request.postData())
+            const provider = typeof payload.provider === 'string' ? payload.provider : 'Provider'
+            return reply(route, 200, {
+                ok: true,
+                message: `${provider} reachable (mocked)`,
+                base_url: payload.base_url ?? null,
             })
         }
 

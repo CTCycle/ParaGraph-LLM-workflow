@@ -1,19 +1,314 @@
 from __future__ import annotations
 
-import json
+from fastapi.testclient import TestClient
+from datetime import datetime, timezone
+import sqlalchemy
+from server.contracts.chat_history import ChatHistoryMessage
+from server.configurations.settings import SQLiteSettings
+from server.repositories.database.sqlite import SQLiteRepository
+from server.repositories.schemas import Base
+from server.repositories.workflow import chat_history_database as chat_history_module
 from typing import Any
-
 import pytest
-
-from server.contracts.chat_history import ChatHistoryHandle, ChatHistoryMessage
+from server.contracts.execution import CompiledExecutionPlan, ExecutionBinding, ExecutionStepPlan
+from server.repositories.workflow import in_memory_chat_history_repository
+from server.services.jobs import job_manager
+from server.services.workflow import node_registry
+from server.services.workflow.execution import execution_service
+import json
+from server.contracts.chat_history import ChatHistoryHandle
 from server.contracts.node_catalog import ProviderModelDefinition
-from server.repositories.workflow import (
-    database_chat_history_repository,
-    in_memory_chat_history_repository,
-)
+from server.repositories.workflow import database_chat_history_repository
 from server.repositories.workflow.chat_history_memory import InMemoryChatHistoryRepository
-from server.services.workflow import node_registry, provider_service
+from server.services.workflow import provider_service
 from server.services.workflow.chat_history import chat_history_service
+
+# Chat history routes
+
+###############################################################################
+def _handle(node_id: str = "chat-node") -> dict[str, object]:
+    return {
+        "node_type": "CHAT_HISTORY_MEMORY",
+        "node_id": node_id,
+        "workflow_id": "api-workflow",
+        "execution_session_id": "api-session",
+        "max_messages": 10,
+        "separator": "\n",
+        "keep_prompt_type": True,
+        "execution_owned": True,
+    }
+
+###############################################################################
+def test_chat_history_route_reads_and_resets_a_single_scope(
+    client: TestClient,
+) -> None:
+    from server.repositories.workflow import in_memory_chat_history_repository
+    from server.contracts.chat_history import ChatHistoryMessage
+
+    in_memory_chat_history_repository.append_messages(
+        "api-workflow",
+        "api-session",
+        "chat-node",
+        [ChatHistoryMessage(role="user", content="hello")],
+    )
+
+    response = client.get(
+        "/chat-history",
+        params={**_handle(), "node_type": "CHAT_HISTORY_MEMORY"},
+    )
+    assert response.status_code == 200
+    assert response.json()["messages"][0]["content"] == "hello"
+
+    reset = client.post("/chat-history/reset", json=_handle())
+    assert reset.status_code == 200
+    assert reset.json() == {"messages": []}
+
+    after_reset = client.get(
+        "/chat-history",
+        params={**_handle(), "node_type": "CHAT_HISTORY_MEMORY"},
+    )
+    assert after_reset.json() == {"messages": []}
+
+# Chat history repository
+
+###############################################################################
+class InMemorySQLiteRepository(SQLiteRepository):
+
+    # -------------------------------------------------------------------------
+    def __init__(self) -> None:
+        engine = sqlalchemy.create_engine("sqlite:///:memory:", future=True)
+        super().__init__(
+            SQLiteSettings(insert_batch_size=2), engine=engine, db_path=None
+        )
+
+###############################################################################
+def test_database_chat_history_repository_accepts_injected_sqlite_repository() -> None:
+    database_repository = InMemorySQLiteRepository()
+    repository = chat_history_module.DatabaseChatHistoryRepository(database_repository)
+
+    Base.metadata.create_all(database_repository.engine)
+
+    first_message = ChatHistoryMessage(
+        role="user",
+        content="first",
+        timestamp=datetime(2026, 5, 11, 8, 0, tzinfo=timezone.utc),
+    )
+    second_message = ChatHistoryMessage(
+        role="assistant",
+        content="second",
+        timestamp=datetime(2026, 5, 11, 8, 1, tzinfo=timezone.utc),
+    )
+    other_message = ChatHistoryMessage(
+        role="user",
+        content="other",
+        timestamp=datetime(2026, 5, 11, 8, 2, tzinfo=timezone.utc),
+    )
+
+    repository.append_messages("workflow-a", "session-a", "node-a", [first_message])
+    repository.append_messages("workflow-a", "session-a", "node-a", [second_message])
+    repository.append_messages("workflow-a", "session-b", "node-a", [other_message])
+
+    messages = repository.get_messages("workflow-a", "session-a", "node-a")
+    assert [message.content for message in messages] == ["first", "second"]
+
+    repository.clear_session("workflow-a", "session-a")
+
+    assert repository.get_messages("workflow-a", "session-a", "node-a") == []
+    remaining = repository.get_messages("workflow-a", "session-b", "node-a")
+    assert [message.content for message in remaining] == ["other"]
+
+###############################################################################
+def test_database_append_and_trim_commits_new_messages_and_retention_together() -> None:
+    database_repository = InMemorySQLiteRepository()
+    repository = chat_history_module.DatabaseChatHistoryRepository(database_repository)
+    Base.metadata.create_all(database_repository.engine)
+
+    first = ChatHistoryMessage(role="user", content="first")
+    second = ChatHistoryMessage(role="assistant", content="second")
+    third = ChatHistoryMessage(role="user", content="third")
+
+    retained = repository.append_and_trim(
+        "workflow-a", "session-a", "node-a", [first, second, third], 2
+    )
+
+    assert [message.content for message in retained] == ["second", "third"]
+    assert [
+        message.content
+        for message in repository.get_messages("workflow-a", "session-a", "node-a")
+    ] == ["second", "third"]
+
+# Chat history execution
+
+###############################################################################
+def _chat_plan() -> CompiledExecutionPlan:
+    return CompiledExecutionPlan(
+        plan_id="chat-execution-plan",
+        step_order=["memory", "chat", "output"],
+        steps=[
+            ExecutionStepPlan(
+                step_id="memory",
+                node_id="memory",
+                node_type="CHAT_HISTORY_MEMORY",
+                node_version=1,
+                category="memory",
+                executor_key="chat_history_memory",
+                parameters={
+                    "max_messages": 10,
+                    "separator": "\n",
+                    "keep_prompt_type": True,
+                },
+                bindings=[],
+                cacheable=False,
+            ),
+            ExecutionStepPlan(
+                step_id="chat",
+                node_id="chat",
+                node_type="CHAT_INPUT",
+                node_version=1,
+                category="input",
+                executor_key="chat_input",
+                parameters={"message": "hello"},
+                bindings=[
+                    ExecutionBinding(
+                        binding_type="controller",
+                        input_name="history",
+                        source_node_id="memory",
+                        source_output="history",
+                    )
+                ],
+                cacheable=False,
+            ),
+            ExecutionStepPlan(
+                step_id="output",
+                node_id="output",
+                node_type="TEXT_OUTPUT",
+                node_version=1,
+                category="output",
+                executor_key="text_output",
+                parameters={},
+                bindings=[
+                    ExecutionBinding(
+                        input_name="text",
+                        source_node_id="chat",
+                        source_output="text",
+                    )
+                ],
+                cacheable=False,
+            ),
+        ],
+        metadata={"chat_terminal_outputs": {"chat": "output"}},
+    )
+
+###############################################################################
+def test_successful_chat_execution_persists_user_and_terminal_output(
+    job_state_factory,
+) -> None:
+    job_state_factory("chat-success", "workflow")
+
+    result = execution_service.execute_plan_job(
+        _chat_plan(),
+        workflow_id="chat-workflow",
+        job_id="chat-success",
+        execution_session_id="chat-session",
+    )
+
+    assert result == {"outputs": {"output": {"text": "hello"}}}
+    messages = in_memory_chat_history_repository.get_messages(
+        "chat-workflow", "chat-session", "chat"
+    )
+    assert [(item.role, item.content) for item in messages] == [
+        ("user", "hello"),
+        ("assistant", "hello"),
+    ]
+
+###############################################################################
+def test_failed_chat_execution_does_not_persist_history(
+    job_state_factory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    original_execute = node_registry.execute
+
+    def fail_terminal_output(
+        node_type: str,
+        node_version: int,
+        parameters: dict[str, Any],
+        inputs: dict[str, Any],
+        controllers: dict[str, Any] | None = None,
+        context: dict[str, str] | None = None,
+    ) -> dict[str, Any]:
+        if node_type == "TEXT_OUTPUT":
+            raise ValueError("terminal failure")
+        return original_execute(
+            node_type,
+            node_version,
+            parameters,
+            inputs,
+            controllers,
+            context=context,
+        )
+
+    monkeypatch.setattr(node_registry, "execute", fail_terminal_output)
+    job_state_factory("chat-failed", "workflow")
+
+    with pytest.raises(ValueError, match="terminal failure"):
+        execution_service.execute_plan_job(
+            _chat_plan(),
+            workflow_id="chat-workflow",
+            job_id="chat-failed",
+            execution_session_id="chat-session-failed",
+        )
+
+    assert (
+        in_memory_chat_history_repository.get_messages(
+            "chat-workflow", "chat-session-failed", "chat"
+        )
+        == []
+    )
+
+###############################################################################
+def test_cancelled_chat_execution_does_not_persist_history(
+    job_state_factory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    original_execute = node_registry.execute
+
+    def cancel_after_chat(
+        node_type: str,
+        node_version: int,
+        parameters: dict[str, Any],
+        inputs: dict[str, Any],
+        controllers: dict[str, Any] | None = None,
+        context: dict[str, str] | None = None,
+    ) -> dict[str, Any]:
+        result = original_execute(
+            node_type,
+            node_version,
+            parameters,
+            inputs,
+            controllers,
+            context=context,
+        )
+        if node_type == "CHAT_INPUT" and context:
+            job_manager.cancel_job(context["run_id"])
+        return result
+
+    monkeypatch.setattr(node_registry, "execute", cancel_after_chat)
+    job_state_factory("chat-cancelled", "workflow")
+
+    result = execution_service.execute_plan_job(
+        _chat_plan(),
+        workflow_id="chat-workflow",
+        job_id="chat-cancelled",
+        execution_session_id="chat-session-cancelled",
+    )
+
+    assert result == {}
+    assert (
+        in_memory_chat_history_repository.get_messages(
+            "chat-workflow", "chat-session-cancelled", "chat"
+        )
+        == []
+    )
+
+# Chat history nodes
 
 ###############################################################################
 def _model_handle() -> dict[str, Any]:
