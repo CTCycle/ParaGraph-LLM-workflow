@@ -1,5 +1,5 @@
 # Startup
-Last updated: 2026-10-22
+Last updated: 2026-10-26
 
 ## Local Launcher
 PowerShell:
@@ -63,6 +63,7 @@ npm run dev
 
 - The local launcher is the recommended Windows entry point.
 - First-run startup can be slow because of dependency synchronization, migration execution, and runtime hydration.
+- Launcher option `1` reports each startup phase and total launch duration in aligned `[TIME]` lines measured in milliseconds; timings also print for phases that fail or are cancelled.
 - If `settings/.env` is missing, the launcher and backend environment loader create it from `settings/.env.example` before loading settings. An existing local `.env` is never overwritten.
 - Launcher option `1` opens a visible dedicated backend terminal only after its port guard succeeds. Option `2` stops the backend, any dev server, and the titled backend console as an explicit user-selected cleanup operation. If option `1` later fails, it cleans only the backend process created by that launch attempt. Ctrl+C in the backend console runs uvicorn's graceful shutdown (job manager and database engines are released) and frees the port; the console stays open so the logs remain readable.
 - Launcher option `3` creates or refreshes dependencies, runs database initialization, and rebuilds the frontend. Option `4` always rebuilds only the frontend using the existing frontend dependencies. Option `1` serves the existing build output when its content fingerprint is current; it rebuilds only when the output, fingerprint, or a build input is missing or stale.

@@ -62,6 +62,14 @@ function Write-Info([string]$Message) { Clear-LauncherProgress; Write-Host "[INF
 function Write-Warn([string]$Message) { Clear-LauncherProgress; Write-Host "[WARN] $Message" -ForegroundColor Yellow }
 function Write-Fatal([string]$Message) { Clear-LauncherProgress; Write-Host "[FATAL] $Message" -ForegroundColor Red }
 
+function Write-LaunchTiming {
+    param(
+        [Parameter(Mandatory)][string]$Phase,
+        [Parameter(Mandatory)][long]$ElapsedMilliseconds
+    )
+    Write-Host ('[TIME] {0,-42} {1,8} ms' -f "$($Phase):", $ElapsedMilliseconds) -ForegroundColor Gray
+}
+
 function Start-LauncherProgress {
     param([Parameter(Mandatory = $true)][string]$Activity, [Parameter(Mandatory = $true)][string]$Status)
     $id = $script:NextProgressId++
@@ -922,57 +930,96 @@ function Start-BackendTerminalProcess {
 
 function Invoke-Launch {
     $backendProcess = $null
+    $launchStopwatch = [Diagnostics.Stopwatch]::StartNew()
     try {
-        Ensure-PortableRuntimes
-        $settings = Import-DotEnv
-        Set-LauncherEnvironment
-
-        if (-not (Test-DependenciesReady)) {
-            Write-Step 'Required application environments are missing or unusable; installing dependencies.'
-            Sync-Dependencies -InstallationType 'Standard'
-        } else {
-            Write-Ok 'Application environments are ready; skipped dependency installation.'
+        $phaseStarted = $launchStopwatch.ElapsedMilliseconds
+        try {
+            Ensure-PortableRuntimes
+        } finally {
+            Write-LaunchTiming -Phase 'Portable runtime setup' -ElapsedMilliseconds ($launchStopwatch.ElapsedMilliseconds - $phaseStarted)
         }
 
-        $frontendBuildState = Get-FrontendBuildState
-        if (-not $frontendBuildState.Current) {
-            Write-Step "Frontend build is $($frontendBuildState.Reason); rebuilding frontend."
-            Build-Frontend
-        } else {
-            Write-Ok 'Frontend build fingerprint is current; skipped rebuild.'
+        $phaseStarted = $launchStopwatch.ElapsedMilliseconds
+        try {
+            $settings = Import-DotEnv
+            Set-LauncherEnvironment
+        } finally {
+            Write-LaunchTiming -Phase 'Environment configuration' -ElapsedMilliseconds ($launchStopwatch.ElapsedMilliseconds - $phaseStarted)
         }
 
-        if (-not (Test-Path -LiteralPath $VenvPython)) { throw "Virtual environment Python not found at $VenvPython" }
-
-        $backendPort = [int]$settings.FASTAPI_PORT
-        if (-not (Resolve-LaunchPortConflicts -Settings $settings)) { return $false }
-        Clear-PythonEnvironment
-
-        $backendArgs = @('-m', 'uvicorn', 'server.app:app', '--host', [string]$settings.FASTAPI_HOST, '--port', [string]$backendPort, '--log-level', 'info')
-        if ([string]$settings.RELOAD -ieq 'true') { $backendArgs += '--reload' }
-        Write-Step "Launching backend on $($settings.FASTAPI_HOST):$backendPort"
-        $quotedPython = '"' + $VenvPython + '"'
-        $backendCommand = "$quotedPython $($backendArgs -join ' ')"
-        $backendProcess = Start-BackendTerminalProcess -BackendCommand $backendCommand
-
-        $hostName = [string]$settings.FASTAPI_HOST
-        if ($hostName -in @('0.0.0.0', '::', '[::]')) { $hostName = '127.0.0.1' }
-        $appUrl = "http://${hostName}:$backendPort/"
-        $healthUrl = "${appUrl}docs"
-        Write-Info "Waiting for $healthUrl"
-        if (-not (Invoke-HealthCheck -Url $healthUrl -Attempts 60 -IntervalSeconds 1)) {
-            throw "Backend did not become healthy at $healthUrl within 60 seconds."
-        }
-        if (-not (Invoke-HealthCheck -Url $appUrl -Attempts 5 -IntervalSeconds 1)) {
-            throw "Backend did not serve the frontend at $appUrl; rebuild the frontend (option 4)."
+        $phaseStarted = $launchStopwatch.ElapsedMilliseconds
+        try {
+            if (-not (Test-DependenciesReady)) {
+                Write-Step 'Required application environments are missing or unusable; installing dependencies.'
+                Sync-Dependencies -InstallationType 'Standard'
+            } else {
+                Write-Ok 'Application environments are ready; skipped dependency installation.'
+            }
+        } finally {
+            Write-LaunchTiming -Phase 'Dependency check and setup' -ElapsedMilliseconds ($launchStopwatch.ElapsedMilliseconds - $phaseStarted)
         }
 
-        Start-Process $appUrl
-        $backendPid = Get-ListenerPid -Port $backendPort
-        Write-Ok 'ParaGraph started successfully.'
-        Write-Host "  Application: $appUrl (backend PID $backendPid)"
-        Write-Host "  Stop with Ctrl+C in the '$script:BackendTerminalTitle' console, or launcher option 2."
-        return $true
+        $phaseStarted = $launchStopwatch.ElapsedMilliseconds
+        try {
+            $frontendBuildState = Get-FrontendBuildState
+            if (-not $frontendBuildState.Current) {
+                Write-Step "Frontend build is $($frontendBuildState.Reason); rebuilding frontend."
+                Build-Frontend
+            } else {
+                Write-Ok 'Frontend build fingerprint is current; skipped rebuild.'
+            }
+        } finally {
+            Write-LaunchTiming -Phase 'Frontend build check and setup' -ElapsedMilliseconds ($launchStopwatch.ElapsedMilliseconds - $phaseStarted)
+        }
+
+        $phaseStarted = $launchStopwatch.ElapsedMilliseconds
+        try {
+            if (-not (Test-Path -LiteralPath $VenvPython)) { throw "Virtual environment Python not found at $VenvPython" }
+
+            $backendPort = [int]$settings.FASTAPI_PORT
+            if (-not (Resolve-LaunchPortConflicts -Settings $settings)) { return $false }
+            Clear-PythonEnvironment
+
+            $backendArgs = @('-m', 'uvicorn', 'server.app:app', '--host', [string]$settings.FASTAPI_HOST, '--port', [string]$backendPort, '--log-level', 'info')
+            if ([string]$settings.RELOAD -ieq 'true') { $backendArgs += '--reload' }
+            $quotedPython = '"' + $VenvPython + '"'
+            $backendCommand = "$quotedPython $($backendArgs -join ' ')"
+
+            $hostName = [string]$settings.FASTAPI_HOST
+            if ($hostName -in @('0.0.0.0', '::', '[::]')) { $hostName = '127.0.0.1' }
+            $appUrl = "http://${hostName}:$backendPort/"
+            $healthUrl = "${appUrl}docs"
+        } finally {
+            Write-LaunchTiming -Phase 'Backend preflight' -ElapsedMilliseconds ($launchStopwatch.ElapsedMilliseconds - $phaseStarted)
+        }
+
+        $phaseStarted = $launchStopwatch.ElapsedMilliseconds
+        try {
+            Write-Step "Launching backend on $($settings.FASTAPI_HOST):$backendPort"
+            $backendProcess = Start-BackendTerminalProcess -BackendCommand $backendCommand
+        } finally {
+            Write-LaunchTiming -Phase 'Backend process start' -ElapsedMilliseconds ($launchStopwatch.ElapsedMilliseconds - $phaseStarted)
+        }
+
+        $phaseStarted = $launchStopwatch.ElapsedMilliseconds
+        try {
+            Write-Info "Waiting for $healthUrl"
+            if (-not (Invoke-HealthCheck -Url $healthUrl -Attempts 60 -IntervalSeconds 1)) {
+                throw "Backend did not become healthy at $healthUrl within 60 seconds."
+            }
+            if (-not (Invoke-HealthCheck -Url $appUrl -Attempts 5 -IntervalSeconds 1)) {
+                throw "Backend did not serve the frontend at $appUrl; rebuild the frontend (option 4)."
+            }
+
+            Start-Process $appUrl
+            $backendPid = Get-ListenerPid -Port $backendPort
+            Write-Ok 'ParaGraph started successfully.'
+            Write-Host "  Application: $appUrl (backend PID $backendPid)"
+            Write-Host "  Stop with Ctrl+C in the '$script:BackendTerminalTitle' console, or launcher option 2."
+            return $true
+        } finally {
+            Write-LaunchTiming -Phase 'API and frontend readiness' -ElapsedMilliseconds ($launchStopwatch.ElapsedMilliseconds - $phaseStarted)
+        }
     }
     catch {
         foreach ($process in @($backendProcess)) {
@@ -985,6 +1032,10 @@ function Invoke-Launch {
             }
         }
         throw
+    }
+    finally {
+        $launchStopwatch.Stop()
+        Write-LaunchTiming -Phase 'Total launch duration' -ElapsedMilliseconds $launchStopwatch.ElapsedMilliseconds
     }
 }
 
