@@ -1,48 +1,24 @@
-<p align="center"><img src="app/client/public/favicon.svg" alt="ParaGraph logo" width="96"></p>
+<p align="center"><img src="app/client/public/favicon.svg" alt="" width="80"></p>
 
 # ParaGraph LLM Workflow
 
-**Build and run LLM workflows with a local visual node editor.**
+**A local visual editor for building and running LLM workflows.**
 
-[![GitHub stars](https://img.shields.io/github/stars/CTCycle/ParaGraph-LLM-workflow?style=flat-square)](https://github.com/CTCycle/ParaGraph-LLM-workflow/stargazers) [![Last commit](https://img.shields.io/github/last-commit/CTCycle/ParaGraph-LLM-workflow?style=flat-square)](https://github.com/CTCycle/ParaGraph-LLM-workflow/commits) [![Release](https://img.shields.io/github/v/release/CTCycle/ParaGraph-LLM-workflow?style=flat-square)](https://github.com/CTCycle/ParaGraph-LLM-workflow/releases) [![License](https://img.shields.io/github/license/CTCycle/ParaGraph-LLM-workflow?style=flat-square)](LICENSE)
+Arrange prompts, model calls, data-processing nodes, and outputs on a canvas. ParaGraph runs as a web app on Windows: workflow graphs are kept in browser storage, and run history is stored in SQLite on the machine running the app.
 
-[![Python](https://img.shields.io/badge/Python-3.14.2-3776AB?logo=python&logoColor=white&style=flat-square)](app/server/pyproject.toml) [![React](https://img.shields.io/badge/React-18-149ECA?logo=react&logoColor=white&style=flat-square)](app/client/package.json) [![Platform](https://img.shields.io/badge/Platform-Windows-0078D4?logo=windows&logoColor=white&style=flat-square)](assets/docs/runtime/startup.md)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE) [![Platform: Windows](https://img.shields.io/badge/Platform-Windows-0078D4?logo=windows&logoColor=white)](assets/docs/runtime/startup.md)
 
-<p align="center"><sub>Last updated: 2026-10-20</sub></p>
+## What you can do
 
-## Overview
+- Start from a workflow template or build a graph from the node catalog.
+- Compile a graph before running it and review errors or warnings.
+- Configure model providers and saved profiles in the app.
+- Follow run status and execution events, including after reloading the page.
+- Import and export workflow definitions as JSON; add custom node manifests.
 
-ParaGraph is a local-first web application for building, compiling, running, and monitoring LLM workflows through a visual node canvas. It pairs a React and TypeScript editor with a FastAPI backend so users can assemble graphs from a typed node catalog, connect data and controller ports, and execute them locally. The active workflow graph lives in browser storage and can be exchanged as JSON, while run records and execution history persist in SQLite for durable monitoring and recovery. Users can configure local and hosted model providers, browse model catalogs, and save named configuration profiles for reuse. The platform includes nodes for prompts, structured extraction, RAG and document processing, text transformations, HTTP calls, vector storage, and human review gates. Provider execution depends on the configured endpoint, model, credentials, and external service, and browser-stored graphs can be lost if browser data is cleared.
+## Run locally
 
-## Key Features
-
-- Build workflows by dragging nodes from the catalog or templates and connecting compatible data and controller ports.
-- Compile graphs before execution and review blocking errors and non-blocking warnings.
-- Run workflows with durable status and event history, reconnect after a page reload, and resume paused human-review steps.
-- Configure Ollama, cloud providers, and OpenAI-compatible local endpoints, then save named profiles.
-- Import custom node manifests and work with a catalog covering prompts, structured JSON, RAG, embeddings, vector stores, text processing, HTTP, and control nodes.
-- Exchange workflow definitions as JSON and keep run records in local SQLite.
-- Monitor queued, running, completed, failed, cancelled, and paused runs with retry and timeout events.
-- Use chat nodes with isolated history scopes and exactly one terminal output.
-
-Provider execution depends on the configured endpoint, model, credentials, and external service.
-
-## Screenshots
-
-No workflow editor screenshot is currently available. A placeholder will be added once one is captured.
-
-## Technology Stack
-
-| Layer | Technology | Version |
-|---|---|---|
-| Frontend | React, TypeScript, Vite | - |
-| Backend | Python, FastAPI | 3.14.2 |
-| Frontend tooling | Node.js | 22.12.0 |
-| Database | SQLite | - |
-
-## Installation and Usage
-
-On 64-bit Windows, install Git and use PowerShell. A modern browser is required; internet access is needed on first launch to download the portable runtimes and dependencies.
+The supported launcher is for 64-bit Windows. Install Git and use PowerShell. An internet connection is needed on first launch while the launcher prepares its portable runtimes and dependencies.
 
 ```powershell
 git clone https://github.com/CTCycle/ParaGraph-LLM-workflow.git
@@ -50,21 +26,23 @@ Set-Location .\ParaGraph-LLM-workflow
 .\start_on_windows.ps1
 ```
 
-Choose **1. Launch application**. On first use, the launcher prepares its Python and Node.js runtimes, dependencies, SQLite database, and frontend build, then opens the app at <http://127.0.0.1:5002>. Backend API documentation is available at <http://127.0.0.1:5002/docs>. Stop the application with Ctrl+C in the backend console that the launcher opened.
+Choose **1. Launch application**. The launcher opens ParaGraph at <http://127.0.0.1:5002/>. Press **Ctrl+C** in the backend console to stop it.
 
-To build a workflow, choose a template or add nodes from the catalog, connect compatible ports, select **Run Workflow**, and resolve any blocking diagnostics shown by the compiler. Runs report status and events in the editor; workflow graphs can be exported to JSON.
+## Build and run a workflow
+
+1. Open **Nodes** and load a template, or add nodes to the **Workflow** canvas.
+2. Fill in node settings and connect compatible ports.
+3. Configure the required provider or runtime in **Configurations**.
+4. Choose **Run Workflow**. ParaGraph compiles the graph first; fix any blocking diagnostics before execution.
+5. Review the run status, events, and node outputs in the editor.
+
+The editor is designed for desktop windows at least 1024 CSS pixels wide. Workflow graphs are stored in browser storage, so export important graphs before clearing browser data. Run records and events are stored in SQLite under `data/` by default.
 
 ## Configuration
 
-The launcher creates `settings/.env` from [`settings/.env.example`](settings/.env.example) when it is missing. The application is served by the backend at `127.0.0.1:5002`; `127.0.0.1:8002` is used only by the Vite development server.
+If `settings/.env` is missing, the launcher creates it from [`settings/.env.example`](settings/.env.example). Set `PARAGRAPH_RESOURCES_DIR` there to move shared runtime data and the SQLite database from the default `data/` directory.
 
-Shared runtime data and the embedded SQLite database use `data/` by default. Set `PARAGRAPH_RESOURCES_DIR` in `settings/.env` to an absolute or repository-relative path to relocate them.
-
-Configure provider credentials in the application and keep machine-specific settings in the ignored `settings/.env` file.
-
-| Variable | Purpose | Default |
-|---|---|---|
-| `PARAGRAPH_RESOURCES_DIR` | Shared runtime data and embedded SQLite location | `data` |
+Provider credentials and saved profiles can be configured in the application. Keep machine-specific settings in the ignored `settings/.env` file.
 
 ## Documentation
 
@@ -72,18 +50,12 @@ Configure provider credentials in the application and keep machine-specific sett
 - [Workflow editor](assets/docs/user/workflow_editor.md)
 - [Models and configurations](assets/docs/user/models_and_configurations.md)
 - [Nodes and execution](assets/docs/user/nodes_and_execution.md)
-- [Startup](assets/docs/runtime/startup.md) and [configuration](assets/docs/runtime/configuration.md)
-
-## Limitations
-
-- Provider execution depends on the configured endpoint, model, credentials, and external service.
-- The active workflow graph is stored in browser storage and can be lost if browser data is cleared; export important workflows as JSON.
-- Local-first application: run and execution records are stored in SQLite on the computer running the app.
+- [Windows launcher](assets/docs/runtime/startup.md) and [runtime configuration](assets/docs/runtime/configuration.md)
 
 ## Contributing
 
-Contributions are welcome. Open an issue or pull request with a clear description of the change and its motivation. Keep changes focused and consistent with the existing code style.
+Open an issue or pull request with a clear description of the change. Keep contributions focused and consistent with the project conventions.
 
 ## License
 
-Licensed under the MIT License. See [LICENSE](LICENSE).
+ParaGraph is licensed under the [MIT License](LICENSE).
