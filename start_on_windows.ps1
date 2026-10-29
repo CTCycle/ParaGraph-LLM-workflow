@@ -1,8 +1,9 @@
 [CmdletBinding()]
-param()
+param([switch]$DryRun)
 
 $ErrorActionPreference = 'Stop'
 $script:RepoRoot = $PSScriptRoot
+$script:DryRun = [bool]$DryRun
 $script:AppDir = Join-Path $RepoRoot 'app'
 $script:ServerDir = Join-Path $AppDir 'server'
 $script:ClientDir = Join-Path $AppDir 'client'
@@ -146,7 +147,7 @@ function Get-LauncherMenuEntries {
         [pscustomobject]@{ Section = 'SOURCE CONTROL'; Title = 'Check for updates'; Description = 'Report origin/main status only'; Key = 'Check'; Destructive = $false }
         [pscustomobject]@{ Section = 'SOURCE CONTROL'; Title = 'Update from main'; Description = 'Pull latest code from origin/main'; Key = 'Update'; Destructive = $false }
         [pscustomobject]@{ Section = 'DATA & MAINTENANCE'; Title = 'Remove log files'; Description = 'Delete local application logs'; Key = 'Logs'; Destructive = $true }
-        [pscustomobject]@{ Section = 'DATA & MAINTENANCE'; Title = 'Clear canonical cache hierarchy'; Description = 'Remove all disposable data under runtimes/cache'; Key = 'Cache'; Destructive = $true }
+        [pscustomobject]@{ Section = 'DATA & MAINTENANCE'; Title = 'Clear application caches'; Description = 'Remove recognized app, test, and tool caches'; Key = 'Cache'; Destructive = $true }
         [pscustomobject]@{ Section = 'DATA & MAINTENANCE'; Title = 'Remove all data'; Description = 'Delete user data and database'; Key = 'AllData'; Destructive = $true }
         [pscustomobject]@{ Section = 'DATA & MAINTENANCE'; Title = 'Uninstall application'; Description = 'Remove local runtimes and packages'; Key = 'Uninstall'; Destructive = $true }
         [pscustomobject]@{ Section = 'EXIT'; Title = 'Exit'; Description = 'Close this launcher'; Key = 'Exit'; Destructive = $false }
@@ -462,12 +463,17 @@ function Build-Frontend {
 }
 
 function Get-FrontendBuildInputFiles {
+    $clientRoot = [IO.Path]::GetFullPath($ClientDir).TrimEnd('\') + '\'
     $relativePaths = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
     foreach ($relativeRoot in @('src', 'public')) {
         $rootPath = Join-Path $ClientDir $relativeRoot
         if (-not (Test-Path -LiteralPath $rootPath -PathType Container)) { continue }
         foreach ($file in @(Get-ChildItem -LiteralPath $rootPath -File -Recurse -Force -ErrorAction Stop)) {
-            $relativePath = [IO.Path]::GetRelativePath($ClientDir, $file.FullName).Replace('\', '/')
+            $fullPath = [IO.Path]::GetFullPath($file.FullName)
+            if (-not $fullPath.StartsWith($clientRoot, [StringComparison]::OrdinalIgnoreCase)) {
+                throw "Frontend build input escaped the client root: $fullPath"
+            }
+            $relativePath = $fullPath.Substring($clientRoot.Length).Replace('\', '/')
             [void]$relativePaths.Add($relativePath)
         }
     }
@@ -1079,25 +1085,6 @@ function Confirm-DestructiveAction([string]$Description) {
     return $true
 }
 
-function Remove-LogFiles {
-    if (-not (Confirm-DestructiveAction 'remove application log files')) { return }
-    $settings = Import-DotEnv
-    $logDir = Join-Path (Resolve-ResourcesRoot -Settings $settings) 'logs'
-    if (-not (Test-Path -LiteralPath $logDir)) { Write-Info "Log directory not found: $logDir"; return }
-    $logs = @(Get-ChildItem -LiteralPath $logDir -Filter '*.log' -File -ErrorAction SilentlyContinue |
-        Sort-Object @{ Expression = { $_.FullName.ToUpperInvariant() }; Descending = $false })
-    $skippedBefore = $script:SkippedCacheCount
-    foreach ($log in $logs) {
-        [void](Remove-PathBestEffort -Path $log.FullName)
-    }
-    $skipped = $script:SkippedCacheCount - $skippedBefore
-    if ($skipped -gt 0) {
-        Write-Warn "Removed $($logs.Count - $skipped) log file(s); skipped $skipped locked or protected file(s)."
-    } else {
-        Write-Ok 'Log files removed.'
-    }
-}
-
 function Resolve-ResourcesRoot {
     param([Parameter(Mandatory = $true)][System.Collections.IDictionary]$Settings)
 
@@ -1105,303 +1092,603 @@ function Resolve-ResourcesRoot {
     if ([string]::IsNullOrWhiteSpace($configuredRoot)) {
         return [IO.Path]::GetFullPath($DefaultResourcesDir)
     }
-
     $expandedRoot = [Environment]::ExpandEnvironmentVariables($configuredRoot.Trim())
-    if (-not [IO.Path]::IsPathRooted($expandedRoot)) {
-        $expandedRoot = Join-Path $RepoRoot $expandedRoot
-    }
+    if (-not [IO.Path]::IsPathRooted($expandedRoot)) { $expandedRoot = Join-Path $RepoRoot $expandedRoot }
     return [IO.Path]::GetFullPath($expandedRoot)
 }
 
-function Remove-AllData {
-    $settings = Import-DotEnv
-    $resourceRoot = Resolve-ResourcesRoot -Settings $settings
-    Write-Warn "This removes user data under $resourceRoot and the application database."
-    Write-Info 'Built-in node definitions, workflow templates, settings, and application source files will be preserved.'
-    if (-not (Confirm-DestructiveAction 'remove all user data')) {
-        Write-Info 'Remove All Data cancelled.'
-        return
+function Assert-SafeResourcesRoot {
+    param([Parameter(Mandatory = $true)][string]$ResourcesRoot)
+    $fullRoot = [IO.Path]::GetFullPath($ResourcesRoot)
+    $filesystemRoot = [IO.Path]::GetPathRoot($fullRoot)
+    if ($fullRoot.TrimEnd('\').Equals($filesystemRoot.TrimEnd('\'), [StringComparison]::OrdinalIgnoreCase) -or
+        $fullRoot.TrimEnd('\').Equals([IO.Path]::GetFullPath($RepoRoot).TrimEnd('\'), [StringComparison]::OrdinalIgnoreCase)) {
+        throw "Refusing an unsafe application resource root: $fullRoot"
     }
+    $reparse = Get-PathReparsePoint -Path $fullRoot -AllowedRoot $filesystemRoot
+    if ($reparse) { throw "Resource root traverses a symbolic link or junction: $reparse" }
+    return $fullRoot
+}
 
-    $script:SkippedCacheCount = 0
-    $script:FirstSkippedCachePath = $null
-    $allRemoved = $true
-
-    foreach ($relativePath in @(
-        'artifacts', 'logs', 'models'
-    )) {
-        $dataPath = Join-Path $resourceRoot $relativePath
-        if (-not (Clear-CacheDirectory -Path $dataPath -PreserveNames @('.gitkeep'))) {
-            $allRemoved = $false
+function Get-MaintenanceSettings {
+    $settings = @{ PARAGRAPH_RESOURCES_DIR = [string]$env:PARAGRAPH_RESOURCES_DIR }
+    if (-not (Test-Path -LiteralPath $DotEnv -PathType Leaf -ErrorAction SilentlyContinue)) { return $settings }
+    foreach ($rawLine in Get-Content -LiteralPath $DotEnv -ErrorAction Stop) {
+        $line = ([string]$rawLine).Trim()
+        if (-not $line -or $line.StartsWith('#') -or $line.StartsWith(';')) { continue }
+        $separator = $line.IndexOf('=')
+        if ($separator -lt 1) { continue }
+        $key = $line.Substring(0, $separator).Trim()
+        if ($key -eq 'PARAGRAPH_RESOURCES_DIR') {
+            $settings[$key] = $line.Substring($separator + 1).Trim().Trim('"').Trim("'")
         }
     }
-
-    $customNodesPath = Join-Path $resourceRoot 'nodes\custom_nodes'
-    if (-not (Clear-CacheDirectory -Path $customNodesPath -PreserveNames @('.gitkeep', 'README.md'))) {
-        $allRemoved = $false
-    }
-
-    if (Test-Path -LiteralPath $resourceRoot -PathType Container -ErrorAction SilentlyContinue) {
-        $databaseFiles = @(Get-ChildItem -LiteralPath $resourceRoot -File -Force -Filter 'database.db*' -ErrorAction SilentlyContinue)
-        foreach ($databaseFile in $databaseFiles) {
-            if (-not (Remove-PathBestEffort -Path $databaseFile.FullName)) { $allRemoved = $false }
-        }
-    }
-
-    if ($allRemoved) {
-        Write-Ok 'All user data and database files were removed. Application files and settings were preserved.'
-    } else {
-        Write-Warn ("User data was removed where permitted; {0} locked or protected entries were skipped. First skipped path: {1}" -f $script:SkippedCacheCount, $script:FirstSkippedCachePath)
-    }
+    return $settings
 }
 
 function Register-SkippedCachePath([string]$Path) {
     $script:SkippedCacheCount++
-    if ([string]::IsNullOrEmpty($script:FirstSkippedCachePath)) {
-        $script:FirstSkippedCachePath = $Path
+    if ([string]::IsNullOrEmpty($script:FirstSkippedCachePath)) { $script:FirstSkippedCachePath = $Path }
+}
+
+function Test-PathWithinRoot {
+    param([string]$Path, [string]$Root)
+
+    if ([string]::IsNullOrWhiteSpace($Path) -or [string]::IsNullOrWhiteSpace($Root)) { return $false }
+    $fullPath = [IO.Path]::GetFullPath($Path)
+    $fullRoot = [IO.Path]::GetFullPath($Root).TrimEnd('\')
+    if ($fullRoot.Length -eq 2 -and $fullRoot[1] -eq ':') { $fullRoot += '\' }
+    if ($fullPath.Equals($fullRoot, [StringComparison]::OrdinalIgnoreCase)) { return $false }
+    $prefix = if ($fullRoot.EndsWith('\')) { $fullRoot } else { $fullRoot + '\' }
+    return $fullPath.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase)
+}
+
+function Get-PathReparsePoint {
+    param([string]$Path, [string]$AllowedRoot)
+
+    $fullPath = [IO.Path]::GetFullPath($Path)
+    $fullRoot = [IO.Path]::GetFullPath($AllowedRoot).TrimEnd('\')
+    if ($fullRoot.Length -eq 2 -and $fullRoot[1] -eq ':') { $fullRoot += '\' }
+    $cursor = $fullPath
+    while ($cursor) {
+        try {
+            $item = Get-Item -LiteralPath $cursor -Force -ErrorAction Stop
+            if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { return $cursor }
+        } catch {
+            if ($_.CategoryInfo.Category -ne [System.Management.Automation.ErrorCategory]::ObjectNotFound) { throw }
+        }
+        if ($cursor.Equals($fullRoot, [StringComparison]::OrdinalIgnoreCase)) { break }
+        $parent = [IO.Path]::GetDirectoryName($cursor)
+        if (-not $parent -or $parent.Equals($cursor, [StringComparison]::OrdinalIgnoreCase)) { break }
+        $cursor = $parent
     }
+    return $null
+}
+
+function Get-LauncherTreeEntries {
+    param([Parameter(Mandatory = $true)][IO.DirectoryInfo]$Root)
+
+    $entries = [Collections.Generic.List[object]]::new()
+    $skipped = [Collections.Generic.List[string]]::new()
+    $errors = [Collections.Generic.List[string]]::new()
+    $stack = [Collections.Generic.Stack[string]]::new()
+    $stack.Push($Root.FullName)
+    while ($stack.Count -gt 0) {
+        $directory = $stack.Pop()
+        try {
+            $children = @(Get-ChildItem -LiteralPath $directory -Force -ErrorAction Stop)
+        } catch {
+            [void]$errors.Add(("{0} ({1})" -f $directory, $_.Exception.Message))
+            continue
+        }
+        foreach ($child in $children) {
+            if (($child.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+                [void]$skipped.Add($child.FullName)
+                continue
+            }
+            [void]$entries.Add($child)
+            if ($child.PSIsContainer) { $stack.Push($child.FullName) }
+        }
+    }
+    return [pscustomobject]@{ Entries = @($entries.ToArray()); Skipped = @($skipped.ToArray()); Errors = @($errors.ToArray()) }
+}
+
+function Get-LauncherPathPlan {
+    param(
+        [Parameter(Mandatory = $true)][string]$Path,
+        [string[]]$AllowedRoots = @($RepoRoot),
+        [switch]$KeepRoot,
+        [string[]]$PreserveNames = @('.gitkeep'),
+        [string[]]$PreservePaths = @()
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Path)) { throw 'Refusing to remove an empty path.' }
+    if ($Path -match '(^|[\\/])\.\.([\\/]|$)') { throw "Refusing a path containing traversal segments: $Path" }
+    $fullPath = [IO.Path]::GetFullPath($Path)
+    $fullAllowedRoots = @($AllowedRoots | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | ForEach-Object { [IO.Path]::GetFullPath($_) })
+    $authorized = $false
+    foreach ($allowedRoot in $fullAllowedRoots) {
+        if (Test-PathWithinRoot -Path $fullPath -Root $allowedRoot) { $authorized = $true; break }
+    }
+    if (-not $authorized) { throw "Refusing to remove a path outside registered application roots: $fullPath" }
+    $normalizedPath = $fullPath.TrimEnd('\')
+    $filesystemRoot = [IO.Path]::GetPathRoot($fullPath).TrimEnd('\')
+    $repositoryRoot = [IO.Path]::GetFullPath([string]$script:RepoRoot).TrimEnd('\')
+    if ($normalizedPath -eq $filesystemRoot -or $normalizedPath -eq $repositoryRoot) {
+        throw "Refusing to remove a filesystem or repository root: $fullPath"
+    }
+
+    $result = [ordered]@{
+        Target = $fullPath; PlannedPaths = @(); PreservedPaths = @(); RemovedPaths = @()
+        SkippedPaths = @(); FailedPaths = @(); Missing = $false; WhatIf = [bool]$script:DryRun
+    }
+    try {
+        $rootItem = Get-Item -LiteralPath $fullPath -Force -ErrorAction Stop
+    } catch {
+        if ($_.CategoryInfo.Category -eq [System.Management.Automation.ErrorCategory]::ObjectNotFound) {
+            $result.Missing = $true
+            return [pscustomobject]$result
+        }
+        throw
+    }
+    foreach ($allowedRoot in $fullAllowedRoots) {
+        if (Test-PathWithinRoot -Path $fullPath -Root $allowedRoot) {
+            $reparse = Get-PathReparsePoint -Path $fullPath -AllowedRoot $allowedRoot
+            if ($reparse) {
+                $result.SkippedPaths = @($fullPath)
+                return [pscustomobject]$result
+            }
+            break
+        }
+    }
+
+    $entries = [Collections.Generic.List[object]]::new()
+    $skipped = [Collections.Generic.List[string]]::new()
+    $failed = [Collections.Generic.List[string]]::new()
+    if ($rootItem.PSIsContainer) {
+        $tree = Get-LauncherTreeEntries -Root ([IO.DirectoryInfo]$rootItem)
+        foreach ($entry in @($tree.Entries)) { [void]$entries.Add($entry) }
+        foreach ($path in @($tree.Skipped)) { [void]$skipped.Add($path) }
+        foreach ($path in @($tree.Errors)) { [void]$failed.Add($path) }
+    } else {
+        [void]$entries.Add($rootItem)
+    }
+
+    $preserveSet = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    $preservedPaths = [Collections.Generic.List[string]]::new()
+    foreach ($path in $PreservePaths) { [void]$preserveSet.Add([IO.Path]::GetFullPath($path)) }
+    foreach ($entry in @($entries)) {
+        if (($entry.Name -in $PreserveNames) -or $preserveSet.Contains([IO.Path]::GetFullPath($entry.FullName))) {
+            [void]$preservedPaths.Add($entry.FullName)
+            [void]$preserveSet.Add([IO.Path]::GetFullPath($entry.FullName))
+        }
+    }
+    $preservedDirs = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    foreach ($preservedPath in @($preservedPaths.ToArray())) {
+        $ancestor = [IO.Path]::GetDirectoryName($preservedPath)
+        while ($ancestor -and (Test-PathWithinRoot -Path $ancestor -Root $fullPath)) {
+            [void]$preservedDirs.Add($ancestor)
+            $ancestor = [IO.Path]::GetDirectoryName($ancestor)
+        }
+    }
+    $candidates = @($entries | Where-Object {
+        -not $preserveSet.Contains([IO.Path]::GetFullPath($_.FullName)) -and
+        $_.Name -notin $PreserveNames -and
+        -not $preservedDirs.Contains($_.FullName)
+    } | Sort-Object @{ Expression = { $_.FullName.Length }; Descending = $true }, @{ Expression = { $_.FullName.ToUpperInvariant() }; Descending = $false })
+    if ($rootItem.PSIsContainer -and -not $KeepRoot -and $preservedPaths.Count -eq 0) { $candidates += $rootItem }
+    $result.PlannedPaths = @($candidates | ForEach-Object { $_.FullName })
+    $result.PreservedPaths = @($preservedPaths.ToArray())
+    $result.SkippedPaths = @($skipped.ToArray())
+    $result.FailedPaths = @($failed.ToArray())
+    return [pscustomobject]$result
 }
 
 function Remove-LauncherPath {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)][string]$Path,
+        [string[]]$AllowedRoots = @($RepoRoot),
         [switch]$KeepRoot,
         [string[]]$PreserveNames = @('.gitkeep'),
+        [string[]]$PreservePaths = @(),
+        [object]$Plan,
         [switch]$Strict,
         [switch]$WhatIf,
         [string]$Activity = 'ParaGraph: remove files'
     )
 
-    if ([string]::IsNullOrWhiteSpace($Path)) {
-        throw 'Refusing to remove an empty path.'
-    }
-    $fullPath = [IO.Path]::GetFullPath($Path)
-    $normalizedPath = $fullPath.TrimEnd('\')
-    $filesystemRoot = [IO.Path]::GetPathRoot($fullPath).TrimEnd('\')
-    $repositoryRoot = if ($script:RepoRoot) { [IO.Path]::GetFullPath([string]$script:RepoRoot).TrimEnd('\') } else { $null }
-    if ($normalizedPath -eq $filesystemRoot -or
-        ($repositoryRoot -and
-        ($normalizedPath -eq $repositoryRoot -or
-        $repositoryRoot.StartsWith("$normalizedPath\", [StringComparison]::OrdinalIgnoreCase)))) {
-        throw "Refusing to remove a filesystem or repository root: $fullPath"
-    }
+    $plan = if ($null -ne $Plan) { $Plan } else { Get-LauncherPathPlan -Path $Path -AllowedRoots $AllowedRoots -KeepRoot:$KeepRoot -PreserveNames $PreserveNames -PreservePaths $PreservePaths }
+    $removed = [Collections.Generic.List[string]]::new()
+    $skipped = [Collections.Generic.List[string]]::new()
+    foreach ($path in @($plan.SkippedPaths)) { [void]$skipped.Add($path); Write-Warn "Skipped reparse point: $path" }
+    $failed = [Collections.Generic.List[string]]::new()
+    foreach ($path in @($plan.FailedPaths)) { [void]$failed.Add($path); Write-Warn "Failed to enumerate: $path" }
 
-    $plannedPaths = [Collections.Generic.List[string]]::new()
-    $preservedPaths = [Collections.Generic.List[string]]::new()
-    $removedPaths = [Collections.Generic.List[string]]::new()
-    $skippedPaths = [Collections.Generic.List[string]]::new()
-    $enumerationErrorPaths = [Collections.Generic.List[string]]::new()
-    $warningMessages = [Collections.Generic.List[string]]::new()
-    $result = [ordered]@{
-        Target = $fullPath
-        Path = $fullPath
-        Planned = 0
-        PlannedCount = 0
-        PlannedPaths = @()
-        Preserved = 0
-        PreservedCount = 0
-        PreservedEntries = @()
-        PreservedPaths = @()
-        Removed = 0
-        RemovedCount = 0
-        RemovedPaths = @()
-        Skipped = 0
-        SkippedCount = 0
-        SkippedPaths = @()
-        EnumerationErrors = @()
-        EnumerationErrorCount = 0
-        EnumerationErrorPaths = @()
-        WhatIf = [bool]$WhatIf
-    }
-
-    try {
-        $item = Get-Item -LiteralPath $fullPath -Force -ErrorAction Stop
-    }
-    catch {
-        if ($_.CategoryInfo.Category -eq [System.Management.Automation.ErrorCategory]::ObjectNotFound) {
-            Clear-LauncherProgress
-            return [pscustomobject]$result
-        }
-        $message = [string]$_.Exception.Message
-        [void]$skippedPaths.Add($fullPath)
-        $result.Skipped = $skippedPaths.Count
-        $result.SkippedCount = $skippedPaths.Count
-        $result.SkippedPaths = @($skippedPaths.ToArray())
-        Clear-LauncherProgress
-        Write-Warn "Skipped inaccessible path: $fullPath ($message)"
-        if ($Strict) { throw }
-        return [pscustomobject]$result
-    }
-
-    $enumerationErrors = @()
-    $entries = if ($item.PSIsContainer) {
-        @(Get-ChildItem -LiteralPath $item.FullName -Force -Recurse -ErrorAction SilentlyContinue -ErrorVariable enumerationErrors)
-    } else {
-        @($item)
-    }
-    foreach ($enumerationError in @($enumerationErrors)) {
-        $errorPath = [string]$enumerationError.TargetObject
-        if ([string]::IsNullOrWhiteSpace($errorPath)) { $errorPath = $fullPath }
-        [void]$enumerationErrorPaths.Add($errorPath)
-        [void]$warningMessages.Add(("Skipped inaccessible path below {0}: {1}" -f $fullPath, $enumerationError.Exception.Message))
-    }
-
-    $protectedDirectories = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
-    foreach ($entry in @($entries)) {
-        if ($entry.Name -in $PreserveNames) {
-            [void]$preservedPaths.Add($entry.FullName)
-            [void]$protectedDirectories.Add($item.FullName)
-            $ancestor = [IO.Path]::GetDirectoryName($entry.FullName)
-            while ($ancestor -and $ancestor.StartsWith($item.FullName.TrimEnd('\') + '\', [StringComparison]::OrdinalIgnoreCase)) {
-                [void]$protectedDirectories.Add($ancestor)
-                $ancestor = [IO.Path]::GetDirectoryName($ancestor)
-            }
-        }
-    }
-
-    $candidates = @($entries |
-        Where-Object { -not $preservedPaths.Contains($_.FullName) -and -not $protectedDirectories.Contains($_.FullName) } |
-        Sort-Object @{ Expression = { $_.FullName.Length }; Descending = $true }, @{ Expression = { $_.FullName.ToUpperInvariant() }; Descending = $false })
-    if ($item.PSIsContainer -and -not $KeepRoot -and $preservedPaths.Count -eq 0) {
-        $candidates += $item
-    }
-    foreach ($candidate in @($candidates)) { [void]$plannedPaths.Add($candidate.FullName) }
-    $result.Planned = $plannedPaths.Count
-    $result.PlannedCount = $plannedPaths.Count
-    $result.PlannedPaths = @($plannedPaths.ToArray())
-    $result.Preserved = $preservedPaths.Count
-    $result.PreservedCount = $preservedPaths.Count
-    $result.PreservedEntries = @($preservedPaths.ToArray())
-    $result.PreservedPaths = @($preservedPaths.ToArray() | Sort-Object { $_.ToUpperInvariant() })
-    $result.EnumerationErrors = @($enumerationErrors | ForEach-Object { [string]$_ })
-    $result.EnumerationErrorCount = $enumerationErrorPaths.Count
-    $result.EnumerationErrorPaths = @($enumerationErrorPaths.ToArray() | Sort-Object { $_.ToUpperInvariant() })
-
-    $progressId = $null
-    try {
-        if ($plannedPaths.Count -gt 0) {
-            $progressId = Start-LauncherProgress -Activity $Activity -Status "0 of $($plannedPaths.Count) items"
-        }
-        for ($index = 0; $index -lt $plannedPaths.Count; $index++) {
-            $candidatePath = $plannedPaths[$index]
-            if ($null -ne $progressId) {
-                Update-LauncherProgress -Id $progressId -Activity $Activity -Status "$($index + 1) of $($plannedPaths.Count): $([IO.Path]::GetFileName($candidatePath))" -PercentComplete ([int](($index + 1) * 100 / [Math]::Max(1, $plannedPaths.Count)))
-            }
-            if ($WhatIf) { continue }
+    if (-not $WhatIf -and -not $script:DryRun) {
+        foreach ($candidatePath in @($plan.PlannedPaths)) {
             try {
+                if ($Path -match '(^|[\\/])\.\.([\\/]|$)') { throw 'Path traversal was detected during deletion.' }
+                $candidateAuthorized = $false
+                foreach ($allowedRoot in $AllowedRoots) {
+                    if (Test-PathWithinRoot -Path $candidatePath -Root $allowedRoot) { $candidateAuthorized = $true; break }
+                }
+                if (-not $candidateAuthorized) { throw 'The planned path is outside registered application roots.' }
+                $candidateIsReparsePoint = $false
+                foreach ($allowedRoot in $AllowedRoots) {
+                    if (Test-PathWithinRoot -Path $candidatePath -Root $allowedRoot) {
+                        $reparse = Get-PathReparsePoint -Path $candidatePath -AllowedRoot $allowedRoot
+                        if ($reparse) { $candidateIsReparsePoint = $true }
+                        break
+                    }
+                }
+                if ($candidateIsReparsePoint) { [void]$skipped.Add($candidatePath); continue }
                 Remove-Item -LiteralPath $candidatePath -Force -Confirm:$false -ErrorAction Stop
-                [void]$removedPaths.Add($candidatePath)
-            }
-            catch {
-                [void]$skippedPaths.Add($candidatePath)
-                [void]$warningMessages.Add("Skipped locked or protected path: $candidatePath ($($_.Exception.Message))")
+                [void]$removed.Add($candidatePath)
+            } catch {
+                [void]$failed.Add(("{0} ({1})" -f $candidatePath, $_.Exception.Message))
+                Write-Warn "Failed to remove: $candidatePath ($($_.Exception.Message))"
             }
         }
     }
-    finally {
-        if ($null -ne $progressId) { Complete-LauncherProgress -Id $progressId }
+    $result = [pscustomobject]@{
+        Target = $plan.Target; PlannedPaths = @($plan.PlannedPaths); PreservedPaths = @($plan.PreservedPaths)
+        RemovedPaths = @($removed.ToArray()); SkippedPaths = @($skipped.ToArray()); FailedPaths = @($failed.ToArray())
+        Missing = [bool]$plan.Missing; WhatIf = [bool]($WhatIf -or $script:DryRun)
     }
-
-    $result.Removed = $removedPaths.Count
-    $result.RemovedCount = $removedPaths.Count
-    $result.RemovedPaths = @($removedPaths.ToArray())
-    $result.Skipped = $skippedPaths.Count
-    $result.SkippedCount = $skippedPaths.Count
-    $result.SkippedPaths = @($skippedPaths.ToArray())
-    foreach ($message in $warningMessages.ToArray()) { Write-Warn $message }
-    Clear-LauncherProgress
-    if ($Strict -and ($result.SkippedCount -gt 0 -or $result.EnumerationErrorCount -gt 0)) {
-        throw "Removal of '$fullPath' was incomplete. Skipped $($result.SkippedCount) item(s) and encountered $($result.EnumerationErrorCount) enumeration error(s)."
+    if ($Strict -and ($result.SkippedPaths.Count -gt 0 -or $result.FailedPaths.Count -gt 0)) {
+        throw "Removal of '$Path' was incomplete. See the skipped and failed paths above."
     }
-    return [pscustomobject]$result
+    return $result
 }
 
 function Remove-PathBestEffort {
-    param([Parameter(Mandatory = $true)][string]$Path)
-    $result = Remove-LauncherPath -Path $Path -Activity "ParaGraph: remove $([IO.Path]::GetFileName($Path))"
-    foreach ($skippedPath in @($result.SkippedPaths)) { Register-SkippedCachePath -Path ([string]$skippedPath) }
-    foreach ($errorPath in @($result.EnumerationErrorPaths)) { Register-SkippedCachePath -Path ([string]$errorPath) }
-    return $result.SkippedCount -eq 0 -and $result.EnumerationErrorCount -eq 0
+    param([Parameter(Mandatory = $true)][string]$Path, [string[]]$AllowedRoots = @($RepoRoot), [switch]$WhatIf)
+    $result = Remove-LauncherPath -Path $Path -AllowedRoots $AllowedRoots -WhatIf:$WhatIf -Activity "ParaGraph: remove $([IO.Path]::GetFileName($Path))"
+    foreach ($path in @($result.SkippedPaths)) { Register-SkippedCachePath -Path ([string]$path) }
+    foreach ($path in @($result.FailedPaths)) { Register-SkippedCachePath -Path ([string]$path) }
+    return $result.SkippedPaths.Count -eq 0 -and $result.FailedPaths.Count -eq 0
 }
 
 function Clear-CacheDirectory {
     param(
         [Parameter(Mandatory = $true)][string]$Path,
-        [string[]]$PreserveNames = @('.gitkeep')
+        [string[]]$PreserveNames = @('.gitkeep'),
+        [string[]]$PreservePaths = @(),
+        [string[]]$AllowedRoots = @($RepoRoot),
+        [switch]$WhatIf
     )
-
-    if (-not (Test-Path -LiteralPath $Path -ErrorAction SilentlyContinue)) {
-        Clear-LauncherProgress
-        return $true
-    }
-    $result = Remove-LauncherPath -Path $Path -KeepRoot -PreserveNames $PreserveNames -Activity "ParaGraph: clear $Path"
-    foreach ($skippedPath in @($result.SkippedPaths)) { Register-SkippedCachePath -Path ([string]$skippedPath) }
-    foreach ($errorPath in @($result.EnumerationErrorPaths)) { Register-SkippedCachePath -Path ([string]$errorPath) }
-    return $result.SkippedCount -eq 0 -and $result.EnumerationErrorCount -eq 0
+    $result = Remove-LauncherPath -Path $Path -AllowedRoots $AllowedRoots -KeepRoot -PreserveNames $PreserveNames -PreservePaths $PreservePaths -WhatIf:$WhatIf -Activity "ParaGraph: clear $Path"
+    foreach ($path in @($result.SkippedPaths)) { Register-SkippedCachePath -Path ([string]$path) }
+    foreach ($path in @($result.FailedPaths)) { Register-SkippedCachePath -Path ([string]$path) }
+    return $result.SkippedPaths.Count -eq 0 -and $result.FailedPaths.Count -eq 0
 }
 
-function Remove-PythonCaches {
-    $allRemoved = $true
-    $venvRoot = ([IO.Path]::GetFullPath($VenvDir)).TrimEnd('\') + '\'
-    foreach ($root in @($ServerDir, $TestsDir)) {
-        if (-not (Test-Path -LiteralPath $root -ErrorAction SilentlyContinue)) { continue }
-        $cacheDirectories = @(Get-ChildItem -LiteralPath $root -Directory -Filter '__pycache__' -Recurse -Force -ErrorAction SilentlyContinue |
-            Where-Object { -not ([IO.Path]::GetFullPath($_.FullName)).StartsWith($venvRoot, [StringComparison]::OrdinalIgnoreCase) } |
-            Sort-Object @{ Expression = { $_.FullName.Length }; Descending = $true }, @{ Expression = { $_.FullName.ToUpperInvariant() }; Descending = $false })
-        foreach ($cacheDirectory in $cacheDirectories) {
-            if (-not (Remove-PathBestEffort -Path $cacheDirectory.FullName)) { $allRemoved = $false }
+function Find-RecognizedCachePaths {
+    param(
+        [Parameter(Mandatory = $true)][string]$Root,
+        [Parameter(Mandatory = $true)][string[]]$DirectoryNames,
+        [string[]]$FilePatterns = @(),
+        [string[]]$ExcludedNames = @()
+    )
+    $found = [Collections.Generic.List[string]]::new()
+    $failed = [Collections.Generic.List[string]]::new()
+    if (-not (Test-Path -LiteralPath $Root -PathType Container -ErrorAction SilentlyContinue)) {
+        return [pscustomobject]@{ Paths = @(); Failed = @() }
+    }
+    try {
+        $reparseRoot = Get-PathReparsePoint -Path $Root -AllowedRoot $RepoRoot
+        if ($reparseRoot) { return [pscustomobject]@{ Paths = @(); Failed = @("$reparseRoot (reparse point not traversed)") } }
+    } catch { return [pscustomobject]@{ Paths = @(); Failed = @("$Root ($($_.Exception.Message))") } }
+    $stack = [Collections.Generic.Stack[string]]::new()
+    $stack.Push([IO.Path]::GetFullPath($Root))
+    while ($stack.Count -gt 0) {
+        $directory = $stack.Pop()
+        try { $children = @(Get-ChildItem -LiteralPath $directory -Force -ErrorAction Stop) }
+        catch { [void]$failed.Add(("{0} ({1})" -f $directory, $_.Exception.Message)); continue }
+        foreach ($child in $children) {
+            if (($child.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+                [void]$failed.Add(("{0} (reparse point not traversed)" -f $child.FullName)); continue
+            }
+            if ($child.PSIsContainer) {
+                if ($child.Name -in $DirectoryNames) { [void]$found.Add($child.FullName); continue }
+                if ($child.Name -in $ExcludedNames) { continue }
+                $stack.Push($child.FullName)
+            } elseif ($FilePatterns | Where-Object { $child.Name -like $_ }) {
+                [void]$found.Add($child.FullName)
+            }
         }
     }
-    return $allRemoved
+    return [pscustomobject]@{ Paths = @($found.ToArray()); Failed = @($failed.ToArray()) }
 }
 
-function Clear-DeveloperCache {
-    return Clear-CacheDirectory -Path $CacheRoot
+function Get-ConfiguredDatabasePath {
+    param([Parameter(Mandatory = $true)][string]$ResourcesRoot)
+    $configurationFile = Join-Path $ResourcesRoot 'database_config.json'
+    if (-not (Test-Path -LiteralPath $configurationFile -PathType Leaf -ErrorAction Stop)) {
+        throw "Database configuration was not found: $configurationFile"
+    }
+    $configuration = Get-Content -LiteralPath $configurationFile -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
+    $backend = if ($configuration.PSObject.Properties.Name -contains 'backend') { [string]$configuration.backend } else { 'sqlite' }
+    $configuredDatabasePath = if ($configuration.PSObject.Properties.Name -contains 'database_path') { [string]$configuration.database_path } else { 'database.db' }
+    if ($backend -ne 'sqlite' -or [string]::IsNullOrWhiteSpace($configuredDatabasePath)) {
+        throw "Database configuration does not contain a valid SQLite database_path: $configurationFile"
+    }
+    $databasePath = [Environment]::ExpandEnvironmentVariables($configuredDatabasePath.Trim())
+    if ($databasePath -match '^~([\\/]|$)') { $databasePath = Join-Path ([Environment]::GetFolderPath('UserProfile')) $databasePath.Substring(1).TrimStart('\','/') }
+    if (-not [IO.Path]::IsPathRooted($databasePath)) { $databasePath = Join-Path $ResourcesRoot $databasePath }
+    $databasePath = [IO.Path]::GetFullPath($databasePath)
+    if ($databasePath.TrimEnd('\') -eq [IO.Path]::GetPathRoot($databasePath).TrimEnd('\') -or
+        $databasePath.TrimEnd('\') -eq [IO.Path]::GetFullPath($RepoRoot).TrimEnd('\')) {
+        throw "Refusing unsafe configured database path: $databasePath"
+    }
+    $reparse = Get-PathReparsePoint -Path $databasePath -AllowedRoot ([IO.Path]::GetPathRoot($databasePath))
+    if ($reparse) { throw "Configured database path traverses a symbolic link or junction: $reparse" }
+    if (Test-Path -LiteralPath $databasePath -PathType Container -ErrorAction Stop) {
+        throw "Configured database path resolves to a directory: $databasePath"
+    }
+    return $databasePath
+}
+
+function Get-TemporaryDatabasePaths {
+    param([string]$ResourcesRoot, [string]$DatabasePath)
+    $paths = [Collections.Generic.List[string]]::new()
+    foreach ($directory in @($ResourcesRoot, $(if ($DatabasePath) { [IO.Path]::GetDirectoryName($DatabasePath) }))) {
+        if ([string]::IsNullOrWhiteSpace($directory) -or -not (Test-Path -LiteralPath $directory -PathType Container -ErrorAction SilentlyContinue)) { continue }
+        foreach ($pattern in @('.database_config.json.*.tmp', '.database-test-*')) {
+            try {
+                foreach ($item in @(Get-ChildItem -LiteralPath $directory -File -Force -Filter $pattern -ErrorAction Stop)) {
+                    [void]$paths.Add($item.FullName)
+                }
+            } catch { throw "Unable to inspect temporary files under $directory ($($_.Exception.Message))" }
+        }
+    }
+    return @($paths.ToArray() | Sort-Object -Unique)
+}
+
+function Get-RecognizedCacheTargets {
+    param([switch]$IncludeCanonical)
+    $targets = [Collections.Generic.List[object]]::new()
+    $seen = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    $discoveryFailures = [Collections.Generic.List[string]]::new()
+    if ($IncludeCanonical -and $seen.Add([IO.Path]::GetFullPath($CacheRoot))) {
+        [void]$targets.Add([pscustomobject]@{ Path = $CacheRoot; KeepRoot = $true; PreserveNames = @(); PreservePaths = @((Join-Path $CacheRoot '.gitkeep')); AllowedRoots = @($RepoRoot) })
+    }
+
+    foreach ($name in @('.pytest_cache', '.ruff_cache', 'htmlcov')) {
+        $candidate = Join-Path $RepoRoot $name
+        if ((Test-Path -LiteralPath $candidate -PathType Container -ErrorAction SilentlyContinue) -and $seen.Add([IO.Path]::GetFullPath($candidate))) {
+            [void]$targets.Add([pscustomobject]@{ Path = $candidate; KeepRoot = $false; PreserveNames = @('.gitkeep'); PreservePaths = @(); AllowedRoots = @($RepoRoot) })
+        }
+    }
+    foreach ($name in @('.coverage', 'coverage.xml')) {
+        $candidate = Join-Path $RepoRoot $name
+        if ((Test-Path -LiteralPath $candidate -PathType Leaf -ErrorAction SilentlyContinue) -and $seen.Add([IO.Path]::GetFullPath($candidate))) {
+            [void]$targets.Add([pscustomobject]@{ Path = $candidate; KeepRoot = $false; PreserveNames = @(); PreservePaths = @(); AllowedRoots = @($RepoRoot) })
+        }
+    }
+    try {
+        foreach ($item in @(Get-ChildItem -LiteralPath $RepoRoot -File -Force -Filter '.coverage.*' -ErrorAction Stop)) {
+            if ($seen.Add([IO.Path]::GetFullPath($item.FullName))) { [void]$targets.Add([pscustomobject]@{ Path = $item.FullName; KeepRoot = $false; PreserveNames = @(); PreservePaths = @(); AllowedRoots = @($RepoRoot) }) }
+        }
+    } catch { [void]$discoveryFailures.Add(("{0} ({1})" -f $RepoRoot, $_.Exception.Message)) }
+
+    $searchSpecs = @(
+        [pscustomobject]@{ Root = $ServerDir; Directories = @('__pycache__', '.pytest_cache', '.ruff_cache'); Files = @('*.pyc', '*.pyo', '.coverage', '.coverage.*', 'coverage.xml') }
+        [pscustomobject]@{ Root = $TestsDir; Directories = @('__pycache__', '.pytest_cache', '.ruff_cache'); Files = @('*.pyc', '*.pyo', '.coverage', '.coverage.*', 'coverage.xml') }
+        [pscustomobject]@{ Root = (Join-Path $AppDir 'scripts'); Directories = @('__pycache__', '.pytest_cache', '.ruff_cache'); Files = @('*.pyc', '*.pyo', '.coverage', '.coverage.*', 'coverage.xml') }
+        [pscustomobject]@{ Root = $ClientDir; Directories = @('.cache', '.vite'); Files = @('.coverage', '.coverage.*') }
+        [pscustomobject]@{ Root = $VenvDir; Directories = @('__pycache__'); Files = @('*.pyc', '*.pyo') }
+    )
+    foreach ($spec in $searchSpecs) {
+        $found = Find-RecognizedCachePaths -Root $spec.Root -DirectoryNames $spec.Directories -FilePatterns $spec.Files -ExcludedNames @('.git', 'node_modules', '.venv')
+        foreach ($failure in @($found.Failed)) { [void]$discoveryFailures.Add($failure) }
+        foreach ($path in @($found.Paths)) {
+            if ($seen.Add([IO.Path]::GetFullPath($path))) { [void]$targets.Add([pscustomobject]@{ Path = $path; KeepRoot = $false; PreserveNames = @('.gitkeep'); PreservePaths = @(); AllowedRoots = @($RepoRoot) }) }
+        }
+    }
+    foreach ($relative in @('node_modules\.cache', 'node_modules\.vite')) {
+        $candidate = Join-Path $ClientDir $relative
+        if ((Test-Path -LiteralPath $candidate -PathType Container -ErrorAction SilentlyContinue) -and $seen.Add([IO.Path]::GetFullPath($candidate))) {
+            [void]$targets.Add([pscustomobject]@{ Path = $candidate; KeepRoot = $false; PreserveNames = @('.gitkeep'); PreservePaths = @(); AllowedRoots = @($RepoRoot) })
+        }
+    }
+    $assetCache = Join-Path $RepoRoot 'assets\cache'
+    if (Test-Path -LiteralPath $assetCache -PathType Container -ErrorAction SilentlyContinue) {
+        try {
+            $reparseRoot = Get-PathReparsePoint -Path $assetCache -AllowedRoot $RepoRoot
+            if ($reparseRoot) { throw "Refusing to inspect reparse point: $reparseRoot" }
+            foreach ($item in @(Get-ChildItem -LiteralPath $assetCache -Directory -Force -ErrorAction Stop | Where-Object { $_.Name -like 'pytest-tmp-*' })) {
+                if ($seen.Add([IO.Path]::GetFullPath($item.FullName))) { [void]$targets.Add([pscustomobject]@{ Path = $item.FullName; KeepRoot = $false; PreserveNames = @('.gitkeep'); PreservePaths = @(); AllowedRoots = @($RepoRoot) }) }
+            }
+        } catch { [void]$discoveryFailures.Add(("{0} ({1})" -f $assetCache, $_.Exception.Message)) }
+    }
+
+    $settings = Get-MaintenanceSettings
+    $resourcesRoot = Resolve-ResourcesRoot -Settings $settings
+    $databasePath = $null
+    $safeResourcesRoot = $false
+    try { $resourcesRoot = Assert-SafeResourcesRoot -ResourcesRoot $resourcesRoot; $safeResourcesRoot = $true }
+    catch { [void]$discoveryFailures.Add($_.Exception.Message) }
+    if ($safeResourcesRoot) {
+        try { $databasePath = Get-ConfiguredDatabasePath -ResourcesRoot $resourcesRoot }
+        catch { [void]$discoveryFailures.Add($_.Exception.Message) }
+        try {
+            foreach ($path in @(Get-TemporaryDatabasePaths -ResourcesRoot $resourcesRoot -DatabasePath $databasePath)) {
+                $allowedRoots = @($RepoRoot, $resourcesRoot)
+                if ($databasePath) { $allowedRoots += [IO.Path]::GetDirectoryName($databasePath) }
+                if ($seen.Add([IO.Path]::GetFullPath($path))) { [void]$targets.Add([pscustomobject]@{ Path = $path; KeepRoot = $false; PreserveNames = @(); PreservePaths = @(); AllowedRoots = $allowedRoots }) }
+            }
+        } catch { [void]$discoveryFailures.Add($_.Exception.Message) }
+    }
+    return [pscustomobject]@{ Targets = @($targets.ToArray()); DiscoveryFailures = @($discoveryFailures.ToArray()) }
+}
+
+function Get-ApplicationLogTargets {
+    param([string]$ResourcesRoot)
+    $logDirectory = Join-Path $ResourcesRoot 'logs'
+    try { $logDirectoryItem = Get-Item -LiteralPath $logDirectory -Force -ErrorAction Stop }
+    catch {
+        if ($_.CategoryInfo.Category -eq [System.Management.Automation.ErrorCategory]::ObjectNotFound) { return @() }
+        throw "Unable to inspect ParaGraph log directory $logDirectory ($($_.Exception.Message))"
+    }
+    if (-not $logDirectoryItem.PSIsContainer) { throw "ParaGraph log path is not a directory: $logDirectory" }
+    $reparse = Get-PathReparsePoint -Path $logDirectory -AllowedRoot ([IO.Path]::GetPathRoot($ResourcesRoot))
+    if ($reparse) { throw "Refusing to inspect ParaGraph logs through a symbolic link or junction: $reparse" }
+    try { $logFiles = @(Get-ChildItem -LiteralPath $logDirectory -File -Force -Filter 'ParaGraph_*.log' -ErrorAction Stop) }
+    catch { throw "Unable to inspect ParaGraph log directory $logDirectory ($($_.Exception.Message))" }
+    return @($logFiles |
+        Sort-Object @{ Expression = { $_.FullName.ToUpperInvariant() }; Descending = $false } |
+        ForEach-Object { [pscustomobject]@{ Path = $_.FullName; KeepRoot = $false; PreserveNames = @(); PreservePaths = @(); AllowedRoots = @($ResourcesRoot) } })
+}
+
+function Get-RemovalTargets {
+    param([object[]]$Targets)
+    $plans = [Collections.Generic.List[object]]::new()
+    foreach ($target in $Targets) {
+        try {
+            $plan = Get-LauncherPathPlan -Path $target.Path -AllowedRoots $target.AllowedRoots -KeepRoot:$target.KeepRoot -PreserveNames $target.PreserveNames -PreservePaths $target.PreservePaths
+            [void]$plans.Add([pscustomobject]@{ Target = $target; Plan = $plan })
+        } catch {
+            [void]$plans.Add([pscustomobject]@{ Target = $target; Error = $_.Exception.Message })
+        }
+    }
+    return @($plans.ToArray())
+}
+
+function Write-RemovalPreview {
+    param([object[]]$Plans, [string[]]$DiscoveryFailures = @())
+    Write-Host 'Planned locations:' -ForegroundColor Cyan
+    $count = 0
+    foreach ($entry in $Plans) {
+        if ($entry.Error) { Write-Warn "Rejected $($entry.Target.Path): $($entry.Error)"; continue }
+        if ($entry.Plan.Missing) { Write-Host "  [missing] $($entry.Target.Path)" -ForegroundColor DarkGray; continue }
+        foreach ($path in @($entry.Plan.PlannedPaths)) { Write-Host "  $path"; $count++ }
+        foreach ($path in @($entry.Plan.PreservedPaths)) { Write-Host "  [preserved] $path" -ForegroundColor DarkGray }
+        foreach ($path in @($entry.Plan.SkippedPaths)) { Write-Warn "Skipped reparse point: $path" }
+        foreach ($path in @($entry.Plan.FailedPaths)) { Write-Warn "Enumeration failed: $path" }
+    }
+    foreach ($failure in $DiscoveryFailures) { Write-Warn "Discovery incomplete: $failure" }
+    Write-Info "Planned $count path(s)."
+}
+
+function Get-ActiveParaGraphProcessIds {
+    $ids = [Collections.Generic.HashSet[int]]::new()
+    foreach ($processId in @(Get-BackendTerminalProcessIds)) { [void]$ids.Add([int]$processId) }
+    try {
+        $repoPattern = [Regex]::Escape([IO.Path]::GetFullPath($RepoRoot).TrimEnd('\'))
+        foreach ($process in @(Get-CimInstance Win32_Process -ErrorAction Stop)) {
+            $commandLine = [string]$process.CommandLine
+            $executablePath = [string]$process.ExecutablePath
+            $isBackend = $commandLine -match 'server\.app:app' -and ($commandLine -match $repoPattern -or $executablePath -match $repoPattern)
+            $isFrontend = $commandLine -match '\bvite\b' -and ($commandLine -match [Regex]::Escape($ClientDir) -or $executablePath -match $repoPattern)
+            if (($isBackend -or $isFrontend) -and [int]$process.ProcessId -ne $PID) { [void]$ids.Add([int]$process.ProcessId) }
+        }
+    } catch { throw "Could not verify whether ParaGraph is running; cleanup was stopped for safety. $($_.Exception.Message)" }
+    return @($ids)
+}
+
+function Assert-ApplicationStopped {
+    $processIds = @(Get-ActiveParaGraphProcessIds)
+    if ($processIds.Count -gt 0) {
+        throw "ParaGraph processes are running (PID(s): $($processIds -join ', ')). Stop them with launcher option 2, then retry cleanup."
+    }
+}
+
+function Invoke-RemovalOperation {
+    param([string]$Description, [object[]]$Targets, [string[]]$DiscoveryFailures = @(), [string[]]$PreservedLocations = @())
+    Assert-ApplicationStopped
+    $script:SkippedCacheCount = 0
+    $script:FirstSkippedCachePath = $null
+    $plans = @(Get-RemovalTargets -Targets $Targets)
+    Write-RemovalPreview -Plans $plans -DiscoveryFailures $DiscoveryFailures
+    foreach ($path in $PreservedLocations) { Write-Info "Preserved: $path" }
+    if ($script:DryRun) { Write-Ok 'Dry run complete; no files were changed.'; return }
+    if (-not (Confirm-DestructiveAction $Description)) { return }
+    Assert-ApplicationStopped
+    $removedCount = 0
+    $skippedPaths = [Collections.Generic.List[string]]::new()
+    $failedPaths = [Collections.Generic.List[string]]::new()
+    foreach ($failure in $DiscoveryFailures) { [void]$failedPaths.Add($failure); Register-SkippedCachePath -Path $failure }
+    foreach ($entry in $plans) {
+        if ($entry.Error) {
+            $failure = ("{0} ({1})" -f $entry.Target.Path, $entry.Error)
+            [void]$failedPaths.Add($failure)
+            Register-SkippedCachePath -Path $failure
+            continue
+        }
+        if ($entry.Error -or $entry.Plan.Missing) { continue }
+        $target = $entry.Target
+        $result = Remove-LauncherPath -Path $target.Path -AllowedRoots $target.AllowedRoots -KeepRoot:$target.KeepRoot -PreserveNames $target.PreserveNames -PreservePaths $target.PreservePaths -Plan $entry.Plan -Activity "ParaGraph: remove $([IO.Path]::GetFileName($target.Path))"
+        $removedCount += @($result.RemovedPaths).Count
+        foreach ($path in @($result.RemovedPaths)) { Write-Info "Removed: $path" }
+        foreach ($path in @($result.SkippedPaths)) { [void]$skippedPaths.Add($path); Register-SkippedCachePath -Path $path }
+        foreach ($path in @($result.FailedPaths)) { [void]$failedPaths.Add($path); Register-SkippedCachePath -Path $path }
+    }
+    foreach ($path in $skippedPaths) { Write-Warn "Skipped: $path" }
+    foreach ($path in $failedPaths) { Write-Warn "Failed: $path" }
+    if ($skippedPaths.Count -gt 0 -or $failedPaths.Count -gt 0) {
+        Write-Warn ("Cleanup summary: removed {0}, skipped {1}, failed {2}. First issue: {3}" -f $removedCount, $skippedPaths.Count, $failedPaths.Count, $script:FirstSkippedCachePath)
+    } else {
+        Write-Ok ("Cleanup completed: removed {0} path(s); skipped 0; failed 0." -f $removedCount)
+    }
+}
+
+function Remove-LogFiles {
+    $settings = Get-MaintenanceSettings
+    $resourcesRoot = Assert-SafeResourcesRoot -ResourcesRoot (Resolve-ResourcesRoot -Settings $settings)
+    $targets = @(Get-ApplicationLogTargets -ResourcesRoot $resourcesRoot)
+    Invoke-RemovalOperation -Description 'remove ParaGraph-generated log files' -Targets $targets
+}
+
+function Remove-AllData {
+    $settings = Get-MaintenanceSettings
+    $resourceRoot = Assert-SafeResourcesRoot -ResourcesRoot (Resolve-ResourcesRoot -Settings $settings)
+    try { $databasePath = Get-ConfiguredDatabasePath -ResourcesRoot $resourceRoot }
+    catch { throw "Remove All Data was stopped before any changes: $($_.Exception.Message)" }
+
+    $targets = [Collections.Generic.List[object]]::new()
+    foreach ($relativePath in @('artifacts', 'logs', 'models', 'nodes\custom_nodes')) {
+        $path = Join-Path $resourceRoot $relativePath
+        $preserve = if ($relativePath -eq 'nodes\custom_nodes') { @('.gitkeep', 'README.md') } else { @('.gitkeep') }
+        [void]$targets.Add([pscustomobject]@{ Path = $path; KeepRoot = $true; PreserveNames = $preserve; PreservePaths = @(); AllowedRoots = @($resourceRoot) })
+    }
+    foreach ($path in @($databasePath, "$databasePath-wal", "$databasePath-shm", "$databasePath-journal")) {
+        if (Test-Path -LiteralPath $path -PathType Container -ErrorAction Stop) { throw "Remove All Data was stopped before any changes: database target is a directory: $path" }
+        [void]$targets.Add([pscustomobject]@{ Path = $path; KeepRoot = $false; PreserveNames = @(); PreservePaths = @(); AllowedRoots = @([IO.Path]::GetDirectoryName($databasePath)) })
+    }
+    $temporary = @(Get-TemporaryDatabasePaths -ResourcesRoot $resourceRoot -DatabasePath $databasePath)
+    foreach ($path in $temporary) {
+        [void]$targets.Add([pscustomobject]@{ Path = $path; KeepRoot = $false; PreserveNames = @(); PreservePaths = @(); AllowedRoots = @($resourceRoot, [IO.Path]::GetDirectoryName($databasePath)) })
+    }
+    $preserved = @($DotEnv, (Join-Path $resourceRoot 'database_config.json'), (Join-Path $resourceRoot 'workflow_templates'), ("{0} (built-in node definitions; custom_nodes contents are removed)" -f (Join-Path $resourceRoot 'nodes')), 'Browser localStorage (ParaGraph workflows remain in the browser profile)')
+    Invoke-RemovalOperation -Description 'remove all user data and the configured application database' -Targets @($targets.ToArray()) -PreservedLocations $preserved
 }
 
 function Clear-ApplicationCache {
-    if (-not (Confirm-DestructiveAction 'clear the canonical runtime, test/tool, browser, frontend, and library cache hierarchy under runtimes/cache')) { return }
-    $script:SkippedCacheCount = 0
-    $script:FirstSkippedCachePath = $null
-    $allRemoved = Remove-PythonCaches
-    if (-not (Clear-DeveloperCache)) { $allRemoved = $false }
-    if ($allRemoved) {
-        Write-Ok 'The canonical cache hierarchy under runtimes/cache was removed.'
-    } else {
-        Write-Warn ("The canonical cache hierarchy under runtimes/cache was cleared where permitted; {0} locked or protected entries were skipped. First skipped path: {1}" -f $script:SkippedCacheCount, $script:FirstSkippedCachePath)
-    }
-}
-
-function Remove-RepoItem([string]$RelativePath) {
-    $target = [IO.Path]::GetFullPath((Join-Path $RepoRoot $RelativePath))
-    $rootWithSeparator = [IO.Path]::GetFullPath($RepoRoot).TrimEnd('\') + '\'
-    if (-not $target.StartsWith($rootWithSeparator, [StringComparison]::OrdinalIgnoreCase)) {
-        throw "Refusing to remove a path outside the repository: $target"
-    }
-    if (Test-Path -LiteralPath $target -ErrorAction SilentlyContinue) {
-        return Remove-PathBestEffort -Path $target
-    }
-    return $true
+    $discovery = Get-RecognizedCacheTargets -IncludeCanonical
+    Invoke-RemovalOperation -Description 'clear recognized ParaGraph cache and generated temporary files' -Targets $discovery.Targets -DiscoveryFailures $discovery.DiscoveryFailures
 }
 
 function Uninstall-Application {
-    if (-not (Confirm-DestructiveAction 'remove local runtimes, dependencies, caches, and build outputs')) { return }
-    $script:SkippedCacheCount = 0
-    $script:FirstSkippedCachePath = $null
-    $allRemoved = $true
-    foreach ($relativePath in @(
-        'runtimes', 'app\server\.venv', '.venv', 'app\client\node_modules'
-    )) {
-        if (-not (Remove-RepoItem -RelativePath $relativePath)) { $allRemoved = $false }
+    $discovery = Get-RecognizedCacheTargets
+    $targets = [Collections.Generic.List[object]]::new()
+    foreach ($relativePath in @('runtimes', 'app\server\.venv', 'app\client\node_modules')) {
+        [void]$targets.Add([pscustomobject]@{ Path = (Join-Path $RepoRoot $relativePath); KeepRoot = $false; PreserveNames = @('.gitkeep'); PreservePaths = @(); AllowedRoots = @($RepoRoot) })
     }
-    if (-not (Remove-PythonCaches)) { $allRemoved = $false }
-    if (-not (Clear-DeveloperCache)) { $allRemoved = $false }
-    if ($allRemoved) {
-        Write-Ok 'Application runtimes, dependencies, caches, and build outputs removed. Dependency lockfiles and user data were preserved.'
-    } else {
-        Write-Warn ("Application runtimes, dependencies, caches, and build outputs were removed where permitted; {0} locked or protected entries were skipped. Dependency lockfiles and user data were preserved. First skipped path: {1}" -f $script:SkippedCacheCount, $script:FirstSkippedCachePath)
+    $removedRoots = @((Join-Path $RepoRoot 'runtimes'), $VenvDir, (Join-Path $ClientDir 'node_modules'))
+    foreach ($target in $discovery.Targets) {
+        $coveredByRemovedRoot = $false
+        foreach ($removedRoot in $removedRoots) {
+            if ([IO.Path]::GetFullPath($target.Path).Equals([IO.Path]::GetFullPath($removedRoot), [StringComparison]::OrdinalIgnoreCase) -or
+                (Test-PathWithinRoot -Path $target.Path -Root $removedRoot)) { $coveredByRemovedRoot = $true; break }
+        }
+        if (-not $coveredByRemovedRoot) { [void]$targets.Add($target) }
     }
+    $settings = Get-MaintenanceSettings
+    $resourcesRoot = Assert-SafeResourcesRoot -ResourcesRoot (Resolve-ResourcesRoot -Settings $settings)
+    foreach ($target in @(Get-ApplicationLogTargets -ResourcesRoot $resourcesRoot)) { [void]$targets.Add($target) }
+    Invoke-RemovalOperation -Description 'uninstall ParaGraph runtimes, dependencies, generated caches, and application logs' -Targets @($targets.ToArray()) -DiscoveryFailures $discovery.DiscoveryFailures -PreservedLocations @($DotEnv, $resourcesRoot, (Join-Path $resourcesRoot 'database_config.json'), 'Database, artifacts, models, custom nodes, templates, and browser localStorage')
 }
 
 #endregion
@@ -1487,6 +1774,11 @@ while ($true) {
     }
     $entry = $entries[[int]$selection - 1]
     if ($entry.Key -eq 'Exit') { break }
+    if ($script:DryRun -and $entry.Key -notin @('Logs', 'Cache', 'AllData', 'Uninstall')) {
+        Write-Warn '-DryRun only runs maintenance previews (options 9-12); no other action was started.'
+        Wait-ForMenu
+        continue
+    }
     try {
         Invoke-TrackedLauncherAction -Name $entry.Title -Action {
             switch ($entry.Key) {

@@ -1,5 +1,5 @@
 # Startup
-Last updated: 2026-10-26
+Last updated: 2026-10-29
 
 ## Local Launcher
 PowerShell:
@@ -8,7 +8,15 @@ PowerShell:
 .\start_on_windows.ps1
 ```
 
-The menu can launch the application, install dependencies, initialize the database, run tests, clear logs or caches, and uninstall local runtime files. Cache and data removal uses deterministic deepest-first individual deletion so locked or protected entries can be reported without issuing a recursive delete.
+The menu can launch the application, install dependencies, initialize the database, run tests, clear logs or caches, and uninstall local runtime files. Maintenance previews every planned path before asking for confirmation. Deletion is deepest-first and per-path; locked, inaccessible, and linked locations are reported without traversing links.
+
+Pass `-DryRun` to preview maintenance options without changing files:
+
+```powershell
+.\start_on_windows.ps1 -DryRun
+```
+
+Select option `9`, `10`, `11`, or `12` to preview that action. Other actions are not started in dry-run mode. Cleanup and uninstall stop while ParaGraph processes are running; stop them with option `2` first.
 
 The interactive menu provides these options:
 
@@ -20,11 +28,13 @@ The interactive menu provides these options:
 - `6` Run the project test suite.
 - `7` Check for a different `origin/main` revision without downloading or applying changes.
 - `8` Update from `origin/main` with `git pull`; this requires a clean worktree and the `main` branch to be checked out.
-- `9` Remove application log files.
-- `10` Clear the complete disposable cache hierarchy under `runtimes/cache`, preserving the tracked `.gitkeep` sentinel and application data.
-- `11` Remove user data and the embedded database, including database sidecars, while preserving application files and settings. This requires an affirmative response at a `[y/N]` confirmation prompt.
-- `12` Uninstall local runtimes, dependencies, caches, and build output while preserving dependency lockfiles, settings, and user data.
+- `9` Remove ParaGraph-generated `ParaGraph_*.log` files under the configured resource root.
+- `10` Clear the canonical `runtimes/cache` hierarchy, nested Python bytecode and test/tool caches, frontend `.cache` and Vite caches, root coverage outputs, and recognized `assets/cache/pytest-tmp-*` leftovers. It preserves dependency installations, settings, databases, logs, artifacts, and the tracked cache `.gitkeep`.
+- `11` Remove resource artifacts, logs, models, custom nodes, and the configured SQLite database with its `-wal`, `-shm`, and `-journal` sidecars. The exact paths are shown before the affirmative `[y/N]` confirmation. Settings, built-in nodes, templates, and browser `localStorage` remain. If the database configuration is missing or invalid, no data is removed.
+- `12` Uninstall local runtimes, the backend virtual environment, frontend dependencies, recognized caches and temporary files, and ParaGraph-generated logs. Settings, dependency lockfiles, the database, artifacts, models, custom nodes, templates, and browser `localStorage` are preserved.
 - `13` Exit without changing the workspace.
+
+The cache registry covers the project’s configured Python, pytest, Ruff, coverage, Vite, Vitest, ESLint, Playwright, package-manager, model-library, and generated frontend-build locations. Cleanup uses paths rooted from the launcher location, not the shell’s current directory. Reparse points are skipped and reported; arbitrary user-profile and shared browser caches are not scanned.
 
 ## Manual Backend
 CMD:
