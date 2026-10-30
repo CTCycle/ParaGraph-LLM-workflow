@@ -7,9 +7,6 @@
 <p align="center">
   <a href="https://github.com/CTCycle/ParaGraph-LLM-workflow/stargazers"><img alt="GitHub stars" src="https://img.shields.io/github/stars/CTCycle/ParaGraph-LLM-workflow?style=flat-square"></a>
   <a href="https://github.com/CTCycle/ParaGraph-LLM-workflow/commits"><img alt="Last commit" src="https://img.shields.io/github/last-commit/CTCycle/ParaGraph-LLM-workflow?style=flat-square"></a>
-</p>
-
-<p align="center">
   <a href="https://github.com/CTCycle/ParaGraph-LLM-workflow/releases"><img alt="Release" src="https://img.shields.io/github/v/release/CTCycle/ParaGraph-LLM-workflow?display_name=tag&style=flat-square"></a>
   <a href="https://github.com/CTCycle/ParaGraph-LLM-workflow/actions/workflows/ci.yml?query=branch%3Adevelop"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/CTCycle/ParaGraph-LLM-workflow/ci.yml?branch=develop&label=CI&style=flat-square"></a>
   <a href="LICENSE"><img alt="License" src="https://img.shields.io/github/license/CTCycle/ParaGraph-LLM-workflow?style=flat-square"></a>
