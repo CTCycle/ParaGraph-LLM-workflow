@@ -5,6 +5,23 @@
 <p align="center">A local visual editor for building and running LLM workflows.</p>
 
 <p align="center">
+  <a href="https://github.com/CTCycle/ParaGraph-LLM-workflow/stargazers"><img alt="GitHub stars" src="https://img.shields.io/github/stars/CTCycle/ParaGraph-LLM-workflow?style=flat-square"></a>
+  <a href="https://github.com/CTCycle/ParaGraph-LLM-workflow/commits"><img alt="Last commit" src="https://img.shields.io/github/last-commit/CTCycle/ParaGraph-LLM-workflow?style=flat-square"></a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/CTCycle/ParaGraph-LLM-workflow/releases"><img alt="Release" src="https://img.shields.io/github/v/release/CTCycle/ParaGraph-LLM-workflow?display_name=tag&style=flat-square"></a>
+  <a href="https://github.com/CTCycle/ParaGraph-LLM-workflow/actions/workflows/ci.yml?query=branch%3Adevelop"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/CTCycle/ParaGraph-LLM-workflow/ci.yml?branch=develop&label=CI&style=flat-square"></a>
+  <a href="LICENSE"><img alt="License" src="https://img.shields.io/github/license/CTCycle/ParaGraph-LLM-workflow?style=flat-square"></a>
+</p>
+
+<p align="center">
+  <a href="https://www.python.org/"><img alt="Python 3.14.2" src="https://img.shields.io/badge/Python-3.14.2-3776AB?logo=python&logoColor=white&style=flat-square"></a>
+  <a href="https://react.dev/"><img alt="React 18" src="https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black&style=flat-square"></a>
+  <a href="https://www.microsoft.com/windows"><img alt="Platform: Windows" src="https://img.shields.io/badge/Platform-Windows-0078D4?logo=windows&logoColor=white&style=flat-square"></a>
+</p>
+
+<p align="center">
   <a href="#run-locally">Run locally</a> ·
   <a href="#build-and-run-a-workflow">Build a workflow</a> ·
   <a href="#configuration">Configuration</a> ·
