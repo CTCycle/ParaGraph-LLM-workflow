@@ -1,5 +1,5 @@
 # Getting Started
-Last updated: 2026-10-22
+Last updated: 2026-11-05
 
 ## Overview
 ParaGraph is a local-first application for building and executing LLM workflows through a visual node canvas.
@@ -15,13 +15,13 @@ ParaGraph is a local-first application for building and executing LLM workflows 
   - Manage runtime, provider, and saved profile settings.
 
 ## Starting The Application
-Recommended on Windows:
+Recommended on Windows. The batch wrapper invokes the PowerShell setup script in -Launch mode:
 
 ```powershell
-.\start_on_windows.ps1
+.\start_on_windows.bat
 ```
 
-The launcher prepares runtimes and dependencies, starts one backend console that serves the UI and API, and opens the app at the backend URL. Stop it with Ctrl+C in that console.
+First-run launch prepares runtimes and dependencies, starts one backend console that serves the UI and API, and opens the app at the backend URL. Stop it with Ctrl+C in that console.
 
 ## Standard User Journey
 1. Open Configurations and set required provider or runtime credentials.

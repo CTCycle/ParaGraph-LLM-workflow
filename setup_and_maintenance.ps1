@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([switch]$DryRun)
+param([switch]$DryRun, [switch]$Launch)
 
 $ErrorActionPreference = 'Stop'
 $script:RepoRoot = $PSScriptRoot
@@ -138,7 +138,6 @@ function Write-MenuDivider {
 
 function Get-LauncherMenuEntries {
     return @(
-        [pscustomobject]@{ Section = 'APPLICATION'; Title = 'Launch application'; Description = 'Start ParaGraph in one backend console'; Key = 'Launch'; Destructive = $false }
         [pscustomobject]@{ Section = 'APPLICATION'; Title = 'Kill all app processes'; Description = 'Stop the backend, any dev server, and the console'; Key = 'KillProcesses'; Destructive = $true }
         [pscustomobject]@{ Section = 'SETUP & VALIDATION'; Title = 'Install or update dependencies'; Description = 'Sync runtimes, dependencies, browser, database, and UI build'; Key = 'Install'; Destructive = $false }
         [pscustomobject]@{ Section = 'SETUP & VALIDATION'; Title = 'Rebuild frontend'; Description = 'Build the frontend only'; Key = 'Rebuild'; Destructive = $false }
@@ -1014,14 +1013,14 @@ function Invoke-Launch {
                 throw "Backend did not become healthy at $healthUrl within 60 seconds."
             }
             if (-not (Invoke-HealthCheck -Url $appUrl -Attempts 5 -IntervalSeconds 1)) {
-                throw "Backend did not serve the frontend at $appUrl; rebuild the frontend (option 4)."
+                throw "Backend did not serve the frontend at $appUrl; rebuild the frontend (option 3)."
             }
 
             Start-Process $appUrl
             $backendPid = Get-ListenerPid -Port $backendPort
             Write-Ok 'ParaGraph started successfully.'
             Write-Host "  Application: $appUrl (backend PID $backendPid)"
-            Write-Host "  Stop with Ctrl+C in the '$script:BackendTerminalTitle' console, or launcher option 2."
+            Write-Host "  Stop with Ctrl+C in the '$script:BackendTerminalTitle' console, or launcher option 1."
             return $true
         } finally {
             Write-LaunchTiming -Phase 'API and frontend readiness' -ElapsedMilliseconds ($launchStopwatch.ElapsedMilliseconds - $phaseStarted)
@@ -1591,7 +1590,7 @@ function Get-ActiveParaGraphProcessIds {
 function Assert-ApplicationStopped {
     $processIds = @(Get-ActiveParaGraphProcessIds)
     if ($processIds.Count -gt 0) {
-        throw "ParaGraph processes are running (PID(s): $($processIds -join ', ')). Stop them with launcher option 2, then retry cleanup."
+        throw "ParaGraph processes are running (PID(s): $($processIds -join ', ')). Stop them with launcher option 1, then retry cleanup."
     }
 }
 
@@ -1761,6 +1760,16 @@ if ($MyInvocation.InvocationName -eq '.') {
     return
 }
 
+if ($Launch) {
+    try {
+        Invoke-TrackedLauncherAction -Name 'Launch application' -Action { [void](Invoke-Launch) }
+        exit 0
+    } catch {
+        Write-Fatal $_.Exception.Message
+        exit 1
+    }
+}
+
 while ($true) {
     $entries = @(Show-Menu)
     $maxOption = $entries.Count
@@ -1775,14 +1784,13 @@ while ($true) {
     $entry = $entries[[int]$selection - 1]
     if ($entry.Key -eq 'Exit') { break }
     if ($script:DryRun -and $entry.Key -notin @('Logs', 'Cache', 'AllData', 'Uninstall')) {
-        Write-Warn '-DryRun only runs maintenance previews (options 9-12); no other action was started.'
+        Write-Warn '-DryRun only runs maintenance previews (options 8-11); no other action was started.'
         Wait-ForMenu
         continue
     }
     try {
         Invoke-TrackedLauncherAction -Name $entry.Title -Action {
             switch ($entry.Key) {
-                'Launch' { if (Invoke-Launch) { exit 0 } }
                 'KillProcesses' { Stop-ApplicationProcesses -Settings (Import-DotEnv) }
                 'Install' {
                     Ensure-PortableRuntimes

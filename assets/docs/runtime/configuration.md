@@ -1,5 +1,5 @@
 # Configuration
-Last updated: 2026-10-22
+Last updated: 2026-11-05
 
 ## Shared Configuration Sources
 - Shared environment keys are loaded from `settings/.env`.
@@ -24,7 +24,7 @@ Last updated: 2026-10-22
 - Set `PARAGRAPH_RESOURCES_DIR` to an absolute path or a path relative to the repository root to relocate resource data, including the embedded SQLite database.
 
 ## Runtime Settings
-- Launcher option `3` creates or refreshes dependencies and the frontend build. Option `4` explicitly rebuilds the frontend. Application launch repairs missing dependencies independently, then serves the existing build when its content fingerprint is current.
+- Launcher option `2` creates or refreshes dependencies and the frontend build. Option `3` explicitly rebuilds the frontend. Application launch repairs missing dependencies independently, then serves the existing build when its content fingerprint is current.
 - The Providers section in `/config` automatically saves provider-specific endpoint, credential, and model metadata edits to the active database after a 400 ms debounce. These are user provider settings; the frontend API path and server listener endpoints are supplied through `.env`. Blur and page exit flush pending edits; subsequent provider operations read the saved values without an application restart. Successful saves are acknowledged inline, and failed saves remain visible while the edited values stay on screen.
 - Named configuration profiles are optional snapshots. Saving a profile does not gate ordinary settings persistence; loading one replaces the active provider configuration, including its stored credentials, in the current database.
 - The Database section in `/config` keeps edits as a draft. **Test Connection** validates a draft without changing the active database. **Apply** is the only settings confirmation: the backend validates and prepares the target schema before activating it, then atomically writes `<RESOURCES_ROOT>/database_config.json`. A failed switch leaves the previous database active.

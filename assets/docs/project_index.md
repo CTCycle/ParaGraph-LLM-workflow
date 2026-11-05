@@ -1,5 +1,5 @@
 # Project Overview
-Last updated: 2026-10-18
+Last updated: 2026-11-05
 
 ## Purpose
 This is the entry point for the ParaGraph documentation tree. Use it to find the owning concept document and keep related knowledge there.
@@ -67,4 +67,4 @@ For current-state, validation, or revalidation work, read the [status ledger](pr
 ## Environment Rules
 - Windows is the default operating environment.
 - Document both PowerShell and CMD variants when commands differ.
-- Keep runtime guidance aligned with start_on_windows.ps1.
+- Keep runtime guidance aligned with start_on_windows.bat and setup_and_maintenance.ps1.

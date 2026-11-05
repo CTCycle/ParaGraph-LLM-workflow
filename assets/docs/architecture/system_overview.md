@@ -1,5 +1,5 @@
 # System Overview
-Last updated: 2026-10-22
+Last updated: 2026-11-05
 
 ## System Summary
 ParaGraph is a local-first workflow platform composed of:
@@ -39,7 +39,8 @@ The repository contains source code plus generated and runtime-heavy folders. Th
 |- data/                          (db, logs, models, nodes, templates, artifacts)
 |- settings/                       (.env and its example; legacy settings import only)
 |- runtimes/                       (portable Python, uv, Node, .venv, uv.lock)
-|- start_on_windows.ps1            (Windows launcher and maintenance menu)
+|- start_on_windows.bat              (Windows application launch wrapper)
+|- setup_and_maintenance.ps1        (Windows setup and maintenance menu)
 `- README.md
 ```
 
@@ -51,7 +52,7 @@ repository, or SQLAlchemy implementation modules.
 
 ## Application Entry Points
 - Backend app factory: `app/server/app.py` exposes `create_app` and `app`.
-- Launcher-managed backend startup: `start_on_windows.ps1` runs `python -m uvicorn server.app:app`.
+- Windows launch wrapper: start_on_windows.bat invokes setup_and_maintenance.ps1 -Launch, which runs python -m uvicorn server.app:app.
 - Manual backend startup also targets `server.app:app` with `uvicorn`.
 - Frontend entry: `app/client/src/main.tsx` bootstraps `App.tsx`.
 

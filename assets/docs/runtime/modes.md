@@ -1,13 +1,13 @@
 # Runtime Modes
-Last updated: 2026-10-22
+Last updated: 2026-11-05
 
 ## Supported Modes
 ### Local Launcher Mode
 - Primary Windows mode.
-- Uses `start_on_windows.ps1` to bootstrap portable runtimes, repair missing dependencies, validate the frontend build fingerprint, and run one uvicorn process.
+- Uses start_on_windows.bat, which invokes setup_and_maintenance.ps1 -Launch to bootstrap portable runtimes, repair missing dependencies, validate the frontend build fingerprint, and run one uvicorn process.
 - The backend serves the built frontend, the `/api` path, and the execution WebSocket from a single origin (`FASTAPI_HOST:FASTAPI_PORT`); no Vite server runs.
-- Steady-state option `1` reuses a current fingerprinted build. Option `3` installs or updates dependencies and rebuilds; option `4` is the explicit unconditional frontend rebuild path.
-- Option `1` asks before terminating a process that occupies the backend port. Option `2` remains the explicit broad application-process cleanup operation.
+- Steady-state launch reuses a current fingerprinted build. Maintenance option 2 installs or updates dependencies and rebuilds; option 3 is the explicit unconditional frontend rebuild path.
+- Launch mode asks before terminating a process that occupies the backend port. Option 1 remains the explicit broad application-process cleanup operation.
 
 ### Manual Development Mode
 - Backend and frontend are started separately for development control.

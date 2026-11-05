@@ -36,10 +36,10 @@ On 64-bit Windows, install Git and use PowerShell. An internet connection is nee
 ```powershell
 git clone https://github.com/CTCycle/ParaGraph-LLM-workflow.git
 Set-Location .\ParaGraph-LLM-workflow
-.\start_on_windows.ps1
+.\start_on_windows.bat
 ```
 
-Choose **1. Launch application**. The launcher opens ParaGraph at <http://127.0.0.1:5002/>. Press **Ctrl+C** in the backend console to stop it.
+The batch wrapper prepares runtimes and dependencies on first launch, then opens ParaGraph at <http://127.0.0.1:5002/>. Press Ctrl+C in the backend console to stop it.
 
 ## Build and run a workflow
 

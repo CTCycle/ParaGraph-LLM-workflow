@@ -1,7 +1,7 @@
 $ErrorActionPreference = 'Stop'
 
 $repoRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..'))
-$launcherPath = Join-Path $repoRoot 'start_on_windows.ps1'
+$launcherPath = Join-Path $repoRoot 'setup_and_maintenance.ps1'
 $tempParent = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd('\')
 $fixtureRoot = Join-Path $tempParent ("paragraph-cleanup-tests-" + [guid]::NewGuid().ToString('N'))
 $script:TestFailures = [Collections.Generic.List[string]]::new()
@@ -133,7 +133,7 @@ Invoke-TestCase -Name 'cache cleanup is repeatable and preserves dependencies, s
 
 Invoke-TestCase -Name 'maintenance menu actions and ordering remain stable' -Test {
     $keys = @(Get-LauncherMenuEntries | ForEach-Object { $_.Key })
-    $expected = @('Launch', 'KillProcesses', 'Install', 'Rebuild', 'Database', 'Tests', 'Check', 'Update', 'Logs', 'Cache', 'AllData', 'Uninstall', 'Exit')
+    $expected = @('KillProcesses', 'Install', 'Rebuild', 'Database', 'Tests', 'Check', 'Update', 'Logs', 'Cache', 'AllData', 'Uninstall', 'Exit')
     Assert-True (($keys -join ',') -eq ($expected -join ',')) 'Existing menu actions or numbering changed.'
 }
 

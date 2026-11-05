@@ -1,9 +1,9 @@
 # Deployment
-Last updated: 2026-10-22
+Last updated: 2026-11-05
 
 ## Supported Operation Model
 - ParaGraph is run locally as separate FastAPI and Vite processes.
-- `start_on_windows.ps1` is the supported Windows bootstrap and maintenance entry point.
+- start_on_windows.bat is the supported Windows application entry point; it invokes setup_and_maintenance.ps1 -Launch. The PowerShell script provides the maintenance menu.
 - The launcher runs a single backend process that serves the UI and API; there is no separate production frontend server.
 - Manual development startup remains available when backend and frontend process control is needed.
 
@@ -16,4 +16,4 @@ Last updated: 2026-10-22
 ## Operational Guidance
 - Keep `settings/.env` local and derive it from `settings/.env.example` when needed.
 - Do not commit generated runtime environments, dependency folders, logs, or user data.
-- Keep these notes aligned with `start_on_windows.ps1` and the manual startup commands.
+- Keep these notes aligned with `setup_and_maintenance.ps1` and the manual startup commands.

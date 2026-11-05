@@ -1,7 +1,7 @@
 $ErrorActionPreference = 'Stop'
 
 $repoRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..'))
-$launcherPath = Join-Path $repoRoot 'start_on_windows.ps1'
+$launcherPath = Join-Path $repoRoot 'setup_and_maintenance.ps1'
 . $launcherPath
 
 $script:TestFailures = [Collections.Generic.List[string]]::new()
