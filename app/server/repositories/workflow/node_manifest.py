@@ -6,6 +6,7 @@ from pathlib import Path
 from server.common import path as common_path
 from server.contracts.node_catalog import NodeManifest
 
+
 ###############################################################################
 class NodeManifestRepository:
 

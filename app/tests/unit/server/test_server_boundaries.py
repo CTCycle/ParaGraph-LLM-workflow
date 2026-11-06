@@ -113,6 +113,8 @@ _CORS_PROBE = textwrap.dedent(
     """
 )
 
+
+###############################################################################
 def _run_cors_probe(tmp_path: Path, *, mode: str, env_text: str) -> None:
     env_path = tmp_path / ".env"
     env_path.write_text(env_text, encoding="utf-8")
@@ -135,6 +137,8 @@ def _run_cors_probe(tmp_path: Path, *, mode: str, env_text: str) -> None:
 
     assert result.returncode == 0, result.stderr or result.stdout
 
+
+###############################################################################
 def test_cors_is_disabled_when_no_origins_are_configured(tmp_path: Path) -> None:
     _run_cors_probe(
         tmp_path,
@@ -142,6 +146,8 @@ def test_cors_is_disabled_when_no_origins_are_configured(tmp_path: Path) -> None
         env_text="CORS_ALLOWED_ORIGINS=\n",
     )
 
+
+###############################################################################
 def test_cors_uses_documented_allow_lists_and_credentials_default(
     tmp_path: Path,
 ) -> None:
@@ -156,6 +162,8 @@ def test_cors_uses_documented_allow_lists_and_credentials_default(
         ),
     )
 
+
+###############################################################################
 def test_cors_allows_configured_origin_and_rejects_other_origins(
     tmp_path: Path,
 ) -> None:
@@ -172,6 +180,7 @@ def test_cors_allows_configured_origin_and_rejects_other_origins(
 
 # Cache placement
 
+
 ###############################################################################
 def test_application_cache_root_is_repository_canonical() -> None:
     expected_root = Path(__file__).resolve().parents[4] / "runtimes" / "cache"
@@ -179,6 +188,7 @@ def test_application_cache_root_is_repository_canonical() -> None:
     assert common_path.CACHE_ROOT == expected_root
     assert common_path.FRONTEND_DIST_ROOT == expected_root / "frontend-dist"
     assert sys.pycache_prefix == str(expected_root / "pycache")
+
 
 ###############################################################################
 def test_library_cache_environment_is_repository_canonical() -> None:
@@ -196,6 +206,7 @@ def test_library_cache_environment_is_repository_canonical() -> None:
 # Client hosting
 
 HTML = {"Accept": "text/html,application/xhtml+xml"}
+
 
 ###############################################################################
 def build_client(tmp_path: Path) -> TestClient:
@@ -221,6 +232,7 @@ def build_client(tmp_path: Path) -> TestClient:
     )
     return TestClient(api)
 
+
 ###############################################################################
 def test_api_prefix_is_stripped_for_http_and_websocket(tmp_path: Path) -> None:
     client = build_client(tmp_path)
@@ -228,6 +240,7 @@ def test_api_prefix_is_stripped_for_http_and_websocket(tmp_path: Path) -> None:
     assert client.get("/api/nodes", headers=HTML).json() == {"source": "api"}
     with client.websocket_connect("/api/executions/ws/runs/r1") as socket:
         assert socket.receive_text() == "r1"
+
 
 ###############################################################################
 def test_browser_navigation_gets_spa_while_fetch_reaches_api(
@@ -239,6 +252,7 @@ def test_browser_navigation_gets_spa_while_fetch_reaches_api(
     assert "spa" in client.get("/missing/route", headers=HTML).text
     assert client.get("/nodes").json() == {"source": "api"}
     assert "docs" in client.get("/docs", headers=HTML).text.lower()
+
 
 ###############################################################################
 def test_built_files_are_served_and_traversal_falls_back_to_index(
@@ -259,6 +273,7 @@ FORBIDDEN_IMPORT_PREFIXES = (
     "server.services",
     "sqlalchemy",
 )
+
 
 ###############################################################################
 def test_contract_modules_remain_transport_and_persistence_neutral() -> None:
@@ -281,6 +296,7 @@ def test_contract_modules_remain_transport_and_persistence_neutral() -> None:
                 ), f"{path} imports forbidden runtime module {module}"
 
 # Generated frontend contracts
+
 
 ###############################################################################
 def test_generated_frontend_api_contracts_match_fastapi_openapi() -> None:

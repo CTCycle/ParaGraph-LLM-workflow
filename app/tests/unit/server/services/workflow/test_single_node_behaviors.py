@@ -14,6 +14,7 @@ from server.services.workflow.compiler import compiler_service
 from server.services.workflow.execution import execution_service
 from server.services.workflow import browser_uploads as browser_uploads_module
 
+
 ###############################################################################
 def test_compiler_accepts_single_prompt_node_definition() -> None:
     definition = WorkflowDefinition.model_validate(
@@ -38,6 +39,7 @@ def test_compiler_accepts_single_prompt_node_definition() -> None:
     assert compiled.plan is not None
     assert compiled.plan.step_order == ["prompt_1"]
     assert compiled.plan.steps[0].node_type == "PROMPT"
+
 
 ###############################################################################
 def test_execution_service_handles_single_non_output_step(job_state_factory) -> None:
@@ -71,6 +73,7 @@ def test_execution_service_handles_single_non_output_step(job_state_factory) -> 
     assert run.outputs == {}
     assert run.steps[0].status == "completed"
 
+
 ###############################################################################
 def test_save_uploaded_directory_supports_single_uploaded_file(
     monkeypatch, tmp_path: Path
@@ -92,6 +95,7 @@ def test_save_uploaded_directory_supports_single_uploaded_file(
     assert staged_file.read_text(encoding="utf-8") == "hello"
     assert staged_file.is_relative_to(Path(staged_root))
 
+
 ###############################################################################
 def test_save_uploaded_directory_enforces_limits_and_cleans_partial_staging(
     tmp_path: Path,
@@ -110,10 +114,12 @@ def test_save_uploaded_directory_enforces_limits_and_cleans_partial_staging(
 
     assert list(upload_root.iterdir()) == []
 
+
 ###############################################################################
 def test_save_uploaded_directory_removes_staging_after_later_file_failure(
     tmp_path: Path,
 ) -> None:
+
 
     ###############################################################################
     class FailingUpload:
@@ -135,6 +141,7 @@ def test_save_uploaded_directory_removes_staging_after_later_file_failure(
         asyncio.run(service.save_uploaded_directory([good, FailingUpload()]))
 
     assert list(upload_root.iterdir()) == []
+
 
 ###############################################################################
 def test_cleanup_stale_uploads_removes_only_expired_directories(tmp_path: Path) -> None:

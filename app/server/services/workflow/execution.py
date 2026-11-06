@@ -33,9 +33,11 @@ from server.common.utils.values import (
     validate_json_against_schema,
 )
 
+
 ###############################################################################
 class _StepAttemptExpired(RuntimeError):
     """Prevent a timed-out attempt from publishing late local results."""
+
 
 ###############################################################################
 class ExecutionService:

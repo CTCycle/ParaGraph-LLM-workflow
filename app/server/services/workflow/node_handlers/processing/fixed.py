@@ -7,6 +7,7 @@ from server.services.workflow.node_handlers.processing.shared import (
 )
 from server.services.workflow.node_handlers.processing.sources import _iter_sources
 
+
 ###############################################################################
 def _fixed_size_chunks_executor(
     parameters: dict[str, object], inputs: dict[str, object]

@@ -32,6 +32,7 @@ from server.repositories.schemas import ExecutionEventRecord, ExecutionRunRecord
 
 # Configuration repository
 
+
 ###############################################################################
 def test_configuration_repository_accepts_injected_sqlite_repository() -> None:
     engine = create_engine("sqlite:///:memory:")
@@ -41,6 +42,7 @@ def test_configuration_repository_accepts_injected_sqlite_repository() -> None:
 
     with repository._session() as session:  # noqa: SLF001
         assert session.get_bind() is engine
+
 
 ###############################################################################
 def test_default_configuration_repository_tracks_the_active_database(
@@ -60,9 +62,11 @@ def test_default_configuration_repository_tracks_the_active_database(
 
 # Database migrations
 
+
 ###############################################################################
 def _settings() -> SQLiteSettings:
     return SQLiteSettings(insert_batch_size=1000)
+
 
 ###############################################################################
 def _engine(database_path: Path) -> sa.Engine:
@@ -70,6 +74,7 @@ def _engine(database_path: Path) -> sa.Engine:
         f"sqlite:///{database_path.as_posix()}",
         connect_args={"autocommit": False},
     )
+
 
 ###############################################################################
 def _version(database_path: Path) -> str | None:
@@ -83,6 +88,7 @@ def _version(database_path: Path) -> str | None:
             ).scalar_one_or_none()
     finally:
         engine.dispose()
+
 
 ###############################################################################
 def test_empty_database_is_created_and_migrated_to_head(tmp_path: Path) -> None:
@@ -108,6 +114,7 @@ def test_empty_database_is_created_and_migrated_to_head(tmp_path: Path) -> None:
     finally:
         engine.dispose()
 
+
 ###############################################################################
 def test_migration_engine_enables_foreign_keys(tmp_path: Path) -> None:
     engine = migration._migration_engine(tmp_path / "foreign-keys.db")
@@ -116,6 +123,7 @@ def test_migration_engine_enables_foreign_keys(tmp_path: Path) -> None:
             assert connection.exec_driver_sql("PRAGMA foreign_keys").scalar_one() == 1
     finally:
         engine.dispose()
+
 
 ###############################################################################
 def test_populated_unversioned_schema_fails_closed(tmp_path: Path) -> None:
@@ -139,6 +147,7 @@ def test_populated_unversioned_schema_fails_closed(tmp_path: Path) -> None:
     finally:
         engine.dispose()
 
+
 ###############################################################################
 def test_partial_unversioned_schema_fails_closed(tmp_path: Path) -> None:
     database_path = tmp_path / "partial.db"
@@ -155,6 +164,7 @@ def test_partial_unversioned_schema_fails_closed(tmp_path: Path) -> None:
         assert "user_sessions" in inspect(engine).get_table_names()
     finally:
         engine.dispose()
+
 
 ###############################################################################
 def test_0002_schema_migrates_provider_data_to_canonical_shape(
@@ -275,6 +285,7 @@ def test_0002_schema_migrates_provider_data_to_canonical_shape(
     finally:
         engine.dispose()
 
+
 ###############################################################################
 def test_unknown_revision_fails_closed(tmp_path: Path) -> None:
     database_path = tmp_path / "unknown-revision.db"
@@ -289,6 +300,7 @@ def test_unknown_revision_fails_closed(tmp_path: Path) -> None:
     with pytest.raises(migration.DatabaseMigrationError, match="ancestor"):
         initialize_sqlite_database(_settings(), db_path=database_path)
 
+
 ###############################################################################
 def test_versioned_partial_schema_fails_closed(tmp_path: Path) -> None:
     database_path = tmp_path / "versioned-partial.db"
@@ -300,6 +312,7 @@ def test_versioned_partial_schema_fails_closed(tmp_path: Path) -> None:
 
     with pytest.raises(migration.DatabaseMigrationError, match="incomplete"):
         initialize_sqlite_database(_settings(), db_path=database_path)
+
 
 ###############################################################################
 def test_multiple_database_heads_fail_closed(tmp_path: Path) -> None:
@@ -315,6 +328,7 @@ def test_multiple_database_heads_fail_closed(tmp_path: Path) -> None:
     with pytest.raises(migration.DatabaseMigrationError, match="multiple"):
         initialize_sqlite_database(_settings(), db_path=database_path)
 
+
 ###############################################################################
 def _configure_revision_tree(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     source_root = common_path.SERVER_ROOT / "migrations"
@@ -328,6 +342,7 @@ def _configure_revision_tree(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) ->
     )
     monkeypatch.setattr(common_path, "SERVER_ROOT", tmp_path)
     return migration_root
+
 
 ###############################################################################
 def _add_marker_revision(migration_root: Path, *, failing: bool = False) -> None:
@@ -363,6 +378,7 @@ def _add_marker_revision(migration_root: Path, *, failing: bool = False) -> None
             encoding="utf-8",
         )
 
+
 ###############################################################################
 def _apply_revision(
     database_path: Path, revision: str, *, downgrade: bool = False
@@ -378,6 +394,7 @@ def _apply_revision(
                 command.upgrade(config, revision)
     finally:
         engine.dispose()
+
 
 ###############################################################################
 def test_outdated_database_is_upgraded_to_head(
@@ -427,6 +444,7 @@ def test_outdated_database_is_upgraded_to_head(
     finally:
         engine.dispose()
 
+
 ###############################################################################
 def test_failed_migration_rolls_back_ddl_and_revision(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -450,6 +468,7 @@ def test_failed_migration_rolls_back_ddl_and_revision(
     finally:
         engine.dispose()
 
+
 ###############################################################################
 def test_concurrent_initialization_is_serialized(tmp_path: Path) -> None:
     database_path = tmp_path / "concurrent.db"
@@ -468,6 +487,7 @@ def test_concurrent_initialization_is_serialized(tmp_path: Path) -> None:
 
     assert _version(database_path) == "0004_database_backed_application_settings"
 
+
 ###############################################################################
 def test_migration_lock_timeout_is_reported_as_typed_error(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -485,6 +505,7 @@ def test_migration_lock_timeout_is_reported_as_typed_error(
 
 # Database runtime
 
+
 ###############################################################################
 def test_database_configuration_schema_is_strict_sqlite_only() -> None:
     from pydantic import ValidationError
@@ -501,6 +522,7 @@ def test_database_configuration_schema_is_strict_sqlite_only() -> None:
         DatabaseConfiguration.model_validate(
             {"backend": "sqlite", "database_path": "", "insert_batch_size": 2}
         )
+
 
 ###############################################################################
 def test_runtime_ignores_database_environment_variable(
@@ -526,6 +548,7 @@ def test_runtime_ignores_database_environment_variable(
     finally:
         runtime.reset_for_tests()
 
+
 ###############################################################################
 def test_database_configuration_write_is_atomic(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -546,6 +569,7 @@ def test_database_configuration_write_is_atomic(
 
     assert (tmp_path / "database_config.json").read_bytes() == original_bytes
     assert not list(tmp_path.glob("*.tmp"))
+
 
 ###############################################################################
 def test_bootstrap_imports_legacy_values_once_and_restart_persists(
@@ -592,6 +616,7 @@ def test_bootstrap_imports_legacy_values_once_and_restart_persists(
     finally:
         runtime.reset_for_tests()
 
+
 ###############################################################################
 def test_failed_legacy_settings_import_keeps_source_and_rolls_back_row(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -628,6 +653,7 @@ def test_failed_legacy_settings_import_keeps_source_and_rolls_back_row(
         engine.dispose()
         runtime.reset_for_tests()
 
+
 ###############################################################################
 def test_switching_databases_keeps_application_settings_isolated(
     tmp_path: Path,
@@ -649,6 +675,7 @@ def test_switching_databases_keeps_application_settings_isolated(
         assert runtime.settings.global_settings.seed == 202
     finally:
         runtime.reset_for_tests()
+
 
 ###############################################################################
 def test_failed_target_and_active_workflow_leave_current_database_active(
@@ -677,6 +704,7 @@ def test_failed_target_and_active_workflow_leave_current_database_active(
         runtime.activate(DatabaseConfiguration(database_path=str(tmp_path / "blocked.db")))
     assert runtime.status()["database_path"] == original_path
     runtime.reset_for_tests()
+
 
 ###############################################################################
 def test_switch_waits_for_existing_repository_sessions(tmp_path: Path) -> None:
@@ -711,6 +739,7 @@ def test_switch_waits_for_existing_repository_sessions(tmp_path: Path) -> None:
     assert runtime.status()["database_path"] == str(second.resolved_path())
     runtime.reset_for_tests()
 
+
 ###############################################################################
 def test_switch_waits_for_multi_step_operations(tmp_path: Path) -> None:
     runtime = DatabaseRuntime(persist_configuration=False, publish_settings=False)
@@ -739,6 +768,7 @@ def test_switch_waits_for_multi_step_operations(tmp_path: Path) -> None:
     transition.join(timeout=3)
     assert switched.is_set()
     runtime.reset_for_tests()
+
 
 ###############################################################################
 def test_switch_rejects_workflow_admitted_during_drain(
@@ -790,9 +820,11 @@ def test_switch_rejects_workflow_admitted_during_drain(
 
 # SQLite repository
 
+
 ###############################################################################
 def _build_settings() -> SQLiteSettings:
     return SQLiteSettings(insert_batch_size=1000)
+
 
 ###############################################################################
 def _build_memory_repository() -> sqlite_module.SQLiteRepository:
@@ -800,6 +832,7 @@ def _build_memory_repository() -> sqlite_module.SQLiteRepository:
         SQLiteSettings(insert_batch_size=2),
         engine=sqlalchemy.create_engine("sqlite:///:memory:", future=True),
     )
+
 
 ###############################################################################
 def test_sqlite_repository_uses_resources_root_for_default_path(
@@ -815,6 +848,7 @@ def test_sqlite_repository_uses_resources_root_for_default_path(
 
     assert repository.db_path == str(tmp_path / "selected.sqlite")
     assert repository.insert_batch_size == 27
+
 
 ###############################################################################
 def test_initialize_sqlite_database_creates_application_schema(
@@ -838,12 +872,14 @@ def test_initialize_sqlite_database_creates_application_schema(
         "user_sessions",
     }
 
+
 ###############################################################################
 def test_sqlite_repository_enables_foreign_keys() -> None:
     repository = _build_memory_repository()
 
     with repository.engine.connect() as connection:
         assert connection.exec_driver_sql("PRAGMA foreign_keys").scalar_one() == 1
+
 
 ###############################################################################
 def test_sqlite_repository_cascades_execution_children() -> None:
@@ -894,6 +930,7 @@ def test_sqlite_repository_cascades_execution_children() -> None:
         assert db_session.query(ExecutionStepRecord).count() == 0
         assert db_session.query(ExecutionEventRecord).count() == 0
 
+
 ###############################################################################
 def test_sqlite_repository_save_load_and_count_rows(
     tmp_path: Path,
@@ -914,6 +951,7 @@ def test_sqlite_repository_save_load_and_count_rows(
     assert list(loaded["name"]) == ["dataset-a", "dataset-b"]
     assert repository.count_rows("datasets") == 2
 
+
 ###############################################################################
 def test_sqlite_repository_load_missing_table_returns_empty_frame(
     tmp_path: Path,
@@ -927,6 +965,7 @@ def test_sqlite_repository_load_missing_table_returns_empty_frame(
     assert loaded.empty
     assert loaded.shape == (0, 0)
 
+
 ###############################################################################
 def test_sqlite_repository_count_rows_raises_for_missing_table(
     tmp_path: Path,
@@ -937,6 +976,7 @@ def test_sqlite_repository_count_rows_raises_for_missing_table(
 
     with pytest.raises(ValueError, match="does not exist"):
         repository.count_rows("missing_table")
+
 
 ###############################################################################
 def test_sqlite_repository_save_load_and_count_dynamic_table() -> None:
@@ -954,6 +994,7 @@ def test_sqlite_repository_save_load_and_count_dynamic_table() -> None:
     assert repository.count_rows("dynamic_datasets") == 2
     assert list(loaded.columns) == ["name", "row_count", "score", "enabled"]
     assert len(loaded) == 2
+
 
 ###############################################################################
 def test_sqlite_repository_save_replaces_existing_dynamic_table_rows() -> None:

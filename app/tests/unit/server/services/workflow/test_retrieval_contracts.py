@@ -20,6 +20,7 @@ from server.services.workflow.vector_stores import base as vector_store_base
 
 # RAG nodes
 
+
 ###############################################################################
 def test_html_to_text_strips_script_style_nav() -> None:
     result = _html_to_text_executor(
@@ -29,12 +30,14 @@ def test_html_to_text_strips_script_style_nav() -> None:
     assert "n" not in result["result"]
     assert "Hello" in result["result"]
 
+
 ###############################################################################
 def test_context_builder_respects_token_budget() -> None:
     result = _context_builder_executor(
         {"token_budget": 2}, {"chunks": [{"text": "one two three"}]}
     )
     assert result["result"] == "one two"
+
 
 ###############################################################################
 def test_context_builder_accepts_manifest_inputs_and_coerces_malformed_values() -> None:
@@ -52,6 +55,7 @@ def test_context_builder_accepts_manifest_inputs_and_coerces_malformed_values() 
     empty_result = _context_builder_executor({}, {"value": None})
     assert empty_result["result"] == ""
 
+
 ###############################################################################
 def test_html_to_text_coerces_none_and_recovers_malformed_markup() -> None:
     assert _html_to_text_executor({}, {"text": None})["result"] == ""
@@ -59,6 +63,7 @@ def test_html_to_text_coerces_none_and_recovers_malformed_markup() -> None:
         _html_to_text_executor({}, {"text": "<p>Readable <strong>text"})["result"]
         == "Readable text"
     )
+
 
 ###############################################################################
 def test_citation_formatter_reads_retrieval_results_from_manifest_value_input() -> None:
@@ -91,6 +96,7 @@ def test_citation_formatter_reads_retrieval_results_from_manifest_value_input() 
     ]
 
 # Rerank results
+
 
 ###############################################################################
 def _results_payload() -> dict[str, object]:
@@ -127,6 +133,7 @@ def _results_payload() -> dict[str, object]:
         ],
     }
 
+
 ###############################################################################
 def _execute(
     parameters: dict[str, object], *, query: str | None = None
@@ -136,6 +143,7 @@ def _execute(
         inputs["query"] = query
     return node_registry.execute("RERANK_RESULTS", 1, parameters, inputs)
 
+
 ###############################################################################
 def test_rerank_strategy_original_score_preserves_order_by_score() -> None:
     payload = _execute(
@@ -143,6 +151,7 @@ def test_rerank_strategy_original_score_preserves_order_by_score() -> None:
     )
     hits = payload["results"]["hits"]
     assert [hit["id"] for hit in hits] == ["b", "c", "a"]
+
 
 ###############################################################################
 def test_rerank_strategy_term_overlap() -> None:
@@ -152,6 +161,7 @@ def test_rerank_strategy_term_overlap() -> None:
     hits = payload["results"]["hits"]
     assert [hit["id"] for hit in hits] == ["c", "b", "a"]
 
+
 ###############################################################################
 def test_rerank_strategy_exact_phrase() -> None:
     payload = _execute(
@@ -160,6 +170,7 @@ def test_rerank_strategy_exact_phrase() -> None:
     hits = payload["results"]["hits"]
     assert hits[0]["id"] == "c"
     assert hits[0]["score"] == 1.0
+
 
 ###############################################################################
 def test_rerank_strategy_metadata_match() -> None:
@@ -174,6 +185,7 @@ def test_rerank_strategy_metadata_match() -> None:
     )
     hits = payload["results"]["hits"]
     assert [hit["id"] for hit in hits[:2]] == ["a", "c"]
+
 
 ###############################################################################
 def test_rerank_strategy_weighted_composite() -> None:
@@ -193,6 +205,7 @@ def test_rerank_strategy_weighted_composite() -> None:
     hits = payload["results"]["hits"]
     assert hits[0]["id"] == "c"
 
+
 ###############################################################################
 def test_rerank_score_mode_replace_vs_boost() -> None:
     replace_payload = _execute(
@@ -211,6 +224,7 @@ def test_rerank_score_mode_replace_vs_boost() -> None:
     assert boost_scores["b"] > replace_scores["b"]
     assert boost_scores["c"] > replace_scores["c"]
 
+
 ###############################################################################
 def test_rerank_metadata_match_uses_exact_case_insensitive_equality() -> None:
     payload = _execute(
@@ -226,6 +240,7 @@ def test_rerank_metadata_match_uses_exact_case_insensitive_equality() -> None:
     assert [hit["id"] for hit in hits[:2]] == ["a", "b"]
     assert hits[2]["id"] == "c"
 
+
 ###############################################################################
 def test_rerank_preserves_stable_order_on_exact_ties() -> None:
     payload = _execute(
@@ -240,6 +255,7 @@ def test_rerank_preserves_stable_order_on_exact_ties() -> None:
     hits = payload["results"]["hits"]
     assert [hit["id"] for hit in hits] == ["a", "b", "c"]
 
+
 ###############################################################################
 def test_rerank_uses_results_query_when_query_input_is_missing() -> None:
     payload = _execute(
@@ -248,6 +264,7 @@ def test_rerank_uses_results_query_when_query_input_is_missing() -> None:
     hits = payload["results"]["hits"]
     assert hits[0]["id"] == "c"
     assert payload["results"]["query"] == "fast api workflow"
+
 
 ###############################################################################
 def test_rerank_top_k_zero_and_bounded_truncation() -> None:
@@ -262,6 +279,7 @@ def test_rerank_top_k_zero_and_bounded_truncation() -> None:
     assert len(top_two_payload["results"]["hits"]) == 2
 
 # Similarity search compiler
+
 
 ###############################################################################
 def _build_similarity_workflow(
@@ -351,6 +369,7 @@ def _build_similarity_workflow(
         }
     )
 
+
 ###############################################################################
 def test_compiler_reports_similarity_backend_incompatibilities() -> None:
     definition = _build_similarity_workflow(
@@ -369,6 +388,7 @@ def test_compiler_reports_similarity_backend_incompatibilities() -> None:
     assert "unsupported_similarity_engine" in codes
 
 # Similarity search contracts
+
 
 ###############################################################################
 def _read_parameter_options_from_doc(parameter_name: str) -> list[str]:
@@ -391,6 +411,7 @@ def _read_parameter_options_from_doc(parameter_name: str) -> list[str]:
         )
     return re.findall(r"`([^`]+)`", match.group(1))
 
+
 ###############################################################################
 def _manifest_parameter_options(parameter_name: str) -> list[str]:
     manifest_path = common_path.RESOURCES_ROOT / "nodes" / "similarity_search_v1.json"
@@ -399,6 +420,7 @@ def _manifest_parameter_options(parameter_name: str) -> list[str]:
         item for item in manifest["parameters"] if item["name"] == parameter_name
     )
     return [str(item) for item in parameter.get("constraints", {}).get("options", [])]
+
 
 ###############################################################################
 def test_similarity_contract_matrix_doc_matches_manifest_options() -> None:
@@ -411,6 +433,7 @@ def test_similarity_contract_matrix_doc_matches_manifest_options() -> None:
     assert _manifest_parameter_options(
         "similarity_strategy"
     ) == _read_parameter_options_from_doc("similarity_strategy")
+
 
 ###############################################################################
 def test_similarity_search_parameters_validate_search_engine_rules() -> None:
@@ -441,6 +464,7 @@ def test_similarity_search_parameters_validate_search_engine_rules() -> None:
                 "keyword_weight": 0.4,
             }
         )
+
 
 ###############################################################################
 class _FakeAdapter:
@@ -507,6 +531,7 @@ class _FakeAdapter:
             }
         ]
 
+
 ###############################################################################
 def _valid_store_payload(*, backend: str, metric: str = "cosine") -> dict[str, Any]:
     return {
@@ -519,6 +544,7 @@ def _valid_store_payload(*, backend: str, metric: str = "cosine") -> dict[str, A
         "embedding_model": "text-embedding-3-small",
         "metadata": {},
     }
+
 
 ###############################################################################
 def test_similarity_search_executor_rejects_unsupported_backend_modes(
@@ -559,6 +585,7 @@ def test_similarity_search_executor_rejects_unsupported_backend_modes(
                 "store": _valid_store_payload(backend="chroma"),
             },
         )
+
 
 ###############################################################################
 def test_similarity_search_executor_validates_store_payload_and_uses_native_search_engine(
@@ -607,6 +634,7 @@ def test_similarity_search_executor_validates_store_payload_and_uses_native_sear
 
 # Vector store adapter behavior
 
+
 ###############################################################################
 def _point(point_id: str, document_id: str, vector: list[float]) -> dict[str, object]:
     return {
@@ -622,6 +650,7 @@ def _point(point_id: str, document_id: str, vector: list[float]) -> dict[str, ob
         "normalized": False,
         "metadata": {"kind": "test"},
     }
+
 
 ###############################################################################
 def test_pinecone_map_filter_uses_operator_keys() -> None:
@@ -643,6 +672,7 @@ def test_pinecone_map_filter_uses_operator_keys() -> None:
     assert {"metadata.rank": {"$gte": 2}} in mapped["$and"]
     assert mapped["$or"] == [{"metadata.lang": {"$in": ["en", "it"]}}]
     assert mapped["$nor"] == [{"metadata.tenant": {"$eq": "blocked"}}]
+
 
 ###############################################################################
 def test_qdrant_search_rejects_hybrid_mode() -> None:
@@ -666,10 +696,12 @@ def test_qdrant_search_rejects_hybrid_mode() -> None:
     else:
         raise AssertionError("Expected VectorStoreError")
 
+
 ###############################################################################
 def test_weaviate_validate_connection_invokes_collection_exists(monkeypatch) -> None:
     adapter = WeaviateVectorStoreAdapter()
     calls: dict[str, object] = {}
+
 
     ###############################################################################
     class FakeCollections:
@@ -678,6 +710,7 @@ def test_weaviate_validate_connection_invokes_collection_exists(monkeypatch) -> 
         def exists(self, name: str) -> bool:
             calls["collection"] = name
             return True
+
 
     ###############################################################################
     class FakeClient:
@@ -695,6 +728,7 @@ def test_weaviate_validate_connection_invokes_collection_exists(monkeypatch) -> 
 
     assert calls["collection"] == "docs"
     assert calls["closed"] is True
+
 
 ###############################################################################
 def test_milvus_filter_expression_combines_groups() -> None:
@@ -715,6 +749,7 @@ def test_milvus_filter_expression_combines_groups() -> None:
     assert 'source_uri == "a"' in expression
     assert 'source_uri == "b"' in expression
 
+
 ###############################################################################
 @pytest.mark.parametrize("provider", ["lancedb", "chroma", "faiss"])
 def test_vector_store_parameters_require_storage_path_for_local_providers(
@@ -730,6 +765,7 @@ def test_vector_store_parameters_require_storage_path_for_local_providers(
             }
         )
 
+
 ###############################################################################
 def test_faiss_validate_connection_rejects_relative_storage_path() -> None:
     adapter = get_vector_store_adapter("faiss")
@@ -741,6 +777,7 @@ def test_faiss_validate_connection_rejects_relative_storage_path() -> None:
             index_name="docs", storage_directory="vectorstores/docs"
         )
 
+
 ###############################################################################
 def test_faiss_validate_connection_accepts_absolute_storage_path(
     tmp_path: Path,
@@ -748,6 +785,7 @@ def test_faiss_validate_connection_accepts_absolute_storage_path(
     adapter = get_vector_store_adapter("faiss")
 
     adapter.validate_connection(index_name="docs", storage_directory=str(tmp_path))
+
 
 ###############################################################################
 @pytest.mark.parametrize("provider", ["qdrant", "pinecone", "weaviate", "milvus"])
@@ -763,6 +801,7 @@ def test_vector_store_parameters_require_endpoint_for_remote_providers(
                 "endpoint_url": "",
             }
         )
+
 
 ###############################################################################
 @pytest.mark.parametrize(
@@ -789,6 +828,7 @@ def test_vector_store_capabilities_matrix(
         "faiss_augmented" in capabilities.supported_search_engines
     ) is supports_faiss_augmented
 
+
 ###############################################################################
 def test_vector_capabilities_fail_closed_for_unsupported_filters_and_namespaces() -> (
     None
@@ -811,12 +851,14 @@ def test_vector_capabilities_fail_closed_for_unsupported_filters_and_namespaces(
             index_name="docs", namespace="tenant-a", endpoint_url="https://qdrant"
         )
 
+
 ###############################################################################
 def test_score_contract_is_explicit_for_distance_and_dot_metrics() -> None:
     assert _score_from_metric("cosine", -1.0, raw_semantics="cosine_similarity") == 0.0
     assert _score_from_metric("cosine", 0.25, raw_semantics="distance") == 0.75
     assert _score_from_metric("l2", 3.0, raw_semantics="distance") == 0.25
     assert _score_from_metric("dot", 3.0, raw_semantics="similarity") == 3.0
+
 
 ###############################################################################
 def test_faiss_lifecycle_is_owned_reloadable_and_explicit(tmp_path: Path) -> None:
@@ -841,6 +883,7 @@ def test_faiss_lifecycle_is_owned_reloadable_and_explicit(tmp_path: Path) -> Non
     assert adapter.reload(store=store).metadata["count"] == 1
     removed = adapter.delete_collection(store=store)
     assert removed.affected_ids == ["three"]
+
 
 ###############################################################################
 def test_faiss_search_returns_explicit_score_semantics(tmp_path: Path) -> None:
@@ -870,6 +913,7 @@ def test_faiss_search_returns_explicit_score_semantics(tmp_path: Path) -> None:
     assert hits[0].id == "one"
     assert hits[0].score == 1.0
     assert hits[0].score_semantics == "normalized_similarity"
+
 
 ###############################################################################
 def test_faiss_duplicate_and_compatibility_policies_are_stable(tmp_path: Path) -> None:
@@ -910,6 +954,7 @@ def test_faiss_duplicate_and_compatibility_policies_are_stable(tmp_path: Path) -
         )
     assert adapter.reload(store=store).metadata["count"] == 1
 
+
 ###############################################################################
 def test_faiss_failed_atomic_write_preserves_last_good_store(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -942,6 +987,7 @@ def test_faiss_failed_atomic_write_preserves_last_good_store(
 
     assert adapter.reload(store=store).metadata["count"] == 1
     assert not list(tmp_path.glob(".docs.tmp-*"))
+
 
 ###############################################################################
 def test_runtime_vector_secret_handles_are_redacted_and_disposable() -> None:

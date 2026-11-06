@@ -8,13 +8,16 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 from server.repositories.schemas.types import JSONSequence
 
+
 ###############################################################################
 class Base(DeclarativeBase):
     pass
 
+
 ###############################################################################
 def utcnow() -> datetime:
     return datetime.now(timezone.utc)
+
 
 ###############################################################################
 class UserSession(Base):
@@ -42,6 +45,7 @@ class UserSession(Base):
         passive_deletes=True,
     )
 
+
 ###############################################################################
 class ApplicationSettingsRecord(Base):
     """Singleton row containing backend application settings."""
@@ -68,6 +72,7 @@ class ApplicationSettingsRecord(Base):
             name="ck_application_settings_retention_days_positive",
         ),
     )
+
 
 ###############################################################################
 class ConfigurationProfile(Base):
@@ -100,6 +105,7 @@ class ConfigurationProfile(Base):
         ),
         Index("ix_configuration_profiles_session_name", "session_id", "profile_name"),
     )
+
 
 ###############################################################################
 class ProviderConfiguration(Base):
@@ -137,6 +143,7 @@ class ProviderConfiguration(Base):
         Index("ix_provider_configurations_provider", "provider"),
     )
 
+
 ###############################################################################
 class ChatHistoryMessageRecord(Base):
     __tablename__ = "chat_history_messages"
@@ -163,6 +170,7 @@ class ChatHistoryMessageRecord(Base):
         ),
     )
 
+
 ###############################################################################
 class ExecutionRunRecord(Base):
     __tablename__ = "execution_runs"
@@ -188,6 +196,7 @@ class ExecutionRunRecord(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow
     )
+
 
 ###############################################################################
 class ExecutionStepRecord(Base):
@@ -219,6 +228,7 @@ class ExecutionStepRecord(Base):
     __table_args__ = (
         UniqueConstraint("run_id", "step_id", name="uq_execution_steps_run_step"),
     )
+
 
 ###############################################################################
 class ExecutionEventRecord(Base):

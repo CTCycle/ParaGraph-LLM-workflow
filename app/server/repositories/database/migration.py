@@ -25,17 +25,21 @@ MIGRATION_LOCK_TIMEOUT_SECONDS = 120.0
 SQLITE_TIMEOUT_SECONDS = 30.0
 _APPLICATION_TABLE_NAMES = frozenset(Base.metadata.tables)
 
+
 ###############################################################################
 class DatabaseMigrationError(RuntimeError):
     """Raised when the internal application schema cannot be synchronized."""
+
 
 ###############################################################################
 def default_database_path() -> Path:
     return load_database_configuration().resolved_path()
 
+
 ###############################################################################
 def _sqlite_url(database_path: Path) -> URL:
     return URL.create("sqlite", database=str(database_path))
+
 
 ###############################################################################
 def _migration_engine(database_path: Path) -> Engine:
@@ -51,6 +55,7 @@ def _migration_engine(database_path: Path) -> Engine:
         )
     )
 
+
 ###############################################################################
 def _alembic_config(database_path: Path) -> Config:
     config = Config(toml_file=str(common_path.SERVER_ROOT / "pyproject.toml"))
@@ -62,6 +67,7 @@ def _alembic_config(database_path: Path) -> Config:
     )
     config.attributes["database_path"] = str(database_path)
     return config
+
 
 ###############################################################################
 @contextmanager
@@ -80,6 +86,7 @@ def _migration_lock(database_path: Path) -> Iterator[None]:
             f"{MIGRATION_LOCK_TIMEOUT_SECONDS:.0f}s: {lock_path}"
         ) from exc
 
+
 ###############################################################################
 def _script_directory(config: Config) -> tuple[ScriptDirectory, str]:
     try:
@@ -94,6 +101,7 @@ def _script_directory(config: Config) -> tuple[ScriptDirectory, str]:
         )
     return script, heads[0]
 
+
 ###############################################################################
 def _current_revisions(connection: Connection) -> tuple[str, ...]:
     version_table_exists = inspect(connection).has_table(MIGRATION_VERSION_TABLE)
@@ -103,11 +111,13 @@ def _current_revisions(connection: Connection) -> tuple[str, ...]:
 
     return tuple(MigrationContext.configure(connection).get_current_heads())
 
+
 ###############################################################################
 def _application_tables(connection: Connection) -> set[str]:
     return set(inspect(connection).get_table_names()).intersection(
         _APPLICATION_TABLE_NAMES
     )
+
 
 ###############################################################################
 def _require_complete_application_schema(connection: Connection) -> None:
@@ -119,6 +129,7 @@ def _require_complete_application_schema(connection: Connection) -> None:
         "Versioned application schema is incomplete; missing tables: "
         + ", ".join(missing)
     )
+
 
 ###############################################################################
 def _validate_current_revision(
@@ -137,6 +148,7 @@ def _validate_current_revision(
             f"Database revision {current!r} cannot be upgraded to Alembic head {head!r}"
         )
     return [revision.revision for revision in reversed(pending)]
+
 
 ###############################################################################
 def _upgrade_to_head(
@@ -163,6 +175,7 @@ def _upgrade_to_head(
         )
     config.attributes["connection"] = connection
     command.upgrade(config, head)
+
 
 ###############################################################################
 def _synchronize_locked(database_path: Path) -> None:
@@ -204,6 +217,7 @@ def _synchronize_locked(database_path: Path) -> None:
     finally:
         if engine is not None:
             engine.dispose()
+
 
 ###############################################################################
 def run_database_migrations(database_path: Path | None = None) -> None:

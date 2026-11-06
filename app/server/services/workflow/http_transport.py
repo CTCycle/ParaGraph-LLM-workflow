@@ -33,6 +33,7 @@ SENSITIVE_HEADERS = {
 REDIRECT_STATUSES = {301, 302, 303, 307, 308}
 RETRYABLE_METHODS = {"GET", "PUT", "DELETE", "HEAD", "OPTIONS"}
 
+
 ###############################################################################
 class HttpTransportError(ValueError):
 
@@ -41,6 +42,7 @@ class HttpTransportError(ValueError):
         self.code = code
         self.details = details
         super().__init__(message)
+
 
 ###############################################################################
 class SecureHttpTransport:

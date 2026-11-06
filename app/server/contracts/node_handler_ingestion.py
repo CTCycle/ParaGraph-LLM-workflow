@@ -36,6 +36,7 @@ LOAD_DOCUMENTS_SUPPORTED_EXTENSIONS = {
 SUPPORTED_DATABASE_ENGINES = {"sqlite", "postgres", "postgresql", "mysql"}
 POSTGRES_ENGINES = {"postgres", "postgresql"}
 
+
 ###############################################################################
 def _parse_json_value(value: Any, label: str) -> Any:
     if isinstance(value, (dict, list, int, float, bool)) or value is None:
@@ -47,6 +48,7 @@ def _parse_json_value(value: Any, label: str) -> Any:
         return json.loads(text)
     except json.JSONDecodeError as exc:
         raise ValueError(f"{label} must be valid JSON") from exc
+
 
 ###############################################################################
 def normalize_database_engine(value: Any, *, label: str = "engine") -> str:
@@ -60,6 +62,7 @@ def normalize_database_engine(value: Any, *, label: str = "engine") -> str:
     raise ValueError(
         f"{label} must be one of: {', '.join(sorted(SUPPORTED_DATABASE_ENGINES))}"
     )
+
 
 ###############################################################################
 class LoadDocumentsParameters(BaseModel):
@@ -75,9 +78,11 @@ class LoadDocumentsParameters(BaseModel):
             raise ValueError("folder_path must not be empty")
         return normalized
 
+
 ###############################################################################
 class DocumentTextExtractorParameters(BaseModel):
     include_empty_pages: bool = False
+
 
 ###############################################################################
 class DatabaseConnectionParameters(BaseModel):
@@ -139,6 +144,7 @@ class DatabaseConnectionParameters(BaseModel):
             )
         return self
 
+
 ###############################################################################
 class SQLDatabaseParameters(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -178,6 +184,7 @@ class SQLDatabaseParameters(BaseModel):
         if not self.credential_profile.strip():
             raise ValueError("server SQL connections require credential_profile")
         return self
+
 
 ###############################################################################
 class SQLFileDatabaseParameters(BaseModel):

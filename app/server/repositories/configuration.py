@@ -20,6 +20,7 @@ from server.repositories.schemas import (
     UserSession,
 )
 
+
 ###############################################################################
 class ConfigurationRepository:
 

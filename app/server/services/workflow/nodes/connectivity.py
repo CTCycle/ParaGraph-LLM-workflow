@@ -17,6 +17,7 @@ from server.services.configuration import configuration_service
 from server.services.workflow.nodes.registry import node_registry
 from server.services.workflow.vector_stores import get_vector_store_adapter
 
+
 ###############################################################################
 class NodeConnectivityService:
 

@@ -52,6 +52,7 @@ from server.services.workflow.provider.registry import (
     provider_registry_entry,
 )
 
+
 ###############################################################################
 class ProviderService(
     OllamaLibraryCatalogMixin,

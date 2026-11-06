@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field, model_validator
 
 from server.contracts.execution import CompiledExecutionPlan
 
+
 ###############################################################################
 class WorkflowNodeInstance(BaseModel):
     node_id: str
@@ -15,6 +16,7 @@ class WorkflowNodeInstance(BaseModel):
     timeout_ms: int | None = None
     retries: int = 0
     skipped: bool = False
+
 
 ###############################################################################
 class WorkflowConnection(BaseModel):
@@ -44,12 +46,14 @@ class WorkflowConnection(BaseModel):
         self.to_controller = None
         return self
 
+
 ###############################################################################
 class WorkflowDefinition(BaseModel):
     schema_version: Literal[2]
     nodes: list[WorkflowNodeInstance] = Field(default_factory=list)
     connections: list[WorkflowConnection] = Field(default_factory=list)
     metadata: dict[str, Any] = Field(default_factory=dict)
+
 
 ###############################################################################
 class VisualNodeState(BaseModel):
@@ -63,12 +67,14 @@ class VisualNodeState(BaseModel):
     pinged: bool = False
     skipped: bool = False
 
+
 ###############################################################################
 class VisualGraph(BaseModel):
     schema_version: Literal[2]
     nodes: list[VisualNodeState] = Field(default_factory=list)
     groups: list[dict[str, Any]] = Field(default_factory=list)
     comments: list[dict[str, Any]] = Field(default_factory=list)
+
 
 ###############################################################################
 class CompilerDiagnostic(BaseModel):
@@ -78,9 +84,11 @@ class CompilerDiagnostic(BaseModel):
     node_id: str | None = None
     connection: WorkflowConnection | None = None
 
+
 ###############################################################################
 class CompileWorkflowRequest(BaseModel):
     definition: WorkflowDefinition
+
 
 ###############################################################################
 class CompileWorkflowResponse(BaseModel):

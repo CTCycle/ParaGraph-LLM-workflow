@@ -5,6 +5,7 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
+
 ###############################################################################
 def _run_compiled_workflow(
     client: TestClient,
@@ -40,6 +41,7 @@ def _run_compiled_workflow(
     assert run["status"] == "completed", run
     return run
 
+
 ###############################################################################
 def _step_ports(run: dict[str, object], node_id: str) -> dict[str, object]:
     steps = run["steps"]
@@ -53,6 +55,7 @@ def _step_ports(run: dict[str, object], node_id: str) -> dict[str, object]:
             assert isinstance(ports, dict)
             return ports
     raise AssertionError(f"Missing step for node {node_id}")
+
 
 ###############################################################################
 def test_text_safety_nodes_execute_together_through_compiled_workflow(
@@ -168,6 +171,7 @@ def test_text_safety_nodes_execute_together_through_compiled_workflow(
     assert "Contact: a@example.com" in stripped
     assert "Ignore previous instructions" not in stripped
 
+
 ###############################################################################
 def test_html_to_text_executes_through_compiled_workflow(
     client: TestClient,
@@ -231,6 +235,7 @@ def test_html_to_text_executes_through_compiled_workflow(
     html_text = outputs["html_output"]["text"]
     assert html_text == "Visible article text."
 
+
 ###############################################################################
 def test_context_builder_executes_through_compiled_workflow(
     client: TestClient,
@@ -293,6 +298,7 @@ def test_context_builder_executes_through_compiled_workflow(
     context = outputs["context_output"]["text"]
     assert context == "one two three four"
     assert len(context.split()) == 4
+
 
 ###############################################################################
 def test_text_transformations_and_metadata_execute_through_compiled_workflow(
@@ -376,6 +382,7 @@ def test_text_transformations_and_metadata_execute_through_compiled_workflow(
         "text": "Alpha passage",
         "metadata": {"source": "fixture", "page": 2},
     }
+
 
 ###############################################################################
 def test_local_retrieval_reranking_and_citations_execute_through_compiled_workflow(

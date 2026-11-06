@@ -4,6 +4,7 @@ import threading
 
 from server.contracts.chat_history import ChatHistoryMessage
 
+
 ###############################################################################
 class InMemoryChatHistoryRepository:
 

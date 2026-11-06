@@ -16,6 +16,7 @@ router = APIRouter(tags=["execution-ws"])
 RUN_ID_PATTERN_RE = re.compile(RUN_ID_PATTERN)
 EVENT_REPLAY_PAGE_SIZE = 1000
 
+
 ###############################################################################
 @router.websocket("/executions/ws/runs/{run_id}")
 async def execution_run_events(

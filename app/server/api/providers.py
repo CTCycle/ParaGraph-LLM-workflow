@@ -24,10 +24,12 @@ from server.services.workflow.provider import ProviderApiError
 
 router = APIRouter(prefix="/providers", tags=["providers"])
 
+
 ###############################################################################
 @router.get("/catalog", response_model=ProviderCatalogResponse)
 def get_provider_catalog() -> ProviderCatalogResponse:
     return provider_service.list_catalog()
+
 
 ###############################################################################
 @router.get("/models", response_model=ProviderModelCatalogResponse)
@@ -40,6 +42,7 @@ def get_provider_models(
     ),
 ) -> ProviderModelCatalogResponse:
     return provider_service.list_models(session_name=session_name)
+
 
 ###############################################################################
 @router.get("/ollama/library", response_model=OllamaLibraryCatalogResponse)
@@ -62,6 +65,7 @@ def get_ollama_library_models(
     except ProviderApiError as exc:
         raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
 
+
 ###############################################################################
 @router.post("/ollama/pull", response_model=OllamaModelPullResponse)
 def pull_ollama_model(
@@ -79,6 +83,7 @@ def pull_ollama_model(
         )
     except ProviderApiError as exc:
         raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
+
 
 ###############################################################################
 @router.get("/huggingface/models", response_model=HuggingFaceModelCatalogResponse)
@@ -115,6 +120,7 @@ def get_huggingface_models(
     except ProviderApiError as exc:
         raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
 
+
 ###############################################################################
 @router.post("/huggingface/download", response_model=HuggingFaceModelDownloadResponse)
 def download_huggingface_model(
@@ -133,6 +139,7 @@ def download_huggingface_model(
     except ProviderApiError as exc:
         raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
 
+
 ###############################################################################
 @router.get(
     "/huggingface/download/{job_id}",
@@ -145,6 +152,7 @@ def get_huggingface_download_status(
         return provider_service.get_huggingface_download_status(job_id=job_id)
     except ProviderApiError as exc:
         raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
+
 
 ###############################################################################
 @router.delete(

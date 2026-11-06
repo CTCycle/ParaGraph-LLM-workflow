@@ -32,19 +32,23 @@ from server.services.workflow.execution import execution_service
 
 APP_VERSION = package_version("paragraph")
 
+
 ###############################################################################
 def _client_build_available() -> bool:
     return (common_path.FRONTEND_DIST_ROOT / "index.html").is_file()
 
+
 ###############################################################################
 def redirect_root_to_docs() -> RedirectResponse:
     return RedirectResponse("/docs")
+
 
 ###############################################################################
 def _parse_csv_setting(value: str | None, default: tuple[str, ...]) -> list[str]:
     if value is None or not value.strip():
         return list(default)
     return [item.strip() for item in value.split(",") if item.strip()]
+
 
 ###############################################################################
 @asynccontextmanager
@@ -69,6 +73,7 @@ async def app_lifespan(application: FastAPI) -> AsyncIterator[None]:
 
         job_manager.shutdown()
         reset_database_engines()
+
 
 ###############################################################################
 def create_app() -> FastAPI:

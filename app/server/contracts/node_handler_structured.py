@@ -9,6 +9,7 @@ from server.common.utils.values import parse_json_if_possible
 
 StructuredModelMode = Literal["auto", "pydantic_source"]
 
+
 ###############################################################################
 class PydanticModelParameters(BaseModel):
     model_mode: StructuredModelMode = "auto"
@@ -26,6 +27,7 @@ class PydanticModelParameters(BaseModel):
             raise ValueError("example_json must be a JSON object")
         return parsed
 
+
 ###############################################################################
 class StructuredInputParameters(PydanticModelParameters):
     value: JsonValue = Field(default_factory=dict)
@@ -36,9 +38,11 @@ class StructuredInputParameters(PydanticModelParameters):
     def validate_value(cls, value: Any) -> JsonValue:
         return parse_json_if_possible(value)
 
+
 ###############################################################################
 class StructuredOutputParameters(PydanticModelParameters):
     pass
+
 
 ###############################################################################
 class OutputParserParameters(BaseModel):

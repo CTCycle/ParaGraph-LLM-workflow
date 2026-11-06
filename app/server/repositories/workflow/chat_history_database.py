@@ -12,11 +12,13 @@ from server.repositories.database.sqlite import SQLiteRepository
 from server.repositories.database.runtime import database_runtime
 from server.repositories.schemas import ChatHistoryMessageRecord
 
+
 ###############################################################################
 def _as_utc(timestamp: datetime) -> datetime:
     if timestamp.tzinfo is None:
         return timestamp.replace(tzinfo=timezone.utc)
     return timestamp.astimezone(timezone.utc)
+
 
 ###############################################################################
 class DatabaseChatHistoryRepository:

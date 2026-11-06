@@ -9,11 +9,13 @@ from server.contracts.node_catalog import NodeManifest
 from server.services.workflow.node_handlers import NODE_HANDLERS
 from server.services.workflow.nodes.registry import node_registry
 
+
 ###############################################################################
 def test_manifest_registry_is_nonempty_and_has_unique_node_type_versions() -> None:
     keys = [(manifest.id, manifest.version) for manifest in node_registry.list()]
     assert keys
     assert len(keys) == len(set(keys))
+
 
 ###############################################################################
 def test_every_manifest_executor_key_has_handler() -> None:
@@ -25,12 +27,14 @@ def test_every_manifest_executor_key_has_handler() -> None:
     ]
     assert missing == []
 
+
 ###############################################################################
 def test_every_handler_referenced_by_manifest_is_callable() -> None:
     for manifest in node_registry.list():
         if manifest.runtime.plugin is not None:
             continue
         assert callable(NODE_HANDLERS[manifest.runtime.executor_key].executor)
+
 
 ###############################################################################
 def test_every_registered_handler_is_referenced_by_a_manifest() -> None:
@@ -40,6 +44,7 @@ def test_every_registered_handler_is_referenced_by_a_manifest() -> None:
         if manifest.runtime.plugin is None
     }
     assert set(NODE_HANDLERS).difference(referenced) == set()
+
 
 ###############################################################################
 def test_every_manifest_parameter_model_accepts_manifest_defaults() -> None:
@@ -81,6 +86,7 @@ def test_every_manifest_parameter_model_accepts_manifest_defaults() -> None:
                 f"{handler.parameter_model.__name__}: {exc}"
             )
 
+
 ###############################################################################
 def test_structured_input_catalog_exposes_json_value_parameter() -> None:
     manifest = node_registry.get("STRUCTURED_INPUT", 1)
@@ -92,6 +98,7 @@ def test_structured_input_catalog_exposes_json_value_parameter() -> None:
     assert value_parameter.data_type == "JSON"
     assert value_parameter.ui_control == "json"
     assert value_parameter.default == {}
+
 
 ###############################################################################
 def test_runtime_effect_metadata_is_loaded_from_manifests() -> None:
@@ -109,6 +116,7 @@ def test_runtime_effect_metadata_is_loaded_from_manifests() -> None:
     assert python_collection is not None
     assert python_collection.runtime.deterministic is False
     assert python_collection.runtime.side_effecting is True
+
 
 ###############################################################################
 @pytest.mark.parametrize("field", ["inputs", "outputs", "controllers", "parameters"])
@@ -128,6 +136,7 @@ def test_manifest_rejects_duplicate_contract_names(field: str) -> None:
 
     with pytest.raises(ValidationError, match=f"duplicate {field[:-1]}"):
         NodeManifest.model_validate(payload)
+
 
 ###############################################################################
 def test_execute_rejects_undeclared_handler_outputs(

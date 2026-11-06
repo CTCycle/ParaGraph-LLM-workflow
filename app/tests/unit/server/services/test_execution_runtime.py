@@ -18,6 +18,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 # Job service
 
+
 ###############################################################################
 class RecordingJobRunner:
 
@@ -31,11 +32,13 @@ class RecordingJobRunner:
         job_manager.update_result(job_id, {"stage": "running"})
         return {"success": True}
 
+
 ###############################################################################
 def cancellable_runner(*, job_id: str) -> dict[str, Any]:
     while not job_manager.should_stop(job_id):
         time.sleep(0.01)
     return {"success": False}
+
 
 ###############################################################################
 def test_start_job_injects_job_id_and_merges_results(
@@ -51,6 +54,7 @@ def test_start_job_injects_job_id_and_merges_results(
     assert payload["progress"] == 100.0
     assert payload["result"] == {"stage": "running", "success": True}
 
+
 ###############################################################################
 def test_cancel_job_marks_running_job_cancelled(
     wait_for_job: Callable[[str, float], dict[str, object]],
@@ -64,11 +68,13 @@ def test_cancel_job_marks_running_job_cancelled(
     assert payload["status"] == "cancelled"
     assert payload["result"] is None
 
+
 ###############################################################################
 def test_cancel_job_returns_false_for_unknown_job() -> None:
     assert job_manager.cancel_job("missing-job") is False
 
 # Compiler graph diagnostics
+
 
 ###############################################################################
 def _prompt(node_id: str, **overrides: object) -> WorkflowNodeInstance:
@@ -80,6 +86,7 @@ def _prompt(node_id: str, **overrides: object) -> WorkflowNodeInstance:
         **overrides,
     )
 
+
 ###############################################################################
 def _text_output(node_id: str = "output") -> WorkflowNodeInstance:
     return WorkflowNodeInstance(
@@ -87,6 +94,7 @@ def _text_output(node_id: str = "output") -> WorkflowNodeInstance:
         node_type="TEXT_OUTPUT",
         node_version=1,
     )
+
 
 ###############################################################################
 def _chat(node_id: str = "chat") -> WorkflowNodeInstance:
@@ -97,6 +105,7 @@ def _chat(node_id: str = "chat") -> WorkflowNodeInstance:
         parameters={"message": "hello"},
     )
 
+
 ###############################################################################
 def _memory(node_id: str = "memory") -> WorkflowNodeInstance:
     return WorkflowNodeInstance(
@@ -105,6 +114,7 @@ def _memory(node_id: str = "memory") -> WorkflowNodeInstance:
         node_version=1,
         parameters={"max_messages": 10, "separator": "\n", "keep_prompt_type": True},
     )
+
 
 ###############################################################################
 def _connection(
@@ -121,12 +131,14 @@ def _connection(
         to_input=input_name,
     )
 
+
 ###############################################################################
 def _codes(definition: WorkflowDefinition) -> tuple[bool, set[str]]:
     compiled = compiler_service.compile(
         definition, require_provider_configuration=False
     )
     return compiled.valid, {item.code for item in compiled.diagnostics}
+
 
 ###############################################################################
 def test_missing_terminal_output_is_a_non_blocking_diagnostic() -> None:
@@ -135,6 +147,7 @@ def test_missing_terminal_output_is_a_non_blocking_diagnostic() -> None:
     )
     assert valid is True
     assert {"missing_terminal_output", "disconnected_node"} <= codes
+
 
 ###############################################################################
 def test_non_contributing_node_is_reported() -> None:
@@ -150,6 +163,7 @@ def test_non_contributing_node_is_reported() -> None:
         "disconnected_node",
         "node_not_contributing_to_output",
     } <= codes
+
 
 ###############################################################################
 def test_disconnected_side_effecting_node_blocks_plan_creation() -> None:
@@ -180,6 +194,7 @@ def test_disconnected_side_effecting_node_blocks_plan_creation() -> None:
         "disconnected_side_effecting_node",
     } <= codes
 
+
 ###############################################################################
 def test_conditional_branch_connection_is_reported() -> None:
     definition = WorkflowDefinition(
@@ -203,6 +218,7 @@ def test_conditional_branch_connection_is_reported() -> None:
     assert valid is True
     assert "conditional_output_connection" in codes
 
+
 ###############################################################################
 def test_invalid_timeout_and_retry_values_block_compilation() -> None:
     definition = WorkflowDefinition(
@@ -216,6 +232,7 @@ def test_invalid_timeout_and_retry_values_block_compilation() -> None:
     valid, codes = _codes(definition)
     assert valid is False
     assert {"invalid_timeout", "invalid_retries"} <= codes
+
 
 ###############################################################################
 def test_side_effect_retry_requires_an_idempotency_contract() -> None:
@@ -236,6 +253,7 @@ def test_side_effect_retry_requires_an_idempotency_contract() -> None:
     valid, codes = _codes(definition)
     assert valid is False
     assert "unsafe_side_effect_retry" in codes
+
 
 ###############################################################################
 def test_idempotent_side_effect_carries_effect_metadata_into_plan() -> None:
@@ -280,6 +298,7 @@ def test_idempotent_side_effect_carries_effect_metadata_into_plan() -> None:
     assert lifecycle.destructive is True
     assert lifecycle.idempotent is True
 
+
 ###############################################################################
 def test_timeout_and_retries_are_copied_to_execution_plan() -> None:
     definition = WorkflowDefinition(
@@ -298,6 +317,7 @@ def test_timeout_and_retries_are_copied_to_execution_plan() -> None:
     prompt_step = next(step for step in compiled.plan.steps if step.node_id == "prompt")
     assert prompt_step.timeout_ms == 2500
     assert prompt_step.retries == 2
+
 
 ###############################################################################
 def test_chat_requires_one_reachable_terminal_output_and_records_it() -> None:
@@ -324,6 +344,7 @@ def test_chat_requires_one_reachable_terminal_output_and_records_it() -> None:
     assert compiled.plan is not None
     assert compiled.plan.metadata["chat_terminal_outputs"] == {"chat": "output"}
 
+
 ###############################################################################
 def test_chat_without_terminal_output_is_a_blocking_diagnostic() -> None:
     definition = WorkflowDefinition(
@@ -344,6 +365,7 @@ def test_chat_without_terminal_output_is_a_blocking_diagnostic() -> None:
 
     assert valid is False
     assert "chat_terminal_output_count" in codes
+
 
 ###############################################################################
 def test_chat_with_multiple_reachable_terminal_outputs_is_a_blocking_diagnostic() -> (
@@ -377,6 +399,7 @@ def test_chat_with_multiple_reachable_terminal_outputs_is_a_blocking_diagnostic(
 
 # Control nodes
 
+
 ###############################################################################
 def test_if_text_contains_selects_true_and_false_branch() -> None:
     assert (
@@ -388,17 +411,21 @@ def test_if_text_contains_selects_true_and_false_branch() -> None:
         == "false"
     )
 
+
 ###############################################################################
 def test_reduce_chunks_joins_text() -> None:
     assert _reduce_chunks_executor({}, {"chunks": ["a", "b"]})["result"] == "a\nb"
+
 
 ###############################################################################
 def test_cache_node_returns_cached_deterministic_output() -> None:
     assert "cache_key" in _cache_node_executor({}, {"value": "x"})
 
+
 ###############################################################################
 def test_human_review_gate_pauses_run_payload() -> None:
     assert _human_review_gate_executor({}, {"value": "x"})["paused"] is True
+
 
 ###############################################################################
 def test_invalid_persisted_pause_state_fails_closed() -> None:
@@ -425,10 +452,12 @@ def test_invalid_persisted_pause_state_fails_closed() -> None:
     with pytest.raises(ValueError, match="Persisted pause checkpoint is invalid"):
         ExecutionRunRepository().get_run("invalid-pause-run")
 
+
 ###############################################################################
 def test_trace_debug_viewer_redacts_sensitive_payload_fields() -> None:
     result = _trace_debug_viewer_executor({}, {"api_key": "secret"})
     assert result["result"]["inputs"]["api_key"] == "[REDACTED]"
+
 
 ###############################################################################
 def test_execution_skips_unselected_branch_and_pauses_run(monkeypatch) -> None:
@@ -490,6 +519,7 @@ def test_execution_skips_unselected_branch_and_pauses_run(monkeypatch) -> None:
         next(step for step in run.steps if step.step_id == "false_step").status
         == "skipped"
     )
+
 
 ###############################################################################
 def test_human_review_pause_survives_reload_and_injects_reviewed_payload(
@@ -565,6 +595,7 @@ def test_human_review_pause_survives_reload_and_injects_reviewed_payload(
 
 # Execution durability
 
+
 ###############################################################################
 def _plan(*, retries: int = 0, timeout_ms: int | None = None) -> CompiledExecutionPlan:
     step = ExecutionStepPlan(
@@ -581,6 +612,7 @@ def _plan(*, retries: int = 0, timeout_ms: int | None = None) -> CompiledExecuti
     return CompiledExecutionPlan(
         plan_id="durable-plan", step_order=["step"], steps=[step]
     )
+
 
 ###############################################################################
 def test_run_steps_and_events_survive_repository_reinstantiation() -> None:
@@ -614,6 +646,7 @@ def test_run_steps_and_events_survive_repository_reinstantiation() -> None:
     assert restored.steps[0].output["ports"]["text"] == "persisted"
     assert [event.sequence for event in fresh_events.events] == [1]
 
+
 ###############################################################################
 def test_list_recoverable_batches_run_and_step_loading(monkeypatch) -> None:
     plan = _plan()
@@ -645,6 +678,7 @@ def test_list_recoverable_batches_run_and_step_loading(monkeypatch) -> None:
     }
     assert all(len(run.steps) == 1 for run in recoverable)
 
+
 ###############################################################################
 def test_retry_succeeds_without_restarting_prior_steps(
     job_state_factory, monkeypatch
@@ -668,6 +702,7 @@ def test_retry_succeeds_without_restarting_prior_steps(
     assert run is not None and run.steps[0].attempt_count == 2
     assert run.status == "completed"
 
+
 ###############################################################################
 def test_retry_exhaustion_records_final_failure(job_state_factory, monkeypatch) -> None:
     monkeypatch.setattr(
@@ -685,6 +720,7 @@ def test_retry_exhaustion_records_final_failure(job_state_factory, monkeypatch) 
     run = execution_run_repository.get_run("failed-retry")
     assert run is not None and run.status == "failed"
     assert run.steps[0].attempt_count == 2
+
 
 ###############################################################################
 def test_timeout_late_result_cannot_overwrite_terminal_state(
@@ -706,6 +742,7 @@ def test_timeout_late_result_cannot_overwrite_terminal_state(
     assert run is not None and run.status == "failed"
     assert run.steps[0].status == "failed"
     assert run.steps[0].output == {}
+
 
 ###############################################################################
 def test_timeout_retries_safe_attempt_and_ignores_late_local_result(
@@ -741,6 +778,7 @@ def test_timeout_retries_safe_attempt_and_ignores_late_local_result(
     assert event_types.count("execution.step.retry.failed") == 1
     assert event_types.count("execution.step.retry.started") == 1
 
+
 ###############################################################################
 def test_handler_timeout_error_is_not_misclassified_as_step_timeout(
     job_state_factory, monkeypatch
@@ -767,6 +805,7 @@ def test_handler_timeout_error_is_not_misclassified_as_step_timeout(
     ]
     assert "execution.step.timeout" not in event_types
 
+
 ###############################################################################
 def test_cancel_before_start_and_retention_cleanup() -> None:
     plan = _plan()
@@ -782,12 +821,14 @@ def test_cancel_before_start_and_retention_cleanup() -> None:
 
 # Execution events
 
+
 ###############################################################################
 def _create_event_run(run_id: str) -> None:
     plan = CompiledExecutionPlan(plan_id=f"plan-{run_id}")
     execution_run_repository.create_run(
         ExecutionRunState(run_id=run_id, plan_id=plan.plan_id, plan=plan)
     )
+
 
 ###############################################################################
 def test_execution_event_sequence_is_monotonic_for_each_run() -> None:
@@ -817,6 +858,7 @@ def test_execution_event_sequence_is_monotonic_for_each_run() -> None:
         event.sequence for event in execution_event_service.get_history("run-a").events
     ] == [1, 2]
 
+
 ###############################################################################
 def test_execution_event_history_supports_sequence_pagination() -> None:
     _create_event_run("run-paged")
@@ -834,6 +876,7 @@ def test_execution_event_history_supports_sequence_pagination() -> None:
 
     assert [event.sequence for event in first_page.events] == [1, 2]
     assert [event.sequence for event in second_page.events] == [3]
+
 
 ###############################################################################
 def test_concurrent_event_publishers_receive_unique_sequences() -> None:
@@ -854,6 +897,7 @@ def test_concurrent_event_publishers_receive_unique_sequences() -> None:
         event.sequence
         for event in execution_event_service.get_history("run-concurrent").events
     ] == list(range(1, 33))
+
 
 ###############################################################################
 def test_execution_service_emits_expected_event_order_for_prompt_to_output_plan(
@@ -921,6 +965,7 @@ def test_execution_service_emits_expected_event_order_for_prompt_to_output_plan(
     ]
     assert [event.payload.get("progress") for event in step_completed] == [50.0, 99.0]
 
+
 ###############################################################################
 def test_live_event_delivery_keeps_sequence_order_for_concurrent_publishers() -> None:
     _create_event_run("run-live-order")
@@ -939,6 +984,7 @@ def test_live_event_delivery_keeps_sequence_order_for_concurrent_publishers() ->
 
     delivered = [subscriber.get_nowait().sequence for _ in published]
     assert delivered == [event.sequence for event in sorted(published, key=lambda item: item.sequence)]
+
 
 ###############################################################################
 def test_replay_handoff_drops_only_snapshot_events() -> None:
@@ -967,6 +1013,7 @@ def test_replay_handoff_drops_only_snapshot_events() -> None:
     assert [event.sequence for event in history.events] == [first.sequence]
     assert [event.sequence for event in live] == [second.sequence]
 
+
 ###############################################################################
 def test_live_subscriber_queue_marks_overflow_for_replay_recovery() -> None:
     _create_event_run("run-overflow")
@@ -981,6 +1028,7 @@ def test_live_subscriber_queue_marks_overflow_for_replay_recovery() -> None:
 
     assert subscriber.overflowed is True
     assert subscriber.qsize() == 1
+
 
 ###############################################################################
 def test_redact_output_state_masks_nested_sensitive_fields() -> None:
@@ -1007,6 +1055,7 @@ def test_redact_output_state_masks_nested_sensitive_fields() -> None:
     assert redacted["controllers"]["credentials"]["nested"]["username"] == "alice"
     assert redacted["ports"]["result"]["access_token"] == "***"
     assert redacted["ports"]["result"]["metadata"][0]["authorization"] == "***"
+
 
 ###############################################################################
 def test_execution_service_skips_cache_key_build_for_non_cacheable_steps(
@@ -1063,6 +1112,7 @@ def test_execution_service_skips_cache_key_build_for_non_cacheable_steps(
 
     assert result == {"outputs": {"output_1": {"text": "hello"}}}
 
+
 ###############################################################################
 def test_execution_service_persists_compact_step_output_payload(
     job_state_factory,
@@ -1112,6 +1162,7 @@ def test_execution_service_persists_compact_step_output_payload(
 
     assert run is not None
     assert all(set(step.output.keys()) == {"inputs", "ports"} for step in run.steps)
+
 
 ###############################################################################
 def test_execution_service_uses_json_field_as_prompt_template_variable(
@@ -1180,6 +1231,7 @@ def test_execution_service_uses_json_field_as_prompt_template_variable(
     assert result == {"outputs": {"output_1": {"text": "hello"}}}
 
 # Execution security
+
 
 ###############################################################################
 def test_redact_output_state_masks_sensitive_controller_fields() -> None:

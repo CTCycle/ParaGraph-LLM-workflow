@@ -6,6 +6,7 @@ from urllib.parse import unquote
 from server.services.workflow.provider.constants import HUGGINGFACE_REPO_ID_PATTERN
 from server.services.workflow.provider.errors import ProviderApiError
 
+
 ###############################################################################
 def _safe_int(value: Any) -> int | None:
     if isinstance(value, bool):
@@ -23,12 +24,14 @@ def _safe_int(value: Any) -> int | None:
                 return None
     return None
 
+
 ###############################################################################
 def _coerce_optional_text(value: Any) -> str | None:
     if value is None:
         return None
     text = str(value).strip()
     return text or None
+
 
 ###############################################################################
 def _coerce_optional_bool(value: Any) -> bool | None:
@@ -47,6 +50,7 @@ def _coerce_optional_bool(value: Any) -> bool | None:
         return bool(value)
     return None
 
+
 ###############################################################################
 def _normalize_ollama_library_slug(href: str) -> str | None:
     if not href.startswith("/library/"):
@@ -63,9 +67,11 @@ def _normalize_ollama_library_slug(href: str) -> str | None:
         return None
     return slug
 
+
 ###############################################################################
 def _model_basename(model: str) -> str:
     return model.split(":", 1)[0].strip().lower()
+
 
 ###############################################################################
 def _normalize_huggingface_repo_id(repo_id: str) -> str:
@@ -77,9 +83,11 @@ def _normalize_huggingface_repo_id(repo_id: str) -> str:
         )
     return normalized
 
+
 ###############################################################################
 def _huggingface_model_dir_name(repo_id: str) -> str:
     return repo_id.replace("/", "--")
+
 
 ###############################################################################
 def _huggingface_repo_id_from_dir_name(value: str) -> str | None:
@@ -90,6 +98,7 @@ def _huggingface_repo_id_from_dir_name(value: str) -> str | None:
         return None
     return candidate
 
+
 ###############################################################################
 def _resolve_visibility(private: bool | None, gated: bool | None) -> str:
     if gated is True:
@@ -99,6 +108,7 @@ def _resolve_visibility(private: bool | None, gated: bool | None) -> str:
     if private is False:
         return "public"
     return "unknown"
+
 
 ###############################################################################
 def _extract_huggingface_model_size(payload: Any) -> int | None:
@@ -135,6 +145,7 @@ def _extract_huggingface_model_size(payload: Any) -> int | None:
 
     return None
 
+
 ###############################################################################
 def _extract_huggingface_tag_values(payload: Any) -> tuple[str, ...]:
     values: set[str] = set()
@@ -165,6 +176,7 @@ def _extract_huggingface_tag_values(payload: Any) -> tuple[str, ...]:
             values.add(candidate)
 
     return tuple(sorted(values))
+
 
 ###############################################################################
 def _payload_value(payload: Any, key: str) -> Any:

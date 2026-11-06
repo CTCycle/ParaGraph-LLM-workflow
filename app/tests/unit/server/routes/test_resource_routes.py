@@ -29,6 +29,7 @@ from server.services.workflow.provider import ProviderApiError
 
 # Configuration routes
 
+
 ###############################################################################
 def _payload(session_name: str = "default") -> AppConfigurationPayload:
     return AppConfigurationPayload(
@@ -50,6 +51,7 @@ def _payload(session_name: str = "default") -> AppConfigurationPayload:
             ),
         ],
     )
+
 
 ###############################################################################
 def test_configurations_load_save_profile_and_ping_flows(
@@ -159,6 +161,7 @@ def test_configurations_load_save_profile_and_ping_flows(
     )
     assert provider_ping_response.status_code == 200
     assert provider_ping_response.json()["provider"] == "lmstudio"
+
 
 ###############################################################################
 def test_configuration_routes_persist_and_redact_secrets(
@@ -271,6 +274,7 @@ def test_configuration_routes_persist_and_redact_secrets(
     finally:
         sqlite_repository.engine.dispose()
 
+
 ###############################################################################
 def test_configuration_profile_errors_map_to_http(
     client: TestClient, monkeypatch
@@ -311,10 +315,12 @@ def test_configuration_profile_errors_map_to_http(
 
 # Database routes
 
+
 ###############################################################################
 def _configure_runtime(runtime: DatabaseRuntime, monkeypatch, root: Path) -> None:
     monkeypatch.setattr(common_path, "RESOURCES_ROOT", root)
     monkeypatch.setattr(database_api, "database_runtime", runtime)
+
 
 ###############################################################################
 def test_database_endpoints_test_apply_and_rollback(
@@ -356,6 +362,7 @@ def test_database_endpoints_test_apply_and_rollback(
     assert runtime.status()["database_path"] == active_path
     runtime.reset_for_tests()
 
+
 ###############################################################################
 def test_database_apply_rejects_an_active_workflow(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -380,9 +387,11 @@ def test_database_apply_rejects_an_active_workflow(
 
 # Node routes
 
+
 ###############################################################################
 class SchemaRouteBase(DeclarativeBase):
     pass
+
 
 ###############################################################################
 class SchemaRouteItem(SchemaRouteBase):
@@ -390,6 +399,7 @@ class SchemaRouteItem(SchemaRouteBase):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String, nullable=False)
+
 
 ###############################################################################
 def test_database_schema_endpoint_returns_sqlite_schema(
@@ -414,11 +424,13 @@ def test_database_schema_endpoint_returns_sqlite_schema(
     assert payload["tables"][0]["name"] == "schema_items"
     assert payload["tables"][0]["columns"][0]["name"] == "id"
 
+
 ###############################################################################
 def test_check_vector_store_connection_calls_adapter_validate(
     client: TestClient, monkeypatch
 ) -> None:
     calls: dict[str, object] = {}
+
 
     ###############################################################################
     class FakeAdapter:
@@ -462,11 +474,13 @@ def test_check_vector_store_connection_calls_adapter_validate(
     assert calls["endpoint_url"] == "https://qdrant.local"
     assert calls["api_key"] == ""
 
+
 ###############################################################################
 def test_check_vector_store_connection_resolves_saved_credential(
     client: TestClient, monkeypatch
 ) -> None:
     calls: dict[str, object] = {}
+
 
     ###############################################################################
     class FakeAdapter:
@@ -533,6 +547,7 @@ def test_check_vector_store_connection_resolves_saved_credential(
     assert calls["endpoint_url"] == "https://configured-vector.example"
     assert resolved["session_name"] == "tenant-a"
 
+
 ###############################################################################
 @pytest.mark.parametrize("provider", ["lancedb", "chroma", "faiss"])
 def test_check_vector_store_connection_local_providers_require_storage_path(
@@ -541,6 +556,7 @@ def test_check_vector_store_connection_local_providers_require_storage_path(
     provider: str,
 ) -> None:
     calls: dict[str, object] = {}
+
 
     ###############################################################################
     class FakeAdapter:
@@ -578,6 +594,7 @@ def test_check_vector_store_connection_local_providers_require_storage_path(
     assert response.json()["ok"] is True
     assert calls["storage_directory"] == "C:/tmp/vectorstore"
 
+
 ###############################################################################
 @pytest.mark.parametrize("provider", ["qdrant", "pinecone", "weaviate", "milvus"])
 def test_check_vector_store_connection_remote_providers_require_endpoint(
@@ -586,6 +603,7 @@ def test_check_vector_store_connection_remote_providers_require_endpoint(
     provider: str,
 ) -> None:
     calls: dict[str, object] = {}
+
 
     ###############################################################################
     class FakeAdapter:
@@ -625,6 +643,7 @@ def test_check_vector_store_connection_remote_providers_require_endpoint(
 
 # Platform routes
 
+
 ###############################################################################
 def build_prompt_to_output_definition() -> dict[str, object]:
     return {
@@ -653,6 +672,7 @@ def build_prompt_to_output_definition() -> dict[str, object]:
         ],
         "metadata": {},
     }
+
 
 ###############################################################################
 def test_nodes_catalog_exposes_registry(client: TestClient) -> None:
@@ -714,6 +734,7 @@ def test_nodes_catalog_exposes_registry(client: TestClient) -> None:
     assert capabilities["pinecone"]["supports_namespaces"] is True
     assert capabilities["pinecone"]["supports_minimum_should_match"] is False
     assert capabilities["weaviate"]["supported_metrics"] == ["cosine"]
+
 
 ###############################################################################
 def test_nodes_import_persists_manifest(client: TestClient, tmp_path: Path) -> None:
@@ -779,6 +800,7 @@ def test_nodes_import_persists_manifest(client: TestClient, tmp_path: Path) -> N
     assert response.json()["id"] == "CUSTOM_ECHO"
     assert (node_dir / "custom_echo_v1.json").exists()
 
+
 ###############################################################################
 def test_nodes_upload_directory_stages_browser_selected_folder(
     client: TestClient,
@@ -809,6 +831,7 @@ def test_nodes_upload_directory_stages_browser_selected_folder(
         if staged_root.exists():
             shutil.rmtree(staged_root, ignore_errors=True)
 
+
 ###############################################################################
 def test_nodes_upload_directory_staging_root_is_stable_across_working_directory(
     client: TestClient, monkeypatch, tmp_path: Path
@@ -835,6 +858,7 @@ def test_nodes_upload_directory_staging_root_is_stable_across_working_directory(
         if staged_root.exists():
             shutil.rmtree(staged_root, ignore_errors=True)
 
+
 ###############################################################################
 def test_nodes_upload_directory_rejects_parent_directory_segments(
     client: TestClient,
@@ -847,6 +871,7 @@ def test_nodes_upload_directory_rejects_parent_directory_segments(
     assert response.status_code == 422
     assert "relative paths" in response.json()["detail"].lower()
 
+
 ###############################################################################
 def test_nodes_upload_directory_rejects_absolute_paths(client: TestClient) -> None:
     response = client.post(
@@ -857,14 +882,17 @@ def test_nodes_upload_directory_rejects_absolute_paths(client: TestClient) -> No
     assert response.status_code == 422
     assert "absolute paths" in response.json()["detail"].lower()
 
+
 ###############################################################################
 def test_nodes_database_connection_check_returns_success_for_sqlite(
     client: TestClient, tmp_path: Path
 ) -> None:
 
+
     ###############################################################################
     class TestHealthBase(DeclarativeBase):
         pass
+
 
     ###############################################################################
     class TestTable(TestHealthBase):
@@ -892,6 +920,7 @@ def test_nodes_database_connection_check_returns_success_for_sqlite(
     assert response.status_code == 200
     assert response.json() == {"ok": True, "message": "Database connection successful."}
 
+
 ###############################################################################
 def test_nodes_database_connection_check_returns_failure_payload(
     client: TestClient,
@@ -912,6 +941,7 @@ def test_nodes_database_connection_check_returns_failure_payload(
     payload = response.json()
     assert payload["ok"] is False
     assert "not found" in payload["message"].lower()
+
 
 ###############################################################################
 def test_provider_models_endpoint_returns_catalog(
@@ -938,6 +968,7 @@ def test_provider_models_endpoint_returns_catalog(
 
     assert response.status_code == 200
     assert response.json()["models"][0]["model"] == "llama3.2"
+
 
 ###############################################################################
 def test_ollama_library_endpoint_returns_rows(client: TestClient, monkeypatch) -> None:
@@ -967,6 +998,7 @@ def test_ollama_library_endpoint_returns_rows(client: TestClient, monkeypatch) -
     assert payload["models"][0]["model"] == "llama3.2"
     assert payload["models"][0]["pulled"] is True
 
+
 ###############################################################################
 def test_ollama_pull_endpoint_returns_success(client: TestClient, monkeypatch) -> None:
     monkeypatch.setattr(
@@ -985,6 +1017,7 @@ def test_ollama_pull_endpoint_returns_success(client: TestClient, monkeypatch) -
     payload = response.json()
     assert payload["ok"] is True
     assert payload["model"] == "llama3.2"
+
 
 ###############################################################################
 def test_huggingface_models_endpoint_returns_rows(
@@ -1026,6 +1059,7 @@ def test_huggingface_models_endpoint_returns_rows(
     assert payload["models"][0]["repo_id"] == "meta-llama/Llama-3.2-3B-Instruct"
     assert payload["has_more"] is True
 
+
 ###############################################################################
 def test_huggingface_download_endpoint_returns_success(
     client: TestClient, monkeypatch
@@ -1060,6 +1094,7 @@ def test_huggingface_download_endpoint_returns_success(
     assert payload["job_id"] == "job-1234"
     assert payload["status"] == "running"
 
+
 ###############################################################################
 def test_huggingface_download_status_endpoint_returns_payload(
     client: TestClient, monkeypatch
@@ -1088,6 +1123,7 @@ def test_huggingface_download_status_endpoint_returns_payload(
     assert payload["status"] == "running"
     assert payload["progress"] == 42.0
 
+
 ###############################################################################
 def test_huggingface_download_cancel_endpoint_returns_success(
     client: TestClient, monkeypatch
@@ -1109,6 +1145,7 @@ def test_huggingface_download_cancel_endpoint_returns_success(
     payload = response.json()
     assert payload["ok"] is True
     assert payload["job_id"] == "job-1234"
+
 
 ###############################################################################
 def test_compile_endpoint_returns_diagnostics_for_type_mismatch(
@@ -1154,9 +1191,11 @@ def test_compile_endpoint_returns_diagnostics_for_type_mismatch(
 
 # Provider routes
 
+
 ###############################################################################
 def _raise_provider_error(message: str, status_code: int):
     raise ProviderApiError(message, status_code=status_code)
+
 
 ###############################################################################
 def test_provider_errors_are_mapped_to_http_status_codes(
@@ -1218,6 +1257,7 @@ def test_provider_errors_are_mapped_to_http_status_codes(
     assert hf_cancel_response.status_code == 409
     assert hf_cancel_response.json()["detail"] == "cannot cancel"
 
+
 ###############################################################################
 def test_provider_models_include_embedding_capabilities(
     client: TestClient, monkeypatch
@@ -1277,6 +1317,7 @@ def test_provider_models_include_embedding_capabilities(
         and item.get("supports_embeddings") is True
     ]
 
+
 ###############################################################################
 def test_provider_catalog_includes_new_providers(client: TestClient) -> None:
     response = client.get("/providers/catalog")
@@ -1291,6 +1332,7 @@ def test_provider_catalog_includes_new_providers(client: TestClient) -> None:
     assert providers["deepseek"]["supports_embeddings"] is False
     assert providers["lmstudio"]["supports_embeddings"] is True
     assert providers["llama"]["supports_embeddings"] is True
+
 
 ###############################################################################
 def test_provider_model_definition_propagates_supports_embeddings_flag() -> None:

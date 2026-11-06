@@ -12,6 +12,7 @@ ROOT = Path(__file__).resolve().parents[2]
 OUTPUT = ROOT / "app/client/src/workflow/schema/apiTypes.generated.ts"
 IDENTIFIER_PATTERN = re.compile(r"^[A-Za-z_$][A-Za-z0-9_$]*$")
 
+
 ###############################################################################
 def _load_openapi_schemas() -> dict[str, dict[str, Any]]:
     sys.path.insert(0, str(ROOT / "app"))
@@ -22,13 +23,16 @@ def _load_openapi_schemas() -> dict[str, dict[str, Any]]:
         raise RuntimeError("FastAPI OpenAPI document has no component schemas.")
     return schemas
 
+
 ###############################################################################
 def _ref_name(reference: str) -> str:
     return reference.rsplit("/", 1)[-1]
 
+
 ###############################################################################
 def _literal(value: Any) -> str:
     return json.dumps(value, ensure_ascii=False)
+
 
 ###############################################################################
 def _schema_type(schema: dict[str, Any]) -> str:
@@ -82,9 +86,11 @@ def _schema_type(schema: dict[str, Any]) -> str:
         return "null"
     return "unknown"
 
+
 ###############################################################################
 def _property_name(name: str) -> str:
     return name if IDENTIFIER_PATTERN.fullmatch(name) else _literal(name)
+
 
 ###############################################################################
 def _is_optional_property(name: str, property_schema: dict[str, Any], required: set[str]) -> bool:
@@ -95,6 +101,7 @@ def _is_optional_property(name: str, property_schema: dict[str, Any], required: 
         isinstance(variant, dict) and variant.get("type") == "null"
         for variant in variants
     )
+
 
 ###############################################################################
 def _inline_object_type(schema: dict[str, Any]) -> str:
@@ -110,6 +117,7 @@ def _inline_object_type(schema: dict[str, Any]) -> str:
         )
     lines.append("    }")
     return "".join(lines)
+
 
 ###############################################################################
 def _render_schema(name: str, schema: dict[str, Any]) -> list[str]:
@@ -127,6 +135,7 @@ def _render_schema(name: str, schema: dict[str, Any]) -> list[str]:
         return lines
     return [f"export type {name} = {_schema_type(schema)}"]
 
+
 ###############################################################################
 def render_contracts(schemas: dict[str, dict[str, Any]]) -> str:
     lines = [
@@ -138,6 +147,7 @@ def render_contracts(schemas: dict[str, dict[str, Any]]) -> str:
         lines.extend(_render_schema(name, schema))
         lines.append("")
     return "\n".join(lines)
+
 
 ###############################################################################
 def main() -> int:

@@ -36,14 +36,17 @@ from server.services.workflow.provider import provider_service
 _RUNTIME_TOOL_COLLECTIONS: dict[str, dict[str, dict[str, Callable[..., Any]]]] = {}
 _RUNTIME_TOOL_LOCK = Lock()
 
+
 ###############################################################################
 def release_run_tool_resources(run_id: str) -> None:
     with _RUNTIME_TOOL_LOCK:
         _RUNTIME_TOOL_COLLECTIONS.pop(run_id, None)
 
+
 ###############################################################################
 def _runtime_scope_id() -> str:
     return get_execution_context().get("run_id") or "__unscoped__"
+
 
 ###############################################################################
 def _json_type(annotation: Any) -> str:
@@ -58,6 +61,7 @@ def _json_type(annotation: Any) -> str:
     if annotation in {list, tuple, set}:
         return "array"
     return "string"
+
 
 ###############################################################################
 def _schema_from_callable_signature(function: Callable[..., Any]) -> dict[str, Any]:
@@ -80,6 +84,7 @@ def _schema_from_callable_signature(function: Callable[..., Any]) -> dict[str, A
         "additionalProperties": False,
     }
 
+
 ###############################################################################
 def _schema_runtime_tool_id(
     *, source_type: str, name: str, description: str, parameters_schema: dict[str, Any]
@@ -97,6 +102,7 @@ def _schema_runtime_tool_id(
     )
     digest = hashlib.sha256(canonical.encode("utf-8")).hexdigest()[:24]
     return f"schema_tool_{digest}"
+
 
 ###############################################################################
 def _register_callable_tool(
@@ -121,6 +127,7 @@ def _register_callable_tool(
         execution_state="executable",
     )
 
+
 ###############################################################################
 def _safe_load_inline_tool_module(code: str) -> dict[str, Any]:
     tree = ast.parse(code)
@@ -137,6 +144,7 @@ def _safe_load_inline_tool_module(code: str) -> dict[str, Any]:
     exec(compile(tree, "<inline_tools>", "exec"), namespace)  # noqa: S102
     return namespace
 
+
 ###############################################################################
 def _parse_inline_python_tools(
     code: str,
@@ -152,6 +160,7 @@ def _parse_inline_python_tools(
         if callable(value) and not name.startswith("_")
     ]
 
+
 ###############################################################################
 def _load_tool_module_from_file(file_path: str) -> dict[str, Any]:
     path = resolve_local_path(file_path)
@@ -163,6 +172,7 @@ def _load_tool_module_from_file(file_path: str) -> dict[str, Any]:
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return vars(module)
+
 
 ###############################################################################
 def _parse_python_file_tools(
@@ -191,6 +201,7 @@ def _parse_python_file_tools(
         for name in names
         if callable(namespace.get(name))
     ]
+
 
 ###############################################################################
 def _parse_signature_tools(signature_text: str) -> list[ToolDefinition]:
@@ -238,6 +249,7 @@ def _parse_signature_tools(signature_text: str) -> list[ToolDefinition]:
         )
     return tools
 
+
 ###############################################################################
 def _normalize_tool_schema(
     schema: dict[str, Any], tool_name: str = "", description: str = ""
@@ -267,6 +279,7 @@ def _normalize_tool_schema(
         execution_state="schema_only",
     )
 
+
 ###############################################################################
 def _parse_json_schema_tools(
     schema: dict[str, Any], tool_name: str = "", description: str = ""
@@ -278,6 +291,7 @@ def _parse_json_schema_tools(
             if isinstance(item, dict)
         ]
     return [_normalize_tool_schema(schema, tool_name, description)]
+
 
 ###############################################################################
 def _tool_collection_executor(
@@ -350,6 +364,7 @@ def _tool_collection_executor(
     )
     return {"tools": handle.model_dump(mode="json")}
 
+
 ###############################################################################
 def _tool_schema_collection_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
@@ -360,6 +375,7 @@ def _tool_schema_collection_executor(
         allowed_source_types={"json_schema", "signature"},
     )
 
+
 ###############################################################################
 def _python_tool_collection_executor(
     parameters: dict[str, Any], inputs: dict[str, Any]
@@ -369,6 +385,7 @@ def _python_tool_collection_executor(
         inputs,
         allowed_source_types={"inline_python", "python_file"},
     )
+
 
 ###############################################################################
 def _build_tool_choice_schema(tools: list[ToolDefinition]) -> dict[str, Any]:
@@ -382,9 +399,11 @@ def _build_tool_choice_schema(tools: list[ToolDefinition]) -> dict[str, Any]:
         "additionalProperties": False,
     }
 
+
 ###############################################################################
 def _validate_tool_arguments(tool: ToolDefinition, arguments: dict[str, Any]) -> None:
     validate_json_against_schema(arguments, tool.parameters_schema)
+
 
 ###############################################################################
 def _await_tool_result(result: Any) -> Any:
@@ -402,6 +421,7 @@ def _await_tool_result(result: Any) -> Any:
     with ThreadPoolExecutor(max_workers=1, thread_name_prefix="tool-await") as pool:
         return pool.submit(asyncio.run, await_result()).result()
 
+
 ###############################################################################
 def _tool_execution_state(tool: ToolDefinition) -> str:
     if tool.execution_state != "unavailable":
@@ -409,6 +429,7 @@ def _tool_execution_state(tool: ToolDefinition) -> str:
     if tool.source_type in {"json_schema", "signature"}:
         return "schema_only"
     return "unavailable"
+
 
 ###############################################################################
 def _execute_selected_tool(
@@ -430,6 +451,7 @@ def _execute_selected_tool(
     if function is None:
         raise ValueError(f"Tool '{tool.name}' executable is unavailable")
     return _await_tool_result(function(**selection.arguments))
+
 
 ###############################################################################
 def _select_tool_with_structured_model(
@@ -460,6 +482,7 @@ def _select_tool_with_structured_model(
     )["result"]
     return ToolCallSelection.model_validate({**result, "raw_model_response": result})
 
+
 ###############################################################################
 def _select_tool_with_native_provider_tools(
     *,
@@ -485,6 +508,7 @@ def _select_tool_with_native_provider_tools(
         timeout_s=selection.timeout_s,
     )
     return ToolCallSelection.model_validate(response)
+
 
 ###############################################################################
 def _tool_call_executor(

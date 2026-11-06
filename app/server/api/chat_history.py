@@ -13,6 +13,7 @@ from server.services.workflow.chat_history import chat_history_service
 
 router = APIRouter(prefix="/chat-history", tags=["chat-history"])
 
+
 ###############################################################################
 @router.get("", response_model=ChatHistoryResponse)
 def get_chat_history(
@@ -34,6 +35,7 @@ def get_chat_history(
         keep_prompt_type=keep_prompt_type,
     )
     return ChatHistoryResponse(messages=chat_history_service.load_messages(handle))
+
 
 ###############################################################################
 @router.post("/reset", response_model=ChatHistoryResponse)

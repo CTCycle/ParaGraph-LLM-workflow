@@ -14,9 +14,11 @@ _EXECUTION_CONTEXT_VAR: ContextVar[dict[str, Any]] = ContextVar(
     },
 )
 
+
 ###############################################################################
 def get_execution_context() -> dict[str, Any]:
     return dict(_EXECUTION_CONTEXT_VAR.get())
+
 
 ###############################################################################
 def set_execution_context(context: dict[str, Any]) -> Token[dict[str, Any]]:
@@ -30,6 +32,7 @@ def set_execution_context(context: dict[str, Any]) -> Token[dict[str, Any]]:
         if key in context:
             normalized_context[key] = context[key]
     return _EXECUTION_CONTEXT_VAR.set(normalized_context)
+
 
 ###############################################################################
 def reset_execution_context(token: Token[dict[str, Any]]) -> None:

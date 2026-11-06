@@ -18,9 +18,11 @@ from server.services.workflow.nodes import registry as node_module
 
 # Database nodes
 
+
 ###############################################################################
 class DatabaseBase(DeclarativeBase):
     pass
+
 
 ###############################################################################
 class User(DatabaseBase):
@@ -30,6 +32,7 @@ class User(DatabaseBase):
     name: Mapped[str] = mapped_column(String, nullable=False)
     status: Mapped[str] = mapped_column(String, nullable=False, default="active")
 
+
 ###############################################################################
 class Post(DatabaseBase):
     __tablename__ = "posts"
@@ -37,6 +40,7 @@ class Post(DatabaseBase):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
     title: Mapped[str] = mapped_column(String, nullable=False)
+
 
 ###############################################################################
 def _database_connection(tmp_path: Path) -> dict[str, object]:
@@ -56,6 +60,7 @@ def _database_connection(tmp_path: Path) -> dict[str, object]:
     )
     return payload["connection"]
 
+
 ###############################################################################
 def test_database_schema_inspection_reports_tables_columns_and_foreign_keys(
     tmp_path: Path,
@@ -70,6 +75,7 @@ def test_database_schema_inspection_reports_tables_columns_and_foreign_keys(
         for column in tables["users"]["columns"]
     )
     assert tables["posts"]["foreign_keys"][0]["referred_table"] == "users"
+
 
 ###############################################################################
 def test_crud_nodes_create_read_update_and_delete_rows(tmp_path: Path) -> None:
@@ -122,6 +128,7 @@ def test_crud_nodes_create_read_update_and_delete_rows(tmp_path: Path) -> None:
     )
     assert deleted["dataset"]["affected_rows"] == 1
 
+
 ###############################################################################
 def test_crud_update_and_delete_require_filters(tmp_path: Path) -> None:
     connection = _database_connection(tmp_path)
@@ -141,6 +148,7 @@ def test_crud_update_and_delete_require_filters(tmp_path: Path) -> None:
             assert "filters are required" in str(exc)
         else:
             raise AssertionError(f"Expected {node_type} to reject empty filters")
+
 
 ###############################################################################
 def test_custom_sql_query_returns_rows_and_rejects_invalid_sql(tmp_path: Path) -> None:
@@ -166,6 +174,7 @@ def test_custom_sql_query_returns_rows_and_rejects_invalid_sql(tmp_path: Path) -
         else:
             raise AssertionError("Expected invalid SQL to fail validation")
 
+
 ###############################################################################
 def test_database_query_nodes_keep_one_typed_controller_contract() -> None:
     expected = ("CRUD_READ", "CUSTOM_SQL_QUERY")
@@ -176,6 +185,7 @@ def test_database_query_nodes_keep_one_typed_controller_contract() -> None:
         assert len(manifest.controllers) == 1
         assert manifest.controllers[0].name == "connection"
         assert manifest.controllers[0].data_type == "DATABASE_CONNECTION"
+
 
 ###############################################################################
 def test_database_parameters_reject_unknown_fields() -> None:
@@ -188,9 +198,11 @@ def test_database_parameters_reject_unknown_fields() -> None:
 
 # HTTP nodes
 
+
 ###############################################################################
 def PUBLIC_RESOLVER(host: str, port: int) -> list[str]:
     return ["93.184.216.34"]
+
 
 ###############################################################################
 def _execute(
@@ -206,6 +218,7 @@ def _execute(
         jitter=lambda: 0.0,
         cancelled=cancelled,
     ).execute(parsed, {})
+
 
 ###############################################################################
 @pytest.mark.parametrize(
@@ -223,6 +236,7 @@ def test_all_supported_methods_use_shared_transport(method: str) -> None:
         parameters["idempotency_key"] = "stable"
     assert _execute(handler, parameters=parameters)["json"] == {"method": method}
     assert seen == [method]
+
 
 ###############################################################################
 @pytest.mark.parametrize(
@@ -250,6 +264,7 @@ def test_request_body_modes(body_mode, parameters, expected: bytes) -> None:
         },
     )
 
+
 ###############################################################################
 def test_binary_invalid_json_and_size_limit() -> None:
     result = _execute(
@@ -269,6 +284,7 @@ def test_binary_invalid_json_and_size_limit() -> None:
             parameters={"max_response_bytes": 4},
         )
     assert too_large.value.code == "response_too_large"
+
 
 ###############################################################################
 def test_file_response_commits_only_an_accepted_response(
@@ -300,6 +316,7 @@ def test_file_response_commits_only_an_accepted_response(
     assert destination.read_bytes() == b"accepted-response"
     assert not list(tmp_path.glob("*.partial-*"))
 
+
 ###############################################################################
 def test_file_request_body_is_replayed_for_status_retry(
     tmp_path: Path, monkeypatch
@@ -323,6 +340,7 @@ def test_file_request_body_is_replayed_for_status_retry(
     )
 
     assert seen == [b"request-payload", b"request-payload"]
+
 
 ###############################################################################
 def test_retry_rebuilds_basic_auth_after_cross_origin_redirect(monkeypatch) -> None:
@@ -361,6 +379,7 @@ def test_retry_rebuilds_basic_auth_after_cross_origin_redirect(monkeypatch) -> N
     assert seen[2][0].startswith("https://93.184.216.34")
     assert seen[2][1].startswith("Basic ")
 
+
 ###############################################################################
 def test_retry_backoff_rechecks_cancellation() -> None:
     cancelled = False
@@ -381,6 +400,7 @@ def test_retry_backoff_rechecks_cancellation() -> None:
 
     assert error.value.code == "cancelled"
     assert len(delays) == 1
+
 
 ###############################################################################
 def test_retry_after_and_idempotency_key_retention() -> None:
@@ -412,10 +432,12 @@ def test_retry_after_and_idempotency_key_retention() -> None:
     assert calls == ["one-key", "one-key", "one-key"]
     assert delays[0] == 1 and 0 <= delays[1] <= 2
 
+
 ###############################################################################
 def test_unsafe_retry_requires_explicit_contract() -> None:
     with pytest.raises(ValueError, match="unsafe HTTP retries"):
         HttpRequestParameters(url="https://example.test", method="POST", max_attempts=2)
+
 
 ###############################################################################
 def test_redirect_revalidation_and_loop_limit() -> None:
@@ -431,6 +453,7 @@ def test_redirect_revalidation_and_loop_limit() -> None:
     assert limited.value.code == "redirect_limit"
     assert calls == 2
 
+
 ###############################################################################
 @pytest.mark.parametrize(
     "address",
@@ -441,6 +464,7 @@ def test_ssrf_blocks_private_metadata_and_mapped_addresses(address: str) -> None
     with pytest.raises(HttpTransportError) as blocked:
         transport.execute(HttpRequestParameters(url="http://target.test"), {})
     assert blocked.value.code == "ssrf_blocked"
+
 
 ###############################################################################
 def test_credential_url_dns_rebinding_and_cancellation() -> None:
@@ -458,6 +482,7 @@ def test_credential_url_dns_rebinding_and_cancellation() -> None:
         _execute(lambda request: httpx.Response(200), cancelled=lambda: True)
     assert cancelled.value.code == "cancelled"
 
+
 ###############################################################################
 @pytest.mark.parametrize(
     ("node_type", "expected_method"),
@@ -473,6 +498,7 @@ def test_method_specific_http_nodes_share_the_transport_executor(
     monkeypatch, node_type: str, expected_method: str
 ) -> None:
     seen: list[str] = []
+
 
     ###############################################################################
     class FakeTransport:
@@ -500,9 +526,11 @@ def test_method_specific_http_nodes_share_the_transport_executor(
 
 # Plugin nodes
 
+
 ###############################################################################
 def write_manifest(path: Path, payload: dict[str, object]) -> None:
     path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
 
 ###############################################################################
 def build_plugin_manifest(script_path: str) -> dict[str, object]:
@@ -556,6 +584,7 @@ def build_plugin_manifest(script_path: str) -> dict[str, object]:
         },
     }
 
+
 ###############################################################################
 def test_plugin_node_executes_script_runtime(tmp_path: Path) -> None:
     node_root = tmp_path / "nodes"
@@ -584,6 +613,7 @@ def execute(parameters, inputs):
         "CUSTOM_SCRIPT_NODE", 1, {"prefix": "pre-"}, {"text": "hello"}
     )
     assert result == {"result": "PRE-HELLO"}
+
 
 ###############################################################################
 def test_plugin_node_rejects_absolute_script_paths(tmp_path: Path) -> None:

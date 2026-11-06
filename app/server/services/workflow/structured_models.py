@@ -18,6 +18,7 @@ _SCALARS: dict[str, Any] = {
     "Literal": Literal,
 }
 
+
 ###############################################################################
 def infer_model_from_json(name: str, value: dict[str, Any]) -> type[BaseModel]:
     fields: dict[str, tuple[Any, Any]] = {}
@@ -42,9 +43,11 @@ def infer_model_from_json(name: str, value: dict[str, Any]) -> type[BaseModel]:
         fields[str(key)] = (annotation, ...)
     return create_model(name, **fields)
 
+
 ###############################################################################
 def model_to_json_schema(model: type[BaseModel]) -> dict[str, Any]:
     return model.model_json_schema()
+
 
 ###############################################################################
 def _annotation_to_type(node: ast.AST, *, field: str) -> Any:
@@ -88,6 +91,7 @@ def _annotation_to_type(node: ast.AST, *, field: str) -> Any:
         }
     )
 
+
 ###############################################################################
 def parse_user_pydantic_model(model_source: str) -> type[BaseModel]:
     tree = ast.parse(model_source)
@@ -111,10 +115,12 @@ def parse_user_pydantic_model(model_source: str) -> type[BaseModel]:
         raise ValueError("model_source must define at least one annotated field")
     return create_model(class_node.name, **fields)
 
+
 ###############################################################################
 def validate_json_with_model(value: Any, model: type[BaseModel]) -> dict[str, Any]:
     instance = model.model_validate(value)
     return instance.model_dump(mode="json")
+
 
 ###############################################################################
 def validation_error_payload(error: ValidationError) -> dict[str, Any]:

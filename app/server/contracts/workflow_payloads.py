@@ -11,11 +11,13 @@ from server.contracts.node_catalog import (
     VectorScoreSemantics,
 )
 
+
 ###############################################################################
 class ImagePayload(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     path: str
+
 
 ###############################################################################
 class DocumentRecord(BaseModel):
@@ -26,6 +28,7 @@ class DocumentRecord(BaseModel):
     source_uri: str
     mime_type: str
     metadata: dict[str, Any] = Field(default_factory=dict)
+
 
 ###############################################################################
 class DatabaseConnectionHandle(BaseModel):
@@ -43,6 +46,7 @@ class DatabaseConnectionHandle(BaseModel):
     file_path: str | None = None
     read_only: bool = True
     options: dict[str, Any] = Field(default_factory=dict)
+
 
 ###############################################################################
 class ChunkRecord(BaseModel):
@@ -63,6 +67,7 @@ class ChunkRecord(BaseModel):
         if value < 0:
             raise ValueError("chunk metadata values must be non-negative")
         return value
+
 
 ###############################################################################
 class VectorPoint(BaseModel):
@@ -87,6 +92,7 @@ class VectorPoint(BaseModel):
         if not value:
             raise ValueError("vector points must include at least one dimension")
         return value
+
 
 ###############################################################################
 class VectorStoreHandle(BaseModel):
@@ -116,6 +122,7 @@ class VectorStoreHandle(BaseModel):
             raise ValueError("vector store dimensions must be greater than zero")
         return value
 
+
 ###############################################################################
 class VectorMutationResult(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -124,6 +131,7 @@ class VectorMutationResult(BaseModel):
     affected_count: int = 0
     affected_ids: list[str] = Field(default_factory=list)
     conflicts: list[str] = Field(default_factory=list)
+
 
 ###############################################################################
 class VectorCollectionInfo(BaseModel):
@@ -140,6 +148,7 @@ class VectorCollectionInfo(BaseModel):
     embedding_revision: str = ""
     normalized: bool = False
 
+
 ###############################################################################
 class RetrievalHit(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -155,12 +164,14 @@ class RetrievalHit(BaseModel):
     rerank_score: float | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
 
+
 ###############################################################################
 class RetrievalResults(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     query: str
     hits: list[RetrievalHit] = Field(default_factory=list)
+
 
 ###############################################################################
 class TokenizerOutput(BaseModel):
@@ -170,11 +181,13 @@ class TokenizerOutput(BaseModel):
     revision: str = ""
     records: list[dict[str, Any]] = Field(default_factory=list)
 
+
 ###############################################################################
 class MetadataRecord(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     metadata: dict[str, Any] = Field(default_factory=dict)
+
 
 ###############################################################################
 class ToolDefinition(BaseModel):
@@ -199,6 +212,7 @@ class ToolDefinition(BaseModel):
             raise ValueError("tool name is required")
         return normalized
 
+
 ###############################################################################
 class ToolCollectionHandle(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -207,12 +221,14 @@ class ToolCollectionHandle(BaseModel):
     runtime_collection_id: str | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
 
+
 ###############################################################################
 class ToolCallRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     instruction: str
     context: dict[str, Any] = Field(default_factory=dict)
+
 
 ###############################################################################
 class ToolCallSelection(BaseModel):
@@ -221,6 +237,7 @@ class ToolCallSelection(BaseModel):
     tool_name: str
     arguments: dict[str, Any] = Field(default_factory=dict)
     raw_model_response: Any = None
+
 
 ###############################################################################
 class ToolCallResult(BaseModel):
@@ -231,6 +248,7 @@ class ToolCallResult(BaseModel):
     result: Any = None
     raw_model_response: Any = None
     metadata: dict[str, Any] = Field(default_factory=dict)
+
 
 ###############################################################################
 class SqlOperationResult(BaseModel):
@@ -270,6 +288,7 @@ DATA_TYPE_ADAPTERS: dict[NodeDataType, TypeAdapter[Any]] = {
     "ANY": TypeAdapter(Any),
 }
 
+
 ###############################################################################
 def _normalize_validated_value(value: Any) -> Any:
     if isinstance(value, BaseModel):
@@ -279,6 +298,7 @@ def _normalize_validated_value(value: Any) -> Any:
     if isinstance(value, dict):
         return {key: _normalize_validated_value(item) for key, item in value.items()}
     return value
+
 
 ###############################################################################
 def validate_data_type(data_type: NodeDataType, value: Any) -> Any:

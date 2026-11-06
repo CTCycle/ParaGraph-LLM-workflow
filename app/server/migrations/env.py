@@ -16,6 +16,7 @@ config = context.config
 target_metadata = Base.metadata
 _VERSION_TABLE = "alembic_version"
 
+
 ###############################################################################
 def _include_object(
     object_: Any,
@@ -42,6 +43,7 @@ def _include_object(
         return True
     return table_name in target_metadata.tables
 
+
 ###############################################################################
 def _database_url() -> str:
     try:
@@ -53,6 +55,7 @@ def _database_url() -> str:
 
     database_path = load_database_configuration().resolved_path()
     return f"sqlite:///{database_path.as_posix()}"
+
 
 ###############################################################################
 def _migration_options(connection: Connection) -> dict[str, Any]:
@@ -67,11 +70,13 @@ def _migration_options(connection: Connection) -> dict[str, Any]:
         "version_table": _VERSION_TABLE,
     }
 
+
 ###############################################################################
 def _run_migrations(connection: Connection) -> None:
     context.configure(**_migration_options(connection))
     with context.begin_transaction():
         context.run_migrations()
+
 
 ###############################################################################
 def run_migrations_offline() -> None:
@@ -89,6 +94,7 @@ def run_migrations_offline() -> None:
     )
     with context.begin_transaction():
         context.run_migrations()
+
 
 ###############################################################################
 def run_migrations_online() -> None:

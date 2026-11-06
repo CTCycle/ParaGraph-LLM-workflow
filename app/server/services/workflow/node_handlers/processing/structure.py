@@ -16,6 +16,7 @@ from server.services.workflow.node_handlers.processing.sources import (
     _resolve_max_chunk_size,
 )
 
+
 ###############################################################################
 def _by_structure_chunks_executor(
     parameters: dict[str, object], inputs: dict[str, object]
@@ -66,6 +67,7 @@ def _by_structure_chunks_executor(
             "BY_STRUCTURE_CHUNKS requires at least one document, chunk, or text input containing text"
         )
     return {"chunks": chunks}
+
 
 ###############################################################################
 def _regex_split_chunks_executor(

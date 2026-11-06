@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
+
 ###############################################################################
 def _vector_point(point_id: str, document_id: str, vector: list[float]) -> dict[str, object]:
     return {
@@ -21,6 +22,7 @@ def _vector_point(point_id: str, document_id: str, vector: list[float]) -> dict[
         "metadata": {"kind": "validation"},
     }
 
+
 ###############################################################################
 def _step_ports(run_payload: dict[str, object], node_id: str) -> dict[str, object]:
     steps = run_payload["steps"]
@@ -34,6 +36,7 @@ def _step_ports(run_payload: dict[str, object], node_id: str) -> dict[str, objec
             assert isinstance(ports, dict)
             return ports
     raise AssertionError(f"Missing step for node {node_id}")
+
 
 ###############################################################################
 @pytest.mark.parametrize("provider", ["faiss", "lancedb", "chroma"])

@@ -14,6 +14,7 @@ from server.configurations.startup import (
     reset_configuration_runtime_for_tests,
 )
 
+
 ###############################################################################
 @pytest.fixture(autouse=True)
 def reset_configuration_state() -> None:
@@ -21,13 +22,16 @@ def reset_configuration_state() -> None:
     yield
     reset_configuration_runtime_for_tests()
 
+
 ###############################################################################
 def _write_json(path: Path, payload: dict[str, object]) -> None:
     path.write_text(json.dumps(payload), encoding="utf-8")
 
+
 ###############################################################################
 def _write_env(path: Path, lines: list[str]) -> None:
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
 
 ###############################################################################
 def test_environment_loader_overrides_existing_process_values(
@@ -42,6 +46,7 @@ def test_environment_loader_overrides_existing_process_values(
     loader.ensure_loaded()
 
     assert os.getenv("FASTAPI_HOST") == "from_dotenv"
+
 
 ###############################################################################
 def test_environment_loader_is_idempotent_without_force(
@@ -59,6 +64,7 @@ def test_environment_loader_is_idempotent_without_force(
 
     assert os.getenv("FASTAPI_HOST") == "first"
 
+
 ###############################################################################
 def test_environment_loader_returns_path_instance_for_existing_env(
     tmp_path: Path,
@@ -71,6 +77,7 @@ def test_environment_loader_returns_path_instance_for_existing_env(
     loaded_path = loader.ensure_loaded()
 
     assert loaded_path == env_path
+
 
 ###############################################################################
 def test_environment_loader_creates_missing_env_from_example(
@@ -90,6 +97,7 @@ def test_environment_loader_creates_missing_env_from_example(
     )
     assert os.getenv("FASTAPI_HOST") == "from_example"
 
+
 ###############################################################################
 def test_environment_loader_preserves_existing_env_over_example(
     tmp_path: Path,
@@ -106,6 +114,7 @@ def test_environment_loader_preserves_existing_env_over_example(
     assert env_path.read_text(encoding="utf-8") == "FASTAPI_HOST=from_local\n"
     assert os.getenv("FASTAPI_HOST") == "from_local"
 
+
 ###############################################################################
 def test_resources_root_defaults_to_repository_data(
     tmp_path: Path, monkeypatch
@@ -116,6 +125,7 @@ def test_resources_root_defaults_to_repository_data(
     assert common_path.resolve_resources_root() == (
         common_path.REPOSITORY_ROOT / "data"
     )
+
 
 ###############################################################################
 def test_resources_root_can_be_overridden_by_environment_file(
@@ -128,6 +138,7 @@ def test_resources_root_can_be_overridden_by_environment_file(
     monkeypatch.delenv(common_path.RESOURCES_ENV_KEY, raising=False)
 
     assert common_path.resolve_resources_root() == configured_root
+
 
 ###############################################################################
 def test_resources_root_environment_overrides_environment_file(
@@ -142,6 +153,7 @@ def test_resources_root_environment_overrides_environment_file(
 
     assert common_path.resolve_resources_root() == environment_root
 
+
 ###############################################################################
 def test_resources_root_can_use_repository_relative_environment_path(
     tmp_path: Path, monkeypatch
@@ -155,6 +167,7 @@ def test_resources_root_can_use_repository_relative_environment_path(
         common_path.REPOSITORY_ROOT / "custom-data"
     )
 
+
 ###############################################################################
 def test_server_package_import_has_no_bootstrap_side_effect(monkeypatch) -> None:
     monkeypatch.setenv("PARAGRAPH_CLOUD_MODE", "false")
@@ -164,6 +177,7 @@ def test_server_package_import_has_no_bootstrap_side_effect(monkeypatch) -> None
     importlib.reload(server_package)
 
     assert os.getenv("PARAGRAPH_CLOUD_MODE") == "false"
+
 
 ###############################################################################
 def test_application_settings_are_not_read_from_legacy_json_or_environment(
@@ -184,6 +198,7 @@ def test_application_settings_are_not_read_from_legacy_json_or_environment(
     assert settings.jobs.polling_interval == 1.0
     assert config_path.is_file()
 
+
 ###############################################################################
 def test_invalid_llm_timeout_environment_value_fails_fast(
     tmp_path: Path,
@@ -194,6 +209,7 @@ def test_invalid_llm_timeout_environment_value_fails_fast(
 
     with pytest.raises(ValueError, match="LLM_TIMEOUT_S must be a number"):
         loader.get_float("LLM_TIMEOUT_S", 30.0)
+
 
 ###############################################################################
 def test_cloud_provider_client_does_not_fallback_to_provider_env(monkeypatch) -> None:

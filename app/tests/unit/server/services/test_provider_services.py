@@ -20,6 +20,7 @@ from server.services.workflow.node_handlers.core import routing
 
 # LLM provider services
 
+
 ###############################################################################
 class _FakeResponse:
 
@@ -33,6 +34,7 @@ class _FakeResponse:
     # -------------------------------------------------------------------------
     def json(self) -> dict[str, Any]:
         return self._payload
+
 
 ###############################################################################
 def _mock_openai_post(
@@ -56,6 +58,7 @@ def _mock_openai_post(
 
     return _post
 
+
 ###############################################################################
 def _mock_request(captured: list[dict[str, Any]], payload: dict[str, Any]):
     def _request(
@@ -78,6 +81,7 @@ def _mock_request(captured: list[dict[str, Any]], payload: dict[str, Any]):
 
     return _request
 
+
 ###############################################################################
 def test_openai_gpt5_uses_max_completion_tokens(monkeypatch) -> None:
     captured: list[dict[str, Any]] = []
@@ -97,6 +101,7 @@ def test_openai_gpt5_uses_max_completion_tokens(monkeypatch) -> None:
     assert payload["max_completion_tokens"] == 128
     assert "max_tokens" not in payload
 
+
 ###############################################################################
 def test_openai_non_gpt5_uses_max_tokens(monkeypatch) -> None:
     captured: list[dict[str, Any]] = []
@@ -115,6 +120,7 @@ def test_openai_non_gpt5_uses_max_tokens(monkeypatch) -> None:
     payload = captured[0]["json"]
     assert payload["max_tokens"] == 128
     assert "max_completion_tokens" not in payload
+
 
 ###############################################################################
 def test_deepseek_chat_uses_openai_compatible_payload(monkeypatch) -> None:
@@ -138,6 +144,7 @@ def test_deepseek_chat_uses_openai_compatible_payload(monkeypatch) -> None:
     assert payload["response_format"] == {"type": "json_object"}
     assert payload["thinking"] == {"type": "enabled"}
     assert payload["reasoning_effort"] == "high"
+
 
 ###############################################################################
 def test_local_openai_compatible_client_lists_models_and_chats(monkeypatch) -> None:
@@ -171,11 +178,13 @@ def test_local_openai_compatible_client_lists_models_and_chats(monkeypatch) -> N
 
 # Hugging Face embedding nodes
 
+
 ###############################################################################
 def test_huggingface_embedding_uses_eos_token_when_tokenizer_has_no_pad_token(
     monkeypatch,
 ) -> None:
     embeddings_module._HF_EMBEDDING_CACHE.clear()  # noqa: SLF001
+
 
     ###############################################################################
     class FakeTokenizer:
@@ -196,6 +205,7 @@ def test_huggingface_embedding_uses_eos_token_when_tokenizer_has_no_pad_token(
 
     fake_tokenizer = FakeTokenizer()
 
+
     ###############################################################################
     class FakeAutoTokenizer:
 
@@ -205,6 +215,7 @@ def test_huggingface_embedding_uses_eos_token_when_tokenizer_has_no_pad_token(
             assert model_name == "fake-embedding-model"
             assert token is None
             return fake_tokenizer
+
 
     ###############################################################################
     class FakeModel:
@@ -216,6 +227,7 @@ def test_huggingface_embedding_uses_eos_token_when_tokenizer_has_no_pad_token(
             return SimpleNamespace(
                 last_hidden_state=torch.tensor([[[1.0, 2.0], [3.0, 4.0]]])
             )
+
 
     ###############################################################################
     class FakeAutoModel:
@@ -247,10 +259,12 @@ def test_huggingface_embedding_uses_eos_token_when_tokenizer_has_no_pad_token(
     assert len(vector) == 2
     assert sum(item * item for item in vector) == pytest.approx(1.0, abs=1e-6)
 
+
 ###############################################################################
 def test_huggingface_embedding_can_use_explicit_tokenizer_repo(monkeypatch) -> None:
     embeddings_module._HF_EMBEDDING_CACHE.clear()  # noqa: SLF001
     captured: dict[str, str] = {}
+
 
     ###############################################################################
     class FakeTokenizer:
@@ -265,6 +279,7 @@ def test_huggingface_embedding_can_use_explicit_tokenizer_repo(monkeypatch) -> N
                 "attention_mask": torch.tensor([[1]]),
             }
 
+
     ###############################################################################
     class FakeAutoTokenizer:
 
@@ -275,6 +290,7 @@ def test_huggingface_embedding_can_use_explicit_tokenizer_repo(monkeypatch) -> N
             captured["tokenizer"] = model_name
             return FakeTokenizer()
 
+
     ###############################################################################
     class FakeModel:
         device = None
@@ -283,6 +299,7 @@ def test_huggingface_embedding_can_use_explicit_tokenizer_repo(monkeypatch) -> N
         def __call__(self, **kwargs):
             _ = kwargs
             return SimpleNamespace(last_hidden_state=torch.tensor([[[1.0, 0.0]]]))
+
 
     ###############################################################################
     class FakeAutoModel:
@@ -319,6 +336,7 @@ def test_huggingface_embedding_can_use_explicit_tokenizer_repo(monkeypatch) -> N
 
 # Hugging Face provider behavior
 
+
 ###############################################################################
 class _FakeExpandApi:
 
@@ -341,6 +359,7 @@ class _FakeExpandApi:
     ) -> None:
         return None
 
+
 ###############################################################################
 def test_build_huggingface_list_kwargs_prefers_expand() -> None:
     service = ProviderService()
@@ -360,9 +379,11 @@ def test_build_huggingface_list_kwargs_prefers_expand() -> None:
     assert kwargs["expand"] == list(HUGGINGFACE_MODEL_LIST_EXPAND_FIELDS)
     assert "full" not in kwargs
 
+
 ###############################################################################
 def test_huggingface_model_iteration_errors_are_translated(monkeypatch) -> None:
     service = ProviderService()
+
 
     ###############################################################################
     class _LazyFailingApi:
@@ -396,6 +417,7 @@ def test_huggingface_model_iteration_errors_are_translated(monkeypatch) -> None:
             "expected lazy Hugging Face iteration failure to translate"
         )
 
+
 ###############################################################################
 def test_huggingface_download_uses_explicit_stream_timeout(
     monkeypatch, tmp_path: Path, job_state_factory
@@ -404,6 +426,7 @@ def test_huggingface_download_uses_explicit_stream_timeout(
     destination = tmp_path / "huggingface"
     files = [{"path": "model.bin", "size": 4}]
     capture: dict[str, object] = {}
+
 
     ###############################################################################
     class _FakeResponse:
@@ -417,6 +440,7 @@ def test_huggingface_download_uses_explicit_stream_timeout(
         def iter_bytes(self, chunk_size: int = 0):
             _ = chunk_size
             yield b"data"
+
 
     ###############################################################################
     class _FakeStreamContext:
@@ -461,10 +485,12 @@ def test_huggingface_download_uses_explicit_stream_timeout(
     assert timeout.write == HUGGINGFACE_DOWNLOAD_TIMEOUT_SECONDS
     assert timeout.pool == HUGGINGFACE_DOWNLOAD_TIMEOUT_SECONDS
 
+
 ###############################################################################
 def test_huggingface_filter_tags_logs_and_falls_back(monkeypatch) -> None:
     service = ProviderService()
     captured: list[dict[str, object]] = []
+
 
     ###############################################################################
     class _FailingApi:
@@ -490,10 +516,12 @@ def test_huggingface_filter_tags_logs_and_falls_back(monkeypatch) -> None:
 
 # Provider catalog and service behavior
 
+
 ###############################################################################
 def test_ollama_chat_uses_provider_abstraction(monkeypatch) -> None:
     service = ProviderService()
     captured: dict[str, object] = {}
+
 
     ###############################################################################
     class FakeClient:
@@ -539,6 +567,7 @@ def test_ollama_chat_uses_provider_abstraction(monkeypatch) -> None:
     assert captured["kwargs"] == {"base_url": "http://127.0.0.1:11434"}
     assert captured["model"] == "llama3.2"
 
+
 ###############################################################################
 def test_validate_model_request_accepts_openai_gemini_and_claude(monkeypatch) -> None:
     service = ProviderService()
@@ -572,6 +601,7 @@ def test_validate_model_request_accepts_openai_gemini_and_claude(monkeypatch) ->
         use_reasoning=False,
     )
 
+
 ###############################################################################
 def test_validate_model_request_rejects_huggingface_image_input() -> None:
     service = ProviderService()
@@ -588,6 +618,7 @@ def test_validate_model_request_rejects_huggingface_image_input() -> None:
         assert "does not support image input" in str(exc)
     else:
         raise AssertionError("Expected ValueError")
+
 
 ###############################################################################
 def test_validate_model_request_allows_huggingface_structured_output(
@@ -611,6 +642,7 @@ def test_validate_model_request_allows_huggingface_structured_output(
         use_reasoning=False,
     )
 
+
 ###############################################################################
 def test_claude_embeddings_are_rejected() -> None:
     service = ProviderService()
@@ -622,10 +654,12 @@ def test_claude_embeddings_are_rejected() -> None:
     else:
         raise AssertionError("Expected ValueError")
 
+
 ###############################################################################
 def test_ollama_client_chat_uses_chat_endpoint_only(monkeypatch) -> None:
     client = OllamaClient(base_url="http://127.0.0.1:11434")
     calls: list[tuple[str, str]] = []
+
 
     ###############################################################################
     class FakeResponse:
@@ -648,10 +682,12 @@ def test_ollama_client_chat_uses_chat_endpoint_only(monkeypatch) -> None:
     assert result == "ok"
     assert calls == [("POST", "/api/chat")]
 
+
 ###############################################################################
 def test_ollama_embedding_uses_current_endpoint_only(monkeypatch) -> None:
     service = ProviderService()
     calls: list[tuple[str, dict[str, object]]] = []
+
 
     ###############################################################################
     class FakeResponse:
@@ -698,6 +734,7 @@ def test_ollama_embedding_uses_current_endpoint_only(monkeypatch) -> None:
         )
     ]
 
+
 ###############################################################################
 def test_embedding_rejects_unsupported_provider_without_fallback() -> None:
     service = ProviderService()
@@ -711,6 +748,7 @@ def test_embedding_rejects_unsupported_provider_without_fallback() -> None:
 
 # Tokenizer nodes
 
+
 ###############################################################################
 class FakeTokenizer:
 
@@ -722,6 +760,7 @@ class FakeTokenizer:
             "token_type_ids": [0, 0],
         }
 
+
 ###############################################################################
 class FakeAutoTokenizer:
 
@@ -729,6 +768,7 @@ class FakeAutoTokenizer:
     @staticmethod
     def from_pretrained(_: str, **__: Any) -> FakeTokenizer:
         return FakeTokenizer()
+
 
 ###############################################################################
 def test_tokenizer_returns_structured_output_only(monkeypatch: MonkeyPatch) -> None:
@@ -748,6 +788,7 @@ def test_tokenizer_returns_structured_output_only(monkeypatch: MonkeyPatch) -> N
 
     assert set(result) == {"tokenized"}
     assert result["tokenized"]["records"][0]["token_ids"] == [5, 101]
+
 
 ###############################################################################
 def test_tokenizer_returns_serialized_output_only(monkeypatch: MonkeyPatch) -> None:

@@ -4,21 +4,25 @@ from dataclasses import dataclass
 
 from pydantic import BaseModel, ConfigDict, Field
 
+
 ###############################################################################
 @dataclass(frozen=True)
 class SQLiteSettings:
     insert_batch_size: int
+
 
 ###############################################################################
 @dataclass(frozen=True)
 class GlobalSettings:
     seed: int
 
+
 ###############################################################################
 @dataclass(frozen=True)
 class JobsSettings:
     polling_interval: float
     retention_days: int
+
 
 ###############################################################################
 @dataclass(frozen=True)
@@ -27,16 +31,19 @@ class ServerSettings:
     global_settings: GlobalSettings
     jobs: JobsSettings
 
+
 ###############################################################################
 class JsonGlobalSettings(BaseModel):
     model_config = ConfigDict(extra="forbid")
     seed: int = 42
+
 
 ###############################################################################
 class JsonJobsSettings(BaseModel):
     model_config = ConfigDict(extra="forbid")
     polling_interval: float = 1.0
     retention_days: int = Field(default=30, ge=1)
+
 
 ###############################################################################
 class RuntimeConfigurationSettings(BaseModel):

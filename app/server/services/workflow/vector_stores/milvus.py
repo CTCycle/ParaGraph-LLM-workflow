@@ -25,6 +25,7 @@ from server.services.workflow.vector_stores.base import (
     validate_vector_request_capabilities,
 )
 
+
 ###############################################################################
 class MilvusVectorStoreAdapter(VectorStoreAdapter):
     backend = "milvus"

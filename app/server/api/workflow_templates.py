@@ -8,6 +8,7 @@ from server.services.workflow import workflow_template_service
 
 router = APIRouter(prefix="/workflow-templates", tags=["workflow-templates"])
 
+
 ###############################################################################
 @router.get("", response_model=WorkflowTemplateListResponse)
 def list_workflow_templates() -> WorkflowTemplateListResponse:

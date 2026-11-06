@@ -15,6 +15,7 @@ DEFAULT_MAX_UPLOAD_FILE_BYTES = 100_000_000
 DEFAULT_MAX_UPLOAD_TOTAL_BYTES = 1_000_000_000
 DEFAULT_STAGING_RETENTION_SECONDS = 24 * 60 * 60
 
+
 ###############################################################################
 class UploadedFile(Protocol):
     filename: str | None
@@ -26,6 +27,7 @@ class UploadedFile(Protocol):
     # -------------------------------------------------------------------------
     async def close(self) -> None:
         raise NotImplementedError
+
 
 ###############################################################################
 class BrowserUploadService:

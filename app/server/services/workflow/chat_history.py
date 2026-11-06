@@ -13,6 +13,7 @@ from server.repositories.workflow import (
     in_memory_chat_history_repository,
 )
 
+
 ###############################################################################
 class ChatHistoryRepository(Protocol):
 
@@ -56,6 +57,7 @@ class ChatHistoryRepository(Protocol):
     def clear_messages(
         self, workflow_id: str, execution_session_id: str, node_id: str
     ) -> None: ...
+
 
 ###############################################################################
 class ChatHistoryService:

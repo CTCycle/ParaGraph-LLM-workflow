@@ -15,12 +15,14 @@ from server.services.workflow.node_handlers.processing.text_processing import _d
 
 # Advanced text nodes
 
+
 ###############################################################################
 def test_claim_extractor_splits_atomic_claims() -> None:
     assert (
         len(_claim_extractor_executor({}, {"text": "A is true. B is true."})["result"])
         == 2
     )
+
 
 ###############################################################################
 def test_entity_extractor_returns_typed_entities() -> None:
@@ -29,11 +31,13 @@ def test_entity_extractor_returns_typed_entities() -> None:
         == "proper_noun"
     )
 
+
 ###############################################################################
 def test_pii_detector_and_redactor_find_and_mask_email() -> None:
     text = "Contact a@example.com"
     assert _pii_detector_executor({}, {"text": text})["result"][0]["type"] == "email"
     assert "[REDACTED]" in _pii_redactor_executor({}, {"text": text})["result"]
+
 
 ###############################################################################
 def test_text_safety_handlers_coerce_empty_and_numeric_inputs() -> None:
@@ -43,6 +47,7 @@ def test_text_safety_handlers_coerce_empty_and_numeric_inputs() -> None:
         "label"
     ] == "clean"
 
+
 ###############################################################################
 def test_prompt_injection_detector_flags_hostile_instruction() -> None:
     result = _prompt_injection_detector_executor(
@@ -50,6 +55,7 @@ def test_prompt_injection_detector_flags_hostile_instruction() -> None:
     )
     assert result["label"] == "prompt_injection"
     assert result["result"]["matches"] == ["ignore previous"]
+
 
 ###############################################################################
 def test_contradiction_detector_uses_declared_classification_outputs() -> None:
@@ -59,6 +65,7 @@ def test_contradiction_detector_uses_declared_classification_outputs() -> None:
     assert result["label"] == "contradiction"
     assert result["result"]["score"] == 1.0
 
+
 ###############################################################################
 def test_unit_number_normalizer_returns_numeric_objects() -> None:
     assert (
@@ -67,6 +74,7 @@ def test_unit_number_normalizer_returns_numeric_objects() -> None:
     )
 
 # Document text extraction
+
 
 ###############################################################################
 def test_document_text_extractor_preserves_pdf_page_metadata(
@@ -95,6 +103,7 @@ def test_document_text_extractor_preserves_pdf_page_metadata(
     assert result["documents"][0]["metadata"]["document_id"] == "doc-1"
 
 # Fragmentation chains
+
 
 ###############################################################################
 def test_by_delimiter_chunks_loads_deferred_documents_from_file_paths(
@@ -127,6 +136,7 @@ def test_by_delimiter_chunks_loads_deferred_documents_from_file_paths(
     assert chunks["chunks"][0]["text"] == "Deferred loading keeps text on disk"
     assert chunks["chunks"][1]["text"] == "It is split later"
 
+
 ###############################################################################
 def test_sentence_window_chunks_groups_sentences_from_upstream_chunks() -> None:
     payload = node_registry.execute(
@@ -157,6 +167,7 @@ def test_sentence_window_chunks_groups_sentences_from_upstream_chunks() -> None:
         "One sentence. Two sentence.",
         "Two sentence. Three sentence.",
     ]
+
 
 ###############################################################################
 def test_recursive_then_merge_small_chunks_supports_chained_fragmentation() -> None:
@@ -207,6 +218,7 @@ def test_recursive_then_merge_small_chunks_supports_chained_fragmentation() -> N
     )
     assert merged["chunks"][0]["metadata"]["merge_input_count"] == 2
 
+
 ###############################################################################
 def test_recursive_split_chunk_separator_parsing_preserves_whitespace_entries() -> None:
     parsed = RecursiveSplitChunksParameters.model_validate(
@@ -220,6 +232,7 @@ def test_recursive_split_chunk_separator_parsing_preserves_whitespace_entries() 
     )
 
     assert parsed.separators == ["\n\n", " "]
+
 
 ###############################################################################
 def test_recursive_split_applies_overlap_after_separator_splits() -> None:
@@ -243,6 +256,7 @@ def test_recursive_split_applies_overlap_after_separator_splits() -> None:
     ]
 
 # Fragmentation nodes
+
 
 ###############################################################################
 def test_fixed_size_chunks_splits_deferred_documents_by_words(tmp_path: Path) -> None:
@@ -275,6 +289,7 @@ def test_fixed_size_chunks_splits_deferred_documents_by_words(tmp_path: Path) ->
         for chunk in payload["chunks"]
     )
 
+
 ###############################################################################
 def test_fixed_size_chunks_supports_chained_chunk_fragmentation_by_characters() -> None:
     payload = node_registry.execute(
@@ -303,6 +318,7 @@ def test_fixed_size_chunks_supports_chained_chunk_fragmentation_by_characters() 
         for chunk in payload["chunks"]
     )
 
+
 ###############################################################################
 def test_fixed_size_chunks_rejects_invalid_overlap() -> None:
     with pytest.raises(
@@ -327,6 +343,7 @@ def test_fixed_size_chunks_rejects_invalid_overlap() -> None:
             },
         )
 
+
 ###############################################################################
 def test_fixed_size_chunks_requires_non_empty_input() -> None:
     with pytest.raises(
@@ -339,6 +356,7 @@ def test_fixed_size_chunks_requires_non_empty_input() -> None:
             {},
         )
 
+
 ###############################################################################
 def test_fixed_size_chunks_supports_direct_text_input() -> None:
     payload = node_registry.execute(
@@ -349,6 +367,7 @@ def test_fixed_size_chunks_supports_direct_text_input() -> None:
     )
 
     assert [chunk["text"] for chunk in payload["chunks"]] == ["alpha beta", "gamma"]
+
 
 ###############################################################################
 def test_regex_split_chunks_splits_text_by_pattern() -> None:
@@ -361,6 +380,7 @@ def test_regex_split_chunks_splits_text_by_pattern() -> None:
 
     assert [chunk["text"] for chunk in payload["chunks"]] == ["alpha", "beta", "gamma"]
 
+
 ###############################################################################
 def test_regex_split_chunks_rejects_invalid_regex() -> None:
     with pytest.raises(
@@ -372,6 +392,7 @@ def test_regex_split_chunks_rejects_invalid_regex() -> None:
             {"regex": "["},
             {"text": "alpha beta"},
         )
+
 
 ###############################################################################
 def test_regex_split_chunks_requires_non_empty_input() -> None:
@@ -386,6 +407,7 @@ def test_regex_split_chunks_requires_non_empty_input() -> None:
         )
 
 # Document ingestion
+
 
 ###############################################################################
 def test_load_documents_emits_loaded_records_with_text(
@@ -413,6 +435,7 @@ def test_load_documents_emits_loaded_records_with_text(
         document["metadata"]["deferred_load"] is False
         for document in payload["documents"]
     )
+
 
 ###############################################################################
 def test_load_documents_respects_recursive_toggle(tmp_path: Path) -> None:
@@ -442,6 +465,7 @@ def test_load_documents_respects_recursive_toggle(tmp_path: Path) -> None:
         Path(document["source_uri"]).name for document in recursive["documents"]
     ) == ["child.txt", "root.txt"]
 
+
 ###############################################################################
 def test_load_documents_rejects_non_canonical_folder_path_keys(tmp_path: Path) -> None:
     source_dir = tmp_path / "source-folder"
@@ -465,6 +489,7 @@ def test_load_documents_rejects_non_canonical_folder_path_keys(tmp_path: Path) -
                 "Expected LOAD_DOCUMENTS to reject non-canonical folder path keys"
             )
 
+
 ###############################################################################
 def test_load_documents_skips_unsupported_doc_extension(tmp_path: Path) -> None:
     source_dir = tmp_path / "docs"
@@ -480,12 +505,15 @@ def test_load_documents_skips_unsupported_doc_extension(tmp_path: Path) -> None:
 
     assert payload["documents"] == []
 
+
 ###############################################################################
 def test_sql_file_database_node_roundtrip(tmp_path: Path) -> None:
+
 
     ###############################################################################
     class ItemsBase(DeclarativeBase):
         pass
+
 
     ###############################################################################
     class Item(ItemsBase):
@@ -516,6 +544,7 @@ def test_sql_file_database_node_roundtrip(tmp_path: Path) -> None:
     assert connection_payload["connection"]["read_only"] is False
     assert connection_payload["connection"]["database_name"] == "file_dataset"
 
+
 ###############################################################################
 def test_sql_database_requires_required_fields_before_connect_attempt() -> None:
     try:
@@ -542,6 +571,7 @@ def test_sql_database_requires_required_fields_before_connect_attempt() -> None:
         raise AssertionError(
             "Expected SQL_DATABASE validation failure for missing required fields"
         )
+
 
 ###############################################################################
 def test_sql_database_emits_only_an_opaque_credential_reference(monkeypatch) -> None:
@@ -602,6 +632,7 @@ def test_sql_database_emits_only_an_opaque_credential_reference(monkeypatch) -> 
 
 # Metadata nodes
 
+
 ###############################################################################
 def test_metadata_node_merges_existing_and_per_record_metadata() -> None:
     result = node_registry.execute(
@@ -649,6 +680,7 @@ def test_metadata_node_merges_existing_and_per_record_metadata() -> None:
         "reviewed": True,
     }
 
+
 ###############################################################################
 def test_metadata_node_replace_discards_previous_record_metadata() -> None:
     result = node_registry.execute(
@@ -678,10 +710,12 @@ def test_metadata_node_replace_discards_previous_record_metadata() -> None:
 
 # Text processing nodes
 
+
 ###############################################################################
 def test_regex_extract_returns_named_groups_and_matches() -> None:
     result = _regex_extract_executor({"pattern": r"(?P<word>\w+)"}, {"text": "alpha"})
     assert result["result"][0]["groups"] == {"word": "alpha"}
+
 
 ###############################################################################
 def test_normalize_text_applies_unicode_and_whitespace_normalization() -> None:
@@ -689,6 +723,7 @@ def test_normalize_text_applies_unicode_and_whitespace_normalization() -> None:
         {"collapse_whitespace": True}, {"text": "Ａlpha　 “target”"}
     )
     assert result["result"] == 'Alpha "target"'
+
 
 ###############################################################################
 def test_regex_replace_replaces_matching_text() -> None:
@@ -698,12 +733,14 @@ def test_regex_replace_replaces_matching_text() -> None:
     )
     assert result["result"] == "Selected item"
 
+
 ###############################################################################
 def test_join_merge_handles_list_and_scalar_inputs() -> None:
     assert (
         _join_merge_text_executor({"separator": ","}, {"items": ["a", "b"]})["result"]
         == "a,b"
     )
+
 
 ###############################################################################
 def test_deduplicate_removes_repeated_boilerplate() -> None:

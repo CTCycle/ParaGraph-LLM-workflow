@@ -23,6 +23,7 @@ from server.repositories.schemas import (
     ExecutionStepRecord,
 )
 
+
 ###############################################################################
 class ExecutionRunRepository:
     """Durable execution state backed by the application database."""
