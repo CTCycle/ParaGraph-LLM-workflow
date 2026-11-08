@@ -60,6 +60,7 @@ describe('NodesPage', () => {
         fireEvent.change(textarea, { target: { value: '{"bad":"payload"}' } })
         await userEvent.click(within(dialog).getByRole('button', { name: 'Validate' }))
         await screen.findByText('JSON must contain a node manifest object')
+        expect(within(dialog).getByRole('button', { name: 'Import Node' })).toBeDisabled()
 
         const customManifest = createNodeManifest({
             id: 'CUSTOM_NODE',

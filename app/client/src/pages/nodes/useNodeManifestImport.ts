@@ -13,6 +13,7 @@ type UseNodeManifestImportResult = {
     importStatus: string | null
     isImporting: boolean
     isImportModalOpen: boolean
+    isInvalid: boolean
     jsonText: string
     closeImportModal: () => void
     handleImport: (event: FormEvent<HTMLFormElement>) => Promise<void>
@@ -37,6 +38,8 @@ export function useNodeManifestImport({
     const [importStatus, setImportStatus] = useState<string | null>(null)
     const [isImporting, setIsImporting] = useState(false)
     const [isImportModalOpen, setIsImportModalOpen] = useState(false)
+    const [invalidJsonText, setInvalidJsonText] = useState<string | null>(null)
+    const isInvalid = invalidJsonText === jsonText
 
     function closeImportModal(): void {
         setIsImportModalOpen(false)
@@ -52,6 +55,7 @@ export function useNodeManifestImport({
             setImportStatus(`Valid manifest: ${manifest.id} v${manifest.version}`)
         } catch (validationError) {
             setImportStatus(getErrorMessage(validationError, 'Invalid JSON payload'))
+            setInvalidJsonText(jsonText)
         }
     }
 
@@ -65,6 +69,7 @@ export function useNodeManifestImport({
             setImportStatus(`Valid manifest: ${manifest.id} v${manifest.version}`)
         } catch (validationError) {
             setImportStatus(getErrorMessage(validationError, 'Invalid JSON payload'))
+            setInvalidJsonText(jsonText)
             return
         }
 
@@ -86,6 +91,7 @@ export function useNodeManifestImport({
         importStatus,
         isImporting,
         isImportModalOpen,
+        isInvalid,
         jsonText,
         closeImportModal,
         handleImport,

@@ -180,6 +180,16 @@ type ParsedHandle = { kind: HandleKind; name: string }
 
 type ControllerScope = 'source' | 'target' | 'both'
 
+function findFreePosition(existing: Node<WorkflowNodeData>[], start: XYPosition): XYPosition {
+    const step = { x: 28, y: 22 }
+    const position = { ...start }
+    while (existing.some((item) => Math.abs(item.position.x - position.x) < step.x && Math.abs(item.position.y - position.y) < step.y)) {
+        position.x += step.x
+        position.y += step.y
+    }
+    return position
+}
+
 function sanitizeWorkflowJsonFileName(value: string): string {
     const cleaned = value.trim().replace(/[<>:"/\\|?*\x00-\x1F]/g, '_')
     const base = cleaned || 'paragraph-workflow.json'
@@ -3137,11 +3147,13 @@ function WorkflowEditor() {
 
     function addManifestNode(manifest: NodeManifest, position?: XYPosition, options?: { select?: boolean }): void {
         const node = createWorkflowNode({ manifest, position, selected: options?.select })
-        if (options?.select) {
-            setNodes((current) => [...current.map((item) => (item.selected ? { ...item, selected: false } : item)), node])
-            return
-        }
-        setNodes((current) => [...current, node])
+        setNodes((current) => {
+            const placed = position ? { ...node, position: findFreePosition(current, position) } : node
+            const base = options?.select
+                ? current.map((item) => (item.selected ? { ...item, selected: false } : item))
+                : current
+            return [...base, placed]
+        })
     }
 
     function toggleNodePing(nodeId: string): void {

@@ -486,6 +486,7 @@ export default function ConfigurationsPage() {
             return
         }
         settingsRevisionRef.current += 1
+        setStatusMessage(null)
         setPersistenceMessage(null)
         if (saveTimerRef.current !== null) {
             window.clearTimeout(saveTimerRef.current)

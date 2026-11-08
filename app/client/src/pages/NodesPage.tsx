@@ -140,6 +140,7 @@ export default function NodesPage() {
         importStatus,
         isImporting,
         isImportModalOpen,
+        isInvalid,
         jsonText,
         closeImportModal,
         handleImport,
@@ -418,7 +419,7 @@ export default function NodesPage() {
                                 <button type="button" onClick={handleJsonValidation} disabled={!jsonText.trim() || isImporting}>
                                     Validate
                                 </button>
-                                <button type="submit" disabled={isImporting || !jsonText.trim()}>
+                                <button type="submit" disabled={isImporting || isInvalid || !jsonText.trim()}>
                                     {isImporting ? 'Importing...' : 'Import Node'}
                                 </button>
                             </div>
