@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Synced the backend `uv.lock` project version with `pyproject.toml` so the locked CI install succeeds.
+
 ## [1.0.1] - 2026-11-10
 
 Patch release with launcher, configuration, node, and documentation updates since 1.0.0.
