@@ -14,9 +14,11 @@ from fastapi.testclient import TestClient
 from server.common import path as common_path
 from server.common.constants import DATABASE_FILENAME
 
+_TEST_SCRATCH_ROOT = common_path.REPOSITORY_ROOT / "assets" / "QA"
+_TEST_SCRATCH_ROOT.mkdir(parents=True, exist_ok=True)
 _TEST_RESOURCES_TEMP = tempfile.TemporaryDirectory(
     prefix="paragraph-pytest-",
-    dir=common_path.REPOSITORY_ROOT / "assets" / "QA",
+    dir=_TEST_SCRATCH_ROOT,
 )
 _TEST_RESOURCES_ROOT = Path(_TEST_RESOURCES_TEMP.name).resolve()
 _ORIGINAL_RESOURCES_ENV = os.environ.get(common_path.RESOURCES_ENV_KEY)
