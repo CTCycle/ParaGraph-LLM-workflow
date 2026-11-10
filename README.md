@@ -31,7 +31,7 @@ Start from a template or the node catalog, configure model providers and saved p
 
 ## Run locally
 
-On 64-bit Windows, install Git and use PowerShell. An internet connection is needed on first launch while the launcher prepares its portable runtimes and dependencies.
+On 64-bit Windows, install Git and [PowerShell 7](https://learn.microsoft.com/powershell/scripting/install/installing-powershell-on-windows) (`pwsh`). An internet connection is needed on first launch while the launcher prepares its portable runtimes and dependencies.
 
 ```powershell
 git clone https://github.com/CTCycle/ParaGraph-LLM-workflow.git
@@ -39,7 +39,15 @@ Set-Location .\ParaGraph-LLM-workflow
 .\start_on_windows.bat
 ```
 
-The batch wrapper prepares runtimes and dependencies on first launch, then opens ParaGraph at <http://127.0.0.1:5002/>. Press Ctrl+C in the backend console to stop it.
+The batch wrapper prepares runtimes and dependencies on first launch, then serves ParaGraph at <http://127.0.0.1:5002/>. Press Ctrl+C in the backend console to stop it. Run `.\setup_and_maintenance.ps1` for the maintenance menu (rebuild, tests, cleanup).
+
+## Screenshots
+
+![Workflow editor after a completed run: a Prompt node feeding a Text Output node](assets/screenshots/workflow-run.png)
+
+![Node library with category filters, node previews, and templates](assets/screenshots/nodes-library.png)
+
+![Provider and runtime settings](assets/screenshots/configurations.png)
 
 ## Build and run a workflow
 
@@ -70,6 +78,14 @@ See [startup](assets/docs/runtime/startup.md) for launcher options and manual fr
 - [Workflow editor](assets/docs/user/workflow_editor.md)
 - [Models and configurations](assets/docs/user/models_and_configurations.md)
 - [Nodes and execution](assets/docs/user/nodes_and_execution.md)
+
+## Limitations
+
+- Windows is the only supported platform for the launcher; no installers, executables, or container images are provided.
+- Provider execution depends on your own services. Local Ollama was verified once; OpenAI, other cloud providers, and external databases or vector services have not been validated end to end.
+- Runtime output is not kept in the editor after a page refresh; run records remain in SQLite.
+
+See the [project status ledger](assets/docs/project_status_ledger.md) for validation status and known issues.
 
 ## Contributing
 
