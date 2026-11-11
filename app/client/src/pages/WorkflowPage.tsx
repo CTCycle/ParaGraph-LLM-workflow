@@ -43,6 +43,7 @@ import { ApiError } from '../app/services/api'
 import { fetchProviderModels } from '../app/services/providersApi'
 import {
     cancelExecution,
+    getExecution,
     resumeExecution,
     DEFAULT_EXECUTION_POLL_INTERVAL_SECONDS,
     pollExecution,
@@ -2330,6 +2331,7 @@ function WorkflowEditor() {
     const [compileDiagnostics, setCompileDiagnostics] = useState<CompilerDiagnostic[]>([])
     const [isRunning, setIsRunning] = useState(false)
     const [activeRun, setActiveRun] = useState<PersistedActiveExecution | null>(null)
+    const [lastRunId, setLastRunId] = useState<string | null>(null)
     const [pausedRun, setPausedRun] = useState<ExecutionRunState | null>(null)
     const [reviewedPayloadText, setReviewedPayloadText] = useState('{}')
     const [reviewError, setReviewError] = useState<string | null>(null)
@@ -2751,6 +2753,12 @@ function WorkflowEditor() {
         setExecutionSessionId(resolveExecutionSessionId(persisted.execution_session_id || null))
         setActiveRun(persisted.active_run)
         setResumeRunSnapshot(persisted.active_run)
+        setLastRunId(persisted.last_run_id)
+        if (!persisted.active_run && persisted.last_run_id) {
+            void getExecution(persisted.last_run_id)
+                .then(applyRunState)
+                .catch(() => undefined)
+        }
         if (persisted.active_run) {
             setStatusText('Restored workflow state (resuming run...)')
         } else if (restoredNodes.length > 0 || restoredEdges.length > 0) {
@@ -2830,8 +2838,9 @@ function WorkflowEditor() {
             selected_manifest_key: selectedManifestKey,
             execution_session_id: executionSessionId,
             active_run: activeRun,
+            last_run_id: lastRunId,
         }
-    }, [activeRun, edges, executionSessionId, isGridVisible, isLibraryVisible, nodes, search, selectedManifestKey])
+    }, [activeRun, lastRunId, edges, executionSessionId, isGridVisible, isLibraryVisible, nodes, search, selectedManifestKey])
 
     useWorkflowAutosave(persistedWorkflowState, hasHydratedWorkflowRef.current, {
         onError: () => setStatusText('Workflow changes could not be saved locally'),
@@ -3931,6 +3940,7 @@ function WorkflowEditor() {
                 run_id: execution.run_id,
             }
             setActiveRun(runSnapshot)
+            setLastRunId(runSnapshot.run_id)
             const requestLabel = execution.request_id ? `, request ${execution.request_id}` : ''
             setStatusText(`Running workflow ${execution.run_id}${requestLabel}...`)
 
@@ -4260,18 +4270,22 @@ function WorkflowEditor() {
 
             {compileDiagnostics.length > 0 && (
                 <section className="workflow-diagnostics" aria-label="Compilation diagnostics">
-                    <h2>Compilation diagnostics</h2>
-                    {compileDiagnostics.map((diagnostic, index) => (
-                        <div
-                            key={`${diagnostic.code}-${diagnostic.node_id ?? 'graph'}-${index}`}
-                            className={`workflow-diagnostic workflow-diagnostic-${diagnostic.level}`}
-                            role={diagnostic.level === 'error' ? 'alert' : 'status'}
-                        >
-                            <strong>{diagnostic.level === 'warning' ? 'Warning' : 'Error'}: {diagnostic.code}</strong>
-                            <span>{diagnostic.message}</span>
-                            {diagnostic.node_id && <small>Node: {diagnostic.node_id}</small>}
+                    <details open>
+                        <summary>Compilation diagnostics ({compileDiagnostics.length})</summary>
+                        <div className="workflow-diagnostics-list">
+                            {compileDiagnostics.map((diagnostic, index) => (
+                                <div
+                                    key={`${diagnostic.code}-${diagnostic.node_id ?? 'graph'}-${index}`}
+                                    className={`workflow-diagnostic workflow-diagnostic-${diagnostic.level}`}
+                                    role={diagnostic.level === 'error' ? 'alert' : 'status'}
+                                >
+                                    <strong>{diagnostic.level === 'warning' ? 'Warning' : 'Error'}: {diagnostic.code}</strong>
+                                    <span>{diagnostic.message}</span>
+                                    {diagnostic.node_id && <small>Node: {diagnostic.node_id}</small>}
+                                </div>
+                            ))}
                         </div>
-                    ))}
+                    </details>
                 </section>
             )}
 

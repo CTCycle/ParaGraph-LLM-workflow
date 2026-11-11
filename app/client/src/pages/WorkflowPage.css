@@ -1325,6 +1325,20 @@
     font-size: 0.85rem;
 }
 
+.workflow-diagnostics summary {
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.workflow-diagnostics-list {
+    display: grid;
+    gap: 0.5rem;
+    max-height: 7rem;
+    margin-top: 0.5rem;
+    overflow-y: auto;
+}
+
 .workflow-diagnostic {
     display: grid;
     gap: 0.15rem;

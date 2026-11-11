@@ -38,6 +38,7 @@ export type PersistedWorkflowState = {
     selected_manifest_key: string | null
     execution_session_id: string
     active_run: PersistedActiveExecution | null
+    last_run_id: string | null
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -150,6 +151,8 @@ export function readPersistedWorkflowState(): PersistedWorkflowState | null {
                     ? parsed.execution_session_id.trim()
                     : '',
             active_run: activeRun,
+            last_run_id:
+                typeof parsed.last_run_id === 'string' && parsed.last_run_id.trim() ? parsed.last_run_id : null,
         }
     } catch {
         return null

@@ -46,6 +46,7 @@ describe('workflow persistence', () => {
             selected_manifest_key: 'core.text@1',
             execution_session_id: 'session-1',
             active_run: { run_id: 'run-1' },
+            last_run_id: 'run-0',
         }
 
         persistWorkflowState(state)
@@ -75,6 +76,7 @@ describe('workflow persistence', () => {
             selected_manifest_key: null,
             execution_session_id: '',
             active_run: null,
+            last_run_id: null,
         })
     })
 
@@ -94,6 +96,7 @@ describe('workflow persistence', () => {
                 selected_manifest_key: null,
                 execution_session_id: 'session-1',
                 active_run: null,
+                last_run_id: null,
             })).toBe(false)
         } finally {
             vi.unstubAllGlobals()
