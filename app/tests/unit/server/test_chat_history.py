@@ -10,7 +10,11 @@ from server.repositories.schemas import Base
 from server.repositories.workflow import chat_history_database as chat_history_module
 from typing import Any
 import pytest
-from server.contracts.execution import CompiledExecutionPlan, ExecutionBinding, ExecutionStepPlan
+from server.contracts.execution import (
+    CompiledExecutionPlan,
+    ExecutionBinding,
+    ExecutionStepPlan,
+)
 from server.repositories.workflow import in_memory_chat_history_repository
 from server.services.jobs import job_manager
 from server.services.workflow import node_registry
@@ -19,7 +23,9 @@ import json
 from server.contracts.chat_history import ChatHistoryHandle
 from server.contracts.node_catalog import ProviderModelDefinition
 from server.repositories.workflow import database_chat_history_repository
-from server.repositories.workflow.chat_history_memory import InMemoryChatHistoryRepository
+from server.repositories.workflow.chat_history_memory import (
+    InMemoryChatHistoryRepository,
+)
 from server.services.workflow import provider_service
 from server.services.workflow.chat_history import chat_history_service
 
@@ -71,12 +77,12 @@ def test_chat_history_route_reads_and_resets_a_single_scope(
     )
     assert after_reset.json() == {"messages": []}
 
+
 # Chat history repository
 
 
 ###############################################################################
 class InMemorySQLiteRepository(SQLiteRepository):
-
     # -------------------------------------------------------------------------
     def __init__(self) -> None:
         engine = sqlalchemy.create_engine("sqlite:///:memory:", future=True)
@@ -141,6 +147,7 @@ def test_database_append_and_trim_commits_new_messages_and_retention_together() 
         message.content
         for message in repository.get_messages("workflow-a", "session-a", "node-a")
     ] == ["second", "third"]
+
 
 # Chat history execution
 
@@ -316,6 +323,7 @@ def test_cancelled_chat_execution_does_not_persist_history(
         )
         == []
     )
+
 
 # Chat history nodes
 

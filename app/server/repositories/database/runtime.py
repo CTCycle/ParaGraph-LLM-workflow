@@ -83,7 +83,9 @@ class DatabaseRuntime:
             while self._switching:
                 self._condition.wait()
             if self._engine is None:
-                raise DatabaseUnavailableError(self._error or "Application database is unavailable")
+                raise DatabaseUnavailableError(
+                    self._error or "Application database is unavailable"
+                )
             self._active_operations += 1
         try:
             yield
@@ -99,7 +101,9 @@ class DatabaseRuntime:
             while self._switching:
                 self._condition.wait()
             if self._engine is None:
-                raise DatabaseUnavailableError(self._error or "Application database is unavailable")
+                raise DatabaseUnavailableError(
+                    self._error or "Application database is unavailable"
+                )
             engine = self._engine
             self._active_operations += 1
         try:
@@ -114,8 +118,12 @@ class DatabaseRuntime:
     def status(self) -> dict[str, object]:
         with self._condition:
             return {
-                "configuration": self._configuration.model_dump() if self._configuration else None,
-                "database_path": str(self._configuration.resolved_path()) if self._configuration else None,
+                "configuration": self._configuration.model_dump()
+                if self._configuration
+                else None,
+                "database_path": str(self._configuration.resolved_path())
+                if self._configuration
+                else None,
                 "connected": self._engine is not None,
                 "error": self._error,
             }
@@ -137,7 +145,10 @@ class DatabaseRuntime:
     # -------------------------------------------------------------------------
     def initialize(self) -> None:
         config_file = configuration_path()
-        if self._engine is not None and self._configuration_file == config_file.resolve():
+        if (
+            self._engine is not None
+            and self._configuration_file == config_file.resolve()
+        ):
             try:
                 if load_database_configuration() == self._configuration:
                     EnvironmentLoader().ensure_loaded()
@@ -147,12 +158,22 @@ class DatabaseRuntime:
         configuration: DatabaseConfiguration | None = None
         try:
             if not config_file.exists():
-                legacy_values = dotenv_values(common_path.ENV_FILE) if common_path.ENV_FILE.is_file() else {}
-                legacy_batch_size = legacy_values.get("DATABASE_INSERT_BATCH_SIZE") or "1000"
+                legacy_values = (
+                    dotenv_values(common_path.ENV_FILE)
+                    if common_path.ENV_FILE.is_file()
+                    else {}
+                )
+                legacy_batch_size = (
+                    legacy_values.get("DATABASE_INSERT_BATCH_SIZE") or "1000"
+                )
                 try:
-                    initial = DatabaseConfiguration(insert_batch_size=int(legacy_batch_size))
+                    initial = DatabaseConfiguration(
+                        insert_batch_size=int(legacy_batch_size)
+                    )
                 except (ValueError, TypeError) as exc:
-                    raise DatabaseConfigurationError("Legacy DATABASE_INSERT_BATCH_SIZE must be an integer") from exc
+                    raise DatabaseConfigurationError(
+                        "Legacy DATABASE_INSERT_BATCH_SIZE must be an integer"
+                    ) from exc
                 save_database_configuration(initial)
             self._remove_legacy_batch_setting()
             EnvironmentLoader().ensure_loaded()
@@ -171,42 +192,65 @@ class DatabaseRuntime:
         target = configuration.resolved_path()
         if target.exists():
             try:
-                connection = sqlite3.connect(f"file:{target.as_posix()}?mode=ro", uri=True, timeout=3)
+                connection = sqlite3.connect(
+                    f"file:{target.as_posix()}?mode=ro", uri=True, timeout=3
+                )
                 try:
                     result = connection.execute("PRAGMA quick_check").fetchone()
                     if not result or result[0] != "ok":
-                        raise DatabaseConfigurationError("SQLite integrity check failed")
+                        raise DatabaseConfigurationError(
+                            "SQLite integrity check failed"
+                        )
                     version = connection.execute(
                         "SELECT name FROM sqlite_master WHERE type='table' AND name='alembic_version'"
                     ).fetchone()
                     if version:
-                        revision = connection.execute("SELECT version_num FROM alembic_version").fetchone()
+                        revision = connection.execute(
+                            "SELECT version_num FROM alembic_version"
+                        ).fetchone()
                         from alembic.config import Config
                         from alembic.script import ScriptDirectory
 
-                        script_config = Config(toml_file=str(common_path.SERVER_ROOT / "pyproject.toml"))
+                        script_config = Config(
+                            toml_file=str(common_path.SERVER_ROOT / "pyproject.toml")
+                        )
                         script = ScriptDirectory.from_config(script_config)
-                        if revision is None or script.get_revision(str(revision[0])) is None:
-                            raise DatabaseConfigurationError("Database schema revision is unknown")
+                        if (
+                            revision is None
+                            or script.get_revision(str(revision[0])) is None
+                        ):
+                            raise DatabaseConfigurationError(
+                                "Database schema revision is unknown"
+                            )
                     else:
                         user_tables = connection.execute(
                             "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
                         ).fetchall()
                         if user_tables:
-                            raise DatabaseConfigurationError("Database contains an unversioned schema")
+                            raise DatabaseConfigurationError(
+                                "Database contains an unversioned schema"
+                            )
                 finally:
                     connection.close()
             except (sqlite3.Error, OSError) as exc:
-                raise DatabaseConfigurationError(f"SQLite connection failed: {exc}") from exc
+                raise DatabaseConfigurationError(
+                    f"SQLite connection failed: {exc}"
+                ) from exc
             return
 
         if not target.parent.is_dir():
-            raise DatabaseConfigurationError(f"Database directory does not exist: {target.parent}")
+            raise DatabaseConfigurationError(
+                f"Database directory does not exist: {target.parent}"
+            )
         try:
-            with tempfile.NamedTemporaryFile(dir=target.parent, prefix=".database-test-", delete=True):
+            with tempfile.NamedTemporaryFile(
+                dir=target.parent, prefix=".database-test-", delete=True
+            ):
                 pass
         except OSError as exc:
-            raise DatabaseConfigurationError(f"Database directory is not writable: {exc}") from exc
+            raise DatabaseConfigurationError(
+                f"Database directory is not writable: {exc}"
+            ) from exc
 
     # -------------------------------------------------------------------------
     def activate(self, configuration: DatabaseConfiguration) -> None:
@@ -216,14 +260,18 @@ class DatabaseRuntime:
             if self._switching:
                 raise DatabaseBusyError("A database change is already in progress")
             if job_manager.is_job_running(job_type="workflow"):
-                raise DatabaseBusyError("Finish or cancel the active workflow before switching databases")
+                raise DatabaseBusyError(
+                    "Finish or cancel the active workflow before switching databases"
+                )
             self._switching = True
             while self._active_operations:
                 self._condition.wait(timeout=0.1)
             if job_manager.is_job_running(job_type="workflow"):
                 self._switching = False
                 self._condition.notify_all()
-                raise DatabaseBusyError("Finish or cancel the active workflow before switching databases")
+                raise DatabaseBusyError(
+                    "Finish or cancel the active workflow before switching databases"
+                )
 
         try:
             self._activate(configuration, import_legacy_settings=False, persist=True)
@@ -243,10 +291,16 @@ class DatabaseRuntime:
         target = configuration.resolved_path()
         run_database_migrations(target)
         candidate = configure_sqlite_engine(
-            create_engine(f"sqlite:///{target.as_posix()}", future=True, connect_args={"timeout": 30.0})
+            create_engine(
+                f"sqlite:///{target.as_posix()}",
+                future=True,
+                connect_args={"timeout": 30.0},
+            )
         )
         try:
-            settings = self._load_settings(candidate, import_legacy=import_legacy_settings)
+            settings = self._load_settings(
+                candidate, import_legacy=import_legacy_settings
+            )
             if persist and self._persist_configuration:
                 save_database_configuration(configuration)
         except Exception:
@@ -259,9 +313,13 @@ class DatabaseRuntime:
             self._configuration = configuration
             self._configuration_file = configuration_path().resolve()
             self._settings = ServerSettings(
-                database=SQLiteSettings(insert_batch_size=configuration.insert_batch_size),
+                database=SQLiteSettings(
+                    insert_batch_size=configuration.insert_batch_size
+                ),
                 global_settings=GlobalSettings(seed=settings[0]),
-                jobs=JobsSettings(polling_interval=settings[1], retention_days=settings[2]),
+                jobs=JobsSettings(
+                    polling_interval=settings[1], retention_days=settings[2]
+                ),
             )
             self._error = None
         if previous is not None:
@@ -291,11 +349,24 @@ class DatabaseRuntime:
                         seed = int(global_values.get("seed", seed))
                         interval = float(job_values.get("polling_interval", interval))
                         retention = int(job_values.get("retention_days", retention))
-                        if not math.isfinite(interval) or interval <= 0 or retention < 1:
-                            raise ValueError("Application settings values are out of range")
+                        if (
+                            not math.isfinite(interval)
+                            or interval <= 0
+                            or retention < 1
+                        ):
+                            raise ValueError(
+                                "Application settings values are out of range"
+                            )
                         imported_legacy = True
-                    except (OSError, json.JSONDecodeError, TypeError, ValueError) as exc:
-                        raise DatabaseConfigurationError(f"Legacy application settings could not be imported: {exc}") from exc
+                    except (
+                        OSError,
+                        json.JSONDecodeError,
+                        TypeError,
+                        ValueError,
+                    ) as exc:
+                        raise DatabaseConfigurationError(
+                            f"Legacy application settings could not be imported: {exc}"
+                        ) from exc
                 row = ApplicationSettingsRecord(
                     settings_id=1,
                     global_seed=seed,
@@ -331,7 +402,9 @@ class DatabaseRuntime:
         if not env_file.is_file():
             return
         content = env_file.read_text(encoding="utf-8")
-        updated = re.sub(r"(?m)^\s*DATABASE_INSERT_BATCH_SIZE\s*=.*(?:\r?\n|$)", "", content)
+        updated = re.sub(
+            r"(?m)^\s*DATABASE_INSERT_BATCH_SIZE\s*=.*(?:\r?\n|$)", "", content
+        )
         if updated == content:
             return
         temporary = env_file.with_suffix(env_file.suffix + ".tmp")

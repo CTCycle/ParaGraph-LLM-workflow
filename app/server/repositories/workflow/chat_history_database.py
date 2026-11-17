@@ -22,7 +22,6 @@ def _as_utc(timestamp: datetime) -> datetime:
 
 ###############################################################################
 class DatabaseChatHistoryRepository:
-
     # -------------------------------------------------------------------------
     def __init__(self, database_repository: SQLiteRepository | None = None) -> None:
         self._database_repository = database_repository
@@ -123,9 +122,7 @@ class DatabaseChatHistoryRepository:
                 ).scalars()
             )
             retained_rows = rows[-max_messages:]
-            removed_ids = [
-                row.chat_history_message_id for row in rows[:-max_messages]
-            ]
+            removed_ids = [row.chat_history_message_id for row in rows[:-max_messages]]
             if removed_ids:
                 db_session.execute(
                     delete(ChatHistoryMessageRecord).where(

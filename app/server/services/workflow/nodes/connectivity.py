@@ -20,7 +20,6 @@ from server.services.workflow.vector_stores import get_vector_store_adapter
 
 ###############################################################################
 class NodeConnectivityService:
-
     # -------------------------------------------------------------------------
     def check_database_connection(
         self, request: DatabaseConnectionCheckRequest
@@ -71,10 +70,12 @@ class NodeConnectivityService:
             resolved_api_key = ""
             resolved_endpoint = parsed.endpoint_url
             if parsed.credential_profile:
-                provider_configuration = configuration_service.resolve_provider_configuration(
-                    profile_name=parsed.credential_profile,
-                    provider=parsed.provider,
-                    session_name=parsed.credential_session_name or None,
+                provider_configuration = (
+                    configuration_service.resolve_provider_configuration(
+                        profile_name=parsed.credential_profile,
+                        provider=parsed.provider,
+                        session_name=parsed.credential_session_name or None,
+                    )
                 )
                 resolved_api_key = provider_configuration.api_key or ""
                 resolved_endpoint = (

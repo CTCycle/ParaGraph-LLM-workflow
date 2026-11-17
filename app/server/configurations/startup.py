@@ -72,7 +72,9 @@ class ConfigurationRuntime:
         return self.get_runtime_settings().model_dump(by_alias=True).get(block_name, {})
 
     # -------------------------------------------------------------------------
-    def get_configuration_value(self, block_name: str, key: str, default: Any = None) -> Any:
+    def get_configuration_value(
+        self, block_name: str, key: str, default: Any = None
+    ) -> Any:
         return self.get_configuration_block(block_name).get(key, default)
 
     # -------------------------------------------------------------------------

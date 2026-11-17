@@ -47,9 +47,13 @@ def load_database_configuration(
         payload = json.loads(path.read_text(encoding="utf-8"))
         return DatabaseConfiguration.model_validate(payload)
     except FileNotFoundError as exc:
-        raise DatabaseConfigurationError("Database configuration has not been initialized") from exc
+        raise DatabaseConfigurationError(
+            "Database configuration has not been initialized"
+        ) from exc
     except (OSError, json.JSONDecodeError, ValidationError) as exc:
-        raise DatabaseConfigurationError(f"Invalid database configuration: {exc}") from exc
+        raise DatabaseConfigurationError(
+            f"Invalid database configuration: {exc}"
+        ) from exc
 
 
 ###############################################################################
@@ -63,8 +67,12 @@ def save_database_configuration(
     temporary_path: Path | None = None
     try:
         with tempfile.NamedTemporaryFile(
-            mode="w", encoding="utf-8", dir=path.parent,
-            prefix=f".{path.name}.", suffix=".tmp", delete=False,
+            mode="w",
+            encoding="utf-8",
+            dir=path.parent,
+            prefix=f".{path.name}.",
+            suffix=".tmp",
+            delete=False,
         ) as temporary:
             temporary.write(content)
             temporary.flush()
@@ -74,5 +82,6 @@ def save_database_configuration(
     except OSError as exc:
         if temporary_path is not None:
             temporary_path.unlink(missing_ok=True)
-        raise DatabaseConfigurationError(f"Could not save database configuration: {exc}") from exc
-
+        raise DatabaseConfigurationError(
+            f"Could not save database configuration: {exc}"
+        ) from exc

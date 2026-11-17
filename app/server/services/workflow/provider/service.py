@@ -59,7 +59,6 @@ class ProviderService(
     HuggingFaceCatalogMixin,
     HuggingFaceDownloadMixin,
 ):
-
     # -------------------------------------------------------------------------
     def __init__(self) -> None:
         self._cache_lock = Lock()
@@ -474,9 +473,7 @@ class ProviderService(
                 provider_configuration.api_key if provider_configuration else None
             )
             kwargs["base_url"] = (
-                provider_configuration.base_url
-                if provider_configuration
-                else None
+                provider_configuration.base_url if provider_configuration else None
             )
         else:
             raise ValueError(f"Unsupported chat provider: {provider}")
@@ -610,9 +607,7 @@ class ProviderService(
             else provider_registry_entry("openai").default_base_url
         ).rstrip("/")
         if not api_key:
-            raise ValueError(
-                "Provider 'openai' requires an API key in Configurations"
-            )
+            raise ValueError("Provider 'openai' requires an API key in Configurations")
         payload: dict[str, Any] = {"model": model, "input": text}
         if dimensions is not None:
             payload["dimensions"] = dimensions
@@ -640,10 +635,10 @@ class ProviderService(
     def _openai_compatible_local_models(
         self, provider: str, session_name: str = DEFAULT_SESSION_NAME
     ) -> tuple[ModelMetadata, ...]:
-        provider_configuration = self._get_provider_configuration(provider, session_name)
-        base_url = (
-            provider_configuration.base_url if provider_configuration else None
+        provider_configuration = self._get_provider_configuration(
+            provider, session_name
         )
+        base_url = provider_configuration.base_url if provider_configuration else None
         api_key = provider_configuration.api_key if provider_configuration else None
         try:
             names = OpenAICompatibleLocalClient(
@@ -652,7 +647,7 @@ class ProviderService(
                 api_key=api_key,
                 timeout_s=2.0,
             ).list_models()
-        except (ValueError, LLMError):
+        except ValueError, LLMError:
             names = []
 
         return tuple(
@@ -669,18 +664,16 @@ class ProviderService(
         session_name: str,
         dimensions: int | None,
     ) -> list[float]:
-        provider_configuration = self._get_provider_configuration(provider, session_name)
+        provider_configuration = self._get_provider_configuration(
+            provider, session_name
+        )
         return OpenAICompatibleLocalClient(
             provider=provider,
             base_url=(
-                provider_configuration.base_url
-                if provider_configuration
-                else None
+                provider_configuration.base_url if provider_configuration else None
             ),
             api_key=(
-                provider_configuration.api_key
-                if provider_configuration
-                else None
+                provider_configuration.api_key if provider_configuration else None
             ),
         ).embed(model=model, text=text, dimensions=dimensions)
 

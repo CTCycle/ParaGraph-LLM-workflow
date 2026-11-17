@@ -207,9 +207,7 @@ class LanceDbVectorStoreAdapter(VectorStoreAdapter):
         if create_vector_index and len(rows) > 1:
             num_partitions = max(1, min(nlist, len(rows) - 1))
             vector_index_type = (
-                "IVF_PQ"
-                if len(rows) >= 256 and dimension % 96 == 0
-                else "IVF_FLAT"
+                "IVF_PQ" if len(rows) >= 256 and dimension % 96 == 0 else "IVF_FLAT"
             )
             table.create_index(
                 vector_column_name="vector",

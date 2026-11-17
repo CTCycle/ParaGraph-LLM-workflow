@@ -49,7 +49,6 @@ from server.contracts.node_catalog import (
 
 ###############################################################################
 class HuggingFaceCatalogMixin:
-
     # -------------------------------------------------------------------------
     def _list_huggingface_models_impl(
         self,
@@ -160,7 +159,7 @@ class HuggingFaceCatalogMixin:
 
         try:
             payload = json.loads(metadata_path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
+        except OSError, json.JSONDecodeError:
             return None
 
         if isinstance(payload, dict):

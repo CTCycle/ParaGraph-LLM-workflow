@@ -31,7 +31,6 @@ class UploadedFile(Protocol):
 
 ###############################################################################
 class BrowserUploadService:
-
     # -------------------------------------------------------------------------
     def __init__(
         self,
@@ -91,9 +90,7 @@ class BrowserUploadService:
         if not files:
             raise ValueError("No files were provided for upload")
         if len(files) > self._max_files:
-            raise ValueError(
-                f"Uploads may contain at most {self._max_files} files"
-            )
+            raise ValueError(f"Uploads may contain at most {self._max_files} files")
 
         self.cleanup_stale_uploads()
         destination_root = (self._upload_root / uuid4().hex).resolve()

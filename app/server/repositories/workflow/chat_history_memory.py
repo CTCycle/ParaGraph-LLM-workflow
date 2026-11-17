@@ -7,7 +7,6 @@ from server.contracts.chat_history import ChatHistoryMessage
 
 ###############################################################################
 class InMemoryChatHistoryRepository:
-
     # -------------------------------------------------------------------------
     def __init__(self) -> None:
         self._store: dict[tuple[str, str, str], list[ChatHistoryMessage]] = {}

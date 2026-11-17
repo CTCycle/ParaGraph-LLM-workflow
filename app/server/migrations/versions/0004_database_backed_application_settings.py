@@ -18,9 +18,15 @@ def upgrade() -> None:
         "application_settings",
         sa.Column("settings_id", sa.Integer(), nullable=False),
         sa.Column("global_seed", sa.Integer(), nullable=False, server_default="42"),
-        sa.Column("jobs_polling_interval", sa.Float(), nullable=False, server_default="1.0"),
-        sa.Column("jobs_retention_days", sa.Integer(), nullable=False, server_default="30"),
-        sa.Column("legacy_imported", sa.Boolean(), nullable=False, server_default=sa.false()),
+        sa.Column(
+            "jobs_polling_interval", sa.Float(), nullable=False, server_default="1.0"
+        ),
+        sa.Column(
+            "jobs_retention_days", sa.Integer(), nullable=False, server_default="30"
+        ),
+        sa.Column(
+            "legacy_imported", sa.Boolean(), nullable=False, server_default=sa.false()
+        ),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
         sa.PrimaryKeyConstraint("settings_id"),
         sa.CheckConstraint("settings_id = 1", name="ck_application_settings_singleton"),

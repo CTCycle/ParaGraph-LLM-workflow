@@ -1,6 +1,10 @@
 from __future__ import annotations
 
-from server.services.workflow.node_handlers.rag import _citation_formatter_executor, _context_builder_executor, _html_to_text_executor
+from server.services.workflow.node_handlers.rag import (
+    _citation_formatter_executor,
+    _context_builder_executor,
+    _html_to_text_executor,
+)
 from server.services.workflow import node_registry
 from server.contracts.workflow_model import WorkflowDefinition
 from server.services.workflow.compiler import compiler_service
@@ -14,8 +18,21 @@ from server.contracts.node_catalog import VectorStoreCapabilities
 import server.services.workflow.node_handlers.core.embeddings as embeddings_module
 from pathlib import Path
 from server.contracts.node_handler_core import VectorStoreParameters
-from server.services.workflow.vector_stores import MilvusVectorStoreAdapter, PineconeVectorStoreAdapter, QdrantVectorStoreAdapter, VectorStoreError, WeaviateVectorStoreAdapter, get_vector_store_adapter
-from server.services.workflow.vector_stores.base import VectorStoreConflictError, _score_from_metric, _redacted_provider_config, _resolve_runtime_secret, reset_vector_secret_registry
+from server.services.workflow.vector_stores import (
+    MilvusVectorStoreAdapter,
+    PineconeVectorStoreAdapter,
+    QdrantVectorStoreAdapter,
+    VectorStoreError,
+    WeaviateVectorStoreAdapter,
+    get_vector_store_adapter,
+)
+from server.services.workflow.vector_stores.base import (
+    VectorStoreConflictError,
+    _score_from_metric,
+    _redacted_provider_config,
+    _resolve_runtime_secret,
+    reset_vector_secret_registry,
+)
 from server.services.workflow.vector_stores import base as vector_store_base
 
 # RAG nodes
@@ -94,6 +111,7 @@ def test_citation_formatter_reads_retrieval_results_from_manifest_value_input() 
             "chunk_id": "chunk-1",
         }
     ]
+
 
 # Rerank results
 
@@ -278,6 +296,7 @@ def test_rerank_top_k_zero_and_bounded_truncation() -> None:
     assert len(all_hits_payload["results"]["hits"]) == 3
     assert len(top_two_payload["results"]["hits"]) == 2
 
+
 # Similarity search compiler
 
 
@@ -387,6 +406,7 @@ def test_compiler_reports_similarity_backend_incompatibilities() -> None:
     assert "unsupported_similarity_mode" in codes
     assert "unsupported_similarity_engine" in codes
 
+
 # Similarity search contracts
 
 
@@ -468,7 +488,6 @@ def test_similarity_search_parameters_validate_search_engine_rules() -> None:
 
 ###############################################################################
 class _FakeAdapter:
-
     # -------------------------------------------------------------------------
     def __init__(
         self,
@@ -632,6 +651,7 @@ def test_similarity_search_executor_validates_store_payload_and_uses_native_sear
     assert adapter.last_search_kwargs is not None
     assert adapter.last_search_kwargs["search_engine"] == "native"
 
+
 # Vector store adapter behavior
 
 
@@ -702,15 +722,12 @@ def test_weaviate_validate_connection_invokes_collection_exists(monkeypatch) -> 
     adapter = WeaviateVectorStoreAdapter()
     calls: dict[str, object] = {}
 
-
     ###############################################################################
     class FakeCollections:
-
         # -------------------------------------------------------------------------
         def exists(self, name: str) -> bool:
             calls["collection"] = name
             return True
-
 
     ###############################################################################
     class FakeClient:

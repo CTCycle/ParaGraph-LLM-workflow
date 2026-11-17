@@ -1,12 +1,26 @@
 from __future__ import annotations
 
-from server.common.utils.values import coerce_float, coerce_json_object, extract_top_level_json_fields, parse_json_if_possible
+from server.common.utils.values import (
+    coerce_float,
+    coerce_json_object,
+    extract_top_level_json_fields,
+    parse_json_if_possible,
+)
 from server.services.workflow.execution import ExecutionService
 import pytest
 from server.services.workflow import node_registry
-from server.services.workflow.node_handlers.core.prompts import _prompt_template_executor
-from server.services.workflow.node_handlers.structured import _structured_input_executor, _structured_output_executor
-from server.services.workflow.structured_models import infer_model_from_json, parse_user_pydantic_model, validate_json_with_model
+from server.services.workflow.node_handlers.core.prompts import (
+    _prompt_template_executor,
+)
+from server.services.workflow.node_handlers.structured import (
+    _structured_input_executor,
+    _structured_output_executor,
+)
+from server.services.workflow.structured_models import (
+    infer_model_from_json,
+    parse_user_pydantic_model,
+    validate_json_with_model,
+)
 
 # Node handler common behavior
 
@@ -30,6 +44,7 @@ def test_invalid_json_returns_original_text_where_required() -> None:
 ###############################################################################
 def test_coerce_float_handles_invalid_value() -> None:
     assert coerce_float("not-a-number", 1.5) == 1.5
+
 
 # Named JSON variables
 
@@ -67,6 +82,7 @@ def test_controller_binding_does_not_apply_named_output_wrapping() -> None:
     value = {"summary": "S"}
     assert value == {"summary": "S"}
     assert service._publish_named_output(value) == value
+
 
 # Prompt nodes
 
@@ -109,6 +125,7 @@ def test_prompt_template_merges_multiple_input_maps() -> None:
     )
 
     assert payload["text"] == "A B C"
+
 
 # Prompt template rendering
 
@@ -157,6 +174,7 @@ def test_legacy_format_syntax_is_not_interpolated() -> None:
         {"variables": {"name": "World"}},
     )
     assert result["text"] == "Hello {name}"
+
 
 # Structured JSON nodes
 

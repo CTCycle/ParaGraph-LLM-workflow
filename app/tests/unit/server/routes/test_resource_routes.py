@@ -2,7 +2,14 @@ from __future__ import annotations
 
 from httpx import Response
 from fastapi.testclient import TestClient
-from server.contracts.configuration import AppConfigurationPayload, ConfigurationProfileListResponse, ConfigurationProfileSummary, OllamaStatusResponse, ProviderConfiguration, ProviderStatusResponse
+from server.contracts.configuration import (
+    AppConfigurationPayload,
+    ConfigurationProfileListResponse,
+    ConfigurationProfileSummary,
+    OllamaStatusResponse,
+    ProviderConfiguration,
+    ProviderStatusResponse,
+)
 from server.configurations.settings import SQLiteSettings
 from server.repositories.configuration import ConfigurationRepository
 from server.repositories.database.migration import run_database_migrations
@@ -20,7 +27,18 @@ from sqlalchemy import Integer, String
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from server.services.workflow.nodes import connectivity as node_connectivity_module
 import shutil
-from server.contracts.node_catalog import HuggingFaceModelCatalogResponse, HuggingFaceModelDefinition, HuggingFaceModelDownloadCancelResponse, HuggingFaceModelDownloadResponse, HuggingFaceModelDownloadStatusResponse, OllamaLibraryCatalogResponse, OllamaLibraryModelDefinition, OllamaModelPullResponse, ProviderModelCatalogResponse, ProviderModelDefinition
+from server.contracts.node_catalog import (
+    HuggingFaceModelCatalogResponse,
+    HuggingFaceModelDefinition,
+    HuggingFaceModelDownloadCancelResponse,
+    HuggingFaceModelDownloadResponse,
+    HuggingFaceModelDownloadStatusResponse,
+    OllamaLibraryCatalogResponse,
+    OllamaLibraryModelDefinition,
+    OllamaModelPullResponse,
+    ProviderModelCatalogResponse,
+    ProviderModelDefinition,
+)
 from server.repositories.workflow import node_manifest_repository
 from server.services.workflow.nodes import registry as node_registry_module
 from server.services.workflow import provider_service
@@ -201,18 +219,22 @@ def test_configuration_routes_persist_and_redact_secrets(
     try:
         saved_configuration = client.put("/configurations", json=payload)
         assert_redacted(saved_configuration)
-        assert repository.load_configuration(session_name)[
-            "provider_configurations"
-        ][0]["api_key"] == sentinel
+        assert (
+            repository.load_configuration(session_name)["provider_configurations"][0][
+                "api_key"
+            ]
+            == sentinel
+        )
 
         public_configuration = saved_configuration.json()
-        updated_configuration = client.put(
-            "/configurations", json=public_configuration
-        )
+        updated_configuration = client.put("/configurations", json=public_configuration)
         assert_redacted(updated_configuration)
-        assert repository.load_configuration(session_name)[
-            "provider_configurations"
-        ][0]["api_key"] == sentinel
+        assert (
+            repository.load_configuration(session_name)["provider_configurations"][0][
+                "api_key"
+            ]
+            == sentinel
+        )
 
         profile_payload = {
             "session_name": session_name,
@@ -231,9 +253,12 @@ def test_configuration_routes_persist_and_redact_secrets(
         assert saved_profile.status_code == 200
         assert profile_sentinel not in saved_profile.text
         assert saved_profile.json()["provider_configurations"][0]["api_key"] is None
-        assert repository.load_configuration(session_name)[
-            "provider_configurations"
-        ][0]["api_key"] == sentinel
+        assert (
+            repository.load_configuration(session_name)["provider_configurations"][0][
+                "api_key"
+            ]
+            == sentinel
+        )
 
         activated_profile = client.post(
             f"/configurations/profiles/{profile_name}/activate",
@@ -253,17 +278,23 @@ def test_configuration_routes_persist_and_redact_secrets(
             params={"session_name": session_name},
         )
         assert_redacted(loaded_profile)
-        assert repository.load_configuration_profile(
-            session_name=session_name, profile_name=profile_name
-        )["provider_configurations"][0]["api_key"] == profile_sentinel
+        assert (
+            repository.load_configuration_profile(
+                session_name=session_name, profile_name=profile_name
+            )["provider_configurations"][0]["api_key"]
+            == profile_sentinel
+        )
 
         updated_profile = client.put(
             f"/configurations/profiles/{profile_name}", json=loaded_profile.json()
         )
         assert_redacted(updated_profile)
-        assert repository.load_configuration_profile(
-            session_name=session_name, profile_name=profile_name
-        )["provider_configurations"][0]["api_key"] == profile_sentinel
+        assert (
+            repository.load_configuration_profile(
+                session_name=session_name, profile_name=profile_name
+            )["provider_configurations"][0]["api_key"]
+            == profile_sentinel
+        )
 
         profile_list = client.get(
             "/configurations/profiles", params={"session_name": session_name}
@@ -312,6 +343,7 @@ def test_configuration_profile_errors_map_to_http(
     )
     assert save_response.status_code == 400
     assert save_response.json()["detail"] == "Invalid profile name"
+
 
 # Database routes
 
@@ -371,7 +403,9 @@ def test_database_apply_rejects_an_active_workflow(
 
     runtime = DatabaseRuntime(persist_configuration=False, publish_settings=False)
     _configure_runtime(runtime, monkeypatch, tmp_path)
-    monkeypatch.setattr(job_manager, "is_job_running", lambda job_type=None: job_type == "workflow")
+    monkeypatch.setattr(
+        job_manager, "is_job_running", lambda job_type=None: job_type == "workflow"
+    )
 
     with pytest.raises(HTTPException) as failure:
         database_api.put_database_configuration(
@@ -384,6 +418,7 @@ def test_database_apply_rejects_an_active_workflow(
     assert "active workflow" in failure.value.detail
     assert runtime.status()["connected"] is False
     runtime.reset_for_tests()
+
 
 # Node routes
 
@@ -431,10 +466,8 @@ def test_check_vector_store_connection_calls_adapter_validate(
 ) -> None:
     calls: dict[str, object] = {}
 
-
     ###############################################################################
     class FakeAdapter:
-
         # -------------------------------------------------------------------------
         def validate_connection(self, **kwargs):
             calls.update(kwargs)
@@ -481,10 +514,8 @@ def test_check_vector_store_connection_resolves_saved_credential(
 ) -> None:
     calls: dict[str, object] = {}
 
-
     ###############################################################################
     class FakeAdapter:
-
         # -------------------------------------------------------------------------
         def validate_connection(self, **kwargs):
             calls.update(kwargs)
@@ -557,10 +588,8 @@ def test_check_vector_store_connection_local_providers_require_storage_path(
 ) -> None:
     calls: dict[str, object] = {}
 
-
     ###############################################################################
     class FakeAdapter:
-
         # -------------------------------------------------------------------------
         def validate_connection(self, **kwargs):
             calls.update(kwargs)
@@ -604,10 +633,8 @@ def test_check_vector_store_connection_remote_providers_require_endpoint(
 ) -> None:
     calls: dict[str, object] = {}
 
-
     ###############################################################################
     class FakeAdapter:
-
         # -------------------------------------------------------------------------
         def validate_connection(self, **kwargs):
             calls.update(kwargs)
@@ -640,6 +667,7 @@ def test_check_vector_store_connection_remote_providers_require_endpoint(
     assert response.status_code == 200
     assert response.json()["ok"] is True
     assert calls["endpoint_url"] == "https://vector.example"
+
 
 # Platform routes
 
@@ -888,11 +916,9 @@ def test_nodes_database_connection_check_returns_success_for_sqlite(
     client: TestClient, tmp_path: Path
 ) -> None:
 
-
     ###############################################################################
     class TestHealthBase(DeclarativeBase):
         pass
-
 
     ###############################################################################
     class TestTable(TestHealthBase):
@@ -1188,6 +1214,7 @@ def test_compile_endpoint_returns_diagnostics_for_type_mismatch(
     assert payload["valid"] is False
     messages = [item["message"] for item in payload["diagnostics"]]
     assert any("Type mismatch" in message for message in messages)
+
 
 # Provider routes
 

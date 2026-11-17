@@ -21,14 +21,21 @@ from server.repositories.database.initializer import initialize_sqlite_database
 from server.repositories.schemas import Base, ProviderConfiguration, UserSession
 import os
 import threading
-from server.repositories.database.configuration import DatabaseConfigurationError, save_database_configuration
+from server.repositories.database.configuration import (
+    DatabaseConfigurationError,
+    save_database_configuration,
+)
 from server.repositories.database.runtime import DatabaseBusyError
 from server.repositories.schemas import ApplicationSettingsRecord
 import pandas as pd
 import sqlalchemy
 from server.repositories.database import initializer as initializer_module
 from server.repositories.database import sqlite as sqlite_module
-from server.repositories.schemas import ExecutionEventRecord, ExecutionRunRecord, ExecutionStepRecord
+from server.repositories.schemas import (
+    ExecutionEventRecord,
+    ExecutionRunRecord,
+    ExecutionStepRecord,
+)
 
 # Configuration repository
 
@@ -51,7 +58,9 @@ def test_default_configuration_repository_tracks_the_active_database(
     runtime = DatabaseRuntime(persist_configuration=False, publish_settings=False)
     monkeypatch.setattr(configuration_module, "database_runtime", runtime)
     first = DatabaseConfiguration(database_path=str(tmp_path / "first.sqlite"))
-    second = DatabaseConfiguration(database_path=str(tmp_path / "second.sqlite"), insert_batch_size=23)
+    second = DatabaseConfiguration(
+        database_path=str(tmp_path / "second.sqlite"), insert_batch_size=23
+    )
     runtime.activate(first)
     with ConfigurationRepository()._session() as session:  # noqa: SLF001
         assert Path(session.get_bind().url.database).resolve() == first.resolved_path()
@@ -59,6 +68,7 @@ def test_default_configuration_repository_tracks_the_active_database(
     with ConfigurationRepository()._session() as session:  # noqa: SLF001
         assert Path(session.get_bind().url.database).resolve() == second.resolved_path()
     runtime.reset_for_tests()
+
 
 # Database migrations
 
@@ -131,9 +141,7 @@ def test_populated_unversioned_schema_fails_closed(tmp_path: Path) -> None:
     engine = _engine(database_path)
     Base.metadata.create_all(engine)
     with sa.orm.Session(engine) as session:
-        session.add(
-            UserSession(session_name="unversioned-session")
-        )
+        session.add(UserSession(session_name="unversioned-session"))
         session.commit()
     engine.dispose()
 
@@ -278,7 +286,9 @@ def test_0002_schema_migrates_provider_data_to_canonical_shape(
             profile_payload = json.loads(profile)
             assert "access_keys" not in profile_payload
             assert "ollama" not in profile_payload
-            assert {item["provider"] for item in profile_payload["provider_configurations"]} == {
+            assert {
+                item["provider"] for item in profile_payload["provider_configurations"]
+            } == {
                 "openai",
                 "ollama",
             }
@@ -503,6 +513,7 @@ def test_migration_lock_timeout_is_reported_as_typed_error(
     finally:
         held_lock.release()
 
+
 # Database runtime
 
 
@@ -516,7 +527,12 @@ def test_database_configuration_schema_is_strict_sqlite_only() -> None:
         )
     with pytest.raises(ValidationError):
         DatabaseConfiguration.model_validate(
-            {"backend": "sqlite", "database_path": "db", "insert_batch_size": 2, "password": "secret"}
+            {
+                "backend": "sqlite",
+                "database_path": "db",
+                "insert_batch_size": 2,
+                "password": "secret",
+            }
         )
     with pytest.raises(ValidationError):
         DatabaseConfiguration.model_validate(
@@ -586,7 +602,12 @@ def test_bootstrap_imports_legacy_values_once_and_restart_persists(
     env_example.write_text("LLM_TIMEOUT_S=30\n", encoding="utf-8")
     legacy_file = env_dir / "configurations.json"
     legacy_file.write_text(
-        json.dumps({"global": {"seed": 73}, "jobs": {"polling_interval": 2.5, "retention_days": 9}}),
+        json.dumps(
+            {
+                "global": {"seed": 73},
+                "jobs": {"polling_interval": 2.5, "retention_days": 9},
+            }
+        ),
         encoding="utf-8",
     )
     monkeypatch.setattr(common_path, "RESOURCES_ROOT", tmp_path)
@@ -598,7 +619,10 @@ def test_bootstrap_imports_legacy_values_once_and_restart_persists(
     runtime = DatabaseRuntime(persist_configuration=False, publish_settings=False)
 
     try:
-        assert DatabaseConfiguration().resolved_path() == (tmp_path / "database.db").resolve()
+        assert (
+            DatabaseConfiguration().resolved_path()
+            == (tmp_path / "database.db").resolve()
+        )
         runtime.initialize()
         assert runtime.settings.database.insert_batch_size == 29
         assert runtime.settings.global_settings.seed == 73
@@ -646,9 +670,12 @@ def test_failed_legacy_settings_import_keeps_source_and_rolls_back_row(
     engine = create_engine(f"sqlite:///{(tmp_path / 'database.db').as_posix()}")
     try:
         with engine.connect() as connection:
-            assert connection.execute(
-                text("SELECT COUNT(*) FROM application_settings")
-            ).scalar_one() == 0
+            assert (
+                connection.execute(
+                    text("SELECT COUNT(*) FROM application_settings")
+                ).scalar_one()
+                == 0
+            )
     finally:
         engine.dispose()
         runtime.reset_for_tests()
@@ -659,8 +686,12 @@ def test_switching_databases_keeps_application_settings_isolated(
     tmp_path: Path,
 ) -> None:
     runtime = DatabaseRuntime(persist_configuration=False, publish_settings=False)
-    first = DatabaseConfiguration(database_path=str(tmp_path / "first.db"), insert_batch_size=8)
-    second = DatabaseConfiguration(database_path=str(tmp_path / "second.db"), insert_batch_size=16)
+    first = DatabaseConfiguration(
+        database_path=str(tmp_path / "first.db"), insert_batch_size=8
+    )
+    second = DatabaseConfiguration(
+        database_path=str(tmp_path / "second.db"), insert_batch_size=16
+    )
     try:
         runtime.activate(first)
         with runtime.session() as session, session.begin():
@@ -699,9 +730,13 @@ def test_failed_target_and_active_workflow_leave_current_database_active(
         runtime.activate(DatabaseConfiguration(database_path=str(incompatible)))
     assert runtime.status()["database_path"] == original_path
 
-    monkeypatch.setattr(job_manager, "is_job_running", lambda job_type=None: job_type == "workflow")
+    monkeypatch.setattr(
+        job_manager, "is_job_running", lambda job_type=None: job_type == "workflow"
+    )
     with pytest.raises(DatabaseBusyError, match="active workflow"):
-        runtime.activate(DatabaseConfiguration(database_path=str(tmp_path / "blocked.db")))
+        runtime.activate(
+            DatabaseConfiguration(database_path=str(tmp_path / "blocked.db"))
+        )
     assert runtime.status()["database_path"] == original_path
     runtime.reset_for_tests()
 
@@ -817,6 +852,7 @@ def test_switch_rejects_workflow_admitted_during_drain(
     assert rejected.is_set()
     assert runtime.status()["database_path"] == str(first.resolved_path())
     runtime.reset_for_tests()
+
 
 # SQLite repository
 

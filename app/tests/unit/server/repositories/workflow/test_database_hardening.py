@@ -191,11 +191,9 @@ def test_read_only_enforcement_and_parameterized_single_statement_sql(
 ###############################################################################
 def test_mysql_upsert_is_rejected_before_table_access(monkeypatch) -> None:
 
-
     ###############################################################################
     class FakeDialect:
         name = "mysql"
-
 
     ###############################################################################
     class FakeEngine:

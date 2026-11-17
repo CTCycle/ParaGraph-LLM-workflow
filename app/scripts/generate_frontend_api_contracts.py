@@ -93,7 +93,9 @@ def _property_name(name: str) -> str:
 
 
 ###############################################################################
-def _is_optional_property(name: str, property_schema: dict[str, Any], required: set[str]) -> bool:
+def _is_optional_property(
+    name: str, property_schema: dict[str, Any], required: set[str]
+) -> bool:
     if name in required or "default" in property_schema:
         return False
     variants = property_schema.get("anyOf")
@@ -111,7 +113,9 @@ def _inline_object_type(schema: dict[str, Any]) -> str:
     for name, property_schema in properties.items():
         if not isinstance(property_schema, dict):
             continue
-        optional = "?" if _is_optional_property(str(name), property_schema, required) else ""
+        optional = (
+            "?" if _is_optional_property(str(name), property_schema, required) else ""
+        )
         lines.append(
             f"        {_property_name(str(name))}{optional}: {_schema_type(property_schema)};\n"
         )
@@ -127,7 +131,11 @@ def _render_schema(name: str, schema: dict[str, Any]) -> list[str]:
         for property_name, property_schema in schema["properties"].items():
             if not isinstance(property_schema, dict):
                 continue
-            optional = "?" if _is_optional_property(str(property_name), property_schema, required) else ""
+            optional = (
+                "?"
+                if _is_optional_property(str(property_name), property_schema, required)
+                else ""
+            )
             lines.append(
                 f"    {_property_name(str(property_name))}{optional}: {_schema_type(property_schema)}"
             )
@@ -159,7 +167,9 @@ def main() -> int:
     if args.check:
         actual = OUTPUT.read_text(encoding="utf-8") if OUTPUT.exists() else None
         if actual != expected:
-            print(f"Generated frontend API contracts are stale: {OUTPUT}", file=sys.stderr)
+            print(
+                f"Generated frontend API contracts are stale: {OUTPUT}", file=sys.stderr
+            )
             return 1
         return 0
 

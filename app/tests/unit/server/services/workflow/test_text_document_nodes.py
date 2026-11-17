@@ -1,8 +1,18 @@
 from __future__ import annotations
 
-from server.services.workflow.node_handlers.advanced_text import _claim_extractor_executor, _contradiction_detector_executor, _entity_extractor_executor, _pii_detector_executor, _pii_redactor_executor, _prompt_injection_detector_executor, _unit_number_normalizer_executor
+from server.services.workflow.node_handlers.advanced_text import (
+    _claim_extractor_executor,
+    _contradiction_detector_executor,
+    _entity_extractor_executor,
+    _pii_detector_executor,
+    _pii_redactor_executor,
+    _prompt_injection_detector_executor,
+    _unit_number_normalizer_executor,
+)
 from pathlib import Path
-from server.services.workflow.node_handlers.ingestion.documents import _document_text_extractor_executor
+from server.services.workflow.node_handlers.ingestion.documents import (
+    _document_text_extractor_executor,
+)
 from server.contracts.node_handler_processing import RecursiveSplitChunksParameters
 from server.services.workflow import node_registry
 import pytest
@@ -10,8 +20,16 @@ from sqlalchemy import Integer, String, create_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
 from server.contracts.configuration import ProviderConfiguration
 from server.services.configuration import configuration_service
-from server.services.workflow.node_handlers.ingestion import database_connections as database_connections_module
-from server.services.workflow.node_handlers.processing.text_processing import _deduplicate_text_executor, _join_merge_text_executor, _regex_extract_executor, _regex_replace_executor, _normalize_text_executor
+from server.services.workflow.node_handlers.ingestion import (
+    database_connections as database_connections_module,
+)
+from server.services.workflow.node_handlers.processing.text_processing import (
+    _deduplicate_text_executor,
+    _join_merge_text_executor,
+    _regex_extract_executor,
+    _regex_replace_executor,
+    _normalize_text_executor,
+)
 
 # Advanced text nodes
 
@@ -43,9 +61,10 @@ def test_pii_detector_and_redactor_find_and_mask_email() -> None:
 def test_text_safety_handlers_coerce_empty_and_numeric_inputs() -> None:
     assert _pii_detector_executor({}, {"text": None})["result"] == []
     assert _pii_redactor_executor({}, {"text": 42})["result"] == "42"
-    assert _prompt_injection_detector_executor({}, {"text": "A normal request"})[
-        "label"
-    ] == "clean"
+    assert (
+        _prompt_injection_detector_executor({}, {"text": "A normal request"})["label"]
+        == "clean"
+    )
 
 
 ###############################################################################
@@ -72,6 +91,7 @@ def test_unit_number_normalizer_returns_numeric_objects() -> None:
         _unit_number_normalizer_executor({}, {"text": "12 mg"})["result"][0]["value"]
         == 12.0
     )
+
 
 # Document text extraction
 
@@ -101,6 +121,7 @@ def test_document_text_extractor_preserves_pdf_page_metadata(
     )
     assert result["documents"][0]["metadata"]["page_number"] == 2
     assert result["documents"][0]["metadata"]["document_id"] == "doc-1"
+
 
 # Fragmentation chains
 
@@ -255,6 +276,7 @@ def test_recursive_split_applies_overlap_after_separator_splits() -> None:
         "six seven eight",
     ]
 
+
 # Fragmentation nodes
 
 
@@ -406,6 +428,7 @@ def test_regex_split_chunks_requires_non_empty_input() -> None:
             {},
         )
 
+
 # Document ingestion
 
 
@@ -509,11 +532,9 @@ def test_load_documents_skips_unsupported_doc_extension(tmp_path: Path) -> None:
 ###############################################################################
 def test_sql_file_database_node_roundtrip(tmp_path: Path) -> None:
 
-
     ###############################################################################
     class ItemsBase(DeclarativeBase):
         pass
-
 
     ###############################################################################
     class Item(ItemsBase):
@@ -630,6 +651,7 @@ def test_sql_database_emits_only_an_opaque_credential_reference(monkeypatch) -> 
     assert "password" not in captured
     assert "database-secret" not in str(result)
 
+
 # Metadata nodes
 
 
@@ -707,6 +729,7 @@ def test_metadata_node_replace_discards_previous_record_metadata() -> None:
     )
 
     assert result["chunks"][0]["metadata"] == {"source": "replacement"}
+
 
 # Text processing nodes
 

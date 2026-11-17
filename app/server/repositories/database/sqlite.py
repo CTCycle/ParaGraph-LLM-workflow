@@ -47,7 +47,6 @@ def normalize_string_columns(df: pd.DataFrame) -> pd.DataFrame:
 
 ###############################################################################
 class SQLiteRepository:
-
     # -------------------------------------------------------------------------
     def __init__(
         self,

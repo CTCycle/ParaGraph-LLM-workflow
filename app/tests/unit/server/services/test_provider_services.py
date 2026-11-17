@@ -8,10 +8,22 @@ import pytest
 import torch
 import server.services.workflow.node_handlers.core.embeddings as embeddings_module
 from pathlib import Path
-from server.services.workflow.provider import huggingface_downloads as huggingface_downloads_module
-from server.services.workflow.provider import huggingface_catalog as huggingface_catalog_module
-from server.services.workflow.provider import HUGGINGFACE_MODEL_LIST_EXPAND_FIELDS, ProviderApiError, ProviderService
-from server.services.workflow.provider.constants import HUGGINGFACE_DOWNLOAD_TIMEOUT_SECONDS, HUGGINGFACE_FALLBACK_LIBRARIES, HUGGINGFACE_FALLBACK_TASKS
+from server.services.workflow.provider import (
+    huggingface_downloads as huggingface_downloads_module,
+)
+from server.services.workflow.provider import (
+    huggingface_catalog as huggingface_catalog_module,
+)
+from server.services.workflow.provider import (
+    HUGGINGFACE_MODEL_LIST_EXPAND_FIELDS,
+    ProviderApiError,
+    ProviderService,
+)
+from server.services.workflow.provider.constants import (
+    HUGGINGFACE_DOWNLOAD_TIMEOUT_SECONDS,
+    HUGGINGFACE_FALLBACK_LIBRARIES,
+    HUGGINGFACE_FALLBACK_TASKS,
+)
 import server.services.workflow.provider.service as provider_service_module
 from server.services.llm.providers import OllamaClient
 from pytest import MonkeyPatch
@@ -23,7 +35,6 @@ from server.services.workflow.node_handlers.core import routing
 
 ###############################################################################
 class _FakeResponse:
-
     # -------------------------------------------------------------------------
     def __init__(self, payload: dict[str, Any]) -> None:
         self._payload = payload
@@ -176,6 +187,7 @@ def test_local_openai_compatible_client_lists_models_and_chats(monkeypatch) -> N
     assert captured[1]["headers"]["Authorization"] == "Bearer lm-studio"
     assert captured[1]["json"]["response_format"] == {"type": "json_object"}
 
+
 # Hugging Face embedding nodes
 
 
@@ -184,7 +196,6 @@ def test_huggingface_embedding_uses_eos_token_when_tokenizer_has_no_pad_token(
     monkeypatch,
 ) -> None:
     embeddings_module._HF_EMBEDDING_CACHE.clear()  # noqa: SLF001
-
 
     ###############################################################################
     class FakeTokenizer:
@@ -205,17 +216,14 @@ def test_huggingface_embedding_uses_eos_token_when_tokenizer_has_no_pad_token(
 
     fake_tokenizer = FakeTokenizer()
 
-
     ###############################################################################
     class FakeAutoTokenizer:
-
         # -------------------------------------------------------------------------
         @staticmethod
         def from_pretrained(model_name: str, token: str | None = None):
             assert model_name == "fake-embedding-model"
             assert token is None
             return fake_tokenizer
-
 
     ###############################################################################
     class FakeModel:
@@ -228,10 +236,8 @@ def test_huggingface_embedding_uses_eos_token_when_tokenizer_has_no_pad_token(
                 last_hidden_state=torch.tensor([[[1.0, 2.0], [3.0, 4.0]]])
             )
 
-
     ###############################################################################
     class FakeAutoModel:
-
         # -------------------------------------------------------------------------
         @staticmethod
         def from_pretrained(model_name: str, token: str | None = None):
@@ -265,7 +271,6 @@ def test_huggingface_embedding_can_use_explicit_tokenizer_repo(monkeypatch) -> N
     embeddings_module._HF_EMBEDDING_CACHE.clear()  # noqa: SLF001
     captured: dict[str, str] = {}
 
-
     ###############################################################################
     class FakeTokenizer:
         pad_token = "<pad>"
@@ -279,17 +284,14 @@ def test_huggingface_embedding_can_use_explicit_tokenizer_repo(monkeypatch) -> N
                 "attention_mask": torch.tensor([[1]]),
             }
 
-
     ###############################################################################
     class FakeAutoTokenizer:
-
         # -------------------------------------------------------------------------
         @staticmethod
         def from_pretrained(model_name: str, token: str | None = None):
             _ = token
             captured["tokenizer"] = model_name
             return FakeTokenizer()
-
 
     ###############################################################################
     class FakeModel:
@@ -300,10 +302,8 @@ def test_huggingface_embedding_can_use_explicit_tokenizer_repo(monkeypatch) -> N
             _ = kwargs
             return SimpleNamespace(last_hidden_state=torch.tensor([[[1.0, 0.0]]]))
 
-
     ###############################################################################
     class FakeAutoModel:
-
         # -------------------------------------------------------------------------
         @staticmethod
         def from_pretrained(model_name: str, token: str | None = None):
@@ -334,12 +334,12 @@ def test_huggingface_embedding_can_use_explicit_tokenizer_repo(monkeypatch) -> N
     }
     assert vector == [1.0, 0.0]
 
+
 # Hugging Face provider behavior
 
 
 ###############################################################################
 class _FakeExpandApi:
-
     # -------------------------------------------------------------------------
     def list_models(
         self,
@@ -384,10 +384,8 @@ def test_build_huggingface_list_kwargs_prefers_expand() -> None:
 def test_huggingface_model_iteration_errors_are_translated(monkeypatch) -> None:
     service = ProviderService()
 
-
     ###############################################################################
     class _LazyFailingApi:
-
         # -------------------------------------------------------------------------
         def list_models(self, **kwargs):
             _ = kwargs
@@ -427,7 +425,6 @@ def test_huggingface_download_uses_explicit_stream_timeout(
     files = [{"path": "model.bin", "size": 4}]
     capture: dict[str, object] = {}
 
-
     ###############################################################################
     class _FakeResponse:
         headers = {"Content-Length": "4"}
@@ -441,10 +438,8 @@ def test_huggingface_download_uses_explicit_stream_timeout(
             _ = chunk_size
             yield b"data"
 
-
     ###############################################################################
     class _FakeStreamContext:
-
         # -------------------------------------------------------------------------
         def __enter__(self) -> _FakeResponse:
             return _FakeResponse()
@@ -491,10 +486,8 @@ def test_huggingface_filter_tags_logs_and_falls_back(monkeypatch) -> None:
     service = ProviderService()
     captured: list[dict[str, object]] = []
 
-
     ###############################################################################
     class _FailingApi:
-
         # -------------------------------------------------------------------------
         def get_model_tags(self) -> dict[str, object]:
             raise RuntimeError("tag service unavailable")
@@ -514,6 +507,7 @@ def test_huggingface_filter_tags_logs_and_falls_back(monkeypatch) -> None:
     assert captured
     assert captured[0]["kwargs"].get("exc_info") is True
 
+
 # Provider catalog and service behavior
 
 
@@ -522,10 +516,8 @@ def test_ollama_chat_uses_provider_abstraction(monkeypatch) -> None:
     service = ProviderService()
     captured: dict[str, object] = {}
 
-
     ###############################################################################
     class FakeClient:
-
         # -------------------------------------------------------------------------
         def chat(self, *, model, messages, format=None, options=None):  # noqa: A002
             captured["model"] = model
@@ -660,7 +652,6 @@ def test_ollama_client_chat_uses_chat_endpoint_only(monkeypatch) -> None:
     client = OllamaClient(base_url="http://127.0.0.1:11434")
     calls: list[tuple[str, str]] = []
 
-
     ###############################################################################
     class FakeResponse:
         status_code = 200
@@ -688,10 +679,8 @@ def test_ollama_embedding_uses_current_endpoint_only(monkeypatch) -> None:
     service = ProviderService()
     calls: list[tuple[str, dict[str, object]]] = []
 
-
     ###############################################################################
     class FakeResponse:
-
         # -------------------------------------------------------------------------
         @staticmethod
         def raise_for_status() -> None:
@@ -746,12 +735,12 @@ def test_embedding_rejects_unsupported_provider_without_fallback() -> None:
     else:
         raise AssertionError("Expected unsupported providers to fail explicitly")
 
+
 # Tokenizer nodes
 
 
 ###############################################################################
 class FakeTokenizer:
-
     # -------------------------------------------------------------------------
     def __call__(self, text: str, **_: Any) -> dict[str, list[int]]:
         return {
@@ -763,7 +752,6 @@ class FakeTokenizer:
 
 ###############################################################################
 class FakeAutoTokenizer:
-
     # -------------------------------------------------------------------------
     @staticmethod
     def from_pretrained(_: str, **__: Any) -> FakeTokenizer:

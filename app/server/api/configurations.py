@@ -74,7 +74,9 @@ def load_configuration_profile(
 
 
 ###############################################################################
-@router.post("/profiles/{profile_name}/activate", response_model=AppConfigurationPayload)
+@router.post(
+    "/profiles/{profile_name}/activate", response_model=AppConfigurationPayload
+)
 def activate_configuration_profile(
     profile_name: str = Path(
         ..., min_length=1, max_length=120, pattern=PROFILE_NAME_PATTERN

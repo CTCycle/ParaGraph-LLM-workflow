@@ -9,7 +9,10 @@ from server.repositories.workflow.database import inspect_database_schema
 from datetime import UTC, datetime, timedelta
 import httpx
 from server.contracts.node_handler_http import HttpRequestParameters
-from server.services.workflow.http_transport import HttpTransportError, SecureHttpTransport
+from server.services.workflow.http_transport import (
+    HttpTransportError,
+    SecureHttpTransport,
+)
 from server.common import path as common_path
 from server.services.workflow.node_handlers import http as http_nodes_module
 import json
@@ -195,6 +198,7 @@ def test_database_parameters_reject_unknown_fields() -> None:
             1,
             {"sql": "select 1", "password": "must-not-be-accepted"},
         )
+
 
 # HTTP nodes
 
@@ -499,10 +503,8 @@ def test_method_specific_http_nodes_share_the_transport_executor(
 ) -> None:
     seen: list[str] = []
 
-
     ###############################################################################
     class FakeTransport:
-
         # -------------------------------------------------------------------------
         def __init__(self, **kwargs) -> None:
             pass
@@ -523,6 +525,7 @@ def test_method_specific_http_nodes_share_the_transport_executor(
 
     assert seen == [expected_method]
     assert result["response"]["status_code"] == 200
+
 
 # Plugin nodes
 

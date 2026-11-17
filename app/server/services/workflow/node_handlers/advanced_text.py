@@ -248,7 +248,7 @@ def _date_normalizer_executor(
         return {
             "result": {"iso": parsed.date().isoformat(), "datetime": parsed.isoformat()}
         }
-    except (ValueError, OverflowError):
+    except ValueError, OverflowError:
         return {"result": None}
 
 

@@ -120,7 +120,6 @@ def test_save_uploaded_directory_removes_staging_after_later_file_failure(
     tmp_path: Path,
 ) -> None:
 
-
     ###############################################################################
     class FailingUpload:
         filename = "broken.txt"

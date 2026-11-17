@@ -46,7 +46,9 @@ def test_database_configuration(
     payload: DatabaseConfigurationPayload,
 ) -> DatabaseTestResponse:
     try:
-        database_runtime.test(DatabaseConfiguration.model_validate(payload.model_dump()))
+        database_runtime.test(
+            DatabaseConfiguration.model_validate(payload.model_dump())
+        )
     except DatabaseConfigurationError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return DatabaseTestResponse(
@@ -61,9 +63,13 @@ def put_database_configuration(
     payload: DatabaseConfigurationPayload,
 ) -> DatabaseConfigurationResponse:
     try:
-        database_runtime.activate(DatabaseConfiguration.model_validate(payload.model_dump()))
+        database_runtime.activate(
+            DatabaseConfiguration.model_validate(payload.model_dump())
+        )
     except DatabaseBusyError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     except Exception as exc:
-        raise HTTPException(status_code=503, detail=f"Database change was not applied: {exc}") from exc
+        raise HTTPException(
+            status_code=503, detail=f"Database change was not applied: {exc}"
+        ) from exc
     return _configuration_response()

@@ -7,7 +7,9 @@ from fastapi.testclient import TestClient
 
 
 ###############################################################################
-def _vector_point(point_id: str, document_id: str, vector: list[float]) -> dict[str, object]:
+def _vector_point(
+    point_id: str, document_id: str, vector: list[float]
+) -> dict[str, object]:
     return {
         "id": point_id,
         "chunk_id": f"chunk-{point_id}",
@@ -58,8 +60,16 @@ def test_local_vector_store_lifecycle_runs_through_compiled_workflow(
                 "node_version": 1,
                 "parameters": {
                     "value": [
-                        _vector_point(point_ids[0], document_id, [1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]),
-                        _vector_point(point_ids[1], document_id, [0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]),
+                        _vector_point(
+                            point_ids[0],
+                            document_id,
+                            [1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+                        ),
+                        _vector_point(
+                            point_ids[1],
+                            document_id,
+                            [0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+                        ),
                     ]
                 },
             },
@@ -157,7 +167,9 @@ def test_local_vector_store_lifecycle_runs_through_compiled_workflow(
         "metadata": {},
     }
 
-    compile_response = client.post("/executions/compile", json={"definition": definition})
+    compile_response = client.post(
+        "/executions/compile", json={"definition": definition}
+    )
     assert compile_response.status_code == 200, compile_response.text
     compiled = compile_response.json()
     assert compiled["valid"] is True, compiled

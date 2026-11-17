@@ -130,9 +130,7 @@ def clear_provider_caches() -> None:
 ###############################################################################
 def restore_test_environment() -> None:
     pytest_environment = {
-        key: value
-        for key, value in os.environ.items()
-        if key.startswith("PYTEST_")
+        key: value for key, value in os.environ.items() if key.startswith("PYTEST_")
     }
     os.environ.clear()
     os.environ.update(_TEST_ENVIRONMENT_BASELINE)

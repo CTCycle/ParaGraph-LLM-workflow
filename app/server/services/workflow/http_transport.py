@@ -36,7 +36,6 @@ RETRYABLE_METHODS = {"GET", "PUT", "DELETE", "HEAD", "OPTIONS"}
 
 ###############################################################################
 class HttpTransportError(ValueError):
-
     # -------------------------------------------------------------------------
     def __init__(self, code: str, message: str, **details: Any) -> None:
         self.code = code
@@ -46,7 +45,6 @@ class HttpTransportError(ValueError):
 
 ###############################################################################
 class SecureHttpTransport:
-
     # -------------------------------------------------------------------------
     def __init__(
         self,
@@ -153,7 +151,7 @@ class SecureHttpTransport:
             return float(stripped)
         try:
             parsed = email.utils.parsedate_to_datetime(stripped)
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             return None
         if parsed.tzinfo is None:
             parsed = parsed.replace(tzinfo=UTC)
@@ -188,16 +186,12 @@ class SecureHttpTransport:
             raise HttpTransportError("cancelled", "HTTP request was cancelled")
         remaining = overall_timeout - (time.monotonic() - started)
         if remaining <= 0:
-            raise HttpTransportError(
-                "overall_timeout", "HTTP overall timeout elapsed"
-            )
+            raise HttpTransportError("overall_timeout", "HTTP overall timeout elapsed")
         self._sleep(min(max(delay, 0.0), remaining))
         if self._cancelled():
             raise HttpTransportError("cancelled", "HTTP request was cancelled")
         if time.monotonic() - started >= overall_timeout:
-            raise HttpTransportError(
-                "overall_timeout", "HTTP overall timeout elapsed"
-            )
+            raise HttpTransportError("overall_timeout", "HTTP overall timeout elapsed")
 
     # -------------------------------------------------------------------------
     @staticmethod

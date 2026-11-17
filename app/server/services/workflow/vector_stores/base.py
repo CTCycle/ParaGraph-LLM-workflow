@@ -546,7 +546,7 @@ def _resolve_runtime_secret(config: dict[str, Any]) -> str:
             provider=provider,
             session_name=session_name,
         )
-    except (KeyError, ValueError):
+    except KeyError, ValueError:
         return ""
     return provider_configuration.api_key or ""
 

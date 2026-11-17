@@ -54,9 +54,7 @@ def _canonical_profile_payload(value: Any, profile_name: str) -> dict[str, Any]:
 
     providers = list(access_keys)
     ollama_metadata = {
-        key: ollama[key]
-        for key in ("chat_model", "embedding_model")
-        if key in ollama
+        key: ollama[key] for key in ("chat_model", "embedding_model") if key in ollama
     }
     if ollama.get("base_url") or ollama_metadata:
         providers.append(
@@ -109,14 +107,18 @@ def _migrate_ollama_configurations(connection: sa.Connection) -> None:
         )
     ).mappings()
     for session in sessions:
-        existing = connection.execute(
-            sa.text(
-                "SELECT provider_configuration_id, api_key, base_url, metadata_json "
-                "FROM provider_configurations "
-                "WHERE session_id = :session_id AND provider = 'ollama'"
-            ),
-            {"session_id": session["session_id"]},
-        ).mappings().first()
+        existing = (
+            connection.execute(
+                sa.text(
+                    "SELECT provider_configuration_id, api_key, base_url, metadata_json "
+                    "FROM provider_configurations "
+                    "WHERE session_id = :session_id AND provider = 'ollama'"
+                ),
+                {"session_id": session["session_id"]},
+            )
+            .mappings()
+            .first()
+        )
         if existing is None:
             connection.execute(
                 sa.text(
@@ -160,9 +162,7 @@ def _migrate_ollama_configurations(connection: sa.Connection) -> None:
 
 ###############################################################################
 def _rename_provider_indexes_to_canonical() -> None:
-    op.drop_index(
-        "ix_access_keys_session_id", table_name="provider_configurations"
-    )
+    op.drop_index("ix_access_keys_session_id", table_name="provider_configurations")
     op.drop_index("ix_access_keys_provider", table_name="provider_configurations")
     op.create_index(
         "ix_provider_configurations_session_id",
@@ -217,9 +217,7 @@ def upgrade() -> None:
     connection = op.get_bind()
     _migrate_profiles(connection)
     op.rename_table("access_keys", "provider_configurations")
-    with op.batch_alter_table(
-        "provider_configurations", recreate="always"
-    ) as batch_op:
+    with op.batch_alter_table("provider_configurations", recreate="always") as batch_op:
         batch_op.alter_column(
             "access_key_id", new_column_name="provider_configuration_id"
         )
@@ -254,9 +252,7 @@ def _restore_legacy_profile_payload(value: Any, profile_name: str) -> dict[str, 
             ollama = {
                 "base_url": item.get("base_url"),
                 "chat_model": metadata.get("chat_model", "llama3.2"),
-                "embedding_model": metadata.get(
-                    "embedding_model", "nomic-embed-text"
-                ),
+                "embedding_model": metadata.get("embedding_model", "nomic-embed-text"),
             }
         else:
             access_keys.append(item)
@@ -341,7 +337,9 @@ def downgrade() -> None:
             {"session_id": session_id, **payload},
         )
 
-    connection.execute(sa.text("DELETE FROM provider_configurations WHERE provider = 'ollama'"))
+    connection.execute(
+        sa.text("DELETE FROM provider_configurations WHERE provider = 'ollama'")
+    )
     op.rename_table("provider_configurations", "access_keys")
     with op.batch_alter_table("access_keys", recreate="always") as batch_op:
         batch_op.alter_column(
@@ -353,9 +351,7 @@ def downgrade() -> None:
         batch_op.create_unique_constraint(
             "uq_access_keys_session_provider", ["session_id", "provider"]
         )
-    op.drop_index(
-        "ix_provider_configurations_session_id", table_name="access_keys"
-    )
+    op.drop_index("ix_provider_configurations_session_id", table_name="access_keys")
     op.drop_index("ix_provider_configurations_provider", table_name="access_keys")
     op.create_index("ix_access_keys_session_id", "access_keys", ["session_id"])
     op.create_index("ix_access_keys_provider", "access_keys", ["provider"])

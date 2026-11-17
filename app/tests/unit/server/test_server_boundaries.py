@@ -178,6 +178,7 @@ def test_cors_allows_configured_origin_and_rejects_other_origins(
         ),
     )
 
+
 # Cache placement
 
 
@@ -203,6 +204,7 @@ def test_library_cache_environment_is_repository_canonical() -> None:
     assert os.environ["HF_XET_CACHE"] == str(expected_root / "huggingface" / "xet")
     assert os.environ["TORCH_HOME"] == str(expected_root / "torch")
 
+
 # Client hosting
 
 HTML = {"Accept": "text/html,application/xhtml+xml"}
@@ -227,9 +229,7 @@ def build_client(tmp_path: Path) -> TestClient:
         await websocket.send_text(run_id)
         await websocket.close()
 
-    api.add_middleware(
-        ClientHostingMiddleware, api_base="/api/", client_root=tmp_path
-    )
+    api.add_middleware(ClientHostingMiddleware, api_base="/api/", client_root=tmp_path)
     return TestClient(api)
 
 
@@ -264,6 +264,7 @@ def test_built_files_are_served_and_traversal_falls_back_to_index(
     assert client.get("/favicon.svg").text == "<svg/>"
     assert "spa" in client.get("/..%2f..%2fsecret", headers=HTML).text
 
+
 # Contract boundaries
 
 FORBIDDEN_IMPORT_PREFIXES = (
@@ -294,6 +295,7 @@ def test_contract_modules_remain_transport_and_persistence_neutral() -> None:
                     module == prefix or module.startswith(f"{prefix}.")
                     for prefix in FORBIDDEN_IMPORT_PREFIXES
                 ), f"{path} imports forbidden runtime module {module}"
+
 
 # Generated frontend contracts
 

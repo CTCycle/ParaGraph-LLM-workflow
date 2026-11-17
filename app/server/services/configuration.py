@@ -24,7 +24,6 @@ from server.services.workflow.provider.registry import provider_registry_entry
 
 ###############################################################################
 class ConfigurationService:
-
     # -------------------------------------------------------------------------
     def __init__(self, repository: ConfigurationRepository | None = None) -> None:
         self._repository = repository or configuration_repository
@@ -51,7 +50,8 @@ class ConfigurationService:
         existing: AppConfigurationPayload | None,
     ) -> list[dict[str, Any]]:
         existing_by_provider = {
-            item.provider: item for item in (existing.provider_configurations if existing else [])
+            item.provider: item
+            for item in (existing.provider_configurations if existing else [])
         }
         resolved: list[dict[str, Any]] = []
         for item in payload.provider_configurations:
@@ -183,7 +183,9 @@ class ConfigurationService:
 
         configuration_json = {
             "session_name": payload.session_name,
-            "provider_configurations": self._resolve_provider_secrets(payload, existing),
+            "provider_configurations": self._resolve_provider_secrets(
+                payload, existing
+            ),
         }
         self._repository.save_configuration_profile(
             session_name=payload.session_name,

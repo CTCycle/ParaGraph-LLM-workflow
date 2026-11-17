@@ -379,6 +379,7 @@ def test_execution_request_id_correlates_response_run_and_events(
     assert events_payload["request_id"] == request_id
     assert {event["request_id"] for event in events_payload["events"]} == {request_id}
 
+
 # Fragmentation workflow routes
 
 
@@ -511,6 +512,7 @@ def test_execute_fragmentation_pipeline_returns_serialization_artifact(
     assert any(
         "Apples are crisp" in path.read_text(encoding="utf-8") for path in written_files
     )
+
 
 # Workflow routes
 
@@ -1356,6 +1358,7 @@ def test_execute_structured_node_emits_json_output_payload(
     assert run_payload["outputs"] == {
         "output_1": {"json": {"name": "Ada"}, "name": "Ada"}
     }
+
 
 # Workflow template routes
 

@@ -23,7 +23,6 @@ from server.repositories.schemas import (
 
 ###############################################################################
 class ConfigurationRepository:
-
     # -------------------------------------------------------------------------
     def __init__(self, database_repository: SQLiteRepository | None = None) -> None:
         self._database_repository = database_repository

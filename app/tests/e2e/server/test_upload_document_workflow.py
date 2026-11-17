@@ -18,7 +18,11 @@ def test_browser_uploaded_documents_complete_local_chunking_workflow(
         files=[
             (
                 "files",
-                ("dataset/readme.txt", b"Apples are crisp. Bananas are soft.", "text/plain"),
+                (
+                    "dataset/readme.txt",
+                    b"Apples are crisp. Bananas are soft.",
+                    "text/plain",
+                ),
             ),
             (
                 "files",
@@ -141,9 +145,10 @@ def test_browser_uploaded_documents_complete_local_chunking_workflow(
         steps = {step["node_id"]: step for step in run["steps"]}
         documents = steps["load_1"]["output"]["ports"]["documents"]
         assert len(documents) == 2
-        assert {
-            document["metadata"]["relative_path"] for document in documents
-        } == {"dataset/readme.txt", "dataset/nested/notes.md"}
+        assert {document["metadata"]["relative_path"] for document in documents} == {
+            "dataset/readme.txt",
+            "dataset/nested/notes.md",
+        }
         assert all(Path(document["source_uri"]).is_file() for document in documents)
 
         extracted = steps["extract_1"]["output"]["ports"]["documents"]

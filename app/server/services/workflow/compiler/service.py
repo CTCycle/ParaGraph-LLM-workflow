@@ -42,7 +42,6 @@ def _binding_sort_key(connection: WorkflowConnection) -> tuple[str, str, str]:
 
 ###############################################################################
 class CompilerService:
-
     # -------------------------------------------------------------------------
     def _active_definition(
         self, definition: WorkflowDefinition

@@ -190,7 +190,9 @@ def test_application_settings_are_not_read_from_legacy_json_or_environment(
     )
     monkeypatch.setenv("DATABASE_INSERT_BATCH_SIZE", "37")
 
-    runtime = ConfigurationRuntime(environment_loader=EnvironmentLoader(tmp_path / ".env"))
+    runtime = ConfigurationRuntime(
+        environment_loader=EnvironmentLoader(tmp_path / ".env")
+    )
     settings = runtime.get_server_settings()
 
     assert settings.database.insert_batch_size == 1000

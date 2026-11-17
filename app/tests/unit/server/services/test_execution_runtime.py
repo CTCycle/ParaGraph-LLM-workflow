@@ -4,12 +4,31 @@ import time
 from collections.abc import Callable
 from typing import Any
 from server.services.jobs import job_manager
-from server.contracts.workflow_model import WorkflowConnection, WorkflowDefinition, WorkflowNodeInstance
+from server.contracts.workflow_model import (
+    WorkflowConnection,
+    WorkflowDefinition,
+    WorkflowNodeInstance,
+)
 from server.services.workflow.compiler.service import compiler_service
 import pytest
-from server.services.workflow.node_handlers.control import _cache_node_executor, _human_review_gate_executor, _if_text_contains_executor, _reduce_chunks_executor, _trace_debug_viewer_executor
-from server.contracts.execution import CompiledExecutionPlan, ExecutionBinding, ExecutionRunState, ExecutionStepPlan, ExecutionStepState
-from server.repositories.workflow.execution_run import ExecutionRunRepository, execution_run_repository
+from server.services.workflow.node_handlers.control import (
+    _cache_node_executor,
+    _human_review_gate_executor,
+    _if_text_contains_executor,
+    _reduce_chunks_executor,
+    _trace_debug_viewer_executor,
+)
+from server.contracts.execution import (
+    CompiledExecutionPlan,
+    ExecutionBinding,
+    ExecutionRunState,
+    ExecutionStepPlan,
+    ExecutionStepState,
+)
+from server.repositories.workflow.execution_run import (
+    ExecutionRunRepository,
+    execution_run_repository,
+)
 from server.services.workflow.execution import execution_service
 from server.services.workflow.nodes import node_registry
 from datetime import datetime, timedelta, timezone
@@ -21,7 +40,6 @@ from concurrent.futures import ThreadPoolExecutor
 
 ###############################################################################
 class RecordingJobRunner:
-
     # -------------------------------------------------------------------------
     def __init__(self) -> None:
         self.observed: dict[str, str] = {}
@@ -72,6 +90,7 @@ def test_cancel_job_marks_running_job_cancelled(
 ###############################################################################
 def test_cancel_job_returns_false_for_unknown_job() -> None:
     assert job_manager.cancel_job("missing-job") is False
+
 
 # Compiler graph diagnostics
 
@@ -397,6 +416,7 @@ def test_chat_with_multiple_reachable_terminal_outputs_is_a_blocking_diagnostic(
     assert valid is False
     assert "chat_terminal_output_count" in codes
 
+
 # Control nodes
 
 
@@ -593,6 +613,7 @@ def test_human_review_pause_survives_reload_and_injects_reviewed_payload(
     with pytest.raises(ValueError, match="not paused or resume token is invalid"):
         execution_service.resume("review-run", token, {"approved": True})
 
+
 # Execution durability
 
 
@@ -650,7 +671,10 @@ def test_run_steps_and_events_survive_repository_reinstantiation() -> None:
 ###############################################################################
 def test_list_recoverable_batches_run_and_step_loading(monkeypatch) -> None:
     plan = _plan()
-    for run_id, status in (("recoverable-queued", "queued"), ("recoverable-running", "running")):
+    for run_id, status in (
+        ("recoverable-queued", "queued"),
+        ("recoverable-running", "running"),
+    ):
         execution_run_repository.create_run(
             ExecutionRunState(
                 run_id=run_id,
@@ -819,6 +843,7 @@ def test_cancel_before_start_and_retention_cleanup() -> None:
     assert removed == 1
     assert execution_run_repository.get_run("cancel-run") is None
 
+
 # Execution events
 
 
@@ -983,7 +1008,9 @@ def test_live_event_delivery_keeps_sequence_order_for_concurrent_publishers() ->
         published = list(executor.map(publish, range(32)))
 
     delivered = [subscriber.get_nowait().sequence for _ in published]
-    assert delivered == [event.sequence for event in sorted(published, key=lambda item: item.sequence)]
+    assert delivered == [
+        event.sequence for event in sorted(published, key=lambda item: item.sequence)
+    ]
 
 
 ###############################################################################
@@ -1019,12 +1046,8 @@ def test_live_subscriber_queue_marks_overflow_for_replay_recovery() -> None:
     _create_event_run("run-overflow")
     service = EventService(max_subscriber_queue_size=1)
     subscriber = service.subscribe("run-overflow")
-    service.publish(
-        run_id="run-overflow", event_type="execution.queued", payload={}
-    )
-    service.publish(
-        run_id="run-overflow", event_type="execution.started", payload={}
-    )
+    service.publish(run_id="run-overflow", event_type="execution.queued", payload={})
+    service.publish(run_id="run-overflow", event_type="execution.started", payload={})
 
     assert subscriber.overflowed is True
     assert subscriber.qsize() == 1
@@ -1229,6 +1252,7 @@ def test_execution_service_uses_json_field_as_prompt_template_variable(
     )
 
     assert result == {"outputs": {"output_1": {"text": "hello"}}}
+
 
 # Execution security
 

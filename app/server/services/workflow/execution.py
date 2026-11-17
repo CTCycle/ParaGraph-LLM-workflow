@@ -513,9 +513,7 @@ class ExecutionService:
             attempt_active = threading.Event()
             attempt_active.set()
             deadline = (
-                monotonic() + (step.timeout_ms / 1000)
-                if step.timeout_ms
-                else None
+                monotonic() + (step.timeout_ms / 1000) if step.timeout_ms else None
             )
             local_kwargs["attempt_active"] = attempt_active
             local_kwargs["deadline_monotonic"] = deadline
@@ -688,9 +686,7 @@ class ExecutionService:
         result = self._extract_terminal_output(
             step.node_type, resolved_inputs, port_outputs
         )
-        if result is not None and (
-            attempt_active is None or attempt_active.is_set()
-        ):
+        if result is not None and (attempt_active is None or attempt_active.is_set()):
             output_payload[step.node_id] = result
             job_manager.update_result(job_id, {"outputs": dict(output_payload)})
         return self._redact_output_state(

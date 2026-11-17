@@ -64,7 +64,6 @@ def _execute_plugin_manifest(
 
 ###############################################################################
 class NodeRegistry:
-
     # -------------------------------------------------------------------------
     def __init__(
         self, manifest_repository: NodeManifestRepository | None = None
